@@ -40,20 +40,12 @@ function openPrintableReport(title: string, rows: Record<string, unknown>[]) {
     <html>
       <head>
         <title>${escapeHtml(title)}</title>
-        <style>
-          body { font-family: Arial, sans-serif; color: #1c1917; margin: 24px; }
-          h1 { font-size: 22px; margin: 0 0 6px; }
-          p { color: #57534e; margin: 0 0 18px; }
-          table { border-collapse: collapse; width: 100%; font-size: 11px; }
-          th, td { border: 1px solid #d6d3d1; padding: 6px 8px; text-align: left; vertical-align: top; }
-          th { background: #f5f5f4; }
-          @media print { body { margin: 12mm; } }
-        </style>
+        <link rel="stylesheet" href="/globals.css">
       </head>
-      <body>
-        <h1>${escapeHtml(title)}</h1>
-        <p>SRI NARAYANA HIGH SCHOOL · Generated ${new Date().toLocaleString()}</p>
-        <table>
+      <body class="print-report-body">
+        <h1 class="print-report-title">${escapeHtml(title)}</h1>
+        <p class="print-report-meta">SRI NARAYANA HIGH SCHOOL · Generated ${new Date().toLocaleString()}</p>
+        <table class="print-report-table">
           <thead><tr>${columns.map((column) => `<th>${escapeHtml(column)}</th>`).join("")}</tr></thead>
           <tbody>${tableRows}</tbody>
         </table>
