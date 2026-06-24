@@ -1,0 +1,19 @@
+{
+  "name": "essl-bridge",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Reads punches from an eSSL/ZKTeco biometric device over LAN (TCP 4370) and forwards them to the attendance app's /api/biometric/log endpoint.",
+  "scripts": {
+    "sync": "node sync.mjs",
+    "sync:loop": "node sync.mjs --loop",
+    "listen": "node sync.mjs --listen",
+    "test-connection": "node sync.mjs --test"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "node-zklib": "^1.2.4"
+  }
+}

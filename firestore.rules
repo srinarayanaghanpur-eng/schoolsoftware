@@ -1,0 +1,162 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return signedIn() && (
+        request.auth.token.role == "admin" ||
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin"
+      );
+    }
+
+    function userDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isActiveTeacher() {
+      return signedIn() && userDoc().role == "teacher" && userDoc().status == "active";
+    }
+
+    function isOwnTeacherProfile() {
+      return isActiveTeacher() && resource.data.uid == request.auth.uid;
+    }
+
+    function isOwnTeacherId(teacherId) {
+      return isActiveTeacher() && userDoc().teacherId == teacherId;
+    }
+
+    match /users/{uid} {
+      allow read: if isAdmin() || (signedIn() && request.auth.uid == uid);
+      allow write: if isAdmin();
+    }
+
+    match /teachers/{teacherId} {
+      allow read: if isAdmin() || isOwnTeacherProfile();
+      allow write: if isAdmin();
+    }
+
+    match /attendance/{attendanceId} {
+      allow read: if isAdmin() || isOwnTeacherId(resource.data.teacherId);
+      allow create: if isAdmin() ||
+        (
+          signedIn() &&
+          isOwnTeacherId(request.resource.data.teacherId) &&
+          request.resource.data.source == "mobile" &&
+          request.resource.data.adminEdited == false
+        );
+      allow update, delete: if isAdmin();
+    }
+
+    match /attendance_logs/{logId} {
+      allow read: if isAdmin() || isOwnTeacherId(resource.data.teacherId);
+      allow create: if isAdmin() ||
+        (
+          signedIn() &&
+          isOwnTeacherId(request.resource.data.teacherId) &&
+          request.resource.data.source == "mobile"
+        );
+      allow update, delete: if isAdmin();
+    }
+
+    match /biometric_logs/{logId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /salary_reports/{reportId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /password_reset_requests/{requestId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /password_reset_history/{historyId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /leave_requests/{requestId} {
+      allow read: if isAdmin() || isOwnTeacherId(resource.data.teacherId);
+      allow create: if isAdmin() || isOwnTeacherId(request.resource.data.teacherId);
+      allow update, delete: if isAdmin();
+    }
+
+    match /attendance_edit_audit_logs/{auditId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /admin_notifications/{notificationId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /holidays/{holidayId} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    match /settings/{settingsId} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    match /backup_audit_logs/{logId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /admin_audit_logs/{logId} {
+      allow read, write: if isAdmin();
+    }
+
+    // Fee Concession Management Rules
+    function isAccountant() {
+      return signedIn() && userDoc().role == "accountant";
+    }
+
+    function isPrincipal() {
+      return signedIn() && userDoc().role == "principal";
+    }
+
+    // Concessions collection
+    match /concessions/{concessionId} {
+      allow read: if isAdmin() || isAccountant() || isPrincipal();
+      allow create: if isAdmin();
+      allow update: if isAdmin() || (isPrincipal() && request.resource.data.status != resource.data.status);
+      allow delete: if isAdmin();
+    }
+
+    // Fee Structures collection
+    match /feeStructures/{structureId} {
+      allow read: if isAdmin() || isAccountant() || isPrincipal();
+      allow write: if isAdmin();
+    }
+
+    // Payments collection
+    match /payments/{paymentId} {
+      allow read: if isAdmin() || isAccountant() || isPrincipal();
+      allow create: if isAdmin() || isAccountant();
+      allow update: if isAdmin() || (isAccountant() && request.resource.data.status == resource.data.status);
+      allow delete: if isAdmin();
+    }
+
+    // Receipts collection
+    match /receipts/{receiptId} {
+      allow read: if isAdmin() || isAccountant() || isPrincipal();
+      allow create: if isAdmin() || isAccountant();
+      allow update: if isAdmin() || (isAccountant() && request.resource.data.status == 'draft');
+      allow delete: if isAdmin();
+    }
+
+    // Audit logs for fee operations
+    match /feeAuditLogs/{auditId} {
+      allow read: if isAdmin();
+      allow write: if isAdmin();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

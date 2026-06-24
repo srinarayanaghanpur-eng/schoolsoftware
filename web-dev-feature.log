@@ -1,0 +1,96 @@
+
+> dev
+> cross-env NEXT_IGNORE_INCORRECT_LOCKFILE=1 next dev --port 3000
+
+  ▲ Next.js 14.2.35
+  - Local:        http://localhost:3000
+  - Environments: .env.local
+
+ ✓ Starting...
+ ✓ Ready in 3.4s
+ ○ Compiling /login ...
+ ✓ Compiled /login in 21.9s (995 modules)
+ GET /login? 200 in 23263ms
+ ○ Compiling /icon.png ...
+ ✓ Compiled /icon.png in 6.3s (723 modules)
+ GET /icon.png?5bc9aaaa0a62e978 200 in 6487ms
+ GET /icon.png?5bc9aaaa0a62e978 200 in 36ms
+ GET /login 200 in 717ms
+ ○ Compiling /forgot-password ...
+ ✓ Compiled /forgot-password in 2.2s (1082 modules)
+ GET /forgot-password?loginId=EMP001&requestId=test-request 200 in 2663ms
+ ○ Compiling /admin/notifications ...
+ ✓ Compiled /admin/notifications in 1874ms (1125 modules)
+ GET /admin/notifications 200 in 2329ms
+ ✓ Compiled in 3.7s (1076 modules)
+ ○ Compiling /api/login-id/check ...
+ ✓ Compiled /api/login-id/check in 1038ms (758 modules)
+ GET /api/login-id/check?loginId=A 200 in 7243ms
+ GET /api/login-id/check?loginId=AD 200 in 340ms
+ GET /api/login-id/check?loginId=ADM 200 in 290ms
+ GET /api/login-id/check?loginId=ADMI 200 in 241ms
+ GET /api/login-id/check?loginId=TCH 200 in 245ms
+ GET /api/login-id/check?loginId=TCH0 200 in 27ms
+ GET /api/login-id/check?loginId=TCH00 200 in 253ms
+ GET /api/login-id/check?loginId=TCH001 200 in 256ms
+ GET /api/login-id/check?loginId=TCH0010 200 in 265ms
+ GET /api/login-id/check?loginId=TCH001 200 in 246ms
+ GET /api/login-id/check?loginId=A 200 in 24ms
+ GET /api/login-id/check?loginId=ADM 200 in 132ms
+ GET /api/login-id/check?loginId=ADMN 200 in 235ms
+ ✓ Compiled in 910ms (1095 modules)
+ ○ Compiling /admin/dashboard ...
+ ✓ Compiled /admin/dashboard in 2.7s (1095 modules)
+ ✓ Compiled in 13.9s (2218 modules)
+ ○ Compiling /admin/teachers ...
+ ✓ Compiled /admin/teachers in 1326ms (2239 modules)
+ ○ Compiling /api/admin/teachers ...
+ ✓ Compiled /api/admin/teachers in 642ms (1365 modules)
+ ○ Compiling /admin/notifications ...
+ ✓ Compiled /admin/notifications in 580ms (1373 modules)
+ GET /api/admin/teachers 200 in 1481ms
+ GET /api/admin/teachers 200 in 205ms
+ ○ Compiling /api/admin/notifications ...
+ ✓ Compiled /api/admin/notifications in 546ms (1376 modules)
+ GET /api/admin/notifications 200 in 773ms
+ ○ Compiling /admin/attendance ...
+ ✓ Compiled /admin/attendance in 1538ms (2269 modules)
+ GET /api/admin/notifications 200 in 1809ms
+ ○ Compiling /api/admin/attendance ...
+ ✓ Compiled /api/admin/attendance in 618ms (1385 modules)
+ GET /api/admin/attendance 200 in 893ms
+ GET /api/admin/attendance 200 in 140ms
+ ○ Compiling /admin/calendar ...
+ ✓ Compiled /admin/calendar in 751ms (2275 modules)
+ ○ Compiling /admin/salary ...
+ ✓ Compiled /admin/salary in 2.7s (2279 modules)
+ ○ Compiling /admin/reports ...
+ ✓ Compiled /admin/reports in 773ms (2292 modules)
+ GET /api/admin/teachers 200 in 133ms
+ GET /api/admin/teachers 200 in 142ms
+ ✓ Compiled in 624ms (904 modules)
+ ✓ Compiled in 592ms (904 modules)
+ POST /api/admin/teachers 400 in 29ms
+ ✓ Compiled in 566ms (904 modules)
+ POST /api/admin/teachers 400 in 33ms
+ ✓ Compiled in 430ms (904 modules)
+ POST /api/admin/teachers 200 in 2739ms
+ GET /api/admin/teachers 200 in 160ms
+ GET /api/admin/attendance 200 in 179ms
+ GET /api/admin/attendance 200 in 186ms
+ GET /api/admin/attendance 200 in 203ms
+ ○ Compiling /_not-found ...
+ ✓ Compiled /_not-found in 1344ms (1729 modules)
+ GET /admin/salary 200 in 1644ms
+ GET /_next/static/css/app/layout.css?v=1779330887441 404 in 160ms
+ GET /_next/static/chunks/main-app.js?v=1779330887441 404 in 129ms
+ GET /_next/static/chunks/app-pages-internals.js 404 in 127ms
+ GET /_next/static/chunks/app/admin/layout.js 404 in 126ms
+ GET /admin/salary 200 in 93ms
+ GET /_next/static/css/app/layout.css?v=1779330906110 404 in 119ms
+ GET /_next/static/chunks/main-app.js?v=1779330906110 404 in 169ms
+ GET /_next/static/chunks/app-pages-internals.js 404 in 166ms
+ GET /_next/static/chunks/app/admin/layout.js 404 in 165ms
+ ○ Compiling /icon.png ...
+ ✓ Compiled /icon.png in 1606ms (866 modules)
+ GET /icon.png?5bc9aaaa0a62e978 200 in 1873ms

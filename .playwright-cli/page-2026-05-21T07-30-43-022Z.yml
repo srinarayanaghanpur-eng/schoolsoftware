@@ -1,0 +1,14 @@
+- main [ref=e2]:
+  - generic [ref=e5]:
+    - complementary [ref=e6]:
+      - img "SRI NARAYANA HIGH SCHOOL logo" [ref=e8]
+      - heading "SRI NARAYANA HIGH SCHOOL" [level=1] [ref=e9]
+      - paragraph [ref=e10]: Teacher ERP System
+      - generic [ref=e11]:
+        - generic [ref=e12]: Attendance
+        - generic [ref=e13]: Salary
+        - generic [ref=e14]: Staff
+        - generic [ref=e15]: Secure
+    - generic [ref=e18]:
+      - heading "Welcome back!" [level=2] [ref=e20]
+      - paragraph [ref=e21]: Login to your account

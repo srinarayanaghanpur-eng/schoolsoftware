@@ -1,0 +1,66 @@
+- generic [active] [ref=e1]:
+  - alert [ref=e2]
+  - generic [ref=e3]:
+    - complementary [ref=e4]:
+      - heading "SRI NARAYANA HIGH SCHOOL" [level=1] [ref=e7]
+      - navigation [ref=e8]:
+        - link "Dashboard" [ref=e9] [cursor=pointer]:
+          - /url: /admin/dashboard
+          - img [ref=e10]
+          - text: Dashboard
+        - link "Notifications" [ref=e13] [cursor=pointer]:
+          - /url: /admin/notifications
+          - img [ref=e14]
+          - text: Notifications
+        - link "Teachers" [ref=e17] [cursor=pointer]:
+          - /url: /admin/teachers
+          - img [ref=e18]
+          - text: Teachers
+        - link "Attendance" [ref=e23] [cursor=pointer]:
+          - /url: /admin/attendance
+          - img [ref=e24]
+          - text: Attendance
+        - link "Calendar" [ref=e26] [cursor=pointer]:
+          - /url: /admin/calendar
+          - img [ref=e27]
+          - text: Calendar
+        - link "Salary" [ref=e29] [cursor=pointer]:
+          - /url: /admin/salary
+          - img [ref=e30]
+          - text: Salary
+        - link "Reports" [ref=e32] [cursor=pointer]:
+          - /url: /admin/reports
+          - img [ref=e33]
+          - text: Reports
+        - link "Backup" [ref=e35] [cursor=pointer]:
+          - /url: /admin/backup
+          - img [ref=e36]
+          - text: Backup
+        - link "Holidays" [ref=e42] [cursor=pointer]:
+          - /url: /admin/holidays
+          - img [ref=e43]
+          - text: Holidays
+        - link "Settings" [ref=e46] [cursor=pointer]:
+          - /url: /admin/settings
+          - img [ref=e47]
+          - text: Settings
+        - link "Biometric" [ref=e50] [cursor=pointer]:
+          - /url: /admin/biometric
+          - img [ref=e51]
+          - text: Biometric
+      - button "Sign out" [ref=e60] [cursor=pointer]:
+        - img [ref=e61]
+        - text: Sign out
+    - main [ref=e64]:
+      - generic [ref=e65]:
+        - generic [ref=e66]:
+          - heading "Holidays" [level=1] [ref=e67]
+          - paragraph [ref=e68]: Manage paid school holidays used by attendance and salary.
+        - button "Add holiday" [ref=e69] [cursor=pointer]:
+          - img [ref=e70]
+          - text: Add holiday
+      - generic [ref=e73]:
+        - generic [ref=e74]:
+          - paragraph [ref=e75]: May Day
+          - paragraph [ref=e76]: 2026-05-01
+        - generic [ref=e77]: public

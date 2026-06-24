@@ -1,0 +1,281 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body {
+  height: 100%;
+  background: #f5f7ff;
+  color: #0f172a;
+  font-family: "Poppins", "Inter", "Segoe UI", sans-serif;
+}
+
+@keyframes erp-float-slow {
+  0%, 100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(18px, -22px, 0) scale(1.05);
+  }
+}
+
+@keyframes erp-float-medium {
+  0%, 100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(-14px, 18px, 0) scale(1.04);
+  }
+}
+
+@keyframes erp-logo-float {
+  0%, 100% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+  50% {
+    transform: translate3d(0, -8px, 0) rotate(1.2deg);
+  }
+}
+
+@keyframes erp-logo-aura {
+  0%, 100% {
+    opacity: 0.46;
+    transform: scale(0.96);
+  }
+  50% {
+    opacity: 0.82;
+    transform: scale(1.08);
+  }
+}
+
+@keyframes erp-logo-shine {
+  0% {
+    transform: translateX(-145%) rotate(20deg);
+  }
+  48%, 100% {
+    transform: translateX(145%) rotate(20deg);
+  }
+}
+
+.school-logo-badge {
+  isolation: isolate;
+  position: relative;
+  overflow: hidden;
+  border-radius: 9999px;
+}
+
+.school-logo-badge::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: 9999px;
+  background: radial-gradient(circle, rgba(255,255,255,0.56), rgba(147,197,253,0.18) 46%, rgba(79,70,229,0) 74%);
+  animation: erp-logo-aura 4.8s ease-in-out infinite;
+}
+
+.school-logo-badge::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.78), transparent);
+  mix-blend-mode: screen;
+  pointer-events: none;
+  animation: erp-logo-shine 4.2s ease-in-out infinite;
+}
+
+.school-logo-image {
+  filter: drop-shadow(0 8px 14px rgba(30, 64, 175, 0.22));
+}
+
+.animate-float-slow {
+  animation: erp-float-slow 8s ease-in-out infinite;
+}
+
+.animate-float-medium {
+  animation: erp-float-medium 6.5s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-float-slow,
+  .animate-float-medium,
+  .school-logo-badge,
+  .school-logo-badge::before,
+  .school-logo-badge::after {
+    animation: none;
+  }
+}
+
+@keyframes erp-fade-up {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 14px, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes erp-fade-in {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes erp-shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes erp-bar-rise {
+  0% {
+    opacity: 0;
+    transform: scaleY(0.18);
+  }
+  100% {
+    opacity: 1;
+    transform: scaleY(1);
+  }
+}
+
+@keyframes erp-soft-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(71, 72, 169, 0.16);
+  }
+  50% {
+    box-shadow: 0 0 0 10px rgba(71, 72, 169, 0);
+  }
+}
+
+.animate-fade-up {
+  opacity: 0;
+  animation: erp-fade-up 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.animate-fade-in {
+  animation: erp-fade-in 0.4s ease forwards;
+}
+
+.dashboard-animate {
+  opacity: 0;
+  animation: erp-fade-up 0.52s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.dashboard-bar {
+  transform-origin: bottom;
+  animation: erp-bar-rise 0.72s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.dashboard-pulse {
+  animation: erp-soft-pulse 2.6s ease-in-out 3;
+}
+
+/* Unified page entrance — applied to the content region of every role/page */
+.page-enter {
+  opacity: 0;
+  animation: erp-fade-up 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* Auto-stagger direct children of any container marked .stagger-children */
+.stagger-children > * {
+  opacity: 0;
+  animation: erp-fade-up 0.46s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+.stagger-children > *:nth-child(1) { animation-delay: 0.03s; }
+.stagger-children > *:nth-child(2) { animation-delay: 0.08s; }
+.stagger-children > *:nth-child(3) { animation-delay: 0.13s; }
+.stagger-children > *:nth-child(4) { animation-delay: 0.18s; }
+.stagger-children > *:nth-child(5) { animation-delay: 0.23s; }
+.stagger-children > *:nth-child(6) { animation-delay: 0.28s; }
+.stagger-children > *:nth-child(7) { animation-delay: 0.33s; }
+.stagger-children > *:nth-child(8) { animation-delay: 0.38s; }
+.stagger-children > *:nth-child(n+9) { animation-delay: 0.42s; }
+
+/* Stagger helpers for grids/lists */
+.stagger > * {
+  opacity: 0;
+  animation: erp-fade-up 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+.stagger > *:nth-child(1) { animation-delay: 0.04s; }
+.stagger > *:nth-child(2) { animation-delay: 0.08s; }
+.stagger > *:nth-child(3) { animation-delay: 0.12s; }
+.stagger > *:nth-child(4) { animation-delay: 0.16s; }
+.stagger > *:nth-child(5) { animation-delay: 0.20s; }
+.stagger > *:nth-child(6) { animation-delay: 0.24s; }
+.stagger > *:nth-child(7) { animation-delay: 0.28s; }
+.stagger > *:nth-child(8) { animation-delay: 0.32s; }
+.stagger > *:nth-child(9) { animation-delay: 0.36s; }
+.stagger > *:nth-child(10) { animation-delay: 0.40s; }
+
+/* Attendance calendar — staggered cell pop-in + detail panel reveal */
+@keyframes erp-cal-pop {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 8px, 0) scale(0.965);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes erp-cal-reveal {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 12px, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.cal-cell {
+  opacity: 0;
+  animation: erp-cal-pop 0.42s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.cal-detail {
+  animation: erp-cal-reveal 0.34s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-up,
+  .animate-fade-in,
+  .dashboard-animate,
+  .dashboard-bar,
+  .dashboard-pulse,
+  .page-enter,
+  .stagger-children > *,
+  .stagger > *,
+  .cal-cell,
+  .cal-detail {
+    animation: none;
+    opacity: 1;
+  }
+}
+
+.card {
+  @apply rounded-lg bg-white shadow-sm ring-1 ring-stone-200;
+}
+
+.field {
+  @apply w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100;
+}
+
+.btn-primary {
+  @apply inline-flex items-center justify-center gap-2 rounded-md bg-emerald-700 px-3 py-2 text-sm font-medium text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60;
+}
+
+.btn-secondary {
+  @apply inline-flex items-center justify-center gap-2 rounded-md border border-stone-300 bg-white px-3 py-2 text-sm font-medium text-stone-700 transition hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-60;
+}

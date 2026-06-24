@@ -1,0 +1,93 @@
+- generic [active] [ref=e1]:
+  - alert [ref=e3]
+  - generic [ref=e4]:
+    - complementary [ref=e5]:
+      - heading "SRI NARAYANA HIGH SCHOOL" [level=1] [ref=e8]
+      - navigation [ref=e9]:
+        - link "Dashboard" [ref=e10] [cursor=pointer]:
+          - /url: /admin/dashboard
+          - img [ref=e11]
+          - text: Dashboard
+        - link "Notifications" [ref=e14] [cursor=pointer]:
+          - /url: /admin/notifications
+          - img [ref=e15]
+          - text: Notifications
+        - link "Teachers" [ref=e18] [cursor=pointer]:
+          - /url: /admin/teachers
+          - img [ref=e19]
+          - text: Teachers
+        - link "Attendance" [ref=e24] [cursor=pointer]:
+          - /url: /admin/attendance
+          - img [ref=e25]
+          - text: Attendance
+        - link "Calendar" [ref=e27] [cursor=pointer]:
+          - /url: /admin/calendar
+          - img [ref=e28]
+          - text: Calendar
+        - link "Salary" [ref=e30] [cursor=pointer]:
+          - /url: /admin/salary
+          - img [ref=e31]
+          - text: Salary
+        - link "Reports" [ref=e33] [cursor=pointer]:
+          - /url: /admin/reports
+          - img [ref=e34]
+          - text: Reports
+        - link "Holidays" [ref=e36] [cursor=pointer]:
+          - /url: /admin/holidays
+          - img [ref=e37]
+          - text: Holidays
+        - link "Settings" [ref=e40] [cursor=pointer]:
+          - /url: /admin/settings
+          - img [ref=e41]
+          - text: Settings
+        - link "Biometric" [ref=e44] [cursor=pointer]:
+          - /url: /admin/biometric
+          - img [ref=e45]
+          - text: Biometric
+      - button "Sign out" [ref=e54] [cursor=pointer]:
+        - img [ref=e55]
+        - text: Sign out
+    - main [ref=e58]:
+      - generic [ref=e60]:
+        - heading "Reports" [level=1] [ref=e61]
+        - paragraph [ref=e62]: Download Excel reports or open printable PDF reports for attendance, salary, and biometric logs.
+      - generic [ref=e63]:
+        - generic [ref=e107]: Unexpected token '<', "<!DOCTYPE "... is not valid JSON
+        - generic [ref=e64]:
+          - textbox [ref=e65]: 2026-05-21
+          - textbox [ref=e66]: 2026-05
+          - combobox [ref=e67]:
+            - option "All teachers" [selected]
+          - combobox [ref=e68]:
+            - option "All subjects" [selected]
+          - combobox [ref=e69]:
+            - option "All statuses" [selected]
+        - generic [ref=e70]:
+          - generic [ref=e71]:
+            - paragraph [ref=e72]: 1 attendance rows, 2 salary rows
+            - button "Refresh" [ref=e73] [cursor=pointer]
+          - generic [ref=e74]:
+            - button "Daily" [ref=e75] [cursor=pointer]:
+              - img [ref=e76]
+              - text: Daily
+            - button "Daily PDF" [ref=e79] [cursor=pointer]:
+              - img [ref=e80]
+              - text: Daily PDF
+            - button "Monthly" [ref=e83] [cursor=pointer]:
+              - img [ref=e84]
+              - text: Monthly
+            - button "Monthly PDF" [ref=e87] [cursor=pointer]:
+              - img [ref=e88]
+              - text: Monthly PDF
+            - button "Salary" [ref=e91] [cursor=pointer]:
+              - img [ref=e92]
+              - text: Salary
+            - button "Salary PDF" [ref=e95] [cursor=pointer]:
+              - img [ref=e96]
+              - text: Salary PDF
+            - button "Biometric" [ref=e99] [cursor=pointer]:
+              - img [ref=e100]
+              - text: Biometric
+            - button "Biometric PDF" [ref=e103] [cursor=pointer]:
+              - img [ref=e104]
+              - text: Biometric PDF

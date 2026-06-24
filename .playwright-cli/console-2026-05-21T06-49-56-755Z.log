@@ -1,0 +1,40 @@
+[   59485ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3002/login:0
+[   70064ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ webpack-internal:///../../node_modules/react-dom/cjs/react-dom.development.js:29889
+[   70390ms] Error: Cannot find module 'C:\Users\HP\OneDrive\Desktop\ATTENDANCE\apps\web\.next\server\middleware-manifest.json'
+Require stack:
+- C:\Users\HP\OneDrive\Desktop\ATTENDANCE\node_modules\next\dist\server\next-server.js
+- C:\Users\HP\OneDrive\Desktop\ATTENDANCE\node_modules\next\dist\server\dev\next-dev-server.js
+- C:\Users\HP\OneDrive\Desktop\ATTENDANCE\node_modules\next\dist\server\next.js
+- C:\Users\HP\OneDrive\Desktop\ATTENDANCE\node_modules\next\dist\server\lib\start-server.js
+    at Function.<anonymous> (node:internal/modules/cjs/loader:1430:15)
+    at <unknown> (file://C:\Users\HP\OneDrive\Desktop\ATTENDANCE\node_modules\next\dist\server\require-hook.js:55:36)
+    at defaultResolveImpl (node:internal/modules/cjs/loader:1040:19)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1045:22)
+    at Function._load (node:internal/modules/cjs/loader:1216:25)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:254:19)
+    at Module.<anonymous> (node:internal/modules/cjs/loader:1527:12)
+    at mod.require (file://C:\Users\HP\OneDrive\Desktop\ATTENDANCE\node_modules\next\dist\server\require-hook.js:65:28)
+    at require (node:internal/modules/helpers:147:16)
+    at DevServer.getMiddlewareManifest (file://C:\Users\HP\OneDrive\Desktop\ATTENDANCE\node_modules\next\dist\server\next-server.js:938:26)
+    at DevServer.getEdgeFunctionsPages (file://C:\Users\HP\OneDrive\Desktop\ATTENDANCE\node_modules\next\dist\server\next-server.js:954:31)
+    at NextNodeServer.handleCatchallRenderRequest (file://C:\Users\HP\OneDrive\Desktop\ATTENDANCE\node_modules\next\dist\server\next-server.js:238:49)
+    at async DevServer.handleRequestImpl (file://C:\Users\HP\OneDrive\Desktop\ATTENDANCE\node_modules\next\dist\server\base-server.js:818:17)
+    at async (file://C:\Users\HP\OneDrive\Desktop\ATTENDANCE\node_modules\next\dist\server\dev\next-dev-server.js:339:20)
+    at async Span.traceAsyncFn (file://C:\Users\HP\OneDrive\Desktop\ATTENDANCE\node_modules\next\dist\trace\trace.js:154:20)
+    at async DevServer.handleRequest (file://C:\Users\HP\OneDrive\Desktop\ATTENDANCE\node_modules\next\dist\server\dev\next-dev-server.js:336:24)
+    at async invokeRender (file://C:\Users\HP\OneDrive\Desktop\ATTENDANCE\node_modules\next\dist\server\lib\router-server.js:179:21)
+    at async handleRequest (file://C:\Users\HP\OneDrive\Desktop\ATTENDANCE\node_modules\next\dist\server\lib\router-server.js:359:24)
+    at async requestHandlerImpl (file://C:\Users\HP\OneDrive\Desktop\ATTENDANCE\node_modules\next\dist\server\lib\router-server.js:383:13)
+    at async Server.requestListener (file://C:\Users\HP\OneDrive\Desktop\ATTENDANCE\node_modules\next\dist\server\lib\start-server.js:141:13)
+[   70395ms] [LOG] [HMR] connected @ webpack-internal:///../../node_modules/next/dist/client/components/react-dev-overlay/pages/websocket.js:38
+[   70569ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3002/favicon.ico:0
+[  137074ms] [ERROR] WebSocket connection to 'ws://localhost:3002/_next/webpack-hmr' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ webpack-internal:///../../node_modules/next/dist/client/components/react-dev-overlay/pages/websocket.js:63
+[  140421ms] [ERROR] WebSocket connection to 'ws://localhost:3002/_next/webpack-hmr' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ webpack-internal:///../../node_modules/next/dist/client/components/react-dev-overlay/pages/websocket.js:63
+[  143781ms] [ERROR] WebSocket connection to 'ws://localhost:3002/_next/webpack-hmr' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ webpack-internal:///../../node_modules/next/dist/client/components/react-dev-overlay/pages/websocket.js:63
+[  147120ms] [ERROR] WebSocket connection to 'ws://localhost:3002/_next/webpack-hmr' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ webpack-internal:///../../node_modules/next/dist/client/components/react-dev-overlay/pages/websocket.js:63
+[  150487ms] [ERROR] WebSocket connection to 'ws://localhost:3002/_next/webpack-hmr' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ webpack-internal:///../../node_modules/next/dist/client/components/react-dev-overlay/pages/websocket.js:63
+[  157838ms] [ERROR] WebSocket connection to 'ws://localhost:3002/_next/webpack-hmr' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ webpack-internal:///../../node_modules/next/dist/client/components/react-dev-overlay/pages/websocket.js:63
+[  165195ms] [ERROR] WebSocket connection to 'ws://localhost:3002/_next/webpack-hmr' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ webpack-internal:///../../node_modules/next/dist/client/components/react-dev-overlay/pages/websocket.js:63
+[  172532ms] [ERROR] WebSocket connection to 'ws://localhost:3002/_next/webpack-hmr' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ webpack-internal:///../../node_modules/next/dist/client/components/react-dev-overlay/pages/websocket.js:63
+[  179886ms] [ERROR] WebSocket connection to 'ws://localhost:3002/_next/webpack-hmr' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ webpack-internal:///../../node_modules/next/dist/client/components/react-dev-overlay/pages/websocket.js:63
+[  187223ms] [ERROR] WebSocket connection to 'ws://localhost:3002/_next/webpack-hmr' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ webpack-internal:///../../node_modules/next/dist/client/components/react-dev-overlay/pages/websocket.js:63

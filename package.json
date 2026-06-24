@@ -1,0 +1,22 @@
+{
+  "name": "sri-narayana-staff-attendance-system",
+  "private": true,
+  "version": "1.0.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:web": "npm --workspace @sri-narayana/web run dev",
+    "dev:mobile": "npm --workspace @sri-narayana/mobile run start",
+    "build:web": "npm --workspace @sri-narayana/web run build",
+    "typecheck:web": "npm --workspace @sri-narayana/web run typecheck",
+    "seed": "npm --workspace @sri-narayana/shared run seed"
+  },
+  "dependencies": {
+    "@expo/config-plugins": "^55.0.9",
+    "@expo/metro-runtime": "^55.0.11",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  }
+}

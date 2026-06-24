@@ -1,0 +1,21 @@
+
+> dev
+> cross-env NEXT_IGNORE_INCORRECT_LOCKFILE=1 next dev --port 3001
+
+  ▲ Next.js 14.2.35
+  - Local:        http://localhost:3001
+  - Environments: .env.local
+
+ ✓ Starting...
+ ✓ Ready in 5.1s
+ ○ Compiling /login ...
+ ✓ Compiled /login in 15.2s (993 modules)
+ GET /login 200 in 16605ms
+ GET /login 200 in 70ms
+ ⚠ Cross origin request detected from 127.0.0.1 to /_next/* resource. In a future major version of Next.js, you will need to explicitly configure "allowedDevOrigins" in next.config to allow this.
+Read more: https://nextjs.org/docs/app/api-reference/config/next-config-js/allowedDevOrigins
+ GET /login 200 in 55ms
+ ○ Compiling /admin/teachers ...
+ ✓ Compiled /admin/teachers in 2.3s (1052 modules)
+ GET /admin/teachers 200 in 3271ms
+ GET /admin/teachers 200 in 64ms

@@ -1,0 +1,186 @@
+- main [ref=e2]:
+  - generic [ref=e5]:
+    - complementary [ref=e6]:
+      - img [ref=e8]
+      - generic [ref=e10]:
+        - generic [ref=e11]:
+          - img [ref=e13]:
+            - generic [ref=e16]: SRI NARAYANA
+            - generic [ref=e17]: SCHOOL
+          - heading "SRI NARAYANA SCHOOL" [level=1] [ref=e24]
+          - paragraph [ref=e25]: Teacher ERP System
+        - generic [ref=e27]:
+          - img [ref=e30]
+          - img [ref=e34]
+          - img [ref=e38]
+          - img [ref=e48]
+        - generic [ref=e74]:
+          - generic [ref=e75]:
+            - img [ref=e77]
+            - heading "Attendance Tracking" [level=3] [ref=e80]
+            - paragraph [ref=e81]: Track teacher and staff attendance easily
+          - generic [ref=e82]:
+            - img [ref=e84]
+            - heading "Salary Management" [level=3] [ref=e88]
+            - paragraph [ref=e89]: Manage salaries and payroll seamlessly
+          - generic [ref=e90]:
+            - img [ref=e92]
+            - heading "Staff Dashboard" [level=3] [ref=e94]
+            - paragraph [ref=e95]: Insights and reports at your fingertips
+          - generic [ref=e96]:
+            - img [ref=e98]
+            - heading "Secure & Reliable" [level=3] [ref=e101]
+            - paragraph [ref=e102]: Your data is safe and fully protected
+    - generic [ref=e180]:
+      - generic [ref=e181]:
+        - img [ref=e183]
+        - heading "Welcome back!" [level=2] [ref=e187]
+        - paragraph [ref=e188]: Login to your account
+      - generic [ref=e189]:
+        - generic [ref=e190]:
+          - img
+          - textbox [ref=e191]:
+            - /placeholder: Employee ID
+            - text: EMP001
+          - img [ref=e193]
+        - generic [ref=e195]:
+          - img
+          - textbox "Toggle password visibility" [ref=e196]:
+            - /placeholder: Password
+            - text: teachererp
+          - button "Toggle password visibility" [ref=e198] [cursor=pointer]:
+            - img [ref=e199]
+      - generic [ref=e202]:
+        - generic [ref=e203] [cursor=pointer]:
+          - checkbox "Remember me" [checked] [ref=e204]
+          - img [ref=e206]
+          - text: Remember me
+        - button "Forgot password?" [ref=e208] [cursor=pointer]
+      - button "Login" [ref=e209] [cursor=pointer]:
+        - img [ref=e210]
+        - text: Login
+      - generic [ref=e215]: or
+      - paragraph [ref=e217]:
+        - text: New user?
+        - button "Sign Up" [ref=e218] [cursor=pointer]
+  - generic [ref=e222]:
+    - article [ref=e223]:
+      - generic [ref=e224]:
+        - img [ref=e229]:
+          - generic [ref=e232]: SRI NARAYANA
+          - generic [ref=e233]: SCHOOL
+        - generic [ref=e240]:
+          - heading "SRI NARAYANA SCHOOL" [level=2] [ref=e241]
+          - paragraph [ref=e242]: Teacher ERP System
+        - img [ref=e243]
+      - generic [ref=e245]:
+        - img [ref=e247]
+        - heading "Welcome!" [level=1] [ref=e251]
+        - paragraph [ref=e252]: Manage attendance, salary and more easily
+        - generic [ref=e253]:
+          - button "Create Account" [ref=e254] [cursor=pointer]:
+            - img [ref=e255]
+            - text: Create Account
+          - button "Login" [ref=e258] [cursor=pointer]:
+            - img [ref=e259]
+            - text: Login
+        - generic [ref=e262]:
+          - img [ref=e264]
+          - generic [ref=e267]:
+            - paragraph [ref=e268]: Secure & Reliable
+            - paragraph [ref=e269]: Your data is safe with us.
+    - article [ref=e270]:
+      - generic [ref=e271]:
+        - img [ref=e276]:
+          - generic [ref=e279]: SRI NARAYANA
+          - generic [ref=e280]: SCHOOL
+        - generic [ref=e287]:
+          - heading "SRI NARAYANA SCHOOL" [level=2] [ref=e288]
+          - paragraph [ref=e289]: Teacher ERP System
+        - img [ref=e290]
+      - generic [ref=e292]:
+        - heading "Welcome back!" [level=1] [ref=e293]
+        - paragraph [ref=e294]: Login to your account
+        - generic [ref=e295]:
+          - generic [ref=e296]:
+            - img [ref=e297]
+            - generic [ref=e300]: Employee ID
+          - generic [ref=e301]:
+            - img [ref=e302]
+            - generic [ref=e306]: Password
+            - img [ref=e307]
+        - generic [ref=e311]:
+          - generic [ref=e312]:
+            - img [ref=e314]
+            - generic [ref=e316]: Remember me
+          - generic [ref=e317]: Forgot password?
+        - button "Login" [ref=e319] [cursor=pointer]:
+          - img [ref=e320]
+          - text: Login
+        - paragraph [ref=e323]: New user? Sign Up
+    - article [ref=e324]:
+      - generic [ref=e325]:
+        - img [ref=e330]:
+          - generic [ref=e333]: SRI NARAYANA
+          - generic [ref=e334]: SCHOOL
+        - generic [ref=e341]:
+          - heading "SRI NARAYANA SCHOOL" [level=2] [ref=e342]
+          - paragraph [ref=e343]: Teacher ERP System
+        - img [ref=e344]
+      - generic [ref=e346]:
+        - heading "Welcome back!" [level=1] [ref=e347]
+        - paragraph [ref=e348]: Login to your account
+        - generic [ref=e349]:
+          - generic [ref=e350]:
+            - img [ref=e351]
+            - generic [ref=e354]: EMP001
+            - img [ref=e355]
+          - generic [ref=e357]:
+            - img [ref=e358]
+            - generic [ref=e362]: ••••••••
+            - img [ref=e363]
+        - generic [ref=e367]:
+          - generic [ref=e368]:
+            - img [ref=e370]
+            - generic [ref=e372]: Remember me
+          - generic [ref=e373]: Forgot password?
+        - button "Login" [ref=e375] [cursor=pointer]:
+          - img [ref=e376]
+          - text: Login
+      - generic [ref=e379]:
+        - generic [ref=e380]:
+          - generic [ref=e381]: Q
+          - generic [ref=e382]: W
+          - generic [ref=e383]: E
+          - generic [ref=e384]: R
+          - generic [ref=e385]: T
+          - generic [ref=e386]: "Y"
+          - generic [ref=e387]: U
+          - generic [ref=e388]: I
+          - generic [ref=e389]: O
+          - generic [ref=e390]: P
+        - generic [ref=e391]:
+          - generic [ref=e392]: A
+          - generic [ref=e393]: S
+          - generic [ref=e394]: D
+          - generic [ref=e395]: F
+          - generic [ref=e396]: G
+          - generic [ref=e397]: H
+          - generic [ref=e398]: J
+          - generic [ref=e399]: K
+          - generic [ref=e400]: L
+        - generic [ref=e401]:
+          - img [ref=e403]
+          - generic [ref=e405]: Z
+          - generic [ref=e406]: X
+          - generic [ref=e407]: C
+          - generic [ref=e408]: V
+          - generic [ref=e409]: B
+          - generic [ref=e410]: "N"
+          - generic [ref=e411]: M
+          - img [ref=e413]
+        - generic [ref=e417]:
+          - generic [ref=e418]: "123"
+          - img [ref=e420]
+          - generic [ref=e425]: space
+          - generic [ref=e426]: return

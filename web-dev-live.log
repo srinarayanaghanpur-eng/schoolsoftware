@@ -1,0 +1,205 @@
+
+> sri-narayana-staff-attendance-system@1.0.0 dev:web
+> npm --workspace @sri-narayana/web run dev
+
+
+> dev
+> cross-env NEXT_IGNORE_INCORRECT_LOCKFILE=1 next dev
+
+  ▲ Next.js 14.2.35
+  - Local:        http://localhost:3000
+  - Environments: .env.local
+
+ ✓ Starting...
+ ✓ Ready in 9.6s
+ ○ Compiling /teacher/dashboard ...
+ ✓ Compiled /_not-found in 37.7s (1025 modules)
+ GET /login 200 in 26599ms
+ GET /_next/static/chunks/_app-pages-browser_node_modules_firebase_auth_dist_esm_index_esm_js.js 404 in 2400ms
+ GET /_next/static/chunks/_app-pages-browser_packages_shared_src_firebase_client_ts.js 404 in 2421ms
+ GET /_next/static/chunks/_app-pages-browser_node_modules_firebase_firestore_dist_esm_index_esm_js.js 404 in 2423ms
+ GET /teacher/dashboard 200 in 39276ms
+ GET /login 200 in 308ms
+ ○ Compiling /icon.png ...
+ ✓ Compiled /icon.png in 1543ms (748 modules)
+ GET /icon.png?5bc9aaaa0a62e978 200 in 2160ms
+ ○ Compiling /api/teacher/me ...
+ ✓ Compiled /api/teacher/me in 2.7s (779 modules)
+ GET /api/teacher/me 200 in 16050ms
+ GET /api/teacher/me 200 in 796ms
+ GET /login 200 in 555ms
+ GET /icon.png?5bc9aaaa0a62e978 200 in 119ms
+ ○ Compiling /admin/dashboard ...
+ ✓ Compiled /admin/dashboard in 4.7s (1165 modules)
+ GET /icon.png?5bc9aaaa0a62e978 200 in 83ms
+ GET /teacher/dashboard 200 in 2273ms
+ GET /icon.png?5bc9aaaa0a62e978 200 in 200ms
+ ○ Compiling /api/teacher/me ...
+ ✓ Compiled /api/teacher/me in 1354ms (855 modules)
+ GET /api/teacher/me 200 in 2952ms
+ GET /api/teacher/me 200 in 423ms
+ ○ Compiling /api/attendance/mark ...
+ ✓ Compiled /api/attendance/mark in 1279ms (858 modules)
+ POST /api/attendance/mark 400 in 2172ms
+ ○ Compiling /admin/notifications ...
+ ✓ Compiled /admin/notifications in 9.7s (1219 modules)
+ GET /admin/notifications 200 in 14603ms
+ GET /icon.png?5bc9aaaa0a62e978 200 in 500ms
+ ○ Compiling /api/admin/notifications ...
+ ✓ Compiled /api/admin/notifications in 3.1s (866 modules)
+ GET /api/admin/notifications 200 in 4369ms
+ GET /api/admin/notifications 200 in 971ms
+ ○ Compiling /admin/teachers ...
+ ✓ Compiled /admin/teachers in 3s (1234 modules)
+ GET /admin/teachers 200 in 4254ms
+ GET /icon.png?5bc9aaaa0a62e978 200 in 151ms
+ ○ Compiling /api/admin/teachers ...
+ ✓ Compiled /api/admin/teachers in 2.9s (879 modules)
+ GET /api/admin/teachers 200 in 3323ms
+ GET /api/admin/teachers 200 in 147ms
+ ○ Compiling /admin/attendance ...
+ ✓ Compiled /admin/attendance in 632ms (1251 modules)
+ GET /admin/attendance 200 in 957ms
+ GET /icon.png?5bc9aaaa0a62e978 200 in 47ms
+ ✓ Compiled /api/admin/attendance in 393ms (889 modules)
+ GET /api/admin/attendance 200 in 689ms
+ GET /api/admin/attendance 200 in 134ms
+ ○ Compiling /admin/calendar ...
+ ✓ Compiled /admin/calendar in 1598ms (1243 modules)
+ GET /admin/calendar 200 in 1977ms
+ GET /icon.png?5bc9aaaa0a62e978 200 in 124ms
+ GET /api/admin/attendance 200 in 371ms
+ GET /api/admin/attendance 200 in 302ms
+ ○ Compiling /admin/salary ...
+ ✓ Compiled /admin/salary in 1045ms (1232 modules)
+ GET /admin/salary 200 in 1357ms
+ GET /icon.png?5bc9aaaa0a62e978 200 in 53ms
+ ○ Compiling /admin/reports ...
+ ✓ Compiled / in 5s (1260 modules)
+ GET / 307 in 3943ms
+ GET /admin/reports 200 in 5664ms
+ ○ Compiling /login ...
+ ✓ Compiled /login in 972ms (899 modules)
+ GET /login 200 in 1293ms
+ GET /icon.png?5bc9aaaa0a62e978 200 in 422ms
+ ✓ Compiled in 2.2s (391 modules)
+ ○ Compiling /api/login-id/check ...
+ ✓ Compiled /api/login-id/check in 715ms (893 modules)
+ GET /api/login-id/check?loginId=TCH001 200 in 985ms
+ GET /api/login-id/check?loginId=TCH001 200 in 139ms
+ ○ Compiling /admin/backup ...
+ ✓ Compiled /admin/backup in 3.2s (1287 modules)
+ GET /admin/backup 200 in 3705ms
+ ○ Compiling /teacher ...
+ ✓ Compiled /teacher in 4.2s (1289 modules)
+ GET /icon.png?5bc9aaaa0a62e978 200 in 2962ms
+ ✓ Compiled in 1191ms (398 modules)
+ ○ Compiling /api/teacher/me ...
+ ✓ Compiled /api/teacher/me in 895ms (907 modules)
+ GET /api/teacher/me 200 in 1351ms
+ GET /api/teacher/me 200 in 293ms
+ GET /api/login-id/check?loginId=TCH001 200 in 315ms
+ GET /api/login-id/check?loginId=TCH001 200 in 158ms
+ ○ Compiling /admin/holidays ...
+ ✓ Compiled /admin/holidays in 724ms (1272 modules)
+ GET /admin/holidays 200 in 1178ms
+ GET /icon.png?5bc9aaaa0a62e978 200 in 79ms
+ GET /api/teacher/me 200 in 302ms
+ GET /api/teacher/me 200 in 256ms
+ GET /api/login-id/check?loginId=TCH001 200 in 175ms
+ GET /api/login-id/check?loginId=TCH001 200 in 167ms
+ ○ Compiling /admin/settings ...
+ ✓ Compiled /admin/settings in 2.4s (1286 modules)
+ GET /admin/settings 200 in 2566ms
+ GET /icon.png?5bc9aaaa0a62e978 200 in 186ms
+ ○ Compiling /api/admin/teachers ...
+ ✓ Compiled /api/admin/teachers in 2.4s (892 modules)
+ GET /api/admin/teachers 200 in 3436ms
+ ○ Compiling /admin/dashboard ...
+ ✓ Compiled /admin/dashboard in 1983ms (908 modules)
+ GET /api/admin/teachers 200 in 3618ms
+ ○ Compiling /admin/biometric ...
+ ✓ Compiled /admin/biometric in 1711ms (1302 modules)
+ GET /admin/biometric 200 in 2150ms
+ GET /icon.png?5bc9aaaa0a62e978 200 in 86ms
+ GET /login 200 in 131ms
+ ○ Compiling /admin/teachers ...
+ ✓ Compiled /admin/teachers in 1365ms (906 modules)
+ GET /api/admin/teachers 200 in 326ms
+ GET /api/admin/teachers 200 in 486ms
+ ○ Compiling /admin/calendar ...
+ ✓ Compiled /admin/calendar in 1013ms (910 modules)
+ ○ Compiling /api/admin/attendance ...
+ ✓ Compiled /api/admin/attendance in 977ms (912 modules)
+ GET /api/admin/attendance 200 in 1307ms
+ GET /api/admin/attendance 200 in 192ms
+ ○ Compiling /admin/salary ...
+ ✓ Compiled /admin/salary in 1159ms (889 modules)
+ ○ Compiling /admin/reports ...
+ ✓ Compiled /admin/reports in 1141ms (898 modules)
+ ○ Compiling /admin/backup ...
+ ✓ Compiled /admin/backup in 1377ms (908 modules)
+ GET /api/admin/teachers 200 in 220ms
+ GET /api/admin/teachers 200 in 196ms
+ ✓ Compiled in 1699ms (406 modules)
+ ✓ Compiled in 3.8s (1240 modules)
+ ○ Compiling /login ...
+ ✓ Compiled /login in 775ms (809 modules)
+ GET /login 200 in 1288ms
+ ✓ Compiled in 14.4s (1221 modules)
+ ✓ Compiled in 4.2s (410 modules)
+ ✓ Compiled in 5.1s (410 modules)
+ ○ Compiling /admin/holidays ...
+ ✓ Compiled /admin/holidays in 4.9s (1199 modules)
+ GET /admin/holidays 200 in 9200ms
+ ○ Compiling /icon.png ...
+ ✓ Compiled /api/admin/holidays in 1490ms (832 modules)
+ ✓ Compiled (863 modules)
+ GET /icon.png?5bc9aaaa0a62e978 200 in 3601ms
+ GET /api/admin/holidays 200 in 3776ms
+ GET /api/admin/holidays 200 in 199ms
+ GET /admin/salary 200 in 514ms
+ GET /icon.png?5bc9aaaa0a62e978 200 in 74ms
+ ○ Compiling /api/admin/salary ...
+ ✓ Compiled /api/admin/salary in 1190ms (861 modules)
+ GET /api/admin/salary?month=2026-05 200 in 1569ms
+ GET /api/admin/salary?month=2026-05 200 in 227ms
+ ✓ Compiled in 4.1s (1283 modules)
+ ○ Compiling /admin/reports ...
+ ✓ Compiled /admin/reports in 5.8s (1294 modules)
+ GET /admin/reports 200 in 8286ms
+ ✓ Compiled in 3.9s (1293 modules)
+ GET /icon.png?5bc9aaaa0a62e978 200 in 2118ms
+ ○ Compiling /api/admin/attendance ...
+ ✓ Compiled /api/admin/attendance in 8.5s (1281 modules)
+ GET /api/admin/attendance 200 in 6967ms
+ GET /api/admin/salary?month=2026-05 200 in 6954ms
+ GET /api/admin/salary?month=2026-05 200 in 1331ms
+ GET /api/admin/attendance 200 in 1444ms
+ ✓ Compiled in 21.3s (1293 modules)
+ GET /admin/holidays 200 in 898ms
+ GET /icon.png?5bc9aaaa0a62e978 200 in 161ms
+ ○ Compiling /api/admin/holidays ...
+ ✓ Compiled /api/admin/holidays in 1076ms (870 modules)
+ GET /api/admin/holidays 200 in 1371ms
+ GET /api/admin/holidays 200 in 282ms
+ ○ Compiling /admin/salary ...
+ ✓ Compiled /admin/salary in 1087ms (877 modules)
+ ○ Compiling /_error ...
+ ✓ Compiled /_error in 9.9s (1516 modules)
+ GET /admin/salary 500 in 13377ms
+ ○ Compiling /_not-found ...
+ ✓ Compiled /_not-found in 4.7s (1456 modules)
+ GET /admin/salary 200 in 497ms
+ GET /_next/static/css/app/layout.css?v=1779347884873 404 in 5331ms
+ GET /admin/salary 200 in 1670ms
+ GET /_next/static/css/app/layout.css?v=1779347891094 404 in 297ms
+ GET /_next/static/chunks/main-app.js?v=1779347891094 404 in 366ms
+ GET /_next/static/chunks/app/admin/salary/page.js 404 in 355ms
+ GET /_next/static/chunks/app-pages-internals.js 404 in 373ms
+ GET /_next/static/chunks/app/admin/layout.js 404 in 354ms
+ GET /_next/static/css/app/layout.css?v=1779347891199 404 in 87ms
+ ○ Compiling /icon.png ...
+ ✓ Compiled /icon.png in 982ms (887 modules)
+ GET /icon.png?5bc9aaaa0a62e978 500 in 1549ms
+[?25h

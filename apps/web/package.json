@@ -1,0 +1,40 @@
+{
+  "name": "@sri-narayana/web",
+  "private": true,
+  "scripts": {
+    "dev": "cross-env NEXT_IGNORE_INCORRECT_LOCKFILE=1 next dev --turbo",
+    "dev:webpack": "cross-env NEXT_IGNORE_INCORRECT_LOCKFILE=1 next dev",
+    "build": "cross-env NODE_OPTIONS=--max-old-space-size=4096 NEXT_IGNORE_INCORRECT_LOCKFILE=1 next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@sri-narayana/shared": "*",
+    "@swc/helpers": "^0.5.5",
+    "clsx": "^2.1.1",
+    "dom-helpers": "^5.2.1",
+    "eventemitter3": "^4.0.7",
+    "fast-equals": "^5.4.0",
+    "firebase": "^10.14.1",
+    "firebase-admin": "^12.5.0",
+    "lucide-react": "^0.468.0",
+    "next": "^14.2.35",
+    "prop-types": "^15.8.1",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "recharts": "^3.8.1",
+    "styled-jsx": "^5.1.1",
+    "tailwindcss": "^3.4.10",
+    "xlsx": "^0.18.5",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.6",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "autoprefixer": "^10.4.20",
+    "cross-env": "^7.0.3",
+    "postcss": "^8.4.49",
+    "typescript": "^5.5.4"
+  }
+}

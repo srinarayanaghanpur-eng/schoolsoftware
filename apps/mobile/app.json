@@ -1,0 +1,33 @@
+{
+  "expo": {
+    "name": "Sri Narayana Staff Attendance",
+    "slug": "sri-narayana-staff-attendance",
+    "scheme": "sna",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "runtimeVersion": "1.0.0",
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow Sri Narayana Staff Attendance to use your location for campus attendance."
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow Sri Narayana Staff Attendance to use your camera."
+        }
+      ]
+    ],
+    "ios": {
+      "supportsTabletMode": false,
+      "buildNumber": "1"
+    },
+    "android": {
+      "versionCode": 1,
+      "package": "com.srinarayana.attendance"
+    }
+  }
+}

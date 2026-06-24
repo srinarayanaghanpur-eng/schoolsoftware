@@ -1,0 +1,56 @@
+- main [ref=e2]:
+  - generic [ref=e5]:
+    - complementary [ref=e6]:
+      - img [ref=e8]
+      - generic [ref=e10]:
+        - generic [ref=e11]:
+          - img "SRI NARAYANA HIGH SCHOOL logo" [ref=e14]
+          - heading "SRI NARAYANA HIGH SCHOOL" [level=1] [ref=e15]
+        - generic [ref=e21]:
+          - img [ref=e24]
+          - generic [ref=e37]:
+            - img [ref=e39]
+            - img [ref=e47]
+          - img [ref=e75]
+        - generic [ref=e78]:
+          - generic [ref=e79]:
+            - img [ref=e81]
+            - heading "Attendance Tracking" [level=3] [ref=e84]
+            - paragraph [ref=e85]: Track teacher and staff attendance easily
+          - generic [ref=e86]:
+            - img [ref=e88]
+            - heading "Salary Management" [level=3] [ref=e92]
+            - paragraph [ref=e93]: Manage salaries and payroll seamlessly
+          - generic [ref=e94]:
+            - img [ref=e96]
+            - heading "Staff Dashboard" [level=3] [ref=e98]
+            - paragraph [ref=e99]: Insights and reports at your fingertips
+          - generic [ref=e100]:
+            - img [ref=e102]
+            - heading "Secure & Reliable" [level=3] [ref=e105]
+            - paragraph [ref=e106]: Your data is safe and fully protected
+    - generic [ref=e184]:
+      - generic [ref=e185]:
+        - img [ref=e187]
+        - heading "Welcome back!" [level=2] [ref=e191]
+        - paragraph [ref=e192]: Login to your account
+      - generic [ref=e193]:
+        - generic [ref=e194]:
+          - img
+          - textbox [ref=e195]:
+            - /placeholder: Employee ID / Admin ID
+        - generic [ref=e196]:
+          - img
+          - textbox "Toggle password visibility" [ref=e197]:
+            - /placeholder: Password
+          - button "Toggle password visibility" [ref=e199] [cursor=pointer]:
+            - img [ref=e200]
+      - generic [ref=e203]:
+        - generic [ref=e204] [cursor=pointer]:
+          - checkbox "Remember me" [checked] [ref=e205]
+          - img [ref=e207]
+          - text: Remember me
+        - button "Forgot password?" [ref=e209] [cursor=pointer]
+      - button "Login" [ref=e210] [cursor=pointer]:
+        - img [ref=e211]
+        - text: Login

@@ -1,0 +1,24 @@
+<w> [webpack.cache.PackFileCacheStrategy] Caching failed for pack: Error: ENOENT: no such file or directory, lstat 'C:\Users\HP\OneDrive\Desktop\ATTENDANCE\apps\web\.next\server\app'
+<w> [webpack.cache.PackFileCacheStrategy/webpack.FileSystemInfo] Resolving '../../../../apps/web/.next/server/app/page' in C:\Users\HP\OneDrive\Desktop\ATTENDANCE\node_modules\next\dist\server for build dependencies doesn't lead to expected result 'C:\Users\HP\OneDrive\Desktop\ATTENDANCE\apps\web\.next\server\app\page.js', but to 'Error: Can't resolve '../../../../apps/web/.next/server/app/page' in 'C:\Users\HP\OneDrive\Desktop\ATTENDANCE\node_modules\next\dist\server'' instead. Resolving dependencies are ignored for this path.
+<w>  at resolve commonjs file ../../../../apps/web/.next/server/app/page (expected C:\Users\HP\OneDrive\Desktop\ATTENDANCE\apps\web\.next\server\app\page.js)
+<w>  at file dependencies C:\Users\HP\OneDrive\Desktop\ATTENDANCE\node_modules\next\dist\server\require.js
+<w>  at file C:\Users\HP\OneDrive\Desktop\ATTENDANCE\node_modules\next\dist\server\require.js
+<w>  at file dependencies C:\Users\HP\OneDrive\Desktop\ATTENDANCE\node_modules\next\dist\server\load-components.js
+<w>  at file C:\Users\HP\OneDrive\Desktop\ATTENDANCE\node_modules\next\dist\server\load-components.js
+<w>  at file dependencies C:\Users\HP\OneDrive\Desktop\ATTENDANCE\node_modules\next\dist\build\utils.js
+<w>  at file C:\Users\HP\OneDrive\Desktop\ATTENDANCE\node_modules\next\dist\build\utils.js
+<w>  at file dependencies C:\Users\HP\OneDrive\Desktop\ATTENDANCE\node_modules\next\dist\build\webpack\loaders\next-app-loader.js
+<w>  at file C:\Users\HP\OneDrive\Desktop\ATTENDANCE\node_modules\next\dist\build\webpack\loaders\next-app-loader.js
+<w>  at file dependencies C:\Users\HP\OneDrive\Desktop\ATTENDANCE\node_modules\next\dist\compiled\loader-runner\LoaderRunner.js
+<w>  at file C:\Users\HP\OneDrive\Desktop\ATTENDANCE\node_modules\next\dist\compiled\loader-runner\LoaderRunner.js
+<w>  at file dependencies C:\Users\HP\OneDrive\Desktop\ATTENDANCE\node_modules\next\dist\compiled\webpack\bundle5.js
+<w>  at file C:\Users\HP\OneDrive\Desktop\ATTENDANCE\node_modules\next\dist\compiled\webpack\bundle5.js
+<w>  at file dependencies C:\Users\HP\OneDrive\Desktop\ATTENDANCE\node_modules\next\dist\compiled\webpack\webpack.js
+<w>  at file C:\Users\HP\OneDrive\Desktop\ATTENDANCE\node_modules\next\dist\compiled\webpack\webpack.js
+<w>  at file dependencies C:\Users\HP\OneDrive\Desktop\ATTENDANCE\node_modules\next\dist\build\webpack\plugins\define-env-plugin.js
+<w>  at file C:\Users\HP\OneDrive\Desktop\ATTENDANCE\node_modules\next\dist\build\webpack\plugins\define-env-plugin.js
+<w>  at file dependencies C:\Users\HP\OneDrive\Desktop\ATTENDANCE\node_modules\next\dist\build\swc\index.js
+<w>  at file C:\Users\HP\OneDrive\Desktop\ATTENDANCE\node_modules\next\dist\build\swc\index.js
+<w>  at file dependencies C:\Users\HP\OneDrive\Desktop\ATTENDANCE\node_modules\next\dist\build\webpack\loaders\next-swc-loader.js
+<w>  at file C:\Users\HP\OneDrive\Desktop\ATTENDANCE\node_modules\next\dist\build\webpack\loaders\next-swc-loader.js
+<w>  at resolve commonjs C:\Users\HP\OneDrive\Desktop\ATTENDANCE\node_modules\next\dist\build\webpack\loaders\next-swc-loader.js
