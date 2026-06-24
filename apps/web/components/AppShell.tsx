@@ -192,8 +192,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </button>
       </aside>
 
-      <main key={pathname} className="min-w-0 flex-1 md:ml-[276px]">
-        <header className="sticky top-0 z-20 flex min-h-[76px] items-center gap-4 border-b border-[#e4e6f0] bg-white/95 px-4 py-3 backdrop-blur md:px-7">
+      <main key={pathname} className="min-w-0 flex-1 md:ml-[276px] flex flex-col">
+        <header className="sticky top-0 z-20 flex min-h-[76px] items-center gap-4 border-b border-[#e4e6f0] bg-white/95 px-4 py-3 backdrop-blur md:px-7 flex-shrink-0">
           <div className="min-w-[170px]">
             <h1 className="text-xl font-extrabold tracking-tight text-[#15172d]">{title}</h1>
             <p className="text-xs font-medium text-[#7b85a8]">Tuesday, 23 June 2026 · Academic Year 2025–26</p>
@@ -216,7 +216,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <span className="absolute right-3 top-3 h-1.5 w-1.5 rounded-full bg-[#f05b62] ring-2 ring-[#f3f4fb]" />
           </Link>
         </header>
-        <div key={pathname} className="page-enter">{children}</div>
+        <div key={pathname} className="page-enter flex-1 overflow-y-auto">{children}</div>
       </main>
     </div>
   );
