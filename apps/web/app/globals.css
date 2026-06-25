@@ -286,19 +286,126 @@ html, body {
 }
 
 .card {
-  @apply rounded-lg bg-white shadow-sm ring-1 ring-stone-200;
+  border: 1px solid #e3e6f0;
+  border-radius: 1rem;
+  background: #fff;
+  box-shadow: 0 2px 4px rgba(36, 42, 94, 0.03);
+}
+
+.card:hover {
+  box-shadow: 0 10px 22px rgba(36, 42, 94, 0.06);
 }
 
 .field {
-  @apply w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100;
+  width: 100%;
+  border-radius: 0.75rem;
+  border: 1px solid #dfe3f1;
+  background: #f8f9ff;
+  padding: 0.625rem 0.875rem;
+  color: #242744;
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.25rem;
+  outline: none;
+  transition: border-color 160ms ease, background-color 160ms ease, box-shadow 160ms ease;
+}
+
+.field::placeholder {
+  color: #9aa4c4;
+}
+
+.field:focus {
+  border-color: #4a4bb1;
+  background: #fff;
+  box-shadow: 0 0 0 4px rgba(74, 75, 177, 0.1);
+}
+
+.field:disabled,
+.field[readonly] {
+  cursor: not-allowed;
+  background: #eef0f7;
+  color: #7d86a8;
+}
+
+.field.pl-10 {
+  padding-left: 2.5rem;
 }
 
 .btn-primary {
-  @apply inline-flex items-center justify-center gap-2 rounded-md bg-emerald-700 px-3 py-2 text-sm font-medium text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 0.75rem;
+  background: #3033a1;
+  padding: 0.625rem 1rem;
+  color: #fff;
+  font-size: 0.875rem;
+  font-weight: 700;
+  line-height: 1.25rem;
+  box-shadow: 0 8px 18px rgba(48, 51, 161, 0.18);
+  transition: transform 160ms ease, background-color 160ms ease, box-shadow 160ms ease, opacity 160ms ease;
+}
+
+.btn-primary:hover {
+  background: #272a86;
+  box-shadow: 0 10px 22px rgba(48, 51, 161, 0.24);
+}
+
+.btn-primary:active {
+  transform: translateY(1px);
 }
 
 .btn-secondary {
-  @apply inline-flex items-center justify-center gap-2 rounded-md border border-stone-300 bg-white px-3 py-2 text-sm font-medium text-stone-700 transition hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-60;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 0.75rem;
+  border: 1px solid #dfe3f1;
+  background: #fff;
+  padding: 0.625rem 1rem;
+  color: #303247;
+  font-size: 0.875rem;
+  font-weight: 700;
+  line-height: 1.25rem;
+  transition: border-color 160ms ease, background-color 160ms ease, color 160ms ease, opacity 160ms ease;
+}
+
+.btn-secondary:hover {
+  border-color: #c7caf0;
+  background: #f4f5fb;
+  color: #272a86;
+}
+
+.btn-primary:disabled,
+.btn-secondary:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+  box-shadow: none;
+}
+
+.card table thead {
+  background: #f7f8fd;
+  color: #7d86a8;
+}
+
+.card table th {
+  color: #6f7898;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.card table tbody tr {
+  border-color: #edf0f7;
+}
+
+.card table tbody tr:hover {
+  background: #fafbff;
+}
+
+.card table td {
+  color: #303247;
 }
 
 @media print {

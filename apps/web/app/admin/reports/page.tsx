@@ -62,8 +62,8 @@ export default function ReportsPage() {
   return (
     <>
       <PageHeader title="Reports" description="Download Excel reports or open printable PDF reports for attendance, salary, and biometric logs." />
-      <section className="space-y-4 p-4 md:p-6">
-        {error && <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
+      <section className="space-y-5 p-4 md:p-7">
+        {error && <div className="rounded-2xl border border-[#ffd5da] bg-[#ffebed] px-4 py-3 text-sm font-semibold text-[#c83f4d]">{error}</div>}
         <div className="card grid gap-3 p-4 md:grid-cols-5">
           <input className="field" type="date" value={date} onChange={(event) => setDate(event.target.value)} />
           <input className="field" type="month" value={month} onChange={(event) => setMonth(event.target.value)} />
@@ -73,7 +73,7 @@ export default function ReportsPage() {
         </div>
         <div className="card p-4">
           <div className="mb-3 flex items-center justify-between gap-3">
-            <p className="text-sm text-stone-500">{loading ? "Loading report data..." : `${filteredAttendance.length} attendance rows, ${salaryReports.length} salary rows`}</p>
+            <p className="text-sm font-semibold text-[#7d86a8]">{loading ? "Loading report data..." : `${filteredAttendance.length} attendance rows, ${salaryReports.length} salary rows`}</p>
             <button className="btn-secondary" onClick={loadReportData} disabled={loading}>Refresh</button>
           </div>
           <ExportButtons attendance={filteredAttendance} teachers={teachers} salaryReports={salaryReports} />

@@ -74,9 +74,9 @@ export default function HolidaysPage() {
   return (
     <>
       <PageHeader title="Holidays" description="Manage paid school holidays used by attendance and salary." action={<button className="btn-primary" onClick={() => setShowForm((value) => !value)}><Plus size={16} /> Add holiday</button>} />
-      <section className="space-y-4 p-4 md:p-6">
-        {message && <div className="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">{message}</div>}
-        {error && <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
+      <section className="space-y-5 p-4 md:p-7">
+        {message && <div className="rounded-2xl border border-[#c8f0dc] bg-[#e6f8ef] px-4 py-3 text-sm font-semibold text-[#0f8d52]">{message}</div>}
+        {error && <div className="rounded-2xl border border-[#ffd5da] bg-[#ffebed] px-4 py-3 text-sm font-semibold text-[#c83f4d]">{error}</div>}
         {showForm && (
           <form className="card grid gap-3 p-4 md:grid-cols-4" onSubmit={saveHoliday}>
             <input className="field" value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} placeholder="Holiday title" required />
@@ -92,15 +92,15 @@ export default function HolidaysPage() {
         )}
         <div className="card overflow-hidden">
           {holidays.map((holiday) => (
-            <div key={holiday.id ?? holiday.date} className="flex items-center justify-between border-b border-stone-100 p-4 last:border-b-0">
+            <div key={holiday.id ?? holiday.date} className="flex items-center justify-between border-b border-[#edf0f7] p-4 last:border-b-0">
               <div>
-                <p className="font-medium">{holiday.title}</p>
-                <p className="text-sm text-stone-500">{holiday.date}</p>
+                <p className="font-bold text-[#303247]">{holiday.title}</p>
+                <p className="text-sm font-medium text-[#7d86a8]">{holiday.date}</p>
               </div>
-              <span className="rounded bg-stone-100 px-2 py-1 text-xs capitalize text-stone-600">{holiday.type}</span>
+              <span className="rounded-full bg-[#eef0f7] px-2.5 py-1 text-xs font-bold capitalize text-[#7d86a8]">{holiday.type}</span>
             </div>
           ))}
-          {!loading && holidays.length === 0 && <div className="p-6 text-sm text-stone-500">No holidays added yet.</div>}
+          {!loading && holidays.length === 0 && <div className="p-6 text-sm font-medium text-[#7d86a8]">No holidays added yet.</div>}
         </div>
       </section>
     </>

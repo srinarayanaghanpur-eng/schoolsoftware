@@ -8,7 +8,7 @@ export default function SettingsPage() {
   return (
     <>
       <PageHeader title="Settings" description="Locations, attendance rules, salary policy, backup, and data safety." />
-      <section className="space-y-4 p-4 md:p-6">
+      <section className="space-y-5 p-4 md:p-7">
         <div className="grid gap-4 xl:grid-cols-2">
           <CampusGpsSettings />
           <TeacherGpsSettings />

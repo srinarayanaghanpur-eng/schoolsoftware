@@ -122,9 +122,9 @@ export function CampusGpsSettings() {
       <div className="flex items-center justify-between gap-3">
         <div>
           <h2 className="font-semibold">Campus GPS geofence</h2>
-          <p className="mt-1 text-sm text-stone-500">Attendance is allowed only inside this radius.</p>
+          <p className="mt-1 text-sm font-medium text-[#7d86a8]">Attendance is allowed only inside this radius.</p>
         </div>
-        <MapPin className="text-emerald-700" size={22} />
+        <MapPin className="text-[#3033a1]" size={22} />
       </div>
 
       <label className="block text-sm">
@@ -176,7 +176,7 @@ export function CampusGpsSettings() {
         </button>
       </div>
 
-      {message && <p className="text-sm text-stone-600">{message}</p>}
+      {message && <p className="rounded-xl bg-[#f7f8fd] px-3 py-2 text-sm font-medium text-[#7d86a8]">{message}</p>}
     </div>
   );
 }

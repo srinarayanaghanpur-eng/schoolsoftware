@@ -8,7 +8,7 @@ export default function Calendar() {
   const days = Array.from({ length: 31 }, (_, index) => String(index + 1).padStart(2, "0"));
   return (
     <Screen title="Calendar" subtitle="May 2026">
-      <Card>
+      <Card style={styles.calendarCard}>
         <View style={styles.grid}>
           {days.map((day) => {
             const record = demoAttendance.find((item) => item.date.endsWith(day));
@@ -30,8 +30,9 @@ export default function Calendar() {
 }
 
 const styles = StyleSheet.create({
+  calendarCard: { padding: 14 },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: 10, justifyContent: "space-between" },
-  day: { width: "31%", minHeight: 80, borderWidth: 1, borderColor: "#d6d3d1", borderRadius: 10, padding: 10, justifyContent: "space-between", backgroundColor: "#fafbf9" },
-  dayNumber: { fontWeight: "800", fontSize: 16, color: "#17211b" },
-  emptyDay: { color: "#d6d3d1", fontWeight: "600", fontSize: 12 }
+  day: { width: "31%", minHeight: 84, borderWidth: 1, borderColor: "#e3e6f0", borderRadius: 15, padding: 10, justifyContent: "space-between", backgroundColor: "#f8f9ff" },
+  dayNumber: { fontWeight: "900", fontSize: 16, color: "#1b1d32" },
+  emptyDay: { color: "#b4bdd4", fontWeight: "800", fontSize: 12 }
 });

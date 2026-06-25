@@ -72,25 +72,45 @@ export default function Attendance() {
   };
 
   return (
-    <Screen title="Mark Attendance" subtitle="GPS must be inside the configured campus radius.">
-      <Card>
+    <Screen title="Attendance" subtitle="Mark check-in or check-out from inside campus.">
+      <Card style={styles.statusCard}>
+        <View style={styles.cardHeader}>
+          <View>
+            <Text style={styles.kicker}>GPS SECURE</Text>
+            <Text style={styles.cardTitle}>Campus location lock</Text>
+          </View>
+          <View style={styles.gpsBadge}>
+            <Text style={styles.gpsBadgeText}>GPS</Text>
+          </View>
+        </View>
+
         <Text style={styles.label}>School location</Text>
         <Text style={styles.value}>{settings.campusLatitude.toFixed(6)}, {settings.campusLongitude.toFixed(6)}</Text>
-        <Text style={styles.label}>Campus radius</Text>
+        <Text style={styles.label}>Allowed radius</Text>
         <Text style={styles.value}>{settings.geofenceRadiusMeters} meters</Text>
         <View style={styles.divider} />
         <Text style={styles.label}>Your GPS</Text>
         <Text style={styles.value}>{currentGps ? `${currentGps.latitude.toFixed(6)}, ${currentGps.longitude.toFixed(6)}` : "--"}</Text>
         <Text style={styles.label}>Distance from campus</Text>
-        <Text style={[styles.value, distance && distance > settings.geofenceRadiusMeters ? { color: "#dc2626" } : { color: "#047857" }]}>
+        <Text style={[styles.value, distance && distance > settings.geofenceRadiusMeters ? styles.blocked : styles.allowed]}>
           {distance === null ? "--" : `${distance} meters`}
         </Text>
       </Card>
       <View style={styles.row}>
-        <Pressable style={[styles.primary, Boolean(loading) && styles.disabled]} disabled={Boolean(loading)} onPress={() => mark("checkin")}>
+        <Pressable
+          accessibilityRole="button"
+          style={({ pressed }) => [styles.primary, pressed && styles.pressed, Boolean(loading) && styles.disabled]}
+          disabled={Boolean(loading)}
+          onPress={() => mark("checkin")}
+        >
           <Text style={styles.primaryText}>{loading === "checkin" ? "Checking..." : "Check in"}</Text>
         </Pressable>
-        <Pressable style={[styles.secondary, Boolean(loading) && styles.disabled]} disabled={Boolean(loading)} onPress={() => mark("checkout")}>
+        <Pressable
+          accessibilityRole="button"
+          style={({ pressed }) => [styles.secondary, pressed && styles.pressed, Boolean(loading) && styles.disabled]}
+          disabled={Boolean(loading)}
+          onPress={() => mark("checkout")}
+        >
           <Text style={styles.secondaryText}>{loading === "checkout" ? "Checking..." : "Check out"}</Text>
         </Pressable>
       </View>
@@ -99,13 +119,22 @@ export default function Attendance() {
 }
 
 const styles = StyleSheet.create({
-  label: { color: "#66736a", marginBottom: 6, fontSize: 13, fontWeight: "600" },
-  value: { fontSize: 16, fontWeight: "700", color: "#17211b", marginBottom: 14 },
-  divider: { height: 1, backgroundColor: "#d6d3d1", marginVertical: 12 },
+  statusCard: { gap: 2 },
+  cardHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: 18 },
+  kicker: { color: "#3033a1", fontSize: 10, fontWeight: "900", letterSpacing: 1 },
+  cardTitle: { marginTop: 4, color: "#1b1d32", fontSize: 20, fontWeight: "900", letterSpacing: -0.4 },
+  gpsBadge: { width: 46, height: 46, borderRadius: 15, backgroundColor: "#eeefff", justifyContent: "center", alignItems: "center" },
+  gpsBadgeText: { color: "#3033a1", fontSize: 11, fontWeight: "900" },
+  label: { color: "#7d86a8", marginBottom: 6, fontSize: 12, fontWeight: "900", textTransform: "uppercase", letterSpacing: 0.4 },
+  value: { fontSize: 16, fontWeight: "900", color: "#1b1d32", marginBottom: 14 },
+  allowed: { color: "#148654" },
+  blocked: { color: "#c9435e" },
+  divider: { height: 1, backgroundColor: "#e3e6f0", marginVertical: 12 },
   row: { flexDirection: "row", gap: 12 },
-  primary: { flex: 1, backgroundColor: "#047857", padding: 16, borderRadius: 10, justifyContent: "center", alignItems: "center" },
-  primaryText: { color: "white", textAlign: "center", fontWeight: "700", fontSize: 16 },
-  secondary: { flex: 1, backgroundColor: "white", borderColor: "#d6d3d1", borderWidth: 1, padding: 16, borderRadius: 10, justifyContent: "center", alignItems: "center" },
-  secondaryText: { color: "#17211b", textAlign: "center", fontWeight: "700", fontSize: 16 },
+  primary: { flex: 1, minHeight: 56, backgroundColor: "#3033a1", padding: 16, borderRadius: 16, justifyContent: "center", alignItems: "center" },
+  primaryText: { color: "white", textAlign: "center", fontWeight: "900", fontSize: 16 },
+  secondary: { flex: 1, minHeight: 56, backgroundColor: "white", borderColor: "#dfe3f2", borderWidth: 1, padding: 16, borderRadius: 16, justifyContent: "center", alignItems: "center" },
+  secondaryText: { color: "#3033a1", textAlign: "center", fontWeight: "900", fontSize: 16 },
+  pressed: { opacity: 0.82, transform: [{ scale: 0.99 }] },
   disabled: { opacity: 0.6 }
 });

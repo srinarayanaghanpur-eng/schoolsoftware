@@ -5,24 +5,25 @@ function StatCardInner({
   label,
   value,
   helper,
-  icon: Icon
+  icon: Icon,
+  tone = "bg-[#eeefff] text-[#3033a1]"
 }: {
   label: string;
   value: string | number;
   helper?: string;
   icon: LucideIcon;
+  tone?: string;
 }) {
   return (
-    <div className="card group relative overflow-hidden p-4 transition duration-300 ease-out hover:-translate-y-0.5 hover:shadow-md hover:ring-emerald-200">
-      <div className="pointer-events-none absolute inset-x-0 -top-px h-0.5 origin-left scale-x-0 bg-[linear-gradient(90deg,#233128,#047857)] transition-transform duration-300 group-hover:scale-x-100" />
+    <div className="card dashboard-animate group p-5 transition duration-200 hover:-translate-y-0.5 hover:border-[#c7caf0]">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-sm text-stone-500">{label}</p>
-          <p className="mt-2 text-2xl font-semibold tabular-nums tracking-tight text-stone-950">{value}</p>
-          {helper && <p className="mt-1 text-xs text-stone-500">{helper}</p>}
+          <p className="text-sm font-semibold text-[#7d86a8]">{label}</p>
+          <p className="mt-3 text-[32px] font-extrabold leading-none tabular-nums tracking-tight text-[#1b1d32]">{value}</p>
+          {helper && <p className="mt-2 text-sm font-semibold text-[#7d86a8]">{helper}</p>}
         </div>
-        <div className="rounded-xl bg-[linear-gradient(135deg,#ECFDF5,#D1FAE5)] p-2.5 text-emerald-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] transition duration-300 group-hover:scale-110 group-hover:bg-[linear-gradient(135deg,#233128,#047857)] group-hover:text-white">
-          <Icon size={20} />
+        <div className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl transition duration-200 group-hover:scale-105 ${tone}`}>
+          <Icon size={21} strokeWidth={2.25} />
         </div>
       </div>
     </div>

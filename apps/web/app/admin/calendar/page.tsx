@@ -56,8 +56,8 @@ export default function CalendarPage() {
   return (
     <>
       <PageHeader title="Calendar View" description="Color-coded monthly attendance with daily details." />
-      <section className="space-y-4 p-4 md:p-6">
-        {error && <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
+      <section className="space-y-5 p-4 md:p-7">
+        {error && <div className="rounded-2xl border border-[#ffd5da] bg-[#ffebed] px-4 py-3 text-sm font-semibold text-[#c83f4d]">{error}</div>}
         <div className="card flex flex-col gap-3 p-4 md:flex-row">
           <select
             className="field max-w-sm"
@@ -78,7 +78,7 @@ export default function CalendarPage() {
           <input className="field max-w-xs" type="month" value={month} onChange={(event) => setMonth(event.target.value)} />
         </div>
         {loading ? (
-          <div className="card p-6 text-sm text-stone-500">Loading real teacher calendar...</div>
+          <div className="card p-6 text-sm font-medium text-[#7d86a8]">Loading real teacher calendar...</div>
         ) : (
           <AttendanceCalendar records={selectedRecords} month={month} />
         )}

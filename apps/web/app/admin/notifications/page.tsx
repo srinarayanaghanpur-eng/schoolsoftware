@@ -36,9 +36,9 @@ const emptyResetForm: ResetForm = {
 };
 
 function statusClass(status: string) {
-  if (status === "open" || status === "pending") return "bg-amber-50 text-amber-700";
-  if (status === "resolved" || status === "approved") return "bg-emerald-50 text-emerald-700";
-  return "bg-red-50 text-red-700";
+  if (status === "open" || status === "pending") return "bg-[#fff4df] text-[#d79418]";
+  if (status === "resolved" || status === "approved") return "bg-[#e6f8ef] text-[#13a961]";
+  return "bg-[#ffebed] text-[#ed515d]";
 }
 
 export default function NotificationsPage() {
@@ -222,20 +222,20 @@ export default function NotificationsPage() {
         }
       />
 
-      <section className="space-y-4 p-4 md:p-6">
-        {message && <div className="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">{message}</div>}
-        {error && <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
+      <section className="space-y-5 p-4 md:p-7">
+        {message && <div className="rounded-2xl border border-[#c8f0dc] bg-[#e6f8ef] px-4 py-3 text-sm font-semibold text-[#0f8d52]">{message}</div>}
+        {error && <div className="rounded-2xl border border-[#ffd5da] bg-[#ffebed] px-4 py-3 text-sm font-semibold text-[#c83f4d]">{error}</div>}
 
         {selectedResetRequest && (
           <form onSubmit={submitPasswordReset} className="card p-4">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h2 className="font-semibold">Reset teacher password</h2>
-                <p className="text-sm text-stone-500">
+                <h2 className="font-bold text-[#1f2136]">Reset teacher password</h2>
+                <p className="text-sm font-medium text-[#7d86a8]">
                   {selectedResetRequest.teacherName || selectedResetRequest.loginId} · {selectedResetRequest.employeeId || selectedResetRequest.loginId}
                 </p>
               </div>
-              <button type="button" className="rounded-md p-2 text-stone-500 hover:bg-stone-100" onClick={() => setSelectedResetRequest(null)}>
+              <button type="button" className="grid h-9 w-9 place-items-center rounded-xl text-[#7d86a8] hover:bg-[#f4f5fb] hover:text-[#3033a1]" onClick={() => setSelectedResetRequest(null)}>
                 <XCircle size={18} />
               </button>
             </div>
@@ -257,13 +257,13 @@ export default function NotificationsPage() {
             </div>
             <div className="space-y-3">
               {passwordRequests.map((request) => (
-                <div key={request.id ?? request.loginId} className="rounded-md border border-stone-200 p-3">
+                <div key={request.id ?? request.loginId} className="rounded-xl border border-[#e3e6f0] bg-[#fafbff] p-3">
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div>
-                      <p className="font-medium">{request.teacherName || request.loginId}</p>
-                      <p className="text-sm text-stone-500">{request.employeeId || request.loginId} · {request.requestedAt ? new Date(request.requestedAt).toLocaleString() : "--"}</p>
+                      <p className="font-bold text-[#303247]">{request.teacherName || request.loginId}</p>
+                      <p className="text-sm font-medium text-[#7d86a8]">{request.employeeId || request.loginId} · {request.requestedAt ? new Date(request.requestedAt).toLocaleString() : "--"}</p>
                     </div>
-                    <span className={`rounded px-2 py-1 text-xs font-semibold ${statusClass(request.status)}`}>{request.status}</span>
+                    <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${statusClass(request.status)}`}>{request.status}</span>
                   </div>
                   {request.status === "open" && (
                     <div className="mt-3 flex flex-wrap gap-2">
@@ -277,7 +277,7 @@ export default function NotificationsPage() {
                   )}
                 </div>
               ))}
-              {!passwordRequests.length && <p className="text-sm text-stone-500">No password requests.</p>}
+              {!passwordRequests.length && <p className="text-sm font-medium text-[#7d86a8]">No password requests.</p>}
             </div>
           </div>
 
@@ -287,14 +287,14 @@ export default function NotificationsPage() {
             </div>
             <div className="space-y-3">
               {leaveRequests.map((request) => (
-                <div key={request.id ?? `${request.teacherId}_${request.startDate}`} className="rounded-md border border-stone-200 p-3">
+                <div key={request.id ?? `${request.teacherId}_${request.startDate}`} className="rounded-xl border border-[#e3e6f0] bg-[#fafbff] p-3">
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div>
-                      <p className="font-medium">{request.teacherName}</p>
-                      <p className="text-sm text-stone-500">{request.startDate} to {request.endDate}</p>
-                      <p className="mt-1 text-sm text-stone-600">{request.reason}</p>
+                      <p className="font-bold text-[#303247]">{request.teacherName}</p>
+                      <p className="text-sm font-medium text-[#7d86a8]">{request.startDate} to {request.endDate}</p>
+                      <p className="mt-1 text-sm font-medium text-[#5f6888]">{request.reason}</p>
                     </div>
-                    <span className={`rounded px-2 py-1 text-xs font-semibold ${statusClass(request.status)}`}>{request.status}</span>
+                    <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${statusClass(request.status)}`}>{request.status}</span>
                   </div>
                   {request.status === "pending" && (
                     <div className="mt-3 flex flex-wrap gap-2">
@@ -308,7 +308,7 @@ export default function NotificationsPage() {
                   )}
                 </div>
               ))}
-              {!leaveRequests.length && <p className="text-sm text-stone-500">No leave requests.</p>}
+              {!leaveRequests.length && <p className="text-sm font-medium text-[#7d86a8]">No leave requests.</p>}
             </div>
           </div>
         </div>

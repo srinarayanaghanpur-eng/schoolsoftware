@@ -100,172 +100,158 @@ export default function CreateConcessionPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <>
       <PageHeader
         title="Grant Legacy Fee Concession"
-        description="Create a legacy concession request for a student"
+        description="Create a legacy concession request for a student."
       />
-      <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-        This form supports legacy concession requests only and is retained for backward compatibility.
-      </div>
+      <section className="space-y-5 p-4 md:p-7">
+        <div className="rounded-2xl border border-[#ffe1ab] bg-[#fff8ea] p-4 text-sm font-semibold text-[#9f7116]">
+          This form supports legacy concession requests only and is retained for backward compatibility.
+        </div>
 
-      <div className="max-w-2xl rounded-lg bg-white p-6 shadow-sm border border-stone-200">
-        {error && (
-          <div className="mb-4 rounded-lg bg-red-50 p-4 text-sm text-red-700">
-            {error}
-          </div>
-        )}
+        <div className="card max-w-2xl p-5 md:p-6">
+          {error && (
+            <div className="mb-4 rounded-xl border border-[#ffd5da] bg-[#ffebed] p-4 text-sm font-semibold text-[#c83f4d]">
+              {error}
+            </div>
+          )}
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Student Selection */}
-          <div>
-            <label className="block text-sm font-medium text-stone-900">
-              Select Student *
-            </label>
-            <select
-              name="studentId"
-              value={formData.studentId}
-              onChange={handleChange}
-              required
-              className="mt-2 block w-full rounded-lg border border-stone-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-            >
-              <option value="">Choose a student...</option>
-              {students.map((student) => (
-                <option key={student.id} value={student.id}>
-                  {student.studentName} ({student.admissionNumber}) - {getClassDisplayName(student.class)}-{student.section}
-                </option>
-              ))}
-            </select>
-          </div>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div>
+              <label className="block text-sm font-semibold text-[#303247]">
+                Select Student *
+              </label>
+              <select
+                name="studentId"
+                value={formData.studentId}
+                onChange={handleChange}
+                required
+                className="field mt-2"
+              >
+                <option value="">Choose a student...</option>
+                {students.map((student) => (
+                  <option key={student.id} value={student.id}>
+                    {student.studentName} ({student.admissionNumber}) - {getClassDisplayName(student.class)}-{student.section}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-          {/* Concession Type */}
-          <div>
-            <label className="block text-sm font-medium text-stone-900">
-              Concession Type *
-            </label>
-            <div className="mt-2 flex gap-4">
-              {["percentage", "fixed"].map((type) => (
-                <label key={type} className="flex items-center gap-2">
-                  <input
-                    type="radio"
-                    name="concessionType"
-                    value={type}
-                    checked={formData.concessionType === type}
-                    onChange={handleChange}
-                    className="rounded"
-                  />
-                  <span className="text-sm text-stone-700">
+            <div>
+              <label className="block text-sm font-semibold text-[#303247]">
+                Concession Type *
+              </label>
+              <div className="mt-2 flex flex-wrap gap-3">
+                {["percentage", "fixed"].map((type) => (
+                  <label key={type} className="inline-flex items-center gap-2 rounded-xl border border-[#dfe3f1] bg-[#f8f9ff] px-3 py-2 text-sm font-semibold text-[#303247]">
+                    <input
+                      type="radio"
+                      name="concessionType"
+                      value={type}
+                      checked={formData.concessionType === type}
+                      onChange={handleChange}
+                      className="h-4 w-4 accent-[#3033a1]"
+                    />
                     {type === "percentage" ? "Percentage" : "Fixed Amount"}
-                  </span>
-                </label>
-              ))}
+                  </label>
+                ))}
+              </div>
             </div>
-          </div>
 
-          {/* Concession Amount/Percent */}
-          <div className="grid grid-cols-2 gap-4">
-            {formData.concessionType === "percentage" ? (
-              <div className="col-span-2">
-                <label className="block text-sm font-medium text-stone-900">
-                  Concession Percentage *
-                </label>
-                <input
-                  type="number"
-                  name="concessionPercent"
-                  value={formData.concessionPercent}
-                  onChange={handleChange}
-                  min="0"
-                  max="100"
-                  required
-                  placeholder="0-100"
-                  className="mt-2 block w-full rounded-lg border border-stone-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                />
-              </div>
-            ) : (
-              <div className="col-span-2">
-                <label className="block text-sm font-medium text-stone-900">
-                  Concession Amount (₹) *
-                </label>
-                <input
-                  type="number"
-                  name="concessionAmount"
-                  value={formData.concessionAmount}
-                  onChange={handleChange}
-                  min="0"
-                  required
-                  placeholder="Enter amount"
-                  className="mt-2 block w-full rounded-lg border border-stone-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                />
-              </div>
-            )}
-          </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              {formData.concessionType === "percentage" ? (
+                <div className="sm:col-span-2">
+                  <label className="block text-sm font-semibold text-[#303247]">
+                    Concession Percentage *
+                  </label>
+                  <input
+                    type="number"
+                    name="concessionPercent"
+                    value={formData.concessionPercent}
+                    onChange={handleChange}
+                    min="0"
+                    max="100"
+                    required
+                    placeholder="0-100"
+                    className="field mt-2"
+                  />
+                </div>
+              ) : (
+                <div className="sm:col-span-2">
+                  <label className="block text-sm font-semibold text-[#303247]">
+                    Concession Amount (₹) *
+                  </label>
+                  <input
+                    type="number"
+                    name="concessionAmount"
+                    value={formData.concessionAmount}
+                    onChange={handleChange}
+                    min="0"
+                    required
+                    placeholder="Enter amount"
+                    className="field mt-2"
+                  />
+                </div>
+              )}
+            </div>
 
-          {/* Reason */}
-          <div>
-            <label className="block text-sm font-medium text-stone-900">
-              Reason for Concession *
-            </label>
-            <textarea
-              name="reason"
-              value={formData.reason}
-              onChange={handleChange}
-              required
-              minLength={10}
-              rows={4}
-              placeholder="Explain why this concession is being granted..."
-              className="mt-2 block w-full rounded-lg border border-stone-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-            />
-          </div>
-
-          {/* Validity Dates */}
-          <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-stone-900">
-                Valid From *
+              <label className="block text-sm font-semibold text-[#303247]">
+                Reason for Concession *
               </label>
-              <input
-                type="date"
-                name="validFrom"
-                value={formData.validFrom}
+              <textarea
+                name="reason"
+                value={formData.reason}
                 onChange={handleChange}
                 required
-                className="mt-2 block w-full rounded-lg border border-stone-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                minLength={10}
+                rows={4}
+                placeholder="Explain why this concession is being granted..."
+                className="field mt-2"
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-stone-900">
-                Valid Upto *
-              </label>
-              <input
-                type="date"
-                name="validUpto"
-                value={formData.validUpto}
-                onChange={handleChange}
-                required
-                className="mt-2 block w-full rounded-lg border border-stone-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              />
-            </div>
-          </div>
 
-          {/* Buttons */}
-          <div className="flex gap-4">
-            <button
-              type="submit"
-              disabled={loading}
-              className="flex-1 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50 transition"
-            >
-              {loading ? "Creating..." : "Grant Concession"}
-            </button>
-            <button
-              type="button"
-              onClick={() => router.back()}
-              className="flex-1 rounded-lg bg-stone-200 px-4 py-2 text-sm font-semibold text-stone-900 hover:bg-stone-300 transition"
-            >
-              Cancel
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className="block text-sm font-semibold text-[#303247]">
+                  Valid From *
+                </label>
+                <input
+                  type="date"
+                  name="validFrom"
+                  value={formData.validFrom}
+                  onChange={handleChange}
+                  required
+                  className="field mt-2"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-[#303247]">
+                  Valid Upto *
+                </label>
+                <input
+                  type="date"
+                  name="validUpto"
+                  value={formData.validUpto}
+                  onChange={handleChange}
+                  required
+                  className="field mt-2"
+                />
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <button type="submit" disabled={loading} className="btn-primary flex-1">
+                {loading ? "Creating..." : "Grant Concession"}
+              </button>
+              <button type="button" onClick={() => router.back()} className="btn-secondary flex-1">
+                Cancel
+              </button>
+            </div>
+          </form>
+        </div>
+      </section>
+    </>
   );
 }

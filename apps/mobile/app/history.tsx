@@ -10,7 +10,7 @@ export default function History() {
       {demoAttendance.map((record) => (
         <Card key={`${record.teacherId}_${record.date}`}>
           <View style={styles.row}>
-            <View>
+            <View style={styles.copy}>
               <Text style={styles.date}>{record.date}</Text>
               <Text style={styles.muted}>{record.source} · {record.lateMinutes} late minutes</Text>
             </View>
@@ -23,7 +23,8 @@ export default function History() {
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: "row", justifyContent: "space-between", gap: 12 },
-  date: { fontWeight: "800", color: "#17211b" },
-  muted: { marginTop: 4, color: "#66736a" }
+  row: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 12 },
+  copy: { flex: 1 },
+  date: { fontWeight: "900", color: "#1b1d32", fontSize: 15 },
+  muted: { marginTop: 5, color: "#7d86a8", fontSize: 13, fontWeight: "700" }
 });

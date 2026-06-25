@@ -128,9 +128,9 @@ export default function SalaryPage() {
   return (
     <>
       <PageHeader title="Salary Management" description="Generate salary from attendance, apply adjustments, and mark payment status." />
-      <section className="space-y-4 p-4 md:p-6">
-        {message && <div className="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">{message}</div>}
-        {error && <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
+      <section className="space-y-5 p-4 md:p-7">
+        {message && <div className="rounded-2xl border border-[#c8f0dc] bg-[#e6f8ef] px-4 py-3 text-sm font-semibold text-[#0f8d52]">{message}</div>}
+        {error && <div className="rounded-2xl border border-[#ffd5da] bg-[#ffebed] px-4 py-3 text-sm font-semibold text-[#c83f4d]">{error}</div>}
         <div className="card flex flex-col gap-3 p-4 md:flex-row md:items-center">
           <input className="field max-w-xs" type="month" value={month} onChange={(event) => setMonth(event.target.value)} />
           <button className="btn-primary" onClick={generateSalary} disabled={loading}>
@@ -170,10 +170,10 @@ export default function SalaryPage() {
                       {report.clUsedFromAbsent}a + {report.clUsedFromLate}l = {report.totalClUsed}
                     </span>
                   </td>
-                  <td className={`px-4 py-3 font-medium ${report.remainingCl === 0 ? "text-red-600" : "text-green-600"}`}>
+                  <td className={`px-4 py-3 font-bold ${report.remainingCl === 0 ? "text-[#ed515d]" : "text-[#13a961]"}`}>
                     {report.remainingCl}/3
                   </td>
-                  <td className={`px-4 py-3 font-semibold ${report.excessLeave > 0 ? "text-red-600" : "text-green-600"}`}>
+                  <td className={`px-4 py-3 font-bold ${report.excessLeave > 0 ? "text-[#ed515d]" : "text-[#13a961]"}`}>
                     {report.excessLeave}
                   </td>
                   <td className="px-4 py-3 text-xs">₹{(report.perDaySalary ?? 0).toLocaleString("en-IN")}</td>
@@ -191,7 +191,7 @@ export default function SalaryPage() {
               ))}
               {!loading && reports.length === 0 && (
                 <tr>
-                  <td className="px-4 py-6 text-center text-stone-500" colSpan={13}>No salary reports yet. Click Generate monthly salary.</td>
+                  <td className="px-4 py-6 text-center text-sm font-medium text-[#7d86a8]" colSpan={13}>No salary reports yet. Click Generate monthly salary.</td>
                 </tr>
               )}
             </tbody>

@@ -238,25 +238,25 @@ export default function TeachersPage() {
         }
       />
 
-      <section className="space-y-4 p-4 md:p-6">
+      <section className="space-y-5 p-4 md:p-7">
         {!isFirebaseConfigured && (
-          <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <div className="rounded-2xl border border-[#ffe1ab] bg-[#fff8ea] px-4 py-3 text-sm font-semibold text-[#9f7116]">
             Firebase web config is not set yet. Add Teacher Login needs Firebase Auth and Admin credentials.
           </div>
         )}
-        {message && <div className="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">{message}</div>}
-        {error && <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
+        {message && <div className="rounded-2xl border border-[#c8f0dc] bg-[#e6f8ef] px-4 py-3 text-sm font-semibold text-[#0f8d52]">{message}</div>}
+        {error && <div className="rounded-2xl border border-[#ffd5da] bg-[#ffebed] px-4 py-3 text-sm font-semibold text-[#c83f4d]">{error}</div>}
 
         {showForm && (
           <form onSubmit={submitTeacher} className="card p-4">
             <div className="mb-4 flex items-start justify-between gap-4">
               <div>
-                <h2 className="text-lg font-semibold">{editingTeacher ? "Edit teacher" : "Add Teacher Login"}</h2>
-                <p className="text-sm text-stone-500">
+                <h2 className="text-lg font-bold text-[#1f2136]">{editingTeacher ? "Edit teacher" : "Add Teacher Login"}</h2>
+                <p className="text-sm font-medium text-[#7d86a8]">
                   Employee ID becomes the hidden Firebase email automatically. Password is sent only to Firebase Auth.
                 </p>
               </div>
-              <button type="button" className="rounded-md p-2 text-stone-500 hover:bg-stone-100" onClick={closeForm} title="Close">
+              <button type="button" className="grid h-9 w-9 place-items-center rounded-xl text-[#7d86a8] hover:bg-[#f4f5fb] hover:text-[#3033a1]" onClick={closeForm} title="Close">
                 <X size={18} />
               </button>
             </div>
@@ -322,10 +322,10 @@ export default function TeachersPage() {
           <form onSubmit={submitResetPassword} className="card p-4">
             <div className="mb-4 flex items-start justify-between gap-4">
               <div>
-                <h2 className="text-lg font-semibold">Reset password</h2>
-                <p className="text-sm text-stone-500">{resetTeacher.fullName} · {resetTeacher.employeeId}</p>
+                <h2 className="text-lg font-bold text-[#1f2136]">Reset password</h2>
+                <p className="text-sm font-medium text-[#7d86a8]">{resetTeacher.fullName} · {resetTeacher.employeeId}</p>
               </div>
-              <button type="button" className="rounded-md p-2 text-stone-500 hover:bg-stone-100" onClick={() => setResetTeacher(null)} title="Close">
+              <button type="button" className="grid h-9 w-9 place-items-center rounded-xl text-[#7d86a8] hover:bg-[#f4f5fb] hover:text-[#3033a1]" onClick={() => setResetTeacher(null)} title="Close">
                 <X size={18} />
               </button>
             </div>
@@ -340,10 +340,10 @@ export default function TeachersPage() {
         )}
 
         <div className="card p-4">
-          <div className="flex max-w-md items-center gap-2 rounded-md border border-stone-300 bg-white px-3 py-2">
-            <Search size={16} className="text-stone-400" />
+          <div className="relative max-w-md">
+            <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#8490b9]" />
             <input
-              className="w-full bg-transparent text-sm outline-none"
+              className="field pl-10"
               placeholder="Search by Employee ID, name, or subject"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
@@ -375,7 +375,7 @@ export default function TeachersPage() {
                   <td className="px-4 py-3">{teacher.biometricUserId || "--"}</td>
                   <td className="px-4 py-3">₹{Number(teacher.baseSalary ?? 0).toLocaleString("en-IN")}</td>
                   <td className="px-4 py-3">
-                    <span className={teacher.status === "active" ? "rounded bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700" : "rounded bg-stone-100 px-2 py-1 text-xs font-medium text-stone-600"}>
+                    <span className={teacher.status === "active" ? "rounded-full bg-[#e6f8ef] px-2.5 py-1 text-xs font-bold text-[#13a961]" : "rounded-full bg-[#eef0f7] px-2.5 py-1 text-xs font-bold text-[#7d86a8]"}>
                       {teacher.status}
                     </span>
                   </td>
@@ -397,7 +397,7 @@ export default function TeachersPage() {
               ))}
               {!filteredTeachers.length && (
                 <tr>
-                  <td className="px-4 py-8 text-center text-stone-500" colSpan={8}>
+                  <td className="px-4 py-8 text-center text-sm font-medium text-[#7d86a8]" colSpan={8}>
                     {loading ? "Loading teachers..." : "No teachers found."}
                   </td>
                 </tr>

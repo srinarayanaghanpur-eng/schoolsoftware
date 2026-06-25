@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { BarChart, FileDown } from "lucide-react";
+import { FileDown } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 
 interface ReportData {
@@ -82,47 +82,43 @@ export default function FeeReportsPage() {
   const config = reportConfig[activeTab];
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Fee Reports"
-        description="Generate and export fee reports"
-      />
+    <>
+      <PageHeader title="Fee Reports" description="Generate and export fee reports." />
 
-      {/* Tabs */}
-      <div className="flex gap-2 border-b border-stone-200 overflow-x-auto">
-        {Object.entries(reportConfig).map(([type, cfg]) => (
-          <button
-            key={type}
-            onClick={() => setActiveTab(type as any)}
-            className={`px-4 py-3 text-sm font-medium border-b-2 transition whitespace-nowrap ${
-              activeTab === type
-                ? "border-emerald-600 text-emerald-600"
-                : "border-transparent text-stone-600 hover:text-stone-900"
-            }`}
-          >
-            {cfg.label}
-          </button>
-        ))}
-      </div>
+      <section className="space-y-5 p-4 md:p-7">
+        <div className="card flex gap-2 overflow-x-auto p-2">
+          {Object.entries(reportConfig).map(([type, cfg]) => (
+            <button
+              key={type}
+              onClick={() => setActiveTab(type as any)}
+              className={`whitespace-nowrap rounded-xl px-4 py-2.5 text-sm font-bold transition ${
+                activeTab === type
+                  ? "bg-[#3033a1] text-white shadow-[0_8px_18px_rgba(48,51,161,0.16)]"
+                  : "text-[#6f7898] hover:bg-[#f4f5fb] hover:text-[#3033a1]"
+              }`}
+            >
+              {cfg.label}
+            </button>
+          ))}
+        </div>
 
-      {/* Active Report */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="card space-y-4 p-5">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
-            <h3 className="text-lg font-semibold text-stone-900">{config.label}</h3>
-            <p className="text-sm text-stone-500">{config.description}</p>
+              <h3 className="text-lg font-bold text-[#1f2136]">{config.label}</h3>
+              <p className="text-sm font-medium text-[#7d86a8]">{config.description}</p>
           </div>
           <button
             onClick={() => generateReport(activeTab)}
             disabled={report.loading}
-            className="px-4 py-2 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-700 disabled:opacity-50 transition"
+              className="btn-primary"
           >
             {report.loading ? "Generating..." : "Generate Report"}
           </button>
         </div>
 
         {report.error && (
-          <div className="rounded-lg bg-red-50 p-4 text-sm text-red-700">
+            <div className="rounded-xl border border-[#ffd5da] bg-[#ffebed] p-4 text-sm font-semibold text-[#c83f4d]">
             {report.error}
           </div>
         )}
@@ -130,10 +126,10 @@ export default function FeeReportsPage() {
         {report.data.length > 0 && (
           <>
             {/* Export Buttons */}
-            <div className="flex gap-2">
+              <div className="flex gap-2">
               <button
                 onClick={() => exportToCSV(report.data, `${activeTab}-report`)}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-100 text-emerald-700 font-semibold hover:bg-emerald-200 transition"
+                  className="btn-secondary"
               >
                 <FileDown size={18} />
                 Export CSV
@@ -141,15 +137,15 @@ export default function FeeReportsPage() {
             </div>
 
             {/* Report Table */}
-            <div className="rounded-lg bg-white shadow-sm border border-stone-200 overflow-hidden">
+              <div className="overflow-hidden rounded-2xl border border-[#e3e6f0] bg-white">
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse">
-                  <thead className="bg-stone-50">
+                    <thead className="bg-[#f7f8fd]">
                     <tr>
                       {Object.keys(report.data[0] || {}).map((key) => (
                         <th
                           key={key}
-                          className="border-b border-stone-200 px-4 py-3 text-left text-sm font-semibold text-stone-900"
+                            className="border-b border-[#edf0f7] px-4 py-3 text-left text-xs font-bold uppercase tracking-[0.03em] text-[#6f7898]"
                         >
                           {key
                             .replace(/([A-Z])/g, " $1")
@@ -160,9 +156,9 @@ export default function FeeReportsPage() {
                   </thead>
                   <tbody>
                     {report.data.map((row, idx) => (
-                      <tr key={idx} className="border-b border-stone-100 hover:bg-stone-50 transition">
+                        <tr key={idx} className="border-b border-[#edf0f7] transition last:border-b-0 hover:bg-[#fafbff]">
                         {Object.values(row).map((value, cidx) => (
-                          <td key={cidx} className="px-4 py-3 text-sm text-stone-900">
+                            <td key={cidx} className="px-4 py-3 text-sm font-medium text-[#303247]">
                             {typeof value === "number" && value > 100
                               ? `₹${value.toLocaleString("en-IN")}`
                               : String(value)}
@@ -175,18 +171,19 @@ export default function FeeReportsPage() {
               </div>
             </div>
 
-            <p className="text-sm text-stone-500">
+              <p className="text-sm font-semibold text-[#7d86a8]">
               Total Records: {report.data.length}
             </p>
           </>
         )}
 
         {!report.loading && report.data.length === 0 && !report.error && (
-          <div className="text-center py-12 text-stone-500">
+            <div className="rounded-xl bg-[#f7f8fd] py-12 text-center text-sm font-medium text-[#7d86a8]">
             Click "Generate Report" to view data
           </div>
         )}
       </div>
-    </div>
+      </section>
+    </>
   );
 }

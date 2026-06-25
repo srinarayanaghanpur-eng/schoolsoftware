@@ -186,11 +186,11 @@ export function TeacherGpsSettings() {
       <div className="flex items-center justify-between gap-3">
         <div>
           <h2 className="font-semibold">Teacher GPS control</h2>
-          <p className="mt-1 text-sm text-stone-500">
+          <p className="mt-1 text-sm font-medium text-[#7d86a8]">
             Turn GPS on/off for one teacher, update one teacher location, or apply the same GPS to all teachers.
           </p>
         </div>
-        <UsersRound className="text-emerald-700" size={22} />
+        <UsersRound className="text-[#3033a1]" size={22} />
       </div>
 
       <label className="block text-sm">
@@ -209,15 +209,15 @@ export function TeacherGpsSettings() {
         </select>
       </label>
 
-      <label className="flex items-center justify-between gap-3 rounded-lg border border-stone-200 bg-stone-50 px-3 py-3 text-sm">
+      <label className="flex items-center justify-between gap-3 rounded-xl border border-[#e3e6f0] bg-[#f8f9ff] px-3 py-3 text-sm">
         <span>
-          <span className="block font-semibold text-stone-900">GPS attendance for selected teacher</span>
-          <span className="text-stone-500">
+          <span className="block font-bold text-[#303247]">GPS attendance for selected teacher</span>
+          <span className="font-medium text-[#7d86a8]">
             {form.gpsEnabled ? "ON: teacher must be inside the allowed radius." : "OFF: teacher can mark attendance without GPS geofence."}
           </span>
         </span>
         <input
-          className="h-5 w-5 accent-emerald-700"
+          className="h-5 w-5 accent-[#3033a1]"
           type="checkbox"
           checked={form.gpsEnabled}
           onChange={(event) => update("gpsEnabled", event.target.checked)}
@@ -254,8 +254,8 @@ export function TeacherGpsSettings() {
         </button>
       </div>
 
-      {message && <p className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">{message}</p>}
-      {error && <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+      {message && <p className="rounded-xl border border-[#c8f0dc] bg-[#e6f8ef] px-3 py-2 text-sm font-semibold text-[#0f8d52]">{message}</p>}
+      {error && <p className="rounded-xl border border-[#ffd5da] bg-[#ffebed] px-3 py-2 text-sm font-semibold text-[#c83f4d]">{error}</p>}
     </div>
   );
 }

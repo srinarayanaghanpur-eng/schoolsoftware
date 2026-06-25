@@ -24,28 +24,28 @@ export function FeeStatusBadge({
 }) {
   const configs = {
     approved: {
-      bg: "bg-emerald-100",
-      text: "text-emerald-700",
+      bg: "bg-[#e6f8ef]",
+      text: "text-[#13a961]",
       icon: CheckCircle2
     },
     rejected: {
-      bg: "bg-red-100",
-      text: "text-red-700",
+      bg: "bg-[#ffebed]",
+      text: "text-[#ed515d]",
       icon: XCircle
     },
     pending: {
-      bg: "bg-amber-100",
-      text: "text-amber-700",
+      bg: "bg-[#fff4df]",
+      text: "text-[#d79418]",
       icon: Clock
     },
     completed: {
-      bg: "bg-blue-100",
-      text: "text-blue-700",
+      bg: "bg-[#eeefff]",
+      text: "text-[#3033a1]",
       icon: CheckCircle2
     },
     pending_payment: {
-      bg: "bg-orange-100",
-      text: "text-orange-700",
+      bg: "bg-[#fff4df]",
+      text: "text-[#d79418]",
       icon: IndianRupee
     }
   };
@@ -91,19 +91,19 @@ export function FeeSummaryCard({
   color?: "blue" | "green" | "red" | "amber" | "purple";
 }) {
   const colorClasses = {
-    blue: "bg-blue-50 text-blue-600",
-    green: "bg-emerald-50 text-emerald-600",
-    red: "bg-red-50 text-red-600",
-    amber: "bg-amber-50 text-amber-600",
-    purple: "bg-purple-50 text-purple-600"
+    blue: "bg-[#eeefff] text-[#3033a1]",
+    green: "bg-[#e6f8ef] text-[#13a961]",
+    red: "bg-[#ffebed] text-[#ed515d]",
+    amber: "bg-[#fff4df] text-[#d79418]",
+    purple: "bg-[#f0edff] text-[#5751b8]"
   };
 
   return (
-    <div className="rounded-lg bg-white p-6 shadow-sm border border-stone-200">
+    <div className="card p-5 transition duration-200 hover:-translate-y-0.5 hover:border-[#c7caf0]">
       <div className="flex items-start justify-between">
         <div>
-          <p className="text-sm text-stone-500 font-medium">{title}</p>
-          <p className="mt-2 text-3xl font-bold text-stone-900">
+          <p className="text-sm font-semibold text-[#7d86a8]">{title}</p>
+          <p className="mt-3 text-[32px] font-extrabold leading-none tracking-tight text-[#1b1d32]">
             {typeof amount === "number" ? `₹${amount.toLocaleString("en-IN")}` : amount}
           </p>
           {trend && (
@@ -119,7 +119,7 @@ export function FeeSummaryCard({
             </div>
           )}
         </div>
-        <div className={clsx("rounded-lg p-3", colorClasses[color])}>
+        <div className={clsx("grid h-11 w-11 place-items-center rounded-xl", colorClasses[color])}>
           <Icon size={24} />
         </div>
       </div>
@@ -146,38 +146,38 @@ export function ConcessionListItem({
   onDelete?: () => void;
 }) {
   return (
-    <div className="rounded-lg bg-white p-4 border border-stone-200 hover:shadow-md transition">
+    <div className="card p-4 transition duration-200 hover:-translate-y-0.5 hover:border-[#c7caf0]">
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4 lg:grid-cols-5">
         <div>
-          <p className="text-xs text-stone-500 font-medium">Student</p>
-          <p className="mt-1 text-sm font-semibold text-stone-900">{concession.studentName}</p>
-          <p className="text-xs text-stone-500">{concession.admissionNumber}</p>
+          <p className="text-xs font-semibold text-[#7d86a8]">Student</p>
+          <p className="mt-1 text-sm font-bold text-[#1f2136]">{concession.studentName}</p>
+          <p className="text-xs font-medium text-[#7d86a8]">{concession.admissionNumber}</p>
         </div>
         <div>
-          <p className="text-xs text-stone-500 font-medium">Class/Section</p>
-          <p className="mt-1 text-sm text-stone-900">{getClassDisplayName(concession.class)}/{concession.section}</p>
+          <p className="text-xs font-semibold text-[#7d86a8]">Class/Section</p>
+          <p className="mt-1 text-sm font-semibold text-[#303247]">{getClassDisplayName(concession.class)}/{concession.section}</p>
         </div>
         <div>
-          <p className="text-xs text-stone-500 font-medium">Type & Amount</p>
-          <p className="mt-1 text-sm text-stone-900">
+          <p className="text-xs font-semibold text-[#7d86a8]">Type & Amount</p>
+          <p className="mt-1 text-sm font-semibold text-[#303247]">
             {concession.concessionType === "percentage"
               ? `${concession.concessionPercent}%`
               : `₹${concession.concessionAmount}`}
           </p>
         </div>
         <div>
-          <p className="text-xs text-stone-500 font-medium">Status</p>
+          <p className="text-xs font-semibold text-[#7d86a8]">Status</p>
           <div className="mt-1">
             <FeeStatusBadge status={concession.status} size="sm" />
           </div>
         </div>
         <div>
-          <p className="text-xs text-stone-500 font-medium">Actions</p>
+          <p className="text-xs font-semibold text-[#7d86a8]">Actions</p>
           <div className="mt-1 flex gap-2">
             {onView && (
               <button
                 onClick={onView}
-                className="text-xs px-2 py-1 rounded bg-blue-50 text-blue-600 hover:bg-blue-100"
+                className="rounded-lg bg-[#eeefff] px-2 py-1 text-xs font-bold text-[#3033a1] hover:bg-[#e3e5ff]"
               >
                 View
               </button>
@@ -185,7 +185,7 @@ export function ConcessionListItem({
             {concession.status === "pending" && onEdit && (
               <button
                 onClick={onEdit}
-                className="text-xs px-2 py-1 rounded bg-amber-50 text-amber-600 hover:bg-amber-100"
+                className="rounded-lg bg-[#fff4df] px-2 py-1 text-xs font-bold text-[#d79418] hover:bg-[#ffe9bd]"
               >
                 Edit
               </button>
@@ -193,7 +193,7 @@ export function ConcessionListItem({
             {concession.status === "pending" && onApprove && (
               <button
                 onClick={onApprove}
-                className="text-xs px-2 py-1 rounded bg-emerald-50 text-emerald-600 hover:bg-emerald-100"
+                className="rounded-lg bg-[#e6f8ef] px-2 py-1 text-xs font-bold text-[#13a961] hover:bg-[#d7f3e5]"
               >
                 Approve
               </button>
@@ -228,9 +228,9 @@ export function AttendancePercentage({
   };
 
   return (
-    <div className={clsx("font-semibold", getColor(percentage), sizeClasses[size])}>
+    <div className={clsx("font-bold", getColor(percentage), sizeClasses[size])}>
       {percentage.toFixed(2)}%
-      <p className="text-xs text-stone-500 font-normal">
+      <p className="text-xs font-medium text-[#7d86a8]">
         {percentage >= 75 ? "Eligible" : percentage >= 60 ? "Moderate" : "Low"}
       </p>
     </div>
@@ -255,19 +255,19 @@ export function FeeCollectionProgressBar({
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between text-sm">
-        <span className="font-medium text-stone-900">
+        <span className="font-bold text-[#303247]">
           ₹{paid.toLocaleString("en-IN")} of ₹{effectiveTotal.toLocaleString("en-IN")}
         </span>
-        <span className="text-stone-500">{Math.round(percentage)}%</span>
+        <span className="font-semibold text-[#7d86a8]">{Math.round(percentage)}%</span>
       </div>
-      <div className="w-full bg-stone-200 rounded-full h-2 overflow-hidden">
+      <div className="h-2 w-full overflow-hidden rounded-full bg-[#e6e9f5]">
         <div
-          className="bg-emerald-500 h-full transition-all duration-300"
+          className="h-full bg-[#3033a1] transition-all duration-300"
           style={{ width: `${Math.min(percentage, 100)}%` }}
         />
       </div>
       {concessionAmount > 0 && (
-        <p className="text-xs text-stone-500">
+        <p className="text-xs font-medium text-[#7d86a8]">
           Concession: ₹{concessionAmount.toLocaleString("en-IN")}
         </p>
       )}
@@ -284,10 +284,10 @@ export function PaymentMethodBadge({
   method: "cash" | "cheque" | "online" | "transfer";
 }) {
   const configs = {
-    cash: { bg: "bg-green-100", text: "text-green-700", label: "Cash" },
-    cheque: { bg: "bg-blue-100", text: "text-blue-700", label: "Cheque" },
-    online: { bg: "bg-purple-100", text: "text-purple-700", label: "Online" },
-    transfer: { bg: "bg-indigo-100", text: "text-indigo-700", label: "Transfer" }
+    cash: { bg: "bg-[#e6f8ef]", text: "text-[#13a961]", label: "Cash" },
+    cheque: { bg: "bg-[#eeefff]", text: "text-[#3033a1]", label: "Cheque" },
+    online: { bg: "bg-[#f0edff]", text: "text-[#5751b8]", label: "Online" },
+    transfer: { bg: "bg-[#eeefff]", text: "text-[#3033a1]", label: "Transfer" }
   };
 
   const config = configs[method];

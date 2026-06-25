@@ -50,15 +50,15 @@ export default async function BiometricPage() {
   return (
     <>
       <PageHeader title="Biometric Device Settings" description="ESSL device webhook and live biometric log monitoring." />
-      <section className="space-y-4 p-4 md:p-6">
+      <section className="space-y-5 p-4 md:p-7">
         <div className="grid gap-4 md:grid-cols-2">
           <div className="card p-4">
             <div className="mb-3 flex items-center gap-2 font-semibold"><Server size={18} /> Webhook endpoint</div>
-            <code className="block rounded-md bg-stone-100 p-3 text-sm">POST /api/biometric/log</code>
+            <code className="block rounded-xl bg-[#f7f8fd] p-3 text-sm font-semibold text-[#303247]">POST /api/biometric/log</code>
           </div>
           <div className="card p-4">
             <div className="mb-3 flex items-center gap-2 font-semibold"><Fingerprint size={18} /> Supported event payload</div>
-            <pre className="overflow-auto rounded-md bg-stone-100 p-3 text-xs">{`{
+            <pre className="overflow-auto rounded-xl bg-[#f7f8fd] p-3 text-xs font-medium text-[#303247]">{`{
   "deviceId": "ESSL-001",
   "biometricUserId": "EMP001",
   "timestamp": "2026-05-19T09:05:00+05:30",
@@ -69,8 +69,8 @@ export default async function BiometricPage() {
         </div>
         <div className="card overflow-x-auto">
           <div className="flex items-center justify-between px-4 py-3">
-            <h2 className="font-semibold text-stone-800">Recent biometric logs</h2>
-            <span className="text-xs font-medium text-stone-500">{logs.length} shown</span>
+            <h2 className="font-bold text-[#1f2136]">Recent biometric logs</h2>
+            <span className="text-xs font-semibold text-[#7d86a8]">{logs.length} shown</span>
           </div>
           <table className="w-full min-w-[820px] text-left text-sm">
             <thead className="bg-stone-50 text-xs uppercase text-stone-500">
@@ -87,7 +87,7 @@ export default async function BiometricPage() {
             <tbody>
               {logs.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-10 text-center text-stone-500">
+                  <td colSpan={7} className="px-4 py-10 text-center text-sm font-medium text-[#7d86a8]">
                     No biometric logs yet. Punches forwarded from the eSSL device will appear here.
                   </td>
                 </tr>
@@ -101,7 +101,7 @@ export default async function BiometricPage() {
                     <td className="px-4 py-3">{log.verificationType}</td>
                     <td className="px-4 py-3">{log.eventType}</td>
                     <td className="px-4 py-3">
-                      <span className={log.processed ? "font-semibold text-emerald-600" : "font-semibold text-amber-600"}>
+                      <span className={log.processed ? "font-bold text-[#13a961]" : "font-bold text-[#d79418]"}>
                         {log.processed ? "Yes" : "No"}
                       </span>
                     </td>
