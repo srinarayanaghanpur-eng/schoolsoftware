@@ -60,9 +60,14 @@ const primaryNav: NavItem[] = [
     module: "fees",
     icon: IndianRupee,
     children: [
+      { href: "/admin/finance", label: "Finance Dashboard" },
       { href: "/admin/fee-structures", label: "Fee Structures" },
       { href: "/admin/fee-concessions", label: "Fee Concessions" },
-      { href: "/admin/fee-reports", label: "Fee Reports" }
+      { href: "/admin/fee-reports", label: "Fee Reports" },
+      { href: "/admin/finance/expenses", label: "Expenses" },
+      { href: "/admin/finance/income", label: "Income" },
+      { href: "/admin/finance/dues", label: "Dues" },
+      { href: "/admin/finance/ledger", label: "Ledger" }
     ]
   },
   { href: "/admin/salary", label: "Salary & Payroll", module: "payroll", icon: Wallet },

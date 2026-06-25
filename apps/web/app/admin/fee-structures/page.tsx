@@ -8,7 +8,25 @@ import { feeStructureCreateSchema, hasPermission, type FeeHead, type FeeStructur
 import { Edit3, Plus, Save, Search, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
-const CLASS_OPTIONS = ["Nur", "KG", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"];
+const CLASS_OPTIONS = ["Nur", "LKG", "UKG", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"];
+
+const CLASS_LABELS: Record<string, string> = {
+  Nur: "Nursery",
+  LKG: "L.K.G",
+  UKG: "U.K.G",
+  "1": "I Class",
+  "2": "II Class",
+  "3": "III Class",
+  "4": "IV Class",
+  "5": "V Class",
+  "6": "VI Class",
+  "7": "VII Class",
+  "8": "VIII Class",
+  "9": "IX Class",
+  "10": "X Class"
+};
+
+const classLabel = (className: string) => CLASS_LABELS[className] ?? `Class ${className}`;
 
 type FeeStructureForm = {
   id?: string;
@@ -191,7 +209,7 @@ export default function FeeStructuresPage() {
             <select className="field mt-1" value={classFilter} onChange={(event) => setClassFilter(event.target.value)}>
               <option value="">All classes</option>
               {CLASS_OPTIONS.map((item) => (
-                <option key={item} value={item}>Class {item}</option>
+                <option key={item} value={item}>{classLabel(item)}</option>
               ))}
             </select>
           </label>
@@ -226,7 +244,7 @@ export default function FeeStructuresPage() {
                 Class
                 <select className="field mt-1" value={form.className} onChange={(event) => setForm({ ...form, className: event.target.value })}>
                   {CLASS_OPTIONS.map((item) => (
-                    <option key={item} value={item}>Class {item}</option>
+                    <option key={item} value={item}>{classLabel(item)}</option>
                   ))}
                 </select>
               </label>
@@ -272,7 +290,7 @@ export default function FeeStructuresPage() {
               <tbody>
                 {structures.map((structure) => (
                   <tr key={structure.id ?? `${structure.academicYearId}-${structure.className}`} className="border-b border-[#edf0f7] last:border-b-0">
-                    <td className="px-5 py-4 font-extrabold text-[#303247]">Class {structure.className}</td>
+                    <td className="px-5 py-4 font-extrabold text-[#303247]">{classLabel(structure.className)}</td>
                     <td className="px-5 py-4">
                       <div className="flex flex-wrap gap-2">
                         {structure.heads.map((head) => (

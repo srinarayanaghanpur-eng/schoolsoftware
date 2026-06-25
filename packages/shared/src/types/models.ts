@@ -454,3 +454,74 @@ export type ClassDues = {
   totalDue: number;
   students: { id: string; name: string; due: number }[];
 };
+
+// ===== Finance: vendors, purchases, banking, invoices, reminders =====
+export type Vendor = {
+  id?: string;
+  name: string;
+  contact?: string;
+  phone?: string;
+  address?: string;
+  gstin?: string;
+  createdAt: FirestoreDate;
+  updatedAt: FirestoreDate;
+};
+
+export type PurchaseStatus = "unpaid" | "partial" | "paid";
+export type PurchaseItem = { name: string; qty: number; rate: number; amount: number };
+
+export type Purchase = {
+  id?: string;
+  vendorId: string;
+  vendorName?: string;
+  billNo?: string;
+  date: string;
+  items: PurchaseItem[];
+  amount: number;
+  amountPaid: number;
+  status: PurchaseStatus;
+  category?: string;
+  academicYearId?: string;
+  createdBy: string;
+  createdAt: FirestoreDate;
+  updatedAt: FirestoreDate;
+};
+
+export type BankAccount = {
+  id?: string;
+  name: string;
+  bankName?: string;
+  accountNumber?: string;
+  openingBalance: number;
+  currentBalance: number;
+  createdAt: FirestoreDate;
+  updatedAt: FirestoreDate;
+};
+
+export type BankTxnType = "deposit" | "withdrawal" | "transfer";
+export type BankTransaction = {
+  id?: string;
+  accountId: string;
+  type: BankTxnType;
+  amount: number;
+  date: string;
+  description?: string;
+  toAccountId?: string;
+  createdBy: string;
+  createdAt: FirestoreDate;
+};
+
+export type InvoiceStatus = "issued" | "paid" | "cancelled";
+export type Invoice = {
+  id?: string;
+  invoiceNo: string;
+  studentId: string;
+  studentName?: string;
+  items: { name: string; amount: number }[];
+  total: number;
+  status: InvoiceStatus;
+  date: string;
+  academicYearId?: string;
+  createdBy: string;
+  createdAt: FirestoreDate;
+};

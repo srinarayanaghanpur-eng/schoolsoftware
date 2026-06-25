@@ -56,3 +56,32 @@ Expense `status`: `pending → approved/rejected` (only approved counts in P&L/l
 Expenses(+approval), Income, Advances, P&L summary, Ledger(+balance), Class-wise dues, Receipt data,
 Fee structures, Online pay. Firestore rules added (`expenses`,`incomes`,`salary_advances`).
 Typecheck + live API tests pass.
+
+---
+
+## Part 2 — Payables, Banking, Invoices, Reminders (NEW, all live & tested)
+Shared types: `Vendor, Purchase, PurchaseItem, BankAccount, BankTransaction, Invoice`.
+Schemas: `vendorCreateSchema, purchaseCreateSchema, purchasePaySchema, bankAccountCreateSchema, bankTxnSchema, invoiceCreateSchema`.
+
+| Method | Path | Body / Query | Returns |
+|---|---|---|---|
+| GET/POST | `/api/admin/finance/vendors` (+ `PATCH/DELETE /[id]`) | `{name,contact?,phone?,address?,gstin?}` | `{ ok, vendors }` |
+| GET/POST | `/api/admin/finance/purchases` | `{vendorId,billNo?,date,items:[{name,qty,rate}],amount,category?}` | `{ ok, purchases }` (status: unpaid/partial/paid) |
+| POST | `/api/admin/finance/purchases/[id]/pay` | `{amount,method?}` | pays bill (full/partial) + **logs an approved expense** → P&L/ledger |
+| GET/POST | `/api/admin/finance/bank-accounts` | `{name,bankName?,accountNumber?,openingBalance}` | `{ ok, accounts }` (tracks `currentBalance`) |
+| GET/POST | `/api/admin/finance/bank-accounts/[id]/transactions` | `{type:"deposit"\|"withdrawal"\|"transfer",amount,date,description?,toAccountId?}` | updates balance(s) |
+| GET/POST | `/api/admin/finance/invoices?studentId=` | `{studentId,items:[{name,amount}],date?}` | `{ ok, id, invoiceNo, total }` — **auto INV-0001** |
+| GET | `/api/admin/finance/reminders` | — | `{ ok, reminders:[{studentId,name,phone,due}], count }` (students with dues) |
+| POST | `/api/admin/finance/reminders` | `{studentIds:[],channel}` | queues reminders (SMS/WhatsApp provider = future) |
+| GET | `/api/admin/finance/daily?from=&to=` | — | `{ ok, days:[{date,income,expense,net}] }` (chart series) |
+
+### Extra screens
+9. **Vendors & Purchases (Payables)** — vendor directory; purchase bills with **Pay** (full/partial); outstanding payables.
+10. **Banking** — bank accounts with balances; deposit/withdraw/transfer; per-account transaction history.
+11. **Invoices** — generate a student invoice (line items, auto number); list; print/PDF.
+12. **Fee reminders** — dues list with "Send reminder" (select students → SMS/WhatsApp queue).
+13. **Daily summary chart** — income vs expense per day (use `/finance/daily`) on the Finance dashboard.
+
+### Backend status — ✅ ALL DONE & TESTED
+Vendors, Purchases(+pay→expense), Bank accounts+transactions(balance), Invoices(seq #), Reminders, Daily series.
+Rules added (`vendors`,`purchases`,`bank_accounts`,`bank_transactions`,`invoices`,`fee_reminders`,`counters`). typecheck + live tests pass.

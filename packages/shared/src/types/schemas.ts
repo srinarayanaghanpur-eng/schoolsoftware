@@ -211,3 +211,54 @@ export const salaryAdvanceCreateSchema = z.object({
   date: z.string().trim().min(8),
   reason: z.string().trim().optional().default("")
 });
+
+// ===== Finance (vendors/purchases/banking/invoices) schemas =====
+export const vendorCreateSchema = z.object({
+  name: z.string().trim().min(1),
+  contact: z.string().trim().optional().default(""),
+  phone: z.string().trim().optional().default(""),
+  address: z.string().trim().optional().default(""),
+  gstin: z.string().trim().optional().default("")
+});
+
+export const purchaseItemSchema = z.object({
+  name: z.string().trim().min(1),
+  qty: z.coerce.number().positive(),
+  rate: z.coerce.number().nonnegative()
+});
+
+export const purchaseCreateSchema = z.object({
+  vendorId: z.string().trim().min(1),
+  billNo: z.string().trim().optional().default(""),
+  date: z.string().trim().min(8),
+  items: z.array(purchaseItemSchema).optional().default([]),
+  amount: z.coerce.number().positive(),
+  category: z.string().trim().optional().default("")
+});
+
+export const purchasePaySchema = z.object({
+  amount: z.coerce.number().positive(),
+  method: z.string().trim().optional().default("cash")
+});
+
+export const bankAccountCreateSchema = z.object({
+  name: z.string().trim().min(1),
+  bankName: z.string().trim().optional().default(""),
+  accountNumber: z.string().trim().optional().default(""),
+  openingBalance: z.coerce.number().optional().default(0)
+});
+
+export const bankTxnSchema = z.object({
+  type: z.enum(["deposit", "withdrawal", "transfer"]),
+  amount: z.coerce.number().positive(),
+  date: z.string().trim().min(8),
+  description: z.string().trim().optional().default(""),
+  toAccountId: z.string().trim().optional().default("")
+});
+
+export const invoiceItemSchema = z.object({ name: z.string().trim().min(1), amount: z.coerce.number().nonnegative() });
+export const invoiceCreateSchema = z.object({
+  studentId: z.string().trim().min(1),
+  items: z.array(invoiceItemSchema).min(1),
+  date: z.string().trim().optional().default("")
+});

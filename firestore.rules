@@ -142,6 +142,13 @@ service cloud.firestore {
     match /salary_advances/{id} {
       allow read, write: if isAdmin();
     }
+    match /vendors/{id} { allow read, write: if isAdmin(); }
+    match /purchases/{id} { allow read, write: if isAdmin(); }
+    match /bank_accounts/{id} { allow read, write: if isAdmin(); }
+    match /bank_transactions/{id} { allow read, write: if isAdmin(); }
+    match /invoices/{id} { allow read, write: if isAdmin(); }
+    match /fee_reminders/{id} { allow read, write: if isAdmin(); }
+    match /counters/{id} { allow read, write: if isAdmin(); }
 
     match /backup_audit_logs/{logId} {
       allow read, write: if isAdmin();

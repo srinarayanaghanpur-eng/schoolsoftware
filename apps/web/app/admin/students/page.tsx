@@ -22,8 +22,55 @@ interface Student {
   commitmentFee?: string;
 }
 
-const CLASS_OPTIONS = ["Nur", "KG", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"];
+const CLASS_OPTIONS = ["Nur", "LKG", "UKG", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"];
 const SECTION_OPTIONS = ["A", "B", "C", "D", "E"];
+
+// Official annual school fee per class — Fee Structure AY 2026-27 (Sri Narayana High School).
+const FEE_BY_CLASS: Record<string, number> = {
+  Nur: 17000,
+  LKG: 18000,
+  UKG: 19000,
+  "1": 20000,
+  "2": 21000,
+  "3": 22000,
+  "4": 23000,
+  "5": 24000,
+  "6": 27000,
+  "7": 28000,
+  "8": 29000,
+  "9": 30000,
+  "10": 33000
+};
+
+// Human-friendly labels for the class dropdown.
+const CLASS_LABELS: Record<string, string> = {
+  Nur: "Nursery",
+  LKG: "L.K.G",
+  UKG: "U.K.G",
+  "1": "I Class",
+  "2": "II Class",
+  "3": "III Class",
+  "4": "IV Class",
+  "5": "V Class",
+  "6": "VI Class",
+  "7": "VII Class",
+  "8": "VIII Class",
+  "9": "IX Class",
+  "10": "X Class"
+};
+
+const academicFeeForClass = (className: string) => String(FEE_BY_CLASS[className] ?? 0);
+
+// Next sequential admission number — highest existing numeric value + 1,
+// starting from 1 when there are no students yet.
+function nextAdmissionNumber(students: Student[]) {
+  let max = 0;
+  for (const student of students) {
+    const value = parseInt(String(student.admissionNumber).replace(/\D/g, ""), 10);
+    if (Number.isFinite(value) && value > max) max = value;
+  }
+  return String(max + 1);
+}
 
 export default function StudentsPage() {
   const { role } = useAdminSession();
@@ -38,6 +85,7 @@ export default function StudentsPage() {
   const [classFilter, setClassFilter] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     admissionNumber: "",
@@ -50,7 +98,7 @@ export default function StudentsPage() {
     email: "",
     phone: "",
     address: "",
-    annualEnrollmentFee: "0",
+    annualEnrollmentFee: academicFeeForClass("1"),
     commitmentFee: "0"
   });
 
@@ -96,8 +144,9 @@ export default function StudentsPage() {
     setError("");
     setSuccess("");
 
-    if (!canCreateStudent) {
-      setError("Your role cannot add students.");
+    const isEditing = Boolean(editingId);
+    if (isEditing ? !canEditStudent : !canCreateStudent) {
+      setError(isEditing ? "Your role cannot edit students." : "Your role cannot add students.");
       return;
     }
 
@@ -108,34 +157,24 @@ export default function StudentsPage() {
         commitmentFee: Number(formData.commitmentFee || 0)
       };
 
-      const response = await fetch("/api/admin/students", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      });
+      const response = await fetch(
+        isEditing ? `/api/admin/students/${editingId}` : "/api/admin/students",
+        {
+          method: isEditing ? "PATCH" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        }
+      );
 
       const data = await response.json();
 
       if (data.success) {
-        setSuccess("Student added successfully!");
-        setFormData({
-          admissionNumber: "",
-          studentName: "",
-          class: "1",
-          section: "A",
-          fatherName: "",
-          motherName: "",
-          dateOfBirth: "",
-          email: "",
-          phone: "",
-          address: "",
-          annualEnrollmentFee: "",
-          commitmentFee: ""
-        });
+        setSuccess(isEditing ? "Student updated successfully!" : "Student added successfully!");
+        resetForm();
         setShowForm(false);
         fetchStudents();
       } else {
-        setError(data.error || "Failed to add student");
+        setError(data.error || (isEditing ? "Failed to update student" : "Failed to add student"));
       }
     } catch (err) {
       setError("An error occurred. Please try again.");
@@ -144,7 +183,84 @@ export default function StudentsPage() {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+      // Academic fee is locked to the selected class per the official fee structure.
+      ...(name === "class" ? { annualEnrollmentFee: academicFeeForClass(value) } : {})
+    }));
+  };
+
+  const resetForm = () => {
+    setEditingId(null);
+    setFormData({
+      admissionNumber: "",
+      studentName: "",
+      class: "1",
+      section: "A",
+      fatherName: "",
+      motherName: "",
+      dateOfBirth: "",
+      email: "",
+      phone: "",
+      address: "",
+      annualEnrollmentFee: academicFeeForClass("1"),
+      commitmentFee: "0"
+    });
+  };
+
+  const openAddForm = () => {
+    setError("");
+    setSuccess("");
+    resetForm();
+    setFormData((prev) => ({ ...prev, admissionNumber: nextAdmissionNumber(students) }));
+    setShowForm(true);
+  };
+
+  const openEditForm = (student: Student) => {
+    setError("");
+    setSuccess("");
+    setEditingId(student.id);
+    setFormData({
+      admissionNumber: student.admissionNumber,
+      studentName: student.studentName ?? "",
+      class: student.class,
+      section: student.section ?? "A",
+      fatherName: student.fatherName ?? "",
+      motherName: student.motherName ?? "",
+      dateOfBirth: typeof student.dateOfBirth === "string" ? student.dateOfBirth.slice(0, 10) : "",
+      email: student.email ?? "",
+      phone: student.phone ?? "",
+      address: student.address ?? "",
+      // Keep the academic fee locked to the official class fee.
+      annualEnrollmentFee: academicFeeForClass(student.class),
+      commitmentFee: String(student.commitmentFee ?? "0")
+    });
+    setShowForm(true);
+  };
+
+  const handleDelete = async (student: Student) => {
+    if (!canDeleteStudent) return;
+    if (!window.confirm(`Delete ${student.studentName} (${student.admissionNumber})? This cannot be undone.`)) return;
+    setError("");
+    setSuccess("");
+    try {
+      const response = await fetch(`/api/admin/students/${student.id}`, { method: "DELETE" });
+      const data = await response.json();
+      if (data.success) {
+        setSuccess("Student deleted.");
+        fetchStudents();
+      } else {
+        setError(data.error || "Failed to delete student");
+      }
+    } catch {
+      setError("An error occurred while deleting.");
+    }
+  };
+
+  const closeForm = () => {
+    setShowForm(false);
+    resetForm();
   };
 
   return (
@@ -154,7 +270,7 @@ export default function StudentsPage() {
         description="Manage student records, fee commitments, and class sections."
         action={
           canCreateStudent ? (
-            <button onClick={() => setShowForm(!showForm)} className="btn-primary">
+            <button onClick={() => (showForm ? closeForm() : openAddForm())} className="btn-primary">
               <Plus size={18} />
               Add Student
             </button>
@@ -166,8 +282,8 @@ export default function StudentsPage() {
         {showForm && (
           <div className="card p-5 md:p-6">
             <div className="mb-4 flex items-center justify-between gap-4">
-              <h3 className="text-lg font-bold text-[#1f2136]">Add New Student</h3>
-              <button onClick={() => setShowForm(false)} className="grid h-9 w-9 place-items-center rounded-xl text-[#7d86a8] hover:bg-[#f4f5fb] hover:text-[#3033a1]">
+              <h3 className="text-lg font-bold text-[#1f2136]">{editingId ? "Edit Student" : "Add New Student"}</h3>
+              <button onClick={closeForm} className="grid h-9 w-9 place-items-center rounded-xl text-[#7d86a8] hover:bg-[#f4f5fb] hover:text-[#3033a1]">
                 <X size={20} />
               </button>
             </div>
@@ -179,7 +295,15 @@ export default function StudentsPage() {
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div>
                   <label className="block text-sm font-semibold text-[#303247]">Admission Number *</label>
-                  <input type="text" name="admissionNumber" value={formData.admissionNumber} onChange={handleChange} required placeholder="e.g., ADM001" className="field mt-1" />
+                  <input
+                    type="text"
+                    name="admissionNumber"
+                    value={formData.admissionNumber}
+                    readOnly
+                    required
+                    className="field mt-1 cursor-not-allowed bg-[#f4f5fb] text-[#5a6488]"
+                  />
+                  <p className="mt-1 text-xs font-medium text-[#7d86a8]">{editingId ? "Admission number cannot be changed." : "Auto-generated sequentially."}</p>
                 </div>
 
                 <div>
@@ -190,7 +314,7 @@ export default function StudentsPage() {
                 <div>
                   <label className="block text-sm font-semibold text-[#303247]">Class *</label>
                   <select name="class" value={formData.class} onChange={handleChange} required className="field mt-1">
-                    {CLASS_OPTIONS.map((cls) => <option key={cls} value={cls}>{cls}</option>)}
+                    {CLASS_OPTIONS.map((cls) => <option key={cls} value={cls}>{CLASS_LABELS[cls] ?? cls}</option>)}
                   </select>
                 </div>
 
@@ -202,8 +326,15 @@ export default function StudentsPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-[#303247]">Annual Enrollment Fee</label>
-                  <input type="number" min="0" name="annualEnrollmentFee" value={formData.annualEnrollmentFee} onChange={handleChange} placeholder="₹0" className="field mt-1" />
+                  <label className="block text-sm font-semibold text-[#303247]">Academic Fee (Annual)</label>
+                  <input
+                    type="text"
+                    name="annualEnrollmentFee"
+                    value={`₹${Number(formData.annualEnrollmentFee || 0).toLocaleString("en-IN")}`}
+                    readOnly
+                    className="field mt-1 cursor-not-allowed bg-[#f4f5fb] font-semibold text-[#5a6488]"
+                  />
+                  <p className="mt-1 text-xs font-medium text-[#7d86a8]">Auto-set from the {CLASS_LABELS[formData.class] ?? formData.class} fee — AY 2026-27 structure.</p>
                 </div>
 
                 <div>
@@ -243,8 +374,8 @@ export default function StudentsPage() {
               </div>
 
               <div className="flex flex-wrap gap-3">
-                <button type="submit" className="btn-primary">Add Student</button>
-                <button type="button" onClick={() => setShowForm(false)} className="btn-secondary">Cancel</button>
+                <button type="submit" className="btn-primary">{editingId ? "Save Changes" : "Add Student"}</button>
+                <button type="button" onClick={closeForm} className="btn-secondary">Cancel</button>
               </div>
             </form>
           </div>
@@ -271,7 +402,7 @@ export default function StudentsPage() {
           <option value="">All Classes</option>
           {CLASS_OPTIONS.map((cls) => (
             <option key={cls} value={cls}>
-              Class {cls}
+              {CLASS_LABELS[cls] ?? `Class ${cls}`}
             </option>
           ))}
         </select>
@@ -307,12 +438,12 @@ export default function StudentsPage() {
                       {canEditStudent || canDeleteStudent ? (
                         <div className="flex items-center justify-center gap-2">
                           {canEditStudent && (
-                          <button className="grid h-9 w-9 place-items-center rounded-xl bg-[#eeefff] text-[#3033a1] hover:bg-[#e3e5ff]" title="Edit student">
+                          <button onClick={() => openEditForm(student)} className="grid h-9 w-9 place-items-center rounded-xl bg-[#eeefff] text-[#3033a1] hover:bg-[#e3e5ff]" title="Edit student">
                           <Edit2 size={16} />
                         </button>
                           )}
                           {canDeleteStudent && (
-                          <button className="grid h-9 w-9 place-items-center rounded-xl bg-[#ffebed] text-[#ed515d] hover:bg-[#ffdfe4]" title="Delete student">
+                          <button onClick={() => handleDelete(student)} className="grid h-9 w-9 place-items-center rounded-xl bg-[#ffebed] text-[#ed515d] hover:bg-[#ffdfe4]" title="Delete student">
                           <Trash2 size={16} />
                         </button>
                           )}
