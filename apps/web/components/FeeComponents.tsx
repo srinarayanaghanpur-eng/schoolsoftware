@@ -216,9 +216,9 @@ export function AttendancePercentage({
   size?: "sm" | "md" | "lg";
 }) {
   const getColor = (pct: number) => {
-    if (pct >= 75) return "text-emerald-600";
-    if (pct >= 60) return "text-amber-600";
-    return "text-red-600";
+    if (pct >= 75) return "text-[#13a961]";
+    if (pct >= 60) return "text-[#d79418]";
+    return "text-[#ed515d]";
   };
 
   const sizeClasses = {

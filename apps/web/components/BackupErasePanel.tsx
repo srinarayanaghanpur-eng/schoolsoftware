@@ -189,17 +189,17 @@ export function BackupErasePanel() {
             Backup to USB
           </div>
           <div className="grid gap-3 md:grid-cols-3">
-            <div className="rounded-md border border-stone-200 p-3">
-              <p className="text-sm font-medium">1. Insert USB</p>
-              <p className="mt-1 text-xs text-stone-500">Use the browser save dialog to choose the USB drive.</p>
+            <div className="rounded-xl border border-[#e3e6f0] bg-[#fafbff] p-3">
+              <p className="text-sm font-bold text-[#303247]">1. Insert USB</p>
+              <p className="mt-1 text-xs font-medium text-[#7d86a8]">Use the browser save dialog to choose the USB drive.</p>
             </div>
-            <div className="rounded-md border border-stone-200 p-3">
-              <p className="text-sm font-medium">2. Download backup</p>
-              <p className="mt-1 text-xs text-stone-500">A JSON backup and checksum are generated.</p>
+            <div className="rounded-xl border border-[#e3e6f0] bg-[#fafbff] p-3">
+              <p className="text-sm font-bold text-[#303247]">2. Download backup</p>
+              <p className="mt-1 text-xs font-medium text-[#7d86a8]">A JSON backup and checksum are generated.</p>
             </div>
-            <div className="rounded-md border border-stone-200 p-3">
-              <p className="text-sm font-medium">3. Confirm erase</p>
-              <p className="mt-1 text-xs text-stone-500">Erase unlocks only after USB confirmation.</p>
+            <div className="rounded-xl border border-[#e3e6f0] bg-[#fafbff] p-3">
+              <p className="text-sm font-bold text-[#303247]">3. Confirm erase</p>
+              <p className="mt-1 text-xs font-medium text-[#7d86a8]">Erase unlocks only after USB confirmation.</p>
             </div>
           </div>
           <button className="btn-primary mt-4" disabled={loading === "backup"} onClick={generateBackup}>
@@ -239,7 +239,7 @@ export function BackupErasePanel() {
             <RotateCcw size={18} />
             Restore from backup
           </div>
-          <p className="mb-4 text-sm text-stone-600">
+          <p className="mb-4 text-sm font-medium text-[#5f6888]">
             Import a backup JSON file and restore the included collections. Existing matching documents are updated.
           </p>
           <label className="block text-sm">
@@ -251,7 +251,7 @@ export function BackupErasePanel() {
               onChange={(event) => void importRestoreFile(event.target.files?.[0])}
             />
           </label>
-          {restoreFileName && <p className="mt-2 text-xs text-stone-500">Loaded: {restoreFileName}</p>}
+          {restoreFileName && <p className="mt-2 text-xs font-medium text-[#7d86a8]">Loaded: {restoreFileName}</p>}
           <button className="btn-secondary mt-4" disabled={loading === "restore" || !restoreBackup} onClick={restoreData}>
             <Upload size={16} />
             {loading === "restore" ? "Restoring..." : "Restore backup file"}
@@ -265,7 +265,7 @@ export function BackupErasePanel() {
             <Trash2 size={18} />
             Erase Firestore data
           </div>
-          <p className="text-sm text-stone-600">
+          <p className="text-sm font-medium text-[#5f6888]">
             This removes operational collections after a verified backup checksum. Audit logs are kept.
           </p>
           <label className="mt-4 block text-sm">
@@ -278,7 +278,7 @@ export function BackupErasePanel() {
             />
           </label>
           <button
-            className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-md bg-red-700 px-3 py-2 text-sm font-medium text-white transition hover:bg-red-800 disabled:cursor-not-allowed disabled:opacity-50"
+            className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#ed515d] px-3 py-2.5 text-sm font-bold text-white transition hover:bg-[#c83f4d] disabled:cursor-not-allowed disabled:opacity-50"
             disabled={!canErase || loading === "erase"}
             onClick={eraseData}
           >
@@ -292,7 +292,7 @@ export function BackupErasePanel() {
             <ShieldCheck size={18} />
             Safety checks
           </div>
-          <ul className="space-y-2 text-sm text-stone-600">
+          <ul className="space-y-2 text-sm font-medium text-[#5f6888]">
             <li>Admin Firebase token required in production.</li>
             <li>Backup checksum must exist in server audit logs.</li>
             <li>USB confirmation checkbox is required.</li>
@@ -300,7 +300,7 @@ export function BackupErasePanel() {
           </ul>
         </div>
 
-        {message && <div className="card p-4 text-sm text-stone-700">{message}</div>}
+        {message && <div className="card p-4 text-sm font-medium text-[#5f6888]">{message}</div>}
       </aside>
     </div>
   );
