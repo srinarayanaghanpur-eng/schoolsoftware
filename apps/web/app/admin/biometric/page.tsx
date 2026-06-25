@@ -1,11 +1,55 @@
 import { PageHeader } from "@/components/PageHeader";
-import { demoBiometricLogs } from "@sri-narayana/shared";
 import { Fingerprint, Server } from "lucide-react";
+import { adminDb } from "@/lib/firebaseAdmin";
 
-export default function BiometricPage() {
+export const dynamic = "force-dynamic";
+
+type LogRow = {
+  id: string;
+  deviceId: string;
+  biometricUserId: string;
+  teacherName: string;
+  timestamp: string;
+  verificationType: string;
+  eventType: string;
+  processed: boolean;
+};
+
+async function loadLogs(): Promise<LogRow[]> {
+  const db = adminDb();
+  const [logsSnap, teachersSnap] = await Promise.all([
+    db.collection("biometric_logs").orderBy("createdAt", "desc").limit(50).get(),
+    db.collection("teachers").get()
+  ]);
+  const teacherById = new Map(teachersSnap.docs.map((d) => [d.id, (d.data().fullName as string) || ""]));
+  return logsSnap.docs.map((d) => {
+    const l = d.data();
+    return {
+      id: d.id,
+      deviceId: l.deviceId || "—",
+      biometricUserId: l.biometricUserId || "—",
+      teacherName: l.teacherId ? teacherById.get(l.teacherId) || "—" : "—",
+      timestamp: l.timestamp || "",
+      verificationType: l.verificationType || "unknown",
+      eventType: l.eventType || "—",
+      processed: Boolean(l.processed)
+    };
+  });
+}
+
+function formatTime(iso: string) {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
+}
+
+export default async function BiometricPage() {
+  const logs = await loadLogs().catch(() => []);
+
   return (
     <>
-      <PageHeader title="Biometric Device Settings" description="ESSL device webhook and raw biometric log monitoring." />
+      <PageHeader title="Biometric Device Settings" description="ESSL device webhook and live biometric log monitoring." />
       <section className="space-y-4 p-4 md:p-6">
         <div className="grid gap-4 md:grid-cols-2">
           <div className="card p-4">
@@ -24,11 +68,16 @@ export default function BiometricPage() {
           </div>
         </div>
         <div className="card overflow-x-auto">
-          <table className="w-full min-w-[760px] text-left text-sm">
+          <div className="flex items-center justify-between px-4 py-3">
+            <h2 className="font-semibold text-stone-800">Recent biometric logs</h2>
+            <span className="text-xs font-medium text-stone-500">{logs.length} shown</span>
+          </div>
+          <table className="w-full min-w-[820px] text-left text-sm">
             <thead className="bg-stone-50 text-xs uppercase text-stone-500">
               <tr>
                 <th className="px-4 py-3">Device</th>
                 <th className="px-4 py-3">Biometric ID</th>
+                <th className="px-4 py-3">Teacher</th>
                 <th className="px-4 py-3">Timestamp</th>
                 <th className="px-4 py-3">Type</th>
                 <th className="px-4 py-3">Event</th>
@@ -36,16 +85,29 @@ export default function BiometricPage() {
               </tr>
             </thead>
             <tbody>
-              {demoBiometricLogs.map((log) => (
-                <tr key={log.id} className="border-t border-stone-100">
-                  <td className="px-4 py-3">{log.deviceId}</td>
-                  <td className="px-4 py-3">{log.biometricUserId}</td>
-                  <td className="px-4 py-3">{new Date(log.timestamp).toLocaleString()}</td>
-                  <td className="px-4 py-3">{log.verificationType}</td>
-                  <td className="px-4 py-3">{log.eventType}</td>
-                  <td className="px-4 py-3">{log.processed ? "Yes" : "No"}</td>
+              {logs.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="px-4 py-10 text-center text-stone-500">
+                    No biometric logs yet. Punches forwarded from the eSSL device will appear here.
+                  </td>
                 </tr>
-              ))}
+              ) : (
+                logs.map((log) => (
+                  <tr key={log.id} className="border-t border-stone-100">
+                    <td className="px-4 py-3">{log.deviceId}</td>
+                    <td className="px-4 py-3">{log.biometricUserId}</td>
+                    <td className="px-4 py-3">{log.teacherName}</td>
+                    <td className="px-4 py-3">{formatTime(log.timestamp)}</td>
+                    <td className="px-4 py-3">{log.verificationType}</td>
+                    <td className="px-4 py-3">{log.eventType}</td>
+                    <td className="px-4 py-3">
+                      <span className={log.processed ? "font-semibold text-emerald-600" : "font-semibold text-amber-600"}>
+                        {log.processed ? "Yes" : "No"}
+                      </span>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

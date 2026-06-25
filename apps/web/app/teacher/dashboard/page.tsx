@@ -4,6 +4,7 @@ import { AttendanceCalendar } from "@/components/AttendanceCalendar";
 import { LazyTeacherPieChart } from "@/components/LazyDashboardCharts";
 import { StatusBadge } from "@/components/StatusBadge";
 import { TeacherAttendancePanel } from "@/components/TeacherAttendancePanel";
+import { BrandLoader } from "@/components/BrandLoader";
 import { auth } from "@sri-narayana/shared/firebase/client";
 import { getAttendancePercentage, type AttendanceRecord, type Teacher } from "@sri-narayana/shared";
 import { signOut } from "firebase/auth";
@@ -117,16 +118,7 @@ export default function TeacherDashboardPage() {
   };
 
   if (loading) {
-    return (
-      <main className="grid min-h-screen place-items-center bg-[#f5f6fd] p-5">
-        <div className="w-full max-w-md space-y-4 rounded-3xl border border-[#e3e6f0] bg-white p-6 shadow-[0_14px_36px_rgba(36,42,94,0.08)]">
-          <div className="h-5 w-32 animate-pulse rounded bg-[#e8eaf5]" />
-          <div className="h-9 w-3/4 animate-pulse rounded bg-[#edf0f8]" />
-          <div className="h-24 animate-pulse rounded-2xl bg-[#f1f2f9]" />
-          <p className="text-sm font-medium text-[#7d86a8]">Preparing your attendance workspace…</p>
-        </div>
-      </main>
-    );
+    return <BrandLoader message="Preparing your attendance workspace…" />;
   }
 
   if (error || !teacher) {

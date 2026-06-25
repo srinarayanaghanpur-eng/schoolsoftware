@@ -23,7 +23,6 @@ import {
 
 const SCHOOL_NAME = "SRI NARAYANA HIGH SCHOOL";
 const SCHOOL_LOGO_SRC = "/sri-narayana-high-school-logo.jpg";
-const LOCAL_STORED_LOGIN_IDS = new Set(["EMP001", "EMP002", "EMP003", "ADMIN", "ADMIN001", "ADMIN_DEMO"]);
 
 type LoginIdCheckStatus = "empty" | "checking" | "matched" | "unknown";
 
@@ -105,7 +104,8 @@ function getLoginErrorMessage(error: unknown) {
 function getLoginIdCheckStatus(loginId: string) {
   const normalizedLoginId = normalizeEmployeeId(loginId);
   if (!normalizedLoginId) return "empty";
-  return LOCAL_STORED_LOGIN_IDS.has(normalizedLoginId) ? "matched" : "checking";
+  // Real existence is always confirmed against the DB via /api/login-id/check.
+  return "checking";
 }
 
 function LoginIdMatchIndicator({ status }: { status: LoginIdCheckStatus }) {

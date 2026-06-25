@@ -17,9 +17,10 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
-import { signOut } from "firebase/auth";
-import { auth, isFirebaseConfigured } from "@sri-narayana/shared/firebase/client";
+import { useEffect, useState } from "react";
+import { onAuthStateChanged, signOut } from "firebase/auth";
+import { doc, getDoc } from "firebase/firestore";
+import { auth, db, isFirebaseConfigured } from "@sri-narayana/shared/firebase/client";
 
 type NavChild = { href: string; label: string };
 type NavItem = { href: string; label: string; icon: typeof Grid2X2; children?: NavChild[] };
@@ -139,10 +140,67 @@ function NavEntry({ item, pathname }: { item: NavItem; pathname: string }) {
   );
 }
 
+// Academic year runs June → May, so June 2026 falls in "2026–27".
+function academicYearLabel(date: Date) {
+  const year = date.getFullYear();
+  const startYear = date.getMonth() >= 5 ? year : year - 1;
+  return `${startYear}–${String(startYear + 1).slice(-2)}`;
+}
+
+function initialsOf(name: string) {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "U";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+type Profile = { name: string; role: string };
+
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const title = pageTitles[pathname] ?? "Administration";
+
+  // Live, current date. Starts null so SSR and first client render match
+  // (no hydration mismatch); filled on mount and refreshed every minute so it
+  // always reflects "today".
+  const [now, setNow] = useState<Date | null>(null);
+  useEffect(() => {
+    setNow(new Date());
+    const id = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(id);
+  }, []);
+  const dateLabel = now
+    ? `${now.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long", year: "numeric" })} · Academic Year ${academicYearLabel(now)}`
+    : " ";
+
+  // Signed-in user, synced from the `users/{uid}` profile doc (falls back to
+  // the Firebase Auth display name / email).
+  const [profile, setProfile] = useState<Profile | null>(null);
+  useEffect(() => {
+    if (!isFirebaseConfigured) return;
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        setProfile(null);
+        return;
+      }
+      let name = user.displayName ?? "";
+      let role = "Administrator";
+      try {
+        const snapshot = await getDoc(doc(db, "users", user.uid));
+        if (snapshot.exists()) {
+          const data = snapshot.data() as { displayName?: string; role?: string };
+          if (data.displayName) name = data.displayName;
+          if (data.role) role = `${data.role.charAt(0).toUpperCase()}${data.role.slice(1)}`;
+        }
+      } catch {
+        // Keep the auth-based fallback if the profile read fails.
+      }
+      if (!name) name = user.email ?? "User";
+      setProfile({ name, role });
+    });
+    return unsubscribe;
+  }, []);
 
   const handleSignOut = () => {
     if (!isFirebaseConfigured) {
@@ -165,7 +223,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </div>
 
-        <nav className="flex gap-1 overflow-x-auto px-3 py-5 md:block md:space-y-1 md:overflow-visible md:px-4">
+        <nav className="nav-scroll flex gap-1 overflow-x-auto px-3 py-5 md:block md:min-h-0 md:flex-1 md:space-y-1 md:overflow-x-visible md:overflow-y-auto md:px-4">
           <p className="hidden px-2 pb-2 text-[11px] font-bold tracking-[0.13em] text-[#9ba9ed] md:block">MAIN</p>
           {primaryNav.map((item) => (
             <NavEntry key={item.href} item={item} pathname={pathname} />
@@ -183,10 +241,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           className="mt-auto hidden items-center gap-3 border-t border-white/10 px-5 py-5 text-left transition hover:bg-white/5 md:flex"
           title="Sign out"
         >
-          <span className="grid h-10 w-10 place-items-center rounded-full bg-[#ffc73d] text-sm font-extrabold text-[#2a2c87]">SV</span>
+          <span className="grid h-10 w-10 place-items-center rounded-full bg-[#ffc73d] text-sm font-extrabold text-[#2a2c87]">
+            {profile ? initialsOf(profile.name) : "··"}
+          </span>
           <span className="min-w-0 flex-1">
-            <span className="block truncate text-sm font-bold">S. Venkatesh</span>
-            <span className="block text-xs text-[#aeb9f2]">Administrator</span>
+            <span className="block truncate text-sm font-bold">{profile?.name ?? "Loading…"}</span>
+            <span className="block text-xs text-[#aeb9f2]">{profile?.role ?? "Administrator"}</span>
           </span>
           <LogOut size={19} className="text-[#bdc8ff]" />
         </button>
@@ -196,7 +256,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <header className="sticky top-0 z-20 flex min-h-[76px] items-center gap-4 border-b border-[#e4e6f0] bg-white/95 px-4 py-3 backdrop-blur md:px-7 flex-shrink-0">
           <div className="min-w-[170px]">
             <h1 className="text-xl font-extrabold tracking-tight text-[#15172d]">{title}</h1>
-            <p className="text-xs font-medium text-[#7b85a8]">Tuesday, 23 June 2026 · Academic Year 2025–26</p>
+            <p className="text-xs font-medium text-[#7b85a8]">{dateLabel}</p>
           </div>
           <label className="relative ml-auto hidden max-w-[330px] flex-1 lg:block">
             <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#8490b9]" />
@@ -208,7 +268,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </label>
           <button type="button" className="hidden h-11 items-center gap-3 rounded-xl border border-[#e0e3f0] bg-[#f8f8fc] px-4 text-sm font-bold text-[#20223a] sm:flex">
             <span className="grid h-7 w-7 place-items-center rounded-lg bg-[#eef0ff] text-[#292b8d]"><ClipboardCheck size={17} /></span>
-            Administrator
+            {profile?.name ?? "Administrator"}
             <ChevronDown size={16} />
           </button>
           <Link href="/admin/notifications" aria-label="Communication & notifications" className="relative grid h-11 w-11 place-items-center rounded-xl bg-[#f3f4fb] text-[#313581] transition hover:bg-[#e9ebfa]">

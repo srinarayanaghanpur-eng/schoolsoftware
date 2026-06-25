@@ -13,7 +13,7 @@ import {
   type AttendanceStatus,
   type Teacher
 } from "@sri-narayana/shared";
-import { ClipboardList, Pencil, Save, X } from "lucide-react";
+import { ClipboardList, Pencil, Save, Search, X } from "lucide-react";
 import type { FormEvent } from "react";
 import { useEffect, useMemo, useState } from "react";
 
@@ -66,6 +66,7 @@ export default function AttendancePage() {
   const [audits, setAudits] = useState<AttendanceEditAudit[]>(isFirebaseConfigured ? [] : demoAttendanceEditAudits);
   const [statusFilter, setStatusFilter] = useState("all");
   const [teacherFilter, setTeacherFilter] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
   const [editing, setEditing] = useState<EditForm | null>(null);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -75,9 +76,17 @@ export default function AttendancePage() {
     return records.filter((record) => {
       const statusMatch = statusFilter === "all" || record.status === statusFilter;
       const teacherMatch = teacherFilter === "all" || record.teacherId === teacherFilter;
-      return statusMatch && teacherMatch;
+      const teacher = teachers.find((t) => t.id === record.teacherId);
+      const searchMatch =
+        searchQuery === "" ||
+        record.date.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        record.teacherId.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (teacher?.fullName?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false) ||
+        (teacher?.subject?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false) ||
+        record.status.toLowerCase().includes(searchQuery.toLowerCase());
+      return statusMatch && teacherMatch && searchMatch;
     });
-  }, [records, statusFilter, teacherFilter]);
+  }, [records, teachers, statusFilter, teacherFilter, searchQuery]);
 
   const apiRequest = async <T,>(path: string, init?: RequestInit): Promise<T> => {
     const token = await auth.currentUser?.getIdToken();
@@ -189,6 +198,15 @@ export default function AttendancePage() {
         {error && <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
 
         <div className="card grid gap-3 p-4 md:grid-cols-4">
+          <div className="relative">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
+            <input
+              className="field pl-10"
+              placeholder="Search by date, teacher ID, name, subject, or status"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+            />
+          </div>
           <select className="field" value={teacherFilter} onChange={(event) => setTeacherFilter(event.target.value)}>
             <option value="all">All teachers</option>
             {teachers.map((teacher) => <option key={teacher.id} value={teacher.id}>{teacher.fullName}</option>)}

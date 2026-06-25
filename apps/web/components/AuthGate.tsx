@@ -6,6 +6,7 @@ import { onAuthStateChanged, signOut } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { BrandLoader } from "./BrandLoader";
 
 const ROLE_HINT_KEY = "erp-auth-role";
 const ROLE_HINT_TTL = 10 * 60 * 1000; // 10 minutes
@@ -89,14 +90,7 @@ export function AuthGate({ role, children }: { role: UserRole; children: React.R
   }, [role, router]);
 
   if (!ready) {
-    return (
-      <div className="grid min-h-screen place-items-center bg-[#f5f7ff]">
-        <div className="flex flex-col items-center gap-3">
-          <span className="block h-9 w-9 animate-spin rounded-full border-[3px] border-emerald-100 border-t-emerald-600" />
-          <span className="animate-fade-in text-sm font-medium text-stone-500">Loading secure workspace…</span>
-        </div>
-      </div>
-    );
+    return <BrandLoader message="Loading secure workspace…" />;
   }
 
   return children;
