@@ -109,3 +109,105 @@ export const attendanceEditSchema = z.object({
   remarks: z.string().trim().optional().default(""),
   reason: z.string().trim().min(3, "Audit reason is required")
 });
+
+// ===== Phase 2 schemas =====
+export const examTypeSchema = z.enum(["unit_test", "midterm", "final", "olympiad", "other"]);
+
+export const examCreateSchema = z.object({
+  name: z.string().trim().min(1),
+  academicYearId: z.string().trim().min(1),
+  className: z.string().trim().min(1),
+  section: z.string().trim().optional().default(""),
+  examType: examTypeSchema,
+  startDate: z.string().trim().min(8),
+  endDate: z.string().trim().optional().default(""),
+  maxMarks: z.coerce.number().positive(),
+  status: z.enum(["scheduled", "ongoing", "completed", "published"]).optional().default("scheduled")
+});
+
+export const examMarkEntrySchema = z.object({
+  studentId: z.string().trim().min(1),
+  subject: z.string().trim().min(1),
+  marksObtained: z.coerce.number().min(0),
+  maxMarks: z.coerce.number().positive(),
+  grade: z.string().trim().optional().default(""),
+  remarks: z.string().trim().optional().default("")
+});
+
+export const examMarksBulkSchema = z.object({
+  marks: z.array(examMarkEntrySchema).min(1)
+});
+
+export const noticeChannelSchema = z.enum(["app", "sms", "whatsapp", "email"]);
+
+export const noticeCreateSchema = z.object({
+  title: z.string().trim().min(1),
+  body: z.string().trim().min(1),
+  audienceRoles: z.array(z.string()).optional().default([]),
+  audienceClasses: z.array(z.string()).optional().default([]),
+  channels: z.array(noticeChannelSchema).optional().default(["app"]),
+  academicYearId: z.string().trim().optional().default("")
+});
+
+// ===== Phase 3 schemas =====
+export const feeHeadSchema = z.object({
+  name: z.string().trim().min(1),
+  amount: z.coerce.number().nonnegative()
+});
+
+export const feeStructureCreateSchema = z.object({
+  academicYearId: z.string().trim().min(1),
+  className: z.string().trim().min(1),
+  heads: z.array(feeHeadSchema).min(1)
+});
+
+export const paymentOrderSchema = z.object({
+  studentId: z.string().trim().min(1),
+  amount: z.coerce.number().positive(),
+  paymentType: z.string().trim().optional().default("tuition"),
+  note: z.string().trim().optional().default("")
+});
+
+export const paymentConfirmSchema = z.object({
+  orderId: z.string().trim().min(1),
+  transactionId: z.string().trim().optional().default(""),
+  method: z.string().trim().optional().default("online")
+});
+
+export const userStudentsLinkSchema = z.object({
+  studentIds: z.array(z.string().trim().min(1))
+});
+
+// ===== Finance schemas =====
+export const financePaymentMethodSchema = z.enum(["cash", "bank", "upi", "cheque", "card", "other"]);
+
+export const expenseCreateSchema = z.object({
+  category: z.string().trim().min(1),
+  amount: z.coerce.number().positive(),
+  date: z.string().trim().min(8),
+  description: z.string().trim().min(1),
+  vendor: z.string().trim().optional().default(""),
+  paymentMethod: financePaymentMethodSchema.optional().default("cash"),
+  academicYearId: z.string().trim().optional().default("")
+});
+
+export const expenseStatusUpdateSchema = z.object({
+  status: z.enum(["approved", "rejected"])
+});
+
+export const incomeCreateSchema = z.object({
+  category: z.string().trim().min(1),
+  amount: z.coerce.number().positive(),
+  date: z.string().trim().min(8),
+  description: z.string().trim().min(1),
+  source: z.string().trim().optional().default(""),
+  paymentMethod: financePaymentMethodSchema.optional().default("cash"),
+  academicYearId: z.string().trim().optional().default("")
+});
+
+export const salaryAdvanceCreateSchema = z.object({
+  teacherId: z.string().trim().min(1),
+  amount: z.coerce.number().positive(),
+  date: z.string().trim().min(8),
+  reason: z.string().trim().optional().default("")
+});

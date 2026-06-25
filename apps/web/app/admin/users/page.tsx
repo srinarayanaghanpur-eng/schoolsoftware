@@ -15,7 +15,7 @@ import {
   type Role
 } from "@sri-narayana/shared";
 import { collection, getDocs } from "firebase/firestore";
-import { AlertCircle, Check, Loader2, Search, ShieldCheck, X } from "lucide-react";
+import { AlertCircle, Check, Link2, Loader2, Search, ShieldCheck, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 type UserRow = {
@@ -26,6 +26,15 @@ type UserRow = {
   internalEmail?: string;
   status?: string;
   role?: Role;
+  studentIds?: string[];
+};
+
+type StudentOption = {
+  id: string;
+  admissionNumber?: string;
+  studentName: string;
+  class?: string;
+  section?: string;
 };
 
 function roleViewPermission(module: Module): Permission {
@@ -54,6 +63,9 @@ export default function UsersRolesPage() {
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [pendingUid, setPendingUid] = useState<string | null>(null);
+  const [students, setStudents] = useState<StudentOption[]>([]);
+  const [linkingUser, setLinkingUser] = useState<UserRow | null>(null);
+  const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -93,6 +105,7 @@ export default function UsersRolesPage() {
             internalEmail?: string;
             status?: string;
             role?: unknown;
+            studentIds?: unknown;
           };
           return {
             uid: docSnap.id,
@@ -101,7 +114,8 @@ export default function UsersRolesPage() {
             employeeId: data.employeeId,
             internalEmail: data.internalEmail,
             status: data.status,
-            role: isValidRole(data.role) ? data.role : undefined
+            role: isValidRole(data.role) ? data.role : undefined,
+            studentIds: Array.isArray(data.studentIds) ? data.studentIds.filter((item): item is string => typeof item === "string") : []
           };
         })
         .sort((a, b) => a.displayName.localeCompare(b.displayName));
@@ -115,6 +129,16 @@ export default function UsersRolesPage() {
 
   useEffect(() => {
     void loadUsers();
+  }, [isAdmin]);
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    fetch("/api/admin/students")
+      .then((response) => response.json())
+      .then((result: { success?: boolean; data?: StudentOption[] }) => {
+        if (result.success) setStudents(result.data ?? []);
+      })
+      .catch(() => undefined);
   }, [isAdmin]);
 
   const changeRole = async (uid: string, nextRole: Role) => {
@@ -139,6 +163,40 @@ export default function UsersRolesPage() {
     }
   };
 
+  const openLinkStudents = (user: UserRow) => {
+    setLinkingUser(user);
+    setSelectedStudentIds(user.studentIds ?? []);
+    setError(null);
+    setMessage(null);
+  };
+
+  const toggleStudent = (studentId: string) => {
+    setSelectedStudentIds((current) =>
+      current.includes(studentId) ? current.filter((item) => item !== studentId) : [...current, studentId]
+    );
+  };
+
+  const saveStudentLinks = async () => {
+    if (!linkingUser) return;
+    setPendingUid(linkingUser.uid);
+    setError(null);
+    setMessage(null);
+    try {
+      const result = await adminApiRequest<{ ok: true; uid: string; studentIds: string[] }>(`/api/admin/users/${linkingUser.uid}/students`, {
+        method: "PATCH",
+        body: JSON.stringify({ studentIds: selectedStudentIds })
+      });
+      setUsers((current) => current.map((user) => (user.uid === linkingUser.uid ? { ...user, studentIds: result.studentIds } : user)));
+      setLinkingUser(null);
+      setSelectedStudentIds([]);
+      setMessage("Linked students updated.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to link students.");
+    } finally {
+      setPendingUid(null);
+    }
+  };
+
   if (!isAdmin) {
     return (
       <>
@@ -155,6 +213,47 @@ export default function UsersRolesPage() {
       <section className="space-y-5 p-4 md:p-7">
         {message && <div className="rounded-2xl border border-[#c8f0dc] bg-[#e6f8ef] px-4 py-3 text-sm font-semibold text-[#0f8d52]">{message}</div>}
         {error && <div className="rounded-2xl border border-[#ffd5da] bg-[#ffebed] px-4 py-3 text-sm font-semibold text-[#c83f4d]">{error}</div>}
+
+        {linkingUser && (
+          <div className="fixed inset-0 z-40 flex items-center justify-center bg-[#10122d]/45 p-4 backdrop-blur-sm">
+            <div className="w-full max-w-3xl rounded-2xl border border-[#e3e6f0] bg-white p-5 shadow-[0_24px_70px_rgba(16,18,45,0.22)] md:p-6">
+              <div className="mb-4 flex items-start justify-between gap-4">
+                <div>
+                  <h2 className="text-lg font-extrabold text-[#1f2136]">Link students</h2>
+                  <p className="mt-1 text-sm font-medium text-[#7d86a8]">{linkingUser.displayName} · {ROLE_LABELS[linkingUser.role ?? "parent"]}</p>
+                </div>
+                <button className="grid h-9 w-9 place-items-center rounded-xl text-[#7d86a8] hover:bg-[#f4f5fb]" type="button" onClick={() => setLinkingUser(null)} title="Close">
+                  <X size={18} />
+                </button>
+              </div>
+              <div className="max-h-[420px] overflow-y-auto rounded-xl border border-[#edf0f7]">
+                {students.map((student) => (
+                  <label key={student.id} className="flex cursor-pointer items-center gap-3 border-b border-[#edf0f7] px-4 py-3 last:border-b-0 hover:bg-[#fafbff]">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 accent-[#3033a1]"
+                      checked={selectedStudentIds.includes(student.id)}
+                      onChange={() => toggleStudent(student.id)}
+                    />
+                    <span className="min-w-0">
+                      <span className="block font-bold text-[#303247]">{student.studentName}</span>
+                      <span className="block text-xs font-medium text-[#7d86a8]">
+                        {student.admissionNumber ?? student.id} · Class {student.class ?? "--"}{student.section ?? ""}
+                      </span>
+                    </span>
+                  </label>
+                ))}
+                {!students.length && <p className="p-5 text-center text-sm font-semibold text-[#7d86a8]">No students found.</p>}
+              </div>
+              <div className="mt-4 flex flex-wrap justify-end gap-2">
+                <button className="btn-secondary" type="button" onClick={() => setLinkingUser(null)}>Cancel</button>
+                <button className="btn-primary" type="button" onClick={() => void saveStudentLinks()} disabled={pendingUid === linkingUser.uid}>
+                  <Link2 size={16} /> {pendingUid === linkingUser.uid ? "Saving..." : "Save links"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="card overflow-hidden">
           <div className="flex items-center gap-3 border-b border-[#edf0f7] px-4 py-4">
@@ -217,18 +316,19 @@ export default function UsersRolesPage() {
                   <th className="px-5 py-3 text-xs font-bold uppercase tracking-[0.03em] text-[#6f7898]">Login ID</th>
                   <th className="px-5 py-3 text-xs font-bold uppercase tracking-[0.03em] text-[#6f7898]">Status</th>
                   <th className="px-5 py-3 text-xs font-bold uppercase tracking-[0.03em] text-[#6f7898]">Role</th>
+                  <th className="px-5 py-3 text-right text-xs font-bold uppercase tracking-[0.03em] text-[#6f7898]">Portal</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
                   <tr>
-                    <td className="px-5 py-8 text-center text-sm font-semibold text-[#7d86a8]" colSpan={4}>
+                    <td className="px-5 py-8 text-center text-sm font-semibold text-[#7d86a8]" colSpan={5}>
                       <span className="inline-flex items-center gap-2"><Loader2 size={16} className="animate-spin" /> Loading users...</span>
                     </td>
                   </tr>
                 ) : filteredUsers.length === 0 ? (
                   <tr>
-                    <td className="px-5 py-8 text-center text-sm font-semibold text-[#7d86a8]" colSpan={4}>No users found.</td>
+                    <td className="px-5 py-8 text-center text-sm font-semibold text-[#7d86a8]" colSpan={5}>No users found.</td>
                   </tr>
                 ) : (
                   filteredUsers.map((user) => (
@@ -258,6 +358,15 @@ export default function UsersRolesPage() {
                           </select>
                           {pendingUid === user.uid && <Loader2 size={16} className="absolute right-3 top-1/2 -translate-y-1/2 animate-spin text-[#8490b9]" />}
                         </div>
+                      </td>
+                      <td className="px-5 py-4 text-right">
+                        {user.role === "parent" || user.role === "student" ? (
+                          <button className="btn-secondary" type="button" onClick={() => openLinkStudents(user)}>
+                            <Link2 size={15} /> {user.studentIds?.length ? `${user.studentIds.length} linked` : "Link students"}
+                          </button>
+                        ) : (
+                          <span className="text-sm font-medium text-[#9aa4c4]">--</span>
+                        )}
                       </td>
                     </tr>
                   ))

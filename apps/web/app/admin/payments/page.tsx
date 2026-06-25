@@ -1,12 +1,33 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus } from "lucide-react";
+import { CheckCircle2, Plus } from "lucide-react";
 import { Payment } from "@/types/fee.types";
 import { FeeStatusBadge, PaymentMethodBadge } from "@/components/FeeComponents";
 import { PageHeader } from "@/components/PageHeader";
 import { useAdminSession } from "@/components/AdminSessionContext";
 import { hasPermission } from "@sri-narayana/shared";
+import { adminApiRequest } from "@/lib/adminApiClient";
+
+type StudentOption = {
+  id: string;
+  admissionNumber?: string;
+  studentName: string;
+  class?: string;
+  section?: string;
+  totalFeesDue?: number;
+  totalFeeAmount?: number;
+  totalFeesPaid?: number;
+};
+
+function formatPaymentDate(value: unknown) {
+  if (!value) return "--";
+  if (typeof value === "string") return new Date(value).toLocaleDateString("en-IN");
+  if (typeof value === "object" && value && "seconds" in value) {
+    return new Date(Number((value as { seconds: number }).seconds) * 1000).toLocaleDateString("en-IN");
+  }
+  return new Date(String(value)).toLocaleDateString("en-IN");
+}
 
 export default function PaymentsPage() {
   const { role } = useAdminSession();
@@ -96,8 +117,8 @@ export default function PaymentsPage() {
                 <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
                   <div>
                     <p className="text-xs font-semibold text-[#7d86a8]">Student</p>
-                    <p className="mt-1 text-sm font-bold text-[#1f2136]">{payment.studentName}</p>
-                    <p className="text-xs font-medium text-[#7d86a8]">{payment.admissionNumber}</p>
+                    <p className="mt-1 text-sm font-bold text-[#1f2136]">{payment.studentName || payment.studentId}</p>
+                    <p className="text-xs font-medium text-[#7d86a8]">{payment.admissionNumber || "Online payment"}</p>
                   </div>
                   <div>
                     <p className="text-xs font-semibold text-[#7d86a8]">Amount</p>
@@ -109,7 +130,7 @@ export default function PaymentsPage() {
                   </div>
                   <div>
                     <p className="text-xs font-semibold text-[#7d86a8]">Date</p>
-                    <p className="mt-1 text-sm font-semibold text-[#303247]">{new Date(payment.paymentDate).toLocaleDateString()}</p>
+                    <p className="mt-1 text-sm font-semibold text-[#303247]">{formatPaymentDate(payment.paymentDate ?? payment.createdAt)}</p>
                   </div>
                   <div>
                     <p className="text-xs font-semibold text-[#7d86a8]">Status</p>
@@ -127,25 +148,120 @@ export default function PaymentsPage() {
 
 // Simple payment form component
 function PaymentForm({
+  onSuccess,
   onCancel
 }: {
   onSuccess: () => void;
   onCancel: () => void;
 }) {
+  const [students, setStudents] = useState<StudentOption[]>([]);
+  const [studentId, setStudentId] = useState("");
+  const [amount, setAmount] = useState("");
+  const [paymentType, setPaymentType] = useState("tuition");
+  const [note, setNote] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [receipt, setReceipt] = useState<{ receiptId: string; amount: number; providerOrderId?: string } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/admin/students")
+      .then((response) => response.json())
+      .then((result: { success?: boolean; data?: StudentOption[] }) => {
+        if (result.success) setStudents(result.data ?? []);
+      })
+      .catch(() => setError("Unable to load students."));
+  }, []);
+
+  const selectedStudent = students.find((student) => student.id === studentId);
+
+  useEffect(() => {
+    if (selectedStudent && !amount) {
+      const due = Number(selectedStudent.totalFeesDue ?? 0);
+      if (due > 0) setAmount(String(due));
+    }
+  }, [selectedStudent, amount]);
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    // Form implementation details
-    alert("Payment form implementation - connect to API");
+    setLoading(true);
+    setError(null);
+    setReceipt(null);
+
+    try {
+      const payable = Number(amount);
+      if (!studentId || !Number.isFinite(payable) || payable <= 0) {
+        throw new Error("Select a student and enter a valid amount.");
+      }
+
+      const order = await adminApiRequest<{ ok: true; orderId: string; providerOrderId: string; amount: number }>("/api/fees/order", {
+        method: "POST",
+        body: JSON.stringify({ studentId, amount: payable, paymentType, note })
+      });
+      const confirmation = await adminApiRequest<{ ok: true; receiptId: string; amount: number }>("/api/fees/confirm", {
+        method: "POST",
+        body: JSON.stringify({
+          orderId: order.orderId,
+          transactionId: `SIM-${Date.now()}`,
+          method: "online"
+        })
+      });
+      setReceipt({ receiptId: confirmation.receiptId, amount: confirmation.amount, providerOrderId: order.providerOrderId });
+      onSuccess();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to complete payment.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="rounded-xl bg-[#f7f8fd] py-8 text-center text-sm font-medium text-[#7d86a8]">
-        Form fields for payment recording (Student, Amount, Method, etc.)
+      {error && <div className="rounded-xl border border-[#ffd5da] bg-[#ffebed] px-4 py-3 text-sm font-semibold text-[#c83f4d]">{error}</div>}
+      {receipt && (
+        <div className="rounded-xl border border-[#c8f0dc] bg-[#e6f8ef] px-4 py-3 text-sm font-semibold text-[#0f8d52]">
+          <span className="inline-flex items-center gap-2"><CheckCircle2 size={17} /> Receipt {receipt.receiptId} generated for ₹{receipt.amount.toLocaleString("en-IN")}.</span>
+        </div>
+      )}
+      <div className="grid gap-4 md:grid-cols-2">
+        <label className="text-sm font-semibold text-[#303247] md:col-span-2">
+          Student
+          <select className="field mt-1" value={studentId} onChange={(event) => setStudentId(event.target.value)} required>
+            <option value="">Select student</option>
+            {students.map((student) => (
+              <option key={student.id} value={student.id}>
+                {student.studentName} ({student.admissionNumber || student.id}) · Class {student.class || "--"}{student.section || ""} · Due ₹{Number(student.totalFeesDue ?? 0).toLocaleString("en-IN")}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="text-sm font-semibold text-[#303247]">
+          Amount
+          <input className="field mt-1" type="number" min="1" value={amount} onChange={(event) => setAmount(event.target.value)} required />
+        </label>
+        <label className="text-sm font-semibold text-[#303247]">
+          Payment type
+          <select className="field mt-1" value={paymentType} onChange={(event) => setPaymentType(event.target.value)}>
+            <option value="tuition">Tuition</option>
+            <option value="term-1">Term 1</option>
+            <option value="term-2">Term 2</option>
+            <option value="books">Books</option>
+            <option value="transport">Transport</option>
+            <option value="other">Other</option>
+          </select>
+        </label>
+        <label className="text-sm font-semibold text-[#303247] md:col-span-2">
+          Note
+          <input className="field mt-1" value={note} onChange={(event) => setNote(event.target.value)} placeholder="Optional note" />
+        </label>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <button className="btn-primary" disabled={loading}>
+          {loading ? "Processing..." : "Pay and confirm"}
+        </button>
         <button
           type="button"
           onClick={onCancel}
-          className="btn-secondary mx-auto mt-4 flex"
+          className="btn-secondary"
         >
           Close
         </button>

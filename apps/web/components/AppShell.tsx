@@ -60,6 +60,7 @@ const primaryNav: NavItem[] = [
     module: "fees",
     icon: IndianRupee,
     children: [
+      { href: "/admin/fee-structures", label: "Fee Structures" },
       { href: "/admin/fee-concessions", label: "Fee Concessions" },
       { href: "/admin/fee-reports", label: "Fee Reports" }
     ]
@@ -68,7 +69,7 @@ const primaryNav: NavItem[] = [
   { href: "/admin/notifications", label: "Communication", module: "communication", icon: Megaphone },
   { href: "/admin/academic-years", label: "Academic Years", module: "academic_years", icon: CalendarRange },
   { href: "/admin/users", label: "Users & Roles", module: "users", icon: UserCog },
-  { href: "/admin/portal", label: "Portal", module: "portal", icon: ShieldCheck }
+  { href: "/portal", label: "Portal", module: "portal", icon: ShieldCheck }
 ];
 
 const secondaryNav: NavItem[] = [
@@ -98,6 +99,7 @@ const pageTitles: Record<string, string> = {
   "/admin/attendance": "Attendance",
   "/admin/reports": "Attendance Reports",
   "/admin/payments": "Fees & Finance",
+  "/admin/fee-structures": "Fee Structures",
   "/admin/fee-concessions": "Fee Concessions",
   "/admin/fee-reports": "Fee Reports",
   "/admin/salary": "Salary & Payroll",
@@ -106,7 +108,7 @@ const pageTitles: Record<string, string> = {
   "/admin/holidays": "Holidays",
   "/admin/academic-years": "Academic Years",
   "/admin/users": "Users & Roles",
-  "/admin/portal": "Portal",
+  "/portal": "Portal",
   "/admin/settings": "Settings",
   "/admin/biometric": "Biometric Devices",
   "/admin/backup": "Backup & Restore"
@@ -114,6 +116,7 @@ const pageTitles: Record<string, string> = {
 
 const routeModules: Array<{ prefix: string; module: Module }> = [
   { prefix: "/admin/fee-concessions", module: "fees" },
+  { prefix: "/admin/fee-structures", module: "fees" },
   { prefix: "/admin/fee-reports", module: "fees" },
   { prefix: "/admin/academic-years", module: "academic_years" },
   { prefix: "/admin/teachers", module: "staff" },
@@ -129,7 +132,7 @@ const routeModules: Array<{ prefix: string; module: Module }> = [
   { prefix: "/admin/backup", module: "settings" },
   { prefix: "/admin/students", module: "students" },
   { prefix: "/admin/users", module: "users" },
-  { prefix: "/admin/portal", module: "portal" },
+  { prefix: "/portal", module: "portal" },
   { prefix: "/admin/dashboard", module: "dashboard" }
 ];
 

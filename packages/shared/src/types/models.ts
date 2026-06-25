@@ -297,3 +297,160 @@ export type DashboardSummary = {
   biometricEntriesToday: number;
   mobileEntriesToday: number;
 };
+
+// ===== Phase 2: Exams & Marks =====
+export type ExamType = "unit_test" | "midterm" | "final" | "olympiad" | "other";
+export type ExamStatus = "scheduled" | "ongoing" | "completed" | "published";
+
+export type Exam = {
+  id?: string;
+  name: string; // e.g. "Unit Test 1"
+  academicYearId: string;
+  className: string; // e.g. "10"
+  section?: string; // e.g. "A" (omit = whole class)
+  examType: ExamType;
+  startDate: string; // ISO date
+  endDate?: string;
+  maxMarks: number; // default per-subject max
+  status: ExamStatus;
+  createdAt: FirestoreDate;
+  updatedAt: FirestoreDate;
+};
+
+export type ExamMark = {
+  id?: string;
+  examId: string;
+  studentId: string;
+  subject: string;
+  marksObtained: number;
+  maxMarks: number;
+  grade?: string;
+  remarks?: string;
+  updatedAt: FirestoreDate;
+};
+
+// ===== Phase 2: Communication (notices / circulars) =====
+export type NoticeChannel = "app" | "sms" | "whatsapp" | "email";
+
+export type Notice = {
+  id?: string;
+  title: string;
+  body: string;
+  audienceRoles: UserRole[]; // empty = everyone
+  audienceClasses: string[]; // empty = all classes
+  channels: NoticeChannel[]; // "app" delivered now; others queued for integration
+  academicYearId?: string;
+  createdBy: string; // uid
+  createdAt: FirestoreDate;
+  updatedAt: FirestoreDate;
+};
+
+// ===== Phase 3: Fee structure, online payment, portal =====
+export type FeeHead = { name: string; amount: number };
+
+export type FeeStructure = {
+  id?: string;
+  academicYearId: string;
+  className: string;
+  heads: FeeHead[];
+  total: number;
+  createdAt: FirestoreDate;
+  updatedAt: FirestoreDate;
+};
+
+export type PaymentOrderStatus = "created" | "paid" | "failed" | "cancelled";
+
+export type PaymentOrder = {
+  id?: string;
+  studentId: string;
+  amount: number;
+  paymentType: string; // e.g. "tuition", "term-1"
+  status: PaymentOrderStatus;
+  provider: string; // "manual" | "razorpay" | "upi" ... (integration point)
+  providerOrderId?: string;
+  note?: string;
+  createdBy: string; // uid of payer
+  createdAt: FirestoreDate;
+  updatedAt: FirestoreDate;
+};
+
+// Portal: a parent/student user is linked to one or more student records.
+export type PortalSummary = {
+  student: { id: string; name: string; className: string; section?: string };
+  fees: { total: number; paid: number; due: number; status?: string };
+  attendancePercentage?: number;
+  marks: { examName: string; subject: string; marksObtained: number; maxMarks: number; grade?: string }[];
+  notices: { title: string; body: string; createdAt?: string }[];
+};
+
+// ===== Finance & Accounting =====
+export type ExpenseStatus = "pending" | "approved" | "rejected";
+export type FinancePaymentMethod = "cash" | "bank" | "upi" | "cheque" | "card" | "other";
+
+export type Expense = {
+  id?: string;
+  category: string; // utilities | maintenance | supplies | vendor | salary_advance | other
+  amount: number;
+  date: string; // ISO date YYYY-MM-DD
+  description: string;
+  vendor?: string;
+  paymentMethod: FinancePaymentMethod;
+  status: ExpenseStatus;
+  approvedBy?: string;
+  academicYearId?: string;
+  createdBy: string;
+  createdAt: FirestoreDate;
+  updatedAt: FirestoreDate;
+};
+
+export type Income = {
+  id?: string;
+  category: string; // donation | rent | grant | misc
+  amount: number;
+  date: string;
+  description: string;
+  source?: string;
+  paymentMethod: FinancePaymentMethod;
+  academicYearId?: string;
+  createdBy: string;
+  createdAt: FirestoreDate;
+  updatedAt: FirestoreDate;
+};
+
+export type SalaryAdvance = {
+  id?: string;
+  teacherId: string;
+  teacherName?: string;
+  amount: number;
+  date: string;
+  reason?: string;
+  recovered: boolean;
+  academicYearId?: string;
+  createdBy: string;
+  createdAt: FirestoreDate;
+};
+
+export type LedgerEntry = {
+  date: string;
+  type: "income" | "expense";
+  category: string;
+  description: string;
+  amount: number;
+  source: "fee" | "income" | "expense" | "salary" | "advance";
+  refId?: string;
+};
+
+export type FinanceSummary = {
+  from: string;
+  to: string;
+  income: { fees: number; other: number; total: number };
+  expense: { general: number; salary: number; advances: number; total: number };
+  net: number;
+};
+
+export type ClassDues = {
+  className: string;
+  studentCount: number;
+  totalDue: number;
+  students: { id: string; name: string; due: number }[];
+};

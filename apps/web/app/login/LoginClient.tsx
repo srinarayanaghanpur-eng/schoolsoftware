@@ -349,7 +349,7 @@ function useTeacherLoginController() {
   useEffect(() => {
     setInactiveReason(new URLSearchParams(window.location.search).get("reason") === "inactive");
     router.prefetch("/admin/dashboard");
-    router.prefetch("/admin/portal");
+    router.prefetch("/portal");
     router.prefetch("/teacher");
     void import("firebase/auth");
     void import("firebase/firestore");
@@ -411,7 +411,7 @@ function useTeacherLoginController() {
       if (role === "teacher") {
         router.replace("/teacher");
       } else if (role === "parent" || role === "student") {
-        router.replace("/admin/portal");
+        router.replace("/portal");
       } else {
         router.replace("/admin/dashboard");
       }

@@ -1,0 +1,27 @@
+
+> dev
+> cross-env NEXT_IGNORE_INCORRECT_LOCKFILE=1 next dev --turbo --port 3000
+
+  ▲ Next.js 14.2.35 (turbo)
+  - Local:        http://localhost:3000
+  - Environments: .env.local
+
+ ✓ Starting...
+ ✓ Ready in 8.6s
+ ○ Compiling /admin/fee-structures ...
+ ✓ Compiled /admin/fee-structures in 20.1s
+ GET /admin/fee-structures 200 in 22259ms
+ ○ Compiling /admin/payments ...
+ ✓ Compiled /admin/payments in 1385ms
+ GET /admin/payments 200 in 1898ms
+ ○ Compiling /admin/users ...
+ ✓ Compiled /admin/users in 1960ms
+ GET /admin/users 200 in 2747ms
+ ○ Compiling /portal ...
+ ✓ Compiled in 1777ms
+ ✓ Compiled /portal in 1977ms
+ GET /portal 200 in 2339ms
+ ✓ Compiled in 1118ms
+ ✓ Compiled in 601ms
+ ✓ Compiled in 549ms
+ ✓ Compiled in 802ms

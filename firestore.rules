@@ -108,6 +108,41 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Phase 2: exams, marks, notices. Reads for signed-in users; writes via admin SDK
+    // (the API routes enforce per-role permissions).
+    match /exams/{examId} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+    match /exam_marks/{markId} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+    match /notices/{noticeId} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    // Phase 3: fee structures + online payment orders. Writes/orders go via admin SDK.
+    match /fee_structures/{id} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+    match /payment_orders/{id} {
+      allow read, write: if isAdmin();
+    }
+
+    // Finance/accounting: sensitive — admin/accountant via admin SDK (API enforces role).
+    match /expenses/{id} {
+      allow read, write: if isAdmin();
+    }
+    match /incomes/{id} {
+      allow read, write: if isAdmin();
+    }
+    match /salary_advances/{id} {
+      allow read, write: if isAdmin();
+    }
+
     match /backup_audit_logs/{logId} {
       allow read, write: if isAdmin();
     }
