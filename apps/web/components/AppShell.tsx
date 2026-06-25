@@ -39,6 +39,7 @@ import { auth, db, isFirebaseConfigured } from "@sri-narayana/shared/firebase/cl
 import { AcademicYearProvider, useAcademicYears } from "@/components/AcademicYearContext";
 import { AdminSessionProvider } from "@/components/AdminSessionContext";
 import { BrandLoader } from "@/components/BrandLoader";
+import { clearPayrollSessionId } from "@/lib/payrollSessionClient";
 
 type NavChild = { href: string; label: string; module?: Module };
 type NavItem = { href: string; label: string; module: Module; icon: LucideIcon; children?: NavChild[] };
@@ -363,6 +364,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const roleLabel = role ? ROLE_LABELS[role] : "Loading...";
 
   const handleSignOut = () => {
+    clearPayrollSessionId();
     if (!isFirebaseConfigured) {
       router.replace("/login");
       return;

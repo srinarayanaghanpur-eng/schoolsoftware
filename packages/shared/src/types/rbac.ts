@@ -4,10 +4,11 @@
  * frontend nav/route gating.
  */
 
-export const ROLES = ["admin", "principal", "accountant", "teacher", "receptionist", "parent", "student"] as const;
+export const ROLES = ["super_admin", "admin", "principal", "accountant", "teacher", "receptionist", "parent", "student"] as const;
 export type Role = (typeof ROLES)[number];
 
 export const ROLE_LABELS: Record<Role, string> = {
+  super_admin: "Super Admin",
   admin: "Administrator",
   principal: "Principal",
   accountant: "Accountant",
@@ -54,6 +55,7 @@ const ALL = "*" as const;
  * `module.action` strings. Keep this conservative; widen as features land.
  */
 export const ROLE_PERMISSIONS: Record<Role, readonly (Permission | typeof ALL)[]> = {
+  super_admin: [ALL],
   admin: [ALL],
   principal: [
     "dashboard.view",

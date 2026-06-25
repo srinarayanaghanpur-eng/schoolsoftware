@@ -2,8 +2,9 @@ import { NextResponse } from "next/server";
 import { FieldValue } from "firebase-admin/firestore";
 import { calculateMonthlySalary, type AttendanceRecord, type Holiday, type SalaryReport, type Teacher } from "@sri-narayana/shared";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { requireAdmin, serializeDoc, startTimer } from "@/lib/apiUtils";
+import { serializeDoc, startTimer } from "@/lib/apiUtils";
 import { getSchoolSettings } from "@/lib/firestoreServer";
+import { logPayrollAccessAudit, requirePayrollAccess } from "@/lib/payrollAccess";
 
 function salaryDocId(month: string, teacherId: string) {
   return `${month}_${teacherId}`;
@@ -16,8 +17,18 @@ function withoutUndefined<T extends Record<string, unknown>>(value: T) {
 export async function GET(req: Request) {
   const totalTimer = startTimer();
   try {
-    const decodedToken = await requireAdmin(req);
-    if (!decodedToken) return NextResponse.json({ ok: false, error: "Admin access required" }, { status: 403 });
+    const access = await requirePayrollAccess(req);
+    if (!access.ok) return NextResponse.json({ ok: false, error: access.error }, { status: access.status });
+    if (access.mode === "approved") {
+      await logPayrollAccessAudit({
+        action: "accountant_opened_payroll",
+        actor: access.token,
+        actorRole: access.role,
+        context: access.context,
+        requestId: access.request.id,
+        metadata: { method: "GET", path: "/api/admin/salary" }
+      });
+    }
 
     const month = new URL(req.url).searchParams.get("month") ?? new Date().toISOString().slice(0, 7);
     const dbTimer = startTimer();
@@ -39,8 +50,8 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   const totalTimer = startTimer();
   try {
-    const decodedToken = await requireAdmin(req);
-    if (!decodedToken) return NextResponse.json({ ok: false, error: "Admin access required" }, { status: 403 });
+    const access = await requirePayrollAccess(req);
+    if (!access.ok) return NextResponse.json({ ok: false, error: access.error }, { status: access.status });
 
     const body = await req.json().catch(() => ({}));
     const month = typeof body.month === "string" && body.month ? body.month : new Date().toISOString().slice(0, 7);
@@ -115,8 +126,8 @@ export async function POST(req: Request) {
 
 export async function PATCH(req: Request) {
   try {
-    const decodedToken = await requireAdmin(req);
-    if (!decodedToken) return NextResponse.json({ ok: false, error: "Admin access required" }, { status: 403 });
+    const access = await requirePayrollAccess(req);
+    if (!access.ok) return NextResponse.json({ ok: false, error: access.error }, { status: access.status });
 
     const body = await req.json();
     const month = String(body.month ?? "");
