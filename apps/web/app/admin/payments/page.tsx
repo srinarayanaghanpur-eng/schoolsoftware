@@ -5,8 +5,12 @@ import { Plus } from "lucide-react";
 import { Payment } from "@/types/fee.types";
 import { FeeStatusBadge, PaymentMethodBadge } from "@/components/FeeComponents";
 import { PageHeader } from "@/components/PageHeader";
+import { useAdminSession } from "@/components/AdminSessionContext";
+import { hasPermission } from "@sri-narayana/shared";
 
 export default function PaymentsPage() {
+  const { role } = useAdminSession();
+  const canRecordPayment = Boolean(role && hasPermission(role, "fees.create"));
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -39,10 +43,12 @@ export default function PaymentsPage() {
         title="Fee Payments"
         description="Record and manage fee payments from students."
         action={
-          <button onClick={() => setShowForm(!showForm)} className="btn-primary">
-            <Plus size={18} />
-            Record Payment
-          </button>
+          canRecordPayment ? (
+            <button onClick={() => setShowForm(!showForm)} className="btn-primary">
+              <Plus size={18} />
+              Record Payment
+            </button>
+          ) : null
         }
       />
 
@@ -64,7 +70,7 @@ export default function PaymentsPage() {
           </div>
         </div>
 
-        {showForm && (
+        {showForm && canRecordPayment && (
           <div className="card p-5 md:p-6">
             <h3 className="mb-4 text-lg font-bold text-[#1f2136]">Record New Payment</h3>
             <PaymentForm

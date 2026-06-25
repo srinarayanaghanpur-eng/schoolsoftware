@@ -1,29 +1,39 @@
 "use client";
 
 import { auth, db, isFirebaseConfigured } from "@sri-narayana/shared/firebase/client";
-import type { UserRole } from "@sri-narayana/shared";
+import { isValidRole, type UserRole } from "@sri-narayana/shared";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { BrandLoader } from "./BrandLoader";
 
 const ROLE_HINT_KEY = "erp-auth-role";
 const ROLE_HINT_TTL = 10 * 60 * 1000; // 10 minutes
 
-function readRoleHint(role: UserRole): boolean {
+function readRoleHint(allowedRoles: readonly UserRole[]): boolean {
   if (typeof window === "undefined") return false;
   try {
     const raw = window.sessionStorage.getItem(ROLE_HINT_KEY);
     if (!raw) return false;
     const hint = JSON.parse(raw) as { role?: UserRole; at?: number };
-    return hint.role === role && typeof hint.at === "number" && Date.now() - hint.at < ROLE_HINT_TTL;
+    return Boolean(hint.role && allowedRoles.includes(hint.role) && typeof hint.at === "number" && Date.now() - hint.at < ROLE_HINT_TTL);
   } catch {
     return false;
   }
 }
 
-export function AuthGate({ role, children }: { role: UserRole; children: React.ReactNode }) {
+export function AuthGate({
+  role,
+  roles,
+  children
+}: {
+  role?: UserRole;
+  roles?: readonly UserRole[];
+  children: React.ReactNode;
+}) {
+  const allowedRoles = useMemo(() => roles ?? (role ? [role] : []), [role, roles]);
+  const allowedRoleKey = allowedRoles.join("|");
   // Start false so server and first client render match (avoids hydration
   // mismatch); the optimistic hint is applied in the effect below, before
   // Firebase resolves, so post-login navigation still feels instant.
@@ -35,7 +45,7 @@ export function AuthGate({ role, children }: { role: UserRole; children: React.R
 
     // Optimistically render when the freshly-stored login hint matches this
     // role. Full validation still runs below and redirects if anything is wrong.
-    if (readRoleHint(role)) setReady(true);
+    if (readRoleHint(allowedRoles)) setReady(true);
 
     if (!isFirebaseConfigured) {
       router.replace("/login");
@@ -49,19 +59,22 @@ export function AuthGate({ role, children }: { role: UserRole; children: React.R
       }
 
       const token = await user.getIdTokenResult();
-      const actualRole = token.claims.role as UserRole | undefined;
-      if (actualRole && actualRole !== role) {
-        router.replace("/unauthorized");
-        return;
+      const claimRole = token.claims.role;
+      let actualRole = isValidRole(claimRole) ? claimRole : undefined;
+      let userData: { role?: unknown; status?: string } | undefined;
+
+      if (!actualRole || actualRole === "teacher") {
+        const userSnapshot = await getDoc(doc(db, "users", user.uid));
+        userData = userSnapshot.exists() ? (userSnapshot.data() as { role?: unknown; status?: string }) : undefined;
+        if (!actualRole && isValidRole(userData?.role)) actualRole = userData.role;
       }
-      if (!actualRole) {
+
+      if (!actualRole || !allowedRoles.includes(actualRole)) {
         router.replace("/unauthorized");
         return;
       }
 
-      if (role === "teacher") {
-        const userSnapshot = await getDoc(doc(db, "users", user.uid));
-        const userData = userSnapshot.exists() ? (userSnapshot.data() as { status?: string }) : undefined;
+      if (actualRole === "teacher") {
         if (userData?.status !== "active") {
           await signOut(auth);
           router.replace("/login?reason=inactive");
@@ -87,7 +100,7 @@ export function AuthGate({ role, children }: { role: UserRole; children: React.R
       cancelled = true;
       unsubscribe();
     };
-  }, [role, router]);
+  }, [allowedRoleKey, allowedRoles, router]);
 
   if (!ready) {
     return <BrandLoader message="Loading secure workspace…" />;

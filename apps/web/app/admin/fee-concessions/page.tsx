@@ -6,8 +6,11 @@ import { Plus } from "lucide-react";
 import { Concession } from "@/types/fee.types";
 import { ConcessionListItem } from "@/components/FeeComponents";
 import { PageHeader } from "@/components/PageHeader";
+import { useAdminSession } from "@/components/AdminSessionContext";
 
 export default function ConcessionsPage() {
+  const { role } = useAdminSession();
+  const canCreateConcession = role === "admin";
   const [concessions, setConcessions] = useState<Concession[]>([]);
   const [filteredConcessions, setFilteredConcessions] = useState<Concession[]>([]);
   const [loading, setLoading] = useState(true);
@@ -62,10 +65,12 @@ export default function ConcessionsPage() {
         title="Legacy Fee Concessions"
         description="Legacy concession workflow retained for backward compatibility."
         action={
-          <Link href="/admin/fee-concessions/create" className="btn-primary">
-            <Plus size={18} />
-            Create Legacy Request
-          </Link>
+          canCreateConcession ? (
+            <Link href="/admin/fee-concessions/create" className="btn-primary">
+              <Plus size={18} />
+              Create Legacy Request
+            </Link>
+          ) : null
         }
       />
 

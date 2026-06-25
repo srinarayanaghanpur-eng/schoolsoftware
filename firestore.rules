@@ -102,6 +102,12 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Academic years: any signed-in user can read the active year; writes go via admin SDK.
+    match /academic_years/{yearId} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
     match /backup_audit_logs/{logId} {
       allow read, write: if isAdmin();
     }

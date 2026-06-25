@@ -25,6 +25,13 @@ export const biometricPayloadSchema = z.object({
   eventType: attendanceEventTypeSchema
 });
 
+export const academicYearCreateSchema = z.object({
+  name: z.string().trim().min(4), // e.g. "2026-27"
+  startDate: z.string().trim().min(8),
+  endDate: z.string().trim().min(8),
+  isActive: z.boolean().optional().default(false)
+});
+
 const teacherBaseSchema = z.object({
   fullName: z.string().trim().min(2),
   phone: z.string().trim().optional().default(""),

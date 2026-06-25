@@ -3,8 +3,10 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/PageHeader";
+import { useAdminSession } from "@/components/AdminSessionContext";
 import { auth } from "@sri-narayana/shared/firebase/client";
 import { getClassDisplayName } from "@/lib/classUtils";
+import { AlertCircle } from "lucide-react";
 
 interface StudentOption {
   id: string;
@@ -16,6 +18,7 @@ interface StudentOption {
 
 export default function CreateConcessionPage() {
   const router = useRouter();
+  const { role } = useAdminSession();
   const user = auth.currentUser;
   const [students, setStudents] = useState<StudentOption[]>([]);
   const [loading, setLoading] = useState(false);
@@ -98,6 +101,25 @@ export default function CreateConcessionPage() {
       setLoading(false);
     }
   };
+
+  if (role !== "admin") {
+    return (
+      <>
+        <PageHeader title="Grant Legacy Fee Concession" description="Create a legacy concession request for a student." />
+        <section className="p-4 md:p-7">
+          <div className="card flex max-w-2xl items-start gap-4 p-5">
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[#ffebed] text-[#d84d5b]">
+              <AlertCircle size={22} />
+            </span>
+            <div>
+              <h2 className="text-lg font-extrabold text-[#1f2136]">Access denied</h2>
+              <p className="mt-1 text-sm font-medium text-[#7d86a8]">Only administrators can create legacy concessions.</p>
+            </div>
+          </div>
+        </section>
+      </>
+    );
+  }
 
   return (
     <>

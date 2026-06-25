@@ -1,0 +1,7 @@
+npm error Lifecycle script `dev` failed with error:
+npm error code 1
+npm error path C:\Users\HP\OneDrive\Desktop\ATTENDANCE\apps\web
+npm error workspace @sri-narayana/web
+npm error location C:\Users\HP\OneDrive\Desktop\ATTENDANCE\apps\web
+npm error command failed
+npm error command C:\WINDOWS\system32\cmd.exe /d /s /c cross-env NEXT_IGNORE_INCORRECT_LOCKFILE=1 next dev --turbo --port 3001

@@ -1,6 +1,7 @@
 "use client";
 
 import { PageHeader } from "@/components/PageHeader";
+import { useAdminSession } from "@/components/AdminSessionContext";
 import { auth, isFirebaseConfigured } from "@sri-narayana/shared/firebase/client";
 import { demoTeachers, type Teacher } from "@sri-narayana/shared";
 import { CheckCircle2, Edit3, KeyRound, Plus, Search, UserX, X } from "lucide-react";
@@ -65,6 +66,8 @@ function teacherPayload(form: TeacherFormState, includePassword: boolean) {
 }
 
 export default function TeachersPage() {
+  const { role } = useAdminSession();
+  const canManageTeachers = role === "admin";
   const [query, setQuery] = useState("");
   const [teachers, setTeachers] = useState<Teacher[]>(isFirebaseConfigured ? [] : demoTeachers);
   const [form, setForm] = useState<TeacherFormState>(blankForm);
@@ -124,6 +127,7 @@ export default function TeachersPage() {
   }, []);
 
   const startCreate = () => {
+    if (!canManageTeachers) return;
     setEditingTeacher(null);
     setForm(blankForm);
     setShowForm(true);
@@ -132,6 +136,7 @@ export default function TeachersPage() {
   };
 
   const startEdit = (teacher: Teacher) => {
+    if (!canManageTeachers) return;
     setEditingTeacher(teacher);
     setForm(formFromTeacher(teacher));
     setShowForm(true);
@@ -178,6 +183,7 @@ export default function TeachersPage() {
   };
 
   const toggleStatus = async (teacher: Teacher) => {
+    if (!canManageTeachers) return;
     setLoading(true);
     setError(null);
     setMessage(null);
@@ -232,9 +238,11 @@ export default function TeachersPage() {
         title="Teacher Management"
         description="Create Employee ID logins, maintain teacher profiles, and control active access."
         action={
-          <button className="btn-primary" onClick={startCreate}>
-            <Plus size={16} /> Add Teacher Login
-          </button>
+          canManageTeachers ? (
+            <button className="btn-primary" onClick={startCreate}>
+              <Plus size={16} /> Add Teacher Login
+            </button>
+          ) : null
         }
       />
 
@@ -380,18 +388,22 @@ export default function TeachersPage() {
                     </span>
                   </td>
                   <td className="px-4 py-3">
-                    <div className="flex flex-wrap gap-2">
-                      <button className="btn-secondary" onClick={() => startEdit(teacher)} disabled={!isFirebaseConfigured || loading}>
-                        <Edit3 size={15} /> Edit
-                      </button>
-                      <button className="btn-secondary" onClick={() => setResetTeacher(teacher)} disabled={!isFirebaseConfigured || loading}>
-                        <KeyRound size={15} /> Reset
-                      </button>
-                      <button className="btn-secondary" onClick={() => toggleStatus(teacher)} disabled={!isFirebaseConfigured || loading}>
-                        {teacher.status === "active" ? <UserX size={15} /> : <CheckCircle2 size={15} />}
-                        {teacher.status === "active" ? "Deactivate" : "Activate"}
-                      </button>
-                    </div>
+                    {canManageTeachers ? (
+                      <div className="flex flex-wrap gap-2">
+                        <button className="btn-secondary" onClick={() => startEdit(teacher)} disabled={!isFirebaseConfigured || loading}>
+                          <Edit3 size={15} /> Edit
+                        </button>
+                        <button className="btn-secondary" onClick={() => setResetTeacher(teacher)} disabled={!isFirebaseConfigured || loading}>
+                          <KeyRound size={15} /> Reset
+                        </button>
+                        <button className="btn-secondary" onClick={() => toggleStatus(teacher)} disabled={!isFirebaseConfigured || loading}>
+                          {teacher.status === "active" ? <UserX size={15} /> : <CheckCircle2 size={15} />}
+                          {teacher.status === "active" ? "Deactivate" : "Activate"}
+                        </button>
+                      </div>
+                    ) : (
+                      <span className="text-sm font-medium text-[#9aa4c4]">View only</span>
+                    )}
                   </td>
                 </tr>
               ))}

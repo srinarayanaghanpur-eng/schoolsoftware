@@ -2,6 +2,7 @@
 
 import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
+import { isValidRole } from "@sri-narayana/shared";
 import { employeeIdToInternalEmail, normalizeEmployeeId } from "@sri-narayana/shared/utils/employeeAuth";
 import type { UserRole } from "@sri-narayana/shared/types/models";
 import { useRouter } from "next/navigation";
@@ -77,7 +78,7 @@ async function signInAndResolveRole(loginId: string, password: string, rememberM
   const userData = userSnapshot.exists() ? (userSnapshot.data() as { role?: UserRole; status?: string }) : undefined;
   const role = tokenRole ?? userData?.role;
 
-  if (role !== "admin" && role !== "teacher") {
+  if (!isValidRole(role)) {
     await signOut(auth);
     throw new Error("Your login role is missing. Please contact admin.");
   }
@@ -348,6 +349,7 @@ function useTeacherLoginController() {
   useEffect(() => {
     setInactiveReason(new URLSearchParams(window.location.search).get("reason") === "inactive");
     router.prefetch("/admin/dashboard");
+    router.prefetch("/admin/portal");
     router.prefetch("/teacher");
     void import("firebase/auth");
     void import("firebase/firestore");
@@ -406,10 +408,12 @@ function useTeacherLoginController() {
       } catch {
         // sessionStorage may be unavailable; navigation still works.
       }
-      if (role === "admin") {
-        router.replace("/admin/dashboard");
-      } else {
+      if (role === "teacher") {
         router.replace("/teacher");
+      } else if (role === "parent" || role === "student") {
+        router.replace("/admin/portal");
+      } else {
+        router.replace("/admin/dashboard");
       }
     } catch (err) {
       setError(getLoginErrorMessage(err));

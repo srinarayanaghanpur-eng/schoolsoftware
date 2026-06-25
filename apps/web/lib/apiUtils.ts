@@ -1,6 +1,7 @@
 import type { DecodedIdToken } from "firebase-admin/auth";
 import type { QueryDocumentSnapshot } from "firebase-admin/firestore";
 import { NextResponse } from "next/server";
+import { hasPermission, type Permission, type Role } from "@sri-narayana/shared";
 import { verifyBearerToken } from "./firebaseAdmin";
 
 export async function requireAdmin(req: Request): Promise<DecodedIdToken | null> {
@@ -18,6 +19,26 @@ export async function requireSignedIn(req: Request): Promise<DecodedIdToken | nu
 export async function requireTeacher(req: Request): Promise<DecodedIdToken | null> {
   const decodedToken = await verifyBearerToken(req);
   if (!decodedToken || decodedToken.role !== "teacher") {
+    return null;
+  }
+  return decodedToken;
+}
+
+/** Allow the request only if the signed-in user's role is in `roles`. */
+export async function requireRole(req: Request, roles: Role[]): Promise<DecodedIdToken | null> {
+  const decodedToken = await verifyBearerToken(req);
+  const role = decodedToken?.role as Role | undefined;
+  if (!decodedToken || !role || !roles.includes(role)) {
+    return null;
+  }
+  return decodedToken;
+}
+
+/** Allow the request only if the signed-in user's role grants `permission`. */
+export async function requirePermission(req: Request, permission: Permission): Promise<DecodedIdToken | null> {
+  const decodedToken = await verifyBearerToken(req);
+  const role = decodedToken?.role as Role | undefined;
+  if (!decodedToken || !hasPermission(role, permission)) {
     return null;
   }
   return decodedToken;

@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import { Plus, X, Edit2, Trash2, Search } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
+import { useAdminSession } from "@/components/AdminSessionContext";
+import { hasPermission } from "@sri-narayana/shared";
 
 interface Student {
   id: string;
@@ -24,6 +26,10 @@ const CLASS_OPTIONS = ["Nur", "KG", "1", "2", "3", "4", "5", "6", "7", "8", "9",
 const SECTION_OPTIONS = ["A", "B", "C", "D", "E"];
 
 export default function StudentsPage() {
+  const { role } = useAdminSession();
+  const canCreateStudent = Boolean(role && hasPermission(role, "students.create"));
+  const canEditStudent = Boolean(role && hasPermission(role, "students.edit"));
+  const canDeleteStudent = Boolean(role && hasPermission(role, "students.delete"));
   const [students, setStudents] = useState<Student[]>([]);
   const [filteredStudents, setFilteredStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
@@ -90,6 +96,11 @@ export default function StudentsPage() {
     setError("");
     setSuccess("");
 
+    if (!canCreateStudent) {
+      setError("Your role cannot add students.");
+      return;
+    }
+
     try {
       const payload = {
         ...formData,
@@ -142,10 +153,12 @@ export default function StudentsPage() {
         title="Students"
         description="Manage student records, fee commitments, and class sections."
         action={
-          <button onClick={() => setShowForm(!showForm)} className="btn-primary">
-            <Plus size={18} />
-            Add Student
-          </button>
+          canCreateStudent ? (
+            <button onClick={() => setShowForm(!showForm)} className="btn-primary">
+              <Plus size={18} />
+              Add Student
+            </button>
+          ) : null
         }
       />
 
@@ -291,14 +304,22 @@ export default function StudentsPage() {
                       <td className="px-6 py-4 text-sm font-medium text-[#7d86a8]">{student.fatherName}</td>
                       <td className="px-6 py-4 text-sm font-medium text-[#7d86a8]">{student.phone}</td>
                     <td className="px-6 py-4 text-center">
-                      <div className="flex items-center justify-center gap-2">
+                      {canEditStudent || canDeleteStudent ? (
+                        <div className="flex items-center justify-center gap-2">
+                          {canEditStudent && (
                           <button className="grid h-9 w-9 place-items-center rounded-xl bg-[#eeefff] text-[#3033a1] hover:bg-[#e3e5ff]" title="Edit student">
                           <Edit2 size={16} />
                         </button>
+                          )}
+                          {canDeleteStudent && (
                           <button className="grid h-9 w-9 place-items-center rounded-xl bg-[#ffebed] text-[#ed515d] hover:bg-[#ffdfe4]" title="Delete student">
                           <Trash2 size={16} />
                         </button>
-                      </div>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-sm font-medium text-[#9aa4c4]">View only</span>
+                      )}
                     </td>
                   </tr>
                 ))}

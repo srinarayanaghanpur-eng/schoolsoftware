@@ -1,4 +1,16 @@
-export type UserRole = "admin" | "teacher";
+import type { Role } from "./rbac";
+
+export type UserRole = Role;
+
+export type AcademicYear = {
+  id?: string;
+  name: string; // e.g. "2026-27"
+  startDate: string; // ISO date (YYYY-MM-DD)
+  endDate: string; // ISO date (YYYY-MM-DD)
+  isActive: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+};
 
 export type TeacherStatus = "active" | "inactive";
 export type RequestStatus = "open" | "resolved" | "rejected";

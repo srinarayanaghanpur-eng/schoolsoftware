@@ -1,4 +1,5 @@
 export * from "./constants";
+export * from "./types/rbac";
 export * from "./types/models";
 export * from "./types/schemas";
 export * from "./utils/date";
