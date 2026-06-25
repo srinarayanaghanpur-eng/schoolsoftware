@@ -111,13 +111,13 @@ function getLoginIdCheckStatus(loginId: string) {
 
 function LoginIdMatchIndicator({ status }: { status: LoginIdCheckStatus }) {
   if (status === "matched") {
-    return <Check className="h-6 w-6 text-emerald-600" strokeWidth={3} aria-label="Login ID found" />;
+    return <Check className="h-6 w-6 text-[#3033a1]" strokeWidth={3} aria-label="Login ID found" />;
   }
 
   if (status === "checking") {
     return (
       <span
-        className="block h-5 w-5 animate-spin rounded-full border-2 border-emerald-200 border-t-emerald-600"
+        className="block h-5 w-5 animate-spin rounded-full border-2 border-[#c7caf0] border-t-[#3033a1]"
         aria-label="Checking login ID"
       />
     );
@@ -152,18 +152,18 @@ function DesktopIllustration() {
   return (
     <div className="relative mx-auto h-full min-h-[190px] w-full max-w-[500px] overflow-hidden">
       <div className="absolute right-7 top-12 h-24 w-24 rounded-full bg-white/8" />
-      <div className="absolute left-7 bottom-5 h-28 w-28 rounded-full bg-emerald-300/10 blur-xl" />
+      <div className="absolute left-7 bottom-5 h-28 w-28 rounded-full bg-[#4748a9]/10 blur-xl" />
 
       <div className="relative z-10 grid h-full grid-cols-[96px_minmax(210px,1fr)_82px] items-center gap-3 px-4 py-3">
         <div className="flex h-full flex-col justify-center gap-4">
-          <div className="flex h-[58px] w-[58px] items-center justify-center rounded-[13px] bg-white/90 text-emerald-700 shadow-[0_16px_30px_rgba(15,23,42,0.18)]">
+          <div className="flex h-[58px] w-[58px] items-center justify-center rounded-[13px] bg-white/90 text-[#3033a1] shadow-[0_16px_30px_rgba(15,23,42,0.18)]">
             <CalendarCheck className="h-8 w-8" />
           </div>
           <div className="flex items-end gap-3">
             <div className="relative h-[66px] w-[48px] shrink-0">
-              <span className="absolute bottom-0 left-4 h-14 w-3 rounded-full bg-emerald-300/80" />
-              <span className="absolute left-0 top-2 h-11 w-6 rotate-[-34deg] rounded-full bg-emerald-200/80" />
-              <span className="absolute right-0 top-0 h-12 w-6 rotate-[35deg] rounded-full bg-lime-200/75" />
+              <span className="absolute bottom-0 left-4 h-14 w-3 rounded-full bg-[#6f78c4]/80" />
+              <span className="absolute left-0 top-2 h-11 w-6 rotate-[-34deg] rounded-full bg-[#c5ceff]/80" />
+              <span className="absolute right-0 top-0 h-12 w-6 rotate-[35deg] rounded-full bg-[#eef0ff]/75" />
               <span className="absolute bottom-0 left-2 h-5 w-10 rounded-t-full bg-white/80 shadow-[0_8px_16px_rgba(15,23,42,0.16)]" />
             </div>
             <div className="space-y-2 pb-1">
@@ -175,42 +175,42 @@ function DesktopIllustration() {
         </div>
 
         <div className="relative flex h-full min-w-0 flex-col items-center justify-center pt-6">
-          <div className="absolute top-0 flex h-[42px] w-[42px] items-center justify-center rounded-full bg-white/88 text-emerald-700 shadow-[0_16px_30px_rgba(15,23,42,0.18)]">
+          <div className="absolute top-0 flex h-[42px] w-[42px] items-center justify-center rounded-full bg-white/88 text-[#3033a1] shadow-[0_16px_30px_rgba(15,23,42,0.18)]">
             <Clock3 className="h-6 w-6" />
           </div>
           <div className="w-full max-w-[254px] rounded-[18px] bg-white/24 p-2 shadow-[0_24px_48px_rgba(9,30,86,0.28)] ring-1 ring-white/22 backdrop-blur-sm">
             <div className="rounded-[14px] border border-white/65 bg-white/92 p-3">
               <div className="grid h-[108px] grid-cols-[58px_1fr_72px] gap-3">
-                <div className="rounded-[10px] bg-emerald-50 p-2">
-                  <div className="mx-auto flex h-9 w-9 items-center justify-center rounded-full bg-[linear-gradient(135deg,#233128,#047857)] text-white">
+                <div className="rounded-[10px] bg-[#eef0ff] p-2">
+                  <div className="mx-auto flex h-9 w-9 items-center justify-center rounded-full bg-[linear-gradient(135deg,#292b8d,#4748a9)] text-white">
                     <UserRound className="h-5 w-5" />
                   </div>
-                  <div className="mt-4 h-1.5 w-10 rounded-full bg-emerald-200" />
-                  <div className="mt-2 h-1.5 w-8 rounded-full bg-emerald-200" />
-                  <div className="mt-2 h-1.5 w-11 rounded-full bg-emerald-200" />
+                  <div className="mt-4 h-1.5 w-10 rounded-full bg-[#c5ceff]" />
+                  <div className="mt-2 h-1.5 w-8 rounded-full bg-[#c5ceff]" />
+                  <div className="mt-2 h-1.5 w-11 rounded-full bg-[#c5ceff]" />
                 </div>
                 <div>
-                  <div className="h-2.5 w-20 rounded-full bg-emerald-200" />
+                  <div className="h-2.5 w-20 rounded-full bg-[#c5ceff]" />
                   <div className="mt-3 flex h-11 items-end gap-1.5">
-                    <span className="h-5 w-2.5 rounded-t bg-emerald-400" />
-                    <span className="h-8 w-2.5 rounded-t bg-emerald-700" />
-                    <span className="h-6 w-2.5 rounded-t bg-lime-300" />
-                    <span className="h-10 w-2.5 rounded-t bg-teal-500" />
+                    <span className="h-5 w-2.5 rounded-t bg-[#6f78c4]" />
+                    <span className="h-8 w-2.5 rounded-t bg-[#3033a1]" />
+                    <span className="h-6 w-2.5 rounded-t bg-[#9ba9ed]" />
+                    <span className="h-10 w-2.5 rounded-t bg-[#292b8d]" />
                   </div>
                   <div className="mt-3 flex items-center gap-3">
-                    <span className="block h-9 w-9 rounded-full border-[8px] border-emerald-200 border-r-emerald-700" />
+                    <span className="block h-9 w-9 rounded-full border-[8px] border-[#c5ceff] border-r-[#3033a1]" />
                     <span className="space-y-1.5">
-                      <span className="block h-1.5 w-12 rounded-full bg-emerald-100" />
-                      <span className="block h-1.5 w-10 rounded-full bg-emerald-100" />
+                      <span className="block h-1.5 w-12 rounded-full bg-[#eef0ff]" />
+                      <span className="block h-1.5 w-10 rounded-full bg-[#eef0ff]" />
                     </span>
                   </div>
                 </div>
                 <div className="pt-2">
-                  <div className="h-2.5 w-9 rounded-full bg-emerald-300" />
-                  <div className="mt-3 h-1.5 w-14 rounded-full bg-emerald-200" />
-                  <div className="mt-3 h-1.5 w-12 rounded-full bg-emerald-200" />
-                  <div className="mt-4 h-1.5 w-16 rounded-full bg-emerald-200" />
-                  <div className="mt-3 h-1.5 w-14 rounded-full bg-emerald-200" />
+                  <div className="h-2.5 w-9 rounded-full bg-[#6f78c4]" />
+                  <div className="mt-3 h-1.5 w-14 rounded-full bg-[#c5ceff]" />
+                  <div className="mt-3 h-1.5 w-12 rounded-full bg-[#c5ceff]" />
+                  <div className="mt-4 h-1.5 w-16 rounded-full bg-[#c5ceff]" />
+                  <div className="mt-3 h-1.5 w-14 rounded-full bg-[#c5ceff]" />
                 </div>
               </div>
             </div>
@@ -234,7 +234,7 @@ function DesktopFeatureCard({ feature }: { feature: Feature }) {
 
   return (
     <div className="group h-[112px] overflow-hidden rounded-[14px] border border-white/35 bg-white/[0.92] px-2.5 py-2.5 text-center text-stone-900 shadow-[0_12px_24px_rgba(8,20,70,0.13)] backdrop-blur-xl transition duration-300 hover:-translate-y-0.5 hover:bg-white">
-      <div className="mx-auto flex h-[34px] w-[34px] items-center justify-center rounded-full bg-[linear-gradient(135deg,#233128,#047857)] text-white shadow-[0_10px_20px_rgba(4,120,87,0.26)]">
+      <div className="mx-auto flex h-[34px] w-[34px] items-center justify-center rounded-full bg-[linear-gradient(135deg,#292b8d,#4748a9)] text-white shadow-[0_10px_20px_rgba(48,51,161,0.26)]">
         <Icon className="h-4 w-4" />
       </div>
       <h3 className="mt-2 text-[11px] font-extrabold leading-tight tracking-[-0.02em]">{feature.title}</h3>
@@ -245,10 +245,10 @@ function DesktopFeatureCard({ feature }: { feature: Feature }) {
 
 function LeftBrandPanel() {
   return (
-    <aside className="relative hidden w-[45%] overflow-hidden bg-[linear-gradient(135deg,#233128_0%,#14532D_52%,#047857_100%)] px-6 py-4 text-white lg:block xl:px-8">
+    <aside className="relative hidden w-[45%] overflow-hidden bg-[linear-gradient(135deg,#292b8d_0%,#3033a1_52%,#4748a9_100%)] px-6 py-4 text-white lg:block xl:px-8">
       <FloatingBlob className="-left-14 top-8 h-56 w-56 bg-white/16 animate-float-slow" />
-      <FloatingBlob className="bottom-14 right-20 h-36 w-36 bg-emerald-200/16 animate-float-medium" />
-      <FloatingBlob className="bottom-52 left-10 h-48 w-48 bg-lime-300/14 animate-float-medium" />
+      <FloatingBlob className="bottom-14 right-20 h-36 w-36 bg-[#c5ceff]/20 animate-float-medium" />
+      <FloatingBlob className="bottom-52 left-10 h-48 w-48 bg-[#9ba9ed]/18 animate-float-medium" />
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_25%,rgba(255,255,255,0.14),transparent_22%),radial-gradient(circle_at_74%_92%,rgba(255,255,255,0.16),transparent_18%)]" />
       <svg className="absolute -right-[126px] top-0 h-full w-[252px] text-[#F8FAFF]" viewBox="0 0 252 900" preserveAspectRatio="none" aria-hidden="true">
         <path
@@ -260,7 +260,7 @@ function LeftBrandPanel() {
         <div className="text-center">
           <SchoolLogo id="school-logo-desktop" className="mx-auto h-[86px] w-[86px] xl:h-[96px] xl:w-[96px]" />
           <h1 className="mt-2 text-[20px] font-extrabold leading-tight tracking-[-0.035em] drop-shadow-sm xl:text-[22px]">{SCHOOL_NAME}</h1>
-          <div className="mx-auto mt-2.5 h-0.5 w-10 rounded-full bg-emerald-100/55" />
+          <div className="mx-auto mt-2.5 h-0.5 w-10 rounded-full bg-[#ffd23f]/70" />
         </div>
         <div className="min-h-0 py-1">
           <DesktopIllustration />
@@ -282,7 +282,7 @@ function DotGrid({ className }: { className: string }) {
       aria-hidden="true"
     >
       {Array.from({ length: 36 }).map((_, index) => (
-        <span key={index} className="h-1.5 w-1.5 rounded-full bg-emerald-200/70" />
+        <span key={index} className="h-1.5 w-1.5 rounded-full bg-[#c5ceff]/70" />
       ))}
     </div>
   );
@@ -311,10 +311,10 @@ function DesktopInput({
 }) {
   return (
     <label className="group relative block">
-      <Icon className="pointer-events-none absolute left-5 top-1/2 h-5 w-5 -translate-y-1/2 text-stone-500 transition group-focus-within:text-emerald-700" />
+      <Icon className="pointer-events-none absolute left-5 top-1/2 h-5 w-5 -translate-y-1/2 text-stone-500 transition group-focus-within:text-[#3033a1]" />
       <input
-        className={`h-[52px] w-full rounded-[14px] border bg-white/85 pl-[54px] pr-[52px] text-[16px] font-semibold text-stone-950 shadow-[0_10px_24px_rgba(15,23,42,0.04)] outline-none transition duration-300 placeholder:text-stone-400 focus:border-emerald-700 focus:bg-white focus:shadow-[0_16px_32px_rgba(4,120,87,0.1)] focus:ring-4 focus:ring-emerald-100 ${
-          valid ? "border-emerald-400" : "border-stone-300"
+        className={`h-[52px] w-full rounded-[14px] border bg-white/85 pl-[54px] pr-[52px] text-[16px] font-semibold text-stone-950 shadow-[0_10px_24px_rgba(15,23,42,0.04)] outline-none transition duration-300 placeholder:text-stone-400 focus:border-[#3033a1] focus:bg-white focus:shadow-[0_16px_32px_rgba(48,51,161,0.12)] focus:ring-4 focus:ring-[#3033a1]/10 ${
+          valid ? "border-[#6f78c4]" : "border-stone-300"
         }`}
         type={type}
         value={value}
@@ -324,7 +324,7 @@ function DesktopInput({
         autoComplete={autoComplete}
         required
       />
-      <div className="absolute right-4 top-1/2 -translate-y-1/2">{right ?? (valid ? <Check className="h-6 w-6 text-emerald-600" strokeWidth={3} /> : null)}</div>
+      <div className="absolute right-4 top-1/2 -translate-y-1/2">{right ?? (valid ? <Check className="h-6 w-6 text-[#3033a1]" strokeWidth={3} /> : null)}</div>
     </label>
   );
 }
@@ -492,23 +492,23 @@ function DesktopLoginExperience() {
   } = useTeacherLoginController();
 
   return (
-    <section className="relative flex h-screen items-center justify-center overflow-hidden bg-[#f4f7f3] p-2">
-      <FloatingBlob className="left-[-90px] top-[-120px] h-80 w-80 bg-emerald-100/80" />
-      <FloatingBlob className="bottom-[-120px] right-[-80px] h-96 w-96 bg-lime-100/80" />
-      <div className="relative flex h-[calc(100vh-1rem)] max-h-[820px] min-h-0 w-full max-w-[1280px] overflow-hidden rounded-[24px] bg-white shadow-[0_24px_65px_rgba(35,49,40,0.16)] ring-1 ring-stone-200">
+    <section className="relative flex h-screen items-center justify-center overflow-hidden bg-[#f5f6fd] p-2">
+      <FloatingBlob className="left-[-90px] top-[-120px] h-80 w-80 bg-[#eef0ff]/90" />
+      <FloatingBlob className="bottom-[-120px] right-[-80px] h-96 w-96 bg-[#c5ceff]/70" />
+      <div className="relative flex h-[calc(100vh-1rem)] max-h-[820px] min-h-0 w-full max-w-[1280px] overflow-hidden rounded-[24px] bg-white shadow-[0_24px_65px_rgba(36,42,94,0.16)] ring-1 ring-stone-200">
         <LeftBrandPanel />
-        <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden bg-[#f8faf6] px-5 py-8 sm:px-8 lg:w-[55%]">
+        <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden bg-[#f8f8fc] px-5 py-8 sm:px-8 lg:w-[55%]">
           <DotGrid className="right-8 top-8" />
           <DotGrid className="bottom-10 right-12" />
-          <div className="absolute left-[8%] top-[16%] h-52 w-52 rounded-full bg-emerald-100/70 blur-3xl" />
-          <div className="absolute bottom-[18%] right-[18%] h-44 w-44 rounded-full bg-lime-100/80 blur-3xl" />
+          <div className="absolute left-[8%] top-[16%] h-52 w-52 rounded-full bg-[#eef0ff]/80 blur-3xl" />
+          <div className="absolute bottom-[18%] right-[18%] h-44 w-44 rounded-full bg-[#c5ceff]/70 blur-3xl" />
           <form
             onSubmit={onSubmit}
-            className="relative z-10 w-full max-w-[460px] rounded-[24px] border border-stone-200 bg-white/90 px-7 py-6 shadow-[0_22px_65px_rgba(35,49,40,0.12)] backdrop-blur-2xl"
+            className="relative z-10 w-full max-w-[460px] rounded-[24px] border border-stone-200 bg-white/90 px-7 py-6 shadow-[0_22px_65px_rgba(36,42,94,0.12)] backdrop-blur-2xl"
           >
             <div className="text-center">
-              <div className="mx-auto flex h-[60px] w-[60px] items-center justify-center rounded-full bg-[linear-gradient(145deg,#ECFDF5,#F8FAF6)] shadow-[inset_0_10px_28px_rgba(4,120,87,0.08)]">
-                <UsersRound className="h-8 w-8 text-emerald-700" strokeWidth={2.4} />
+              <div className="mx-auto flex h-[60px] w-[60px] items-center justify-center rounded-full bg-[linear-gradient(145deg,#eef0ff,#f8f8fc)] shadow-[inset_0_10px_28px_rgba(48,51,161,0.1)]">
+                <UsersRound className="h-8 w-8 text-[#3033a1]" strokeWidth={2.4} />
               </div>
               <h2 className="mt-3 text-[27px] font-extrabold tracking-[-0.035em] text-stone-950">Welcome back!</h2>
               <p className="mt-1 text-[15px] font-medium text-stone-500">Use your ID and password. We will open the correct dashboard automatically.</p>
@@ -532,7 +532,7 @@ function DesktopLoginExperience() {
                 type={showPassword ? "text" : "password"}
                 autoComplete="current-password"
                 right={
-                  <button type="button" className="rounded-full p-1 text-stone-500 transition hover:bg-stone-100 hover:text-emerald-700" onClick={() => setShowPassword((value) => !value)} aria-label="Toggle password visibility">
+                  <button type="button" className="rounded-full p-1 text-stone-500 transition hover:bg-[#eef0ff] hover:text-[#3033a1]" onClick={() => setShowPassword((value) => !value)} aria-label="Toggle password visibility">
                     {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                   </button>
                 }
@@ -541,12 +541,12 @@ function DesktopLoginExperience() {
             <div className="mt-4 flex items-center justify-between gap-4">
               <label className="flex cursor-pointer items-center gap-3 text-[15px] font-medium text-stone-600">
                 <input className="peer sr-only" type="checkbox" checked={rememberMe} onChange={(event) => setRememberMe(event.target.checked)} />
-                <span className="flex h-5 w-5 items-center justify-center rounded-[6px] border border-emerald-200 bg-white text-white shadow-[0_6px_14px_rgba(4,120,87,0.12)] transition peer-checked:border-transparent peer-checked:bg-[linear-gradient(135deg,#233128,#047857)]">
+                <span className="flex h-5 w-5 items-center justify-center rounded-[6px] border border-[#c7caf0] bg-white text-white shadow-[0_6px_14px_rgba(48,51,161,0.14)] transition peer-checked:border-transparent peer-checked:bg-[linear-gradient(135deg,#292b8d,#4748a9)]">
                   <Check className="h-4 w-4" strokeWidth={3} />
                 </span>
                 Remember me
               </label>
-              <button type="button" className="text-[15px] font-semibold text-emerald-700 transition hover:text-emerald-900 disabled:opacity-60" onClick={onForgotPassword} disabled={forgotLoading}>
+              <button type="button" className="text-[15px] font-semibold text-[#3033a1] transition hover:text-[#20226f] disabled:opacity-60" onClick={onForgotPassword} disabled={forgotLoading}>
                 {forgotLoading ? "Sending..." : "Forgot password?"}
               </button>
             </div>
@@ -557,7 +557,7 @@ function DesktopLoginExperience() {
             )}
             <button
               disabled={loading}
-              className="group mt-5 flex h-[54px] w-full items-center justify-center gap-3 rounded-[15px] bg-[linear-gradient(100deg,#233128_0%,#047857_100%)] text-[17px] font-extrabold text-white shadow-[0_16px_32px_rgba(4,120,87,0.3)] transition duration-300 hover:-translate-y-0.5 hover:shadow-[0_20px_40px_rgba(4,120,87,0.34)] disabled:cursor-not-allowed disabled:opacity-60"
+              className="group mt-5 flex h-[54px] w-full items-center justify-center gap-3 rounded-[15px] bg-[linear-gradient(100deg,#292b8d_0%,#4748a9_100%)] text-[17px] font-extrabold text-white shadow-[0_16px_32px_rgba(48,51,161,0.3)] transition duration-300 hover:-translate-y-0.5 hover:shadow-[0_20px_40px_rgba(48,51,161,0.34)] disabled:cursor-not-allowed disabled:opacity-60"
             >
               <LogIn className="h-6 w-6 transition group-hover:translate-x-0.5" />
               {loading ? "Signing in..." : "Login"}
@@ -596,8 +596,8 @@ function MobileLoginInput({
     <label className="block">
       <span className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">{label}</span>
       <div
-        className={`mt-2 flex h-14 items-center rounded-2xl border bg-white px-4 shadow-[0_12px_28px_rgba(15,23,42,0.06)] transition focus-within:border-emerald-700 focus-within:ring-4 focus-within:ring-emerald-100 ${
-          valid ? "border-emerald-400" : "border-stone-200"
+        className={`mt-2 flex h-14 items-center rounded-2xl border bg-white px-4 shadow-[0_12px_28px_rgba(15,23,42,0.06)] transition focus-within:border-[#3033a1] focus-within:ring-4 focus-within:ring-[#3033a1]/10 ${
+          valid ? "border-[#6f78c4]" : "border-stone-200"
         }`}
       >
         <Icon className="h-5 w-5 shrink-0 text-slate-500" />
@@ -637,11 +637,11 @@ function MobileLoginExperience() {
   } = useTeacherLoginController();
 
   return (
-    <section className="relative min-h-screen overflow-hidden bg-[#f4f7f3] px-4 py-5 text-stone-950">
-      <div className="absolute inset-x-0 top-0 h-[318px] overflow-hidden bg-[linear-gradient(135deg,#233128_0%,#14532D_55%,#047857_100%)]">
+    <section className="relative min-h-screen overflow-hidden bg-[#f5f6fd] px-4 py-5 text-stone-950">
+      <div className="absolute inset-x-0 top-0 h-[318px] overflow-hidden bg-[linear-gradient(135deg,#292b8d_0%,#3033a1_55%,#4748a9_100%)]">
         <div className="absolute -left-16 -top-14 h-44 w-44 rounded-full bg-white/12" />
-        <div className="absolute right-[-50px] top-20 h-36 w-36 rounded-full bg-emerald-200/20 blur-2xl" />
-        <div className="absolute left-16 top-24 h-52 w-52 rounded-full bg-lime-300/10 blur-2xl" />
+        <div className="absolute right-[-50px] top-20 h-36 w-36 rounded-full bg-[#c5ceff]/24 blur-2xl" />
+        <div className="absolute left-16 top-24 h-52 w-52 rounded-full bg-[#9ba9ed]/18 blur-2xl" />
         <MobileWave />
       </div>
 
@@ -654,10 +654,10 @@ function MobileLoginExperience() {
 
         <form
           onSubmit={onSubmit}
-          className="mt-4 w-full flex-1 overflow-y-auto rounded-[28px] border border-white/80 bg-white px-4 py-4 shadow-[0_26px_70px_rgba(35,49,40,0.14)]" style={{scrollbarWidth: 'thin'}}
+          className="mt-4 w-full flex-1 overflow-y-auto rounded-[28px] border border-white/80 bg-white px-4 py-4 shadow-[0_26px_70px_rgba(36,42,94,0.14)]" style={{scrollbarWidth: 'thin'}}
         >
           <div>
-            <p className="text-sm font-bold uppercase tracking-[0.22em] text-emerald-700">Secure Login</p>
+            <p className="text-sm font-bold uppercase tracking-[0.22em] text-[#3033a1]">Secure Login</p>
             <h2 className="mt-2 text-3xl font-extrabold tracking-[-0.02em] text-slate-950">Welcome back!</h2>
             <p className="mt-2 text-sm font-medium leading-6 text-slate-500">
               Use your ID and password.
@@ -687,7 +687,7 @@ function MobileLoginExperience() {
               right={
                 <button
                   type="button"
-                  className="rounded-full p-1 text-stone-500 transition hover:bg-stone-100 hover:text-emerald-700"
+                  className="rounded-full p-1 text-stone-500 transition hover:bg-[#eef0ff] hover:text-[#3033a1]"
                   onClick={() => setShowPassword((value) => !value)}
                   aria-label="Toggle password visibility"
                 >
@@ -700,12 +700,12 @@ function MobileLoginExperience() {
           <div className="mt-3 flex items-center justify-between gap-2">
             <label className="flex cursor-pointer items-center gap-2 text-xs font-semibold text-slate-600">
               <input className="peer sr-only" type="checkbox" checked={rememberMe} onChange={(event) => setRememberMe(event.target.checked)} />
-              <span className="flex h-4 w-4 items-center justify-center rounded-md border border-emerald-200 bg-white text-white transition peer-checked:border-transparent peer-checked:bg-emerald-700">
+              <span className="flex h-4 w-4 items-center justify-center rounded-md border border-[#c7caf0] bg-white text-white transition peer-checked:border-transparent peer-checked:bg-[#3033a1]">
                 <Check className="h-3 w-3" strokeWidth={3} />
               </span>
               Remember
             </label>
-            <button type="button" className="text-xs font-bold text-emerald-700 disabled:opacity-60" onClick={onForgotPassword} disabled={forgotLoading}>
+            <button type="button" className="text-xs font-bold text-[#3033a1] disabled:opacity-60" onClick={onForgotPassword} disabled={forgotLoading}>
               {forgotLoading ? "Sending..." : "Forgot password?"}
             </button>
           </div>
@@ -718,7 +718,7 @@ function MobileLoginExperience() {
 
           <button
             disabled={loading}
-            className="mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[linear-gradient(100deg,#233128_0%,#047857_100%)] text-sm font-extrabold text-white shadow-[0_18px_34px_rgba(4,120,87,0.3)] transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
+            className="mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[linear-gradient(100deg,#292b8d_0%,#4748a9_100%)] text-sm font-extrabold text-white shadow-[0_18px_34px_rgba(48,51,161,0.3)] transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
           >
             <LogIn className="h-4 w-4" />
             {loading ? "Signing in..." : "Login"}

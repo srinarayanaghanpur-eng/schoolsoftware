@@ -58,3 +58,35 @@
  ✓ Compiled /admin/attendance in 1709ms
  ○ Compiling /admin/calendar ...
  ✓ Compiled /admin/calendar in 1244ms
+ ✓ Compiled in 1091ms
+ ✓ Compiled in 866ms
+ ○ Compiling /admin/dashboard ...
+ ✓ Compiled /admin/dashboard in 1549ms
+ GET /admin/dashboard 200 in 3472ms
+ ✓ Compiled / in 233ms
+ GET / 307 in 570ms
+ ✓ Compiled /login in 271ms
+ GET /login 200 in 686ms
+ GET / 307 in 624ms
+ GET /login 200 in 449ms
+ ✓ Compiled in 1331ms
+ ✓ Compiled /login in 505ms
+ ✓ Compiled in 827ms
+ ✓ Compiled /login in 159ms
+ ✓ Compiled in 1354ms
+ ✓ Compiled /login in 199ms
+ ✓ Compiled in 1581ms
+ ✓ Compiled /login in 525ms
+ GET /login 200 in 1789ms
+ ✓ Compiled in 946ms
+ ✓ Compiled /login in 155ms
+ GET /login 200 in 1014ms
+ GET /login 200 in 652ms
+ ✓ Compiled /admin/dashboard in 417ms
+ ○ Compiling / ...
+ ✓ Compiled / in 867ms
+ GET / 307 in 1535ms
+ GET /login 200 in 773ms
+ GET /api/admin/academic-years 200 in 868ms
+ GET / 307 in 956ms
+ GET /login 200 in 1203ms

@@ -10,7 +10,6 @@ import {
   GraduationCap,
   Grid2X2,
   IndianRupee,
-  Loader2,
   LogOut,
   Megaphone,
   Search,
@@ -258,7 +257,7 @@ function AcademicYearSwitcher() {
       <CalendarRange size={17} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[#8490b9]" />
       <select
         aria-label="Academic year"
-        className="h-11 w-full appearance-none rounded-xl border border-[#e0e3f0] bg-[#f8f8fc] pl-10 pr-9 text-sm font-bold text-[#20223a] outline-none transition focus:border-[#4a4bb1] focus:ring-4 focus:ring-[#4a4bb1]/10 disabled:cursor-not-allowed disabled:text-[#8b94b2]"
+        className="h-11 w-full appearance-none rounded-xl border border-[#e0e3f0] bg-[#f8f8fc] pl-10 pr-4 text-sm font-bold text-[#20223a] outline-none transition focus:border-[#4a4bb1] focus:ring-4 focus:ring-[#4a4bb1]/10 disabled:cursor-not-allowed disabled:text-[#8b94b2]"
         value={value}
         disabled={disabled}
         onChange={(event) => void handleChange(event.target.value)}
@@ -276,9 +275,6 @@ function AcademicYearSwitcher() {
           </>
         )}
       </select>
-      <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#8490b9]">
-        {changing ? <Loader2 size={15} className="animate-spin" /> : <ChevronDown size={15} />}
-      </span>
     </div>
   );
 }
@@ -438,7 +434,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <button type="button" className="hidden h-11 items-center gap-3 rounded-xl border border-[#e0e3f0] bg-[#f8f8fc] px-4 text-sm font-bold text-[#20223a] sm:flex">
             <span className="grid h-7 w-7 place-items-center rounded-lg bg-[#eef0ff] text-[#292b8d]"><ClipboardCheck size={17} /></span>
             {profile?.name ?? "Administrator"}
-            <ChevronDown size={16} />
           </button>
           {role && canAccessModule(role, "communication") && (
             <Link href="/admin/notifications" aria-label="Communication & notifications" className="relative grid h-11 w-11 place-items-center rounded-xl bg-[#f3f4fb] text-[#313581] transition hover:bg-[#e9ebfa]">
