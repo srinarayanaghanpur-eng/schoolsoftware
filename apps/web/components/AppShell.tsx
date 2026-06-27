@@ -2,9 +2,11 @@
 
 import clsx from "clsx";
 import {
+  BarChart3,
   BellRing,
   BookOpenCheck,
   Bus,
+  CalendarCheck,
   Hotel,
   Library,
   Package,
@@ -17,13 +19,15 @@ import {
   IndianRupee,
   LogOut,
   Megaphone,
+  Menu,
   Search,
   Settings,
   ShieldAlert,
   ShieldCheck,
   UserCog,
   Users,
-  Wallet
+  Wallet,
+  X
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
@@ -72,8 +76,21 @@ const secondaryNav: NavItem[] = [
   { href: "/admin/settings", label: "Settings", module: "settings", icon: Settings }
 ];
 
+// Curated mobile nav — a focused subset of the app for phones. Items are still
+// gated by `module` access where one is given; My Attendance is always shown.
+type MobileNavItem = { href: string; label: string; short: string; icon: LucideIcon; module?: Module };
+const mobileNav: MobileNavItem[] = [
+  { href: "/admin/dashboard", label: "Summary", short: "Summary", icon: Grid2X2, module: "dashboard" },
+  { href: "/admin/reports", label: "Reports", short: "Reports", icon: BarChart3, module: "reports" },
+  { href: "/admin/notices", label: "Notices", short: "Notices", icon: Megaphone, module: "communication" },
+  { href: "/admin/my-attendance", label: "My Attendance", short: "Attendance", icon: CalendarCheck },
+  { href: "/admin/notifications", label: "Notifications & Leave", short: "Alerts", icon: BellRing, module: "communication" }
+];
+
 const pageTitles: Record<string, string> = {
   "/admin/dashboard": "Dashboard",
+  "/admin/my-attendance": "My Attendance",
+  "/admin/notices": "Notices",
   "/admin/students": "Students",
   "/admin/teachers": "Teachers",
   "/admin/attendance": "Attendance",
@@ -316,7 +333,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       let name = user.displayName ?? "";
       let role: Role | undefined;
       try {
-        const token = await user.getIdTokenResult();
+        const token = await user.getIdTokenResult(true);
         if (isValidRole(token.claims.role)) role = token.claims.role;
         const snapshot = await getDoc(doc(db, "users", user.uid));
         if (snapshot.exists()) {
@@ -335,15 +352,37 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, []);
 
   const role = profile?.role;
+
+  // Mobile slide-in nav drawer. Closes automatically on navigation.
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  useEffect(() => setMobileNavOpen(false), [pathname]);
+
+  // The accountant has no use for the admin dashboard — send them straight to
+  // Finance as their home so they don't land on (or see the URL of) /admin/dashboard.
+  useEffect(() => {
+    if (!sessionLoading && role === "accountant" && pathname === "/admin/dashboard") {
+      router.replace("/admin/finance");
+    }
+  }, [sessionLoading, role, pathname, router]);
+
   const sessionValue = useMemo(() => ({ profile, role, loading: sessionLoading }), [profile, role, sessionLoading]);
   const mainNav = useMemo(() => navForRole(primaryNav, role), [role]);
   const generalNav = useMemo(() => navForRole(secondaryNav, role), [role]);
+  const bottomTabs = useMemo(
+    () => mobileNav.filter((item) => !item.module || (role && canAccessModule(role, item.module))),
+    [role]
+  );
   const currentModule = moduleForPath(pathname);
   const routeDenied = !sessionLoading && Boolean(currentModule && (!role || !canAccessModule(role, currentModule)));
   const roleLabel = role ? ROLE_LABELS[role] : "Loading...";
 
   const handleSignOut = () => {
     clearPayrollSessionId();
+    try {
+      window.sessionStorage.removeItem("erp-auth-role");
+    } catch {
+      // ignore
+    }
     if (!isFirebaseConfigured) {
       router.replace("/login");
       return;
@@ -355,37 +394,98 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <AdminSessionProvider value={sessionValue}>
       <AcademicYearProvider>
     <div className="min-h-screen bg-[#f5f6fd] text-[#181a31] md:flex">
-      <aside className="relative flex shrink-0 flex-col overflow-hidden bg-[linear-gradient(180deg,#292b8d_0%,#20226f_100%)] text-white md:fixed md:inset-y-0 md:w-[276px]">
+      {/* Mobile backdrop */}
+      {mobileNavOpen && (
+        <div
+          onClick={() => setMobileNavOpen(false)}
+          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm md:hidden"
+          aria-hidden="true"
+        />
+      )}
+
+      <aside
+        className={clsx(
+          "fixed inset-y-0 left-0 z-50 flex w-[280px] max-w-[85vw] flex-col overflow-hidden bg-[linear-gradient(180deg,#292b8d_0%,#20226f_100%)] text-white shadow-2xl transition-transform duration-300 ease-out md:w-[276px] md:max-w-none md:shadow-none md:translate-x-0",
+          mobileNavOpen ? "translate-x-0" : "-translate-x-full"
+        )}
+      >
         <div className="flex items-center gap-3 border-b border-white/10 px-4 py-6 md:px-5">
           <div className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-xl bg-white p-1 shadow-lg shadow-black/10">
             <img src="/sri-narayana-high-school-logo.jpg" alt="Sri Narayana High School" className="h-full w-full object-cover" />
           </div>
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <p className="truncate font-serif text-lg font-bold leading-5 text-white">Sri Narayana</p>
             <p className="mt-0.5 text-[11px] font-medium tracking-[0.08em] text-[#c1c9ff]">HIGH SCHOOL · ERP</p>
           </div>
+          <button
+            type="button"
+            onClick={() => setMobileNavOpen(false)}
+            aria-label="Close menu"
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-[#c5ceff] transition hover:bg-white/10 hover:text-white md:hidden"
+          >
+            <X size={20} />
+          </button>
         </div>
 
-        <nav className="nav-scroll flex gap-1 overflow-x-auto px-3 py-5 md:block md:min-h-0 md:flex-1 md:space-y-1 md:overflow-x-visible md:overflow-y-auto md:px-4">
-          <p className="hidden px-2 pb-2 text-[11px] font-bold tracking-[0.13em] text-[#9ba9ed] md:block">MAIN</p>
+        {/* Mobile: curated essentials only */}
+        <nav className="nav-scroll min-h-0 flex-1 space-y-1 overflow-y-auto px-3 py-5 md:hidden">
+          {mobileNav
+            .filter((item) => !item.module || (role && canAccessModule(role, item.module)))
+            .map((item) => {
+              const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={clsx(
+                    "group relative flex items-center gap-4 rounded-xl px-4 py-3.5 text-sm font-semibold transition duration-200",
+                    active ? "bg-[#4748a9] text-white shadow-[0_8px_20px_rgba(8,10,92,0.18)]" : "text-[#dce2ff] hover:bg-white/10 hover:text-white"
+                  )}
+                >
+                  {active && <span className="absolute inset-y-3 -left-2 w-1 rounded-r-full bg-[#ffd23f]" />}
+                  <item.icon size={20} strokeWidth={2.4} className={active ? "text-white" : "text-[#c5ceff] group-hover:text-white"} />
+                  {item.label}
+                </Link>
+              );
+            })}
+        </nav>
+
+        {/* Desktop: full navigation */}
+        <nav className="nav-scroll hidden min-h-0 flex-1 space-y-1 overflow-y-auto px-3 py-5 md:block md:px-4">
+          <p className="px-2 pb-2 text-[11px] font-bold tracking-[0.13em] text-[#9ba9ed]">MAIN</p>
           {mainNav.map((item) => (
             <NavEntry key={item.href} item={item} pathname={pathname} />
           ))}
 
           {generalNav.length > 0 && (
             <>
-              <p className="hidden px-2 pb-2 pt-7 text-[11px] font-bold tracking-[0.13em] text-[#9ba9ed] md:block">GENERAL</p>
+              <p className="px-2 pb-2 pt-7 text-[11px] font-bold tracking-[0.13em] text-[#9ba9ed]">GENERAL</p>
               {generalNav.map((item) => (
                 <NavEntry key={item.href} item={item} pathname={pathname} />
               ))}
             </>
           )}
+
+          <p className="px-2 pb-2 pt-7 text-[11px] font-bold tracking-[0.13em] text-[#9ba9ed]">ME</p>
+          <Link
+            href="/admin/my-attendance"
+            className={clsx(
+              "group relative flex items-center gap-4 rounded-xl px-4 py-3 text-sm font-semibold transition duration-200",
+              pathname === "/admin/my-attendance"
+                ? "bg-[#4748a9] text-white shadow-[0_8px_20px_rgba(8,10,92,0.18)]"
+                : "text-[#dce2ff] hover:bg-white/10 hover:text-white"
+            )}
+          >
+            {pathname === "/admin/my-attendance" && <span className="absolute inset-y-3 -left-2 w-1 rounded-r-full bg-[#ffd23f]" />}
+            <CalendarCheck size={20} strokeWidth={2.4} className={pathname === "/admin/my-attendance" ? "text-white" : "text-[#c5ceff] group-hover:text-white"} />
+            My Attendance
+          </Link>
         </nav>
 
         <button
           type="button"
           onClick={handleSignOut}
-          className="mt-auto hidden items-center gap-3 border-t border-white/10 px-5 py-5 text-left transition hover:bg-white/5 md:flex"
+          className="mt-auto flex items-center gap-3 border-t border-white/10 px-5 py-5 text-left transition hover:bg-white/5"
           title="Sign out"
         >
           <span className="grid h-10 w-10 place-items-center rounded-full bg-[#ffc73d] text-sm font-extrabold text-[#2a2c87]">
@@ -400,10 +500,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       <main key={pathname} className="min-w-0 flex-1 md:ml-[276px] flex flex-col">
-        <header className="sticky top-0 z-20 flex min-h-[76px] items-center gap-4 border-b border-[#e4e6f0] bg-white/95 px-4 py-3 backdrop-blur md:px-7 flex-shrink-0">
-          <div className="min-w-[170px]">
-            <h1 className="text-xl font-extrabold tracking-tight text-[#15172d]">{title}</h1>
-            <p className="text-xs font-medium text-[#7b85a8]"><HeaderDateLabel now={now} /></p>
+        <header className="sticky top-0 z-20 flex min-h-[64px] items-center gap-3 border-b border-[#e4e6f0] bg-white/95 px-3 py-2.5 backdrop-blur md:min-h-[76px] md:gap-4 md:px-7 md:py-3 flex-shrink-0">
+          <button
+            type="button"
+            onClick={() => setMobileNavOpen(true)}
+            aria-label="Open menu"
+            className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#f3f4fb] text-[#313581] transition hover:bg-[#e9ebfa] md:hidden"
+          >
+            <Menu size={20} />
+          </button>
+          <div className="min-w-0 flex-1 md:min-w-[170px] md:flex-none">
+            <h1 className="truncate text-lg font-extrabold tracking-tight text-[#15172d] md:text-xl">{title}</h1>
+            <p className="truncate text-xs font-medium text-[#7b85a8]"><HeaderDateLabel now={now} /></p>
           </div>
           <label className="relative ml-auto hidden max-w-[330px] flex-1 lg:block">
             <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#8490b9]" />
@@ -425,10 +533,30 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </Link>
           )}
         </header>
-        <div key={pathname} className="page-enter flex-1 overflow-y-auto">
+        <div key={pathname} className="page-enter flex-1 overflow-y-auto pb-[76px] md:pb-0">
           {sessionLoading ? <BrandLoader message="Loading secure workspace…" /> : routeDenied ? <AccessDeniedState module={currentModule} /> : (<><SectionTabs />{children}</>)}
         </div>
       </main>
+
+      {/* Mobile bottom tab bar — quick access to the essentials */}
+      <nav className="fixed inset-x-0 bottom-0 z-30 flex items-stretch border-t border-[#e4e6f0] bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
+        {bottomTabs.map((item) => {
+          const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={clsx(
+                "flex flex-1 flex-col items-center justify-center gap-1 py-2 text-[10px] font-bold transition",
+                active ? "text-[#3033a1]" : "text-[#8a93b1]"
+              )}
+            >
+              <item.icon size={21} strokeWidth={active ? 2.6 : 2.1} />
+              <span className="leading-none">{item.short}</span>
+            </Link>
+          );
+        })}
+      </nav>
     </div>
       </AcademicYearProvider>
     </AdminSessionProvider>

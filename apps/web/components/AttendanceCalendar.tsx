@@ -102,7 +102,50 @@ function AttendanceCalendarInner({ records, month = "2026-05" }: { records: Atte
         </div>
       </div>
 
-      <div className="overflow-x-auto">
+      {/* Mobile: agenda list (the 7-column grid can't fit a phone) */}
+      <div className="space-y-2 p-3 md:hidden">
+        {dates.filter((date) => recordsByDate.has(date)).length === 0 ? (
+          <p className="py-8 text-center text-sm font-medium text-[#9098b6]">No attendance recorded this month.</p>
+        ) : (
+          dates
+            .filter((date) => recordsByDate.has(date))
+            .map((date) => {
+              const record = recordsByDate.get(date)!;
+              const style = STATUS_STYLES[record.status];
+              const isToday = date === todayIso;
+              const isSelected = date === selectedDate;
+              const dayObj = new Date(`${date}T00:00:00`);
+              return (
+                <button
+                  type="button"
+                  key={date}
+                  onClick={() => setSelectedDate((current) => (current === date ? null : date))}
+                  className={clsx(
+                    "flex w-full items-center gap-3 rounded-xl border p-3 text-left transition",
+                    style.cell,
+                    isSelected && "ring-2 ring-[#3033a1]"
+                  )}
+                >
+                  <div className={clsx("flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-lg", isToday ? "bg-[#3033a1] text-white" : "bg-white text-[#2a2e45]")}>
+                    <span className="text-[10px] font-bold uppercase">{dayObj.toLocaleDateString(undefined, { weekday: "short" })}</span>
+                    <span className="text-base font-extrabold leading-none">{Number(date.slice(-2))}</span>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <span className={clsx("inline-flex rounded-md px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide", style.badge)}>{style.label}</span>
+                    <p className="mt-1 flex items-center gap-3 text-xs font-semibold text-[#3a4061]">
+                      <span className="inline-flex items-center gap-1"><LogIn size={12} className="text-[#9098b6]" />{formatTime(record.checkInTime)}</span>
+                      <span className="inline-flex items-center gap-1"><LogOut size={12} className="text-[#9098b6]" />{formatTime(record.checkOutTime)}</span>
+                    </p>
+                  </div>
+                  <span className={clsx("h-2.5 w-2.5 shrink-0 rounded-full", style.dot)} />
+                </button>
+              );
+            })
+        )}
+      </div>
+
+      {/* Desktop: month grid */}
+      <div className="hidden overflow-x-auto md:block">
         <div className="min-w-[680px]">
           <div className="grid grid-cols-7 bg-[#f7f8fd] text-center text-[11px] font-bold uppercase tracking-[0.08em] text-[#7d86a8]">
             {WEEKDAYS.map((day, index) => (

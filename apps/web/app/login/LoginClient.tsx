@@ -72,7 +72,9 @@ async function signInAndResolveRole(loginId: string, password: string, rememberM
   await setPersistence(auth, rememberMe ? browserLocalPersistence : browserSessionPersistence);
   const credential = await signInWithEmailAndPassword(auth, employeeIdToInternalEmail(loginId), password);
   const uid = credential.user.uid;
-  const tokenResult = await auth.currentUser?.getIdTokenResult();
+  // Force a token refresh so a recently-changed role (updated custom claims)
+  // is picked up immediately instead of using a stale cached token.
+  const tokenResult = await auth.currentUser?.getIdTokenResult(true);
   const tokenRole = tokenResult?.claims.role as UserRole | undefined;
   const userSnapshot = await getDoc(doc(db, "users", uid));
   const userData = userSnapshot.exists() ? (userSnapshot.data() as { role?: UserRole; status?: string }) : undefined;
@@ -649,7 +651,7 @@ function MobileLoginExperience() {
         <header className="shrink-0 pt-4 text-center text-white">
           <SchoolLogo id="school-logo-mobile-login" className="mx-auto h-[90px] w-[90px]" />
           <h1 className="mt-3 text-[18px] font-extrabold leading-tight tracking-[-0.03em]">{SCHOOL_NAME}</h1>
-          <p className="text-xs font-semibold text-white/90">Staff Attendance System</p>
+          <p className="text-xs font-semibold text-white/90">ERP</p>
         </header>
 
         <form

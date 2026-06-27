@@ -414,7 +414,40 @@ export default function StudentsPage() {
         ) : filteredStudents.length === 0 ? (
             <div className="p-6 text-center text-sm font-medium text-[#7d86a8]">No students found</div>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+            {/* Mobile: card list */}
+            <ul className="divide-y divide-[#edf0f7] md:hidden">
+              {filteredStudents.map((student) => (
+                <li key={student.id} className="flex items-start gap-3 p-4">
+                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#eef0ff] text-xs font-extrabold text-[#3033a1]">
+                    {student.class}{student.section}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-bold text-[#303247]">{student.studentName}</p>
+                    <p className="mt-0.5 text-xs font-medium text-[#7d86a8]">Adm# {student.admissionNumber} · Class {student.class}-{student.section}</p>
+                    {student.fatherName && <p className="mt-0.5 truncate text-xs font-medium text-[#7d86a8]">Father: {student.fatherName}</p>}
+                    {student.phone && <a href={`tel:${student.phone}`} className="mt-0.5 inline-block text-xs font-semibold text-[#3033a1]">{student.phone}</a>}
+                  </div>
+                  {(canEditStudent || canDeleteStudent) && (
+                    <div className="flex shrink-0 items-center gap-2">
+                      {canEditStudent && (
+                        <button onClick={() => openEditForm(student)} className="grid h-9 w-9 place-items-center rounded-xl bg-[#eeefff] text-[#3033a1]" aria-label="Edit student">
+                          <Edit2 size={16} />
+                        </button>
+                      )}
+                      {canDeleteStudent && (
+                        <button onClick={() => handleDelete(student)} className="grid h-9 w-9 place-items-center rounded-xl bg-[#ffebed] text-[#ed515d]" aria-label="Delete student">
+                          <Trash2 size={16} />
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </li>
+              ))}
+            </ul>
+
+            {/* Desktop: table */}
+            <div className="hidden overflow-x-auto md:block">
               <table className="w-full min-w-[860px]">
                 <thead className="border-b border-[#edf0f7] bg-[#f7f8fd]">
                 <tr>
@@ -457,6 +490,7 @@ export default function StudentsPage() {
               </tbody>
             </table>
           </div>
+          </>
         )}
       </div>
 

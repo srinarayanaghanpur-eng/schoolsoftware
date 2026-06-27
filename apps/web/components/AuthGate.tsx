@@ -11,6 +11,24 @@ import { BrandLoader } from "./BrandLoader";
 const ROLE_HINT_KEY = "erp-auth-role";
 const ROLE_HINT_TTL = 10 * 60 * 1000; // 10 minutes
 
+function clearRoleHint() {
+  if (typeof window === "undefined") return;
+  try {
+    window.sessionStorage.removeItem(ROLE_HINT_KEY);
+  } catch {
+    // ignore
+  }
+}
+
+function writeRoleHint(role: UserRole) {
+  if (typeof window === "undefined") return;
+  try {
+    window.sessionStorage.setItem(ROLE_HINT_KEY, JSON.stringify({ role, at: Date.now() }));
+  } catch {
+    // ignore
+  }
+}
+
 function readRoleHint(allowedRoles: readonly UserRole[]): boolean {
   if (typeof window === "undefined") return false;
   try {
@@ -54,11 +72,12 @@ export function AuthGate({
 
     const validateUser = async (user: typeof auth.currentUser) => {
       if (!user) {
+        clearRoleHint();
         router.replace("/login");
         return;
       }
 
-      const token = await user.getIdTokenResult();
+      const token = await user.getIdTokenResult(true);
       const claimRole = token.claims.role;
       let actualRole = isValidRole(claimRole) ? claimRole : undefined;
       let userData: { role?: unknown; status?: string } | undefined;
@@ -70,9 +89,15 @@ export function AuthGate({
       }
 
       if (!actualRole || !allowedRoles.includes(actualRole)) {
+        // The cached hint pointed at a portal this user can't access — drop it
+        // so it can't optimistically render the wrong portal again.
+        clearRoleHint();
         router.replace("/unauthorized");
         return;
       }
+
+      // Keep the hint in sync with the freshly-validated role.
+      writeRoleHint(actualRole);
 
       if (actualRole === "teacher") {
         if (userData?.status !== "active") {

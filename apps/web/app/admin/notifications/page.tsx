@@ -313,7 +313,8 @@ export default function NotificationsPage() {
           </div>
         </div>
 
-        <div className="grid gap-4 xl:grid-cols-2">
+        {/* Audit/history tables — desktop detail, hidden on the focused mobile view */}
+        <div className="hidden gap-4 md:grid xl:grid-cols-2">
           <div className="card overflow-hidden">
             <div className="border-b border-stone-100 px-4 py-3 font-semibold">Password reset history</div>
             <div className="overflow-x-auto">
