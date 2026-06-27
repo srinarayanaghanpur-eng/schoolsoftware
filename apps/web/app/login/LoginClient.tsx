@@ -3,6 +3,7 @@
 import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
 import { isValidRole } from "@sri-narayana/shared";
+import { refreshClaims } from "@/lib/authClaims";
 import { employeeIdToInternalEmail, normalizeEmployeeId } from "@sri-narayana/shared/utils/employeeAuth";
 import type { UserRole } from "@sri-narayana/shared/types/models";
 import { useRouter } from "next/navigation";
@@ -57,7 +58,7 @@ const featureCards: Feature[] = [
 ];
 
 async function signInAndResolveRole(loginId: string, password: string, rememberMe: boolean) {
-  const [{ browserLocalPersistence, browserSessionPersistence, getIdTokenResult, setPersistence, signInWithEmailAndPassword, signOut }, { doc, getDoc }, firebaseClient] =
+  const [{ browserLocalPersistence, browserSessionPersistence, setPersistence, signInWithEmailAndPassword, signOut }, { doc, getDoc }, firebaseClient] =
     await Promise.all([
       import("firebase/auth"),
       import("firebase/firestore"),
@@ -74,8 +75,8 @@ async function signInAndResolveRole(loginId: string, password: string, rememberM
   const uid = credential.user.uid;
   // Force a token refresh so a recently-changed role (updated custom claims)
   // is picked up immediately instead of using a stale cached token.
-  const tokenResult = auth.currentUser ? await getIdTokenResult(auth.currentUser, true) : undefined;
-  const tokenRole = tokenResult?.claims.role as UserRole | undefined;
+  const claims = await refreshClaims(auth.currentUser);
+  const tokenRole = claims?.role as UserRole | undefined;
   const userSnapshot = await getDoc(doc(db, "users", uid));
   const userData = userSnapshot.exists() ? (userSnapshot.data() as { role?: UserRole; status?: string }) : undefined;
   const role = tokenRole ?? userData?.role;

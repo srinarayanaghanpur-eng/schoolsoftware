@@ -33,7 +33,7 @@ import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { getIdTokenResult, onAuthStateChanged, signOut } from "firebase/auth";
+import { onAuthStateChanged, signOut } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import {
   ROLE_LABELS,
@@ -49,6 +49,7 @@ import { AdminSessionProvider } from "@/components/AdminSessionContext";
 import { BrandLoader } from "@/components/BrandLoader";
 import { SectionTabs } from "@/components/SectionTabs";
 import { clearPayrollSessionId } from "@/lib/payrollSessionClient";
+import { refreshClaims } from "@/lib/authClaims";
 
 type NavChild = { href: string; label: string; module?: Module };
 type NavItem = { href: string; label: string; module: Module; icon: LucideIcon; children?: NavChild[] };
@@ -333,8 +334,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       let name = user.displayName ?? "";
       let role: Role | undefined;
       try {
-        const token = await getIdTokenResult(user, true);
-        if (isValidRole(token.claims.role)) role = token.claims.role;
+        const claims = await refreshClaims(user);
+        const claimRole = claims?.role;
+        if (isValidRole(claimRole)) role = claimRole;
         const snapshot = await getDoc(doc(db, "users", user.uid));
         if (snapshot.exists()) {
           const data = snapshot.data() as { displayName?: string; role?: unknown };

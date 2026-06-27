@@ -2,7 +2,8 @@
 
 import { auth, db, isFirebaseConfigured } from "@sri-narayana/shared/firebase/client";
 import { isValidRole, type UserRole } from "@sri-narayana/shared";
-import { getIdTokenResult, onAuthStateChanged, signOut } from "firebase/auth";
+import { onAuthStateChanged, signOut } from "firebase/auth";
+import { refreshClaims } from "@/lib/authClaims";
 import { doc, getDoc } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -77,8 +78,8 @@ export function AuthGate({
         return;
       }
 
-      const token = await getIdTokenResult(user, true);
-      const claimRole = token.claims.role;
+      const claims = await refreshClaims(user);
+      const claimRole = claims?.role;
       let actualRole = isValidRole(claimRole) ? claimRole : undefined;
       let userData: { role?: unknown; status?: string } | undefined;
 
