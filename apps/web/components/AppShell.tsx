@@ -20,6 +20,7 @@ import {
   LogOut,
   Megaphone,
   Menu,
+  RefreshCw,
   Search,
   Settings,
   ShieldAlert,
@@ -50,6 +51,8 @@ import { BrandLoader } from "@/components/BrandLoader";
 import { SectionTabs } from "@/components/SectionTabs";
 import { clearPayrollSessionId } from "@/lib/payrollSessionClient";
 import { refreshClaims } from "@/lib/authClaims";
+import { lazyLoad } from "@/lib/lazyLoad";
+import { backgroundSync } from "@/lib/backgroundSync";
 
 type NavChild = { href: string; label: string; module?: Module };
 type NavItem = { href: string; label: string; module: Module; icon: LucideIcon; children?: NavChild[] };
@@ -392,6 +395,28 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     signOut(auth).then(() => router.replace("/login"));
   };
 
+  const handleHardRefresh = async () => {
+    try {
+      // Clear all cached data
+      await lazyLoad.clearCache();
+      
+      // Force refresh auth claims to pick up any updated roles/permissions
+      if (auth.currentUser) {
+        await refreshClaims(auth.currentUser);
+      }
+      
+      // Trigger immediate background sync to refetch fresh data
+      backgroundSync.startSync();
+      
+      // Reload current page data by triggering a router refresh
+      router.refresh();
+    } catch (error) {
+      console.error('Hard refresh failed:', error);
+      // Fallback: hard reload the page
+      window.location.reload();
+    }
+  };
+
   return (
     <AdminSessionProvider value={sessionValue}>
       <AcademicYearProvider>
@@ -534,6 +559,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <span className="absolute right-3 top-3 h-1.5 w-1.5 rounded-full bg-[#f05b62] ring-2 ring-[#f3f4fb]" />
             </Link>
           )}
+          <button
+            type="button"
+            onClick={handleHardRefresh}
+            aria-label="Hard refresh app data"
+            title="Hard refresh (clears cache & reloads data)"
+            className="ml-2 grid h-11 w-11 place-items-center rounded-xl bg-[#f3f4fb] text-[#313581] transition hover:bg-[#e9ebfa]"
+          >
+            <RefreshCw size={19} />
+          </button>
         </header>
         <div key={pathname} className="page-enter flex-1 overflow-y-auto pb-[76px] md:pb-0">
           {sessionLoading ? <BrandLoader message="Loading secure workspace…" /> : routeDenied ? <AccessDeniedState module={currentModule} /> : (<><SectionTabs />{children}</>)}
