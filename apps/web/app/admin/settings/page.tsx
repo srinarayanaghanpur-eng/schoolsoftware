@@ -1,6 +1,7 @@
 import { BackupErasePanel } from "@/components/BackupErasePanel";
 import { CampusGpsSettings } from "@/components/CampusGpsSettings";
 import { PageHeader } from "@/components/PageHeader";
+import { PaymentUpiSettings } from "@/components/PaymentUpiSettings";
 import { TeacherGpsSettings } from "@/components/TeacherGpsSettings";
 import { DEFAULT_SETTINGS } from "@sri-narayana/shared";
 
@@ -26,6 +27,7 @@ export default function SettingsPage() {
               <input className="field" defaultValue={DEFAULT_SETTINGS.salaryRules.fixedLateDeductionAmount} />
             </div>
           </div>
+          <PaymentUpiSettings />
         </div>
         <BackupErasePanel />
       </section>

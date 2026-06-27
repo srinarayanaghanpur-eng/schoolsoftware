@@ -8,6 +8,9 @@ import { PageHeader } from "@/components/PageHeader";
 import { useAdminSession } from "@/components/AdminSessionContext";
 import { hasPermission } from "@sri-narayana/shared";
 import { adminApiRequest } from "@/lib/adminApiClient";
+import { db, isFirebaseConfigured } from "@sri-narayana/shared/firebase/client";
+import { doc, getDoc } from "firebase/firestore";
+import { UpiQr } from "@/components/UpiQr";
 
 type StudentOption = {
   id: string;
@@ -162,6 +165,18 @@ function PaymentForm({
   const [loading, setLoading] = useState(false);
   const [receipt, setReceipt] = useState<{ receiptId: string; amount: number; providerOrderId?: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [upi, setUpi] = useState<{ upiId: string; payeeName: string }>({ upiId: "", payeeName: "" });
+
+  useEffect(() => {
+    if (!isFirebaseConfigured) return;
+    getDoc(doc(db, "settings", "payment"))
+      .then((snapshot) => {
+        if (!snapshot.exists()) return;
+        const data = snapshot.data() as { upiId?: string; payeeName?: string };
+        setUpi({ upiId: data.upiId ?? "", payeeName: data.payeeName ?? "" });
+      })
+      .catch(() => undefined);
+  }, []);
 
   useEffect(() => {
     fetch("/api/admin/students")
@@ -254,6 +269,18 @@ function PaymentForm({
           <input className="field mt-1" value={note} onChange={(event) => setNote(event.target.value)} placeholder="Optional note" />
         </label>
       </div>
+
+      <div className="rounded-2xl border border-[#e3e6f0] bg-[#f9faff] p-4">
+        <p className="mb-3 text-sm font-bold text-[#1f2136]">Scan & Pay (UPI)</p>
+        <UpiQr
+          upiId={upi.upiId}
+          payeeName={upi.payeeName}
+          amount={Number(amount) > 0 ? Number(amount) : undefined}
+          note={selectedStudent ? `Fee - ${selectedStudent.studentName}` : "Fee payment"}
+          size={190}
+        />
+      </div>
+
       <div className="flex flex-wrap gap-2">
         <button className="btn-primary" disabled={loading}>
           {loading ? "Processing..." : "Pay and confirm"}
