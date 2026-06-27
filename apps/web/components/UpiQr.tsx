@@ -3,6 +3,10 @@
 import { useEffect, useState } from "react";
 import QRCode from "qrcode";
 
+/** School default UPI payee, used until/unless overridden in admin Settings. */
+export const DEFAULT_UPI_ID = "6300629537-t87a@ybl";
+export const DEFAULT_UPI_PAYEE_NAME = "SRI NARAYANA HIGH SCHOOL";
+
 /** Builds a standard UPI deep-link that any UPI app (PhonePe, GPay, Paytm) can scan. */
 export function buildUpiUri({ upiId, payeeName, amount, note }: { upiId: string; payeeName: string; amount?: number; note?: string }) {
   const params = new URLSearchParams();

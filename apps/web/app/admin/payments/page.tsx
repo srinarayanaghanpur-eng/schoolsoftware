@@ -10,7 +10,7 @@ import { hasPermission } from "@sri-narayana/shared";
 import { adminApiRequest } from "@/lib/adminApiClient";
 import { db, isFirebaseConfigured } from "@sri-narayana/shared/firebase/client";
 import { doc, getDoc } from "firebase/firestore";
-import { UpiQr } from "@/components/UpiQr";
+import { UpiQr, DEFAULT_UPI_ID, DEFAULT_UPI_PAYEE_NAME } from "@/components/UpiQr";
 
 type StudentOption = {
   id: string;
@@ -165,7 +165,7 @@ function PaymentForm({
   const [loading, setLoading] = useState(false);
   const [receipt, setReceipt] = useState<{ receiptId: string; amount: number; providerOrderId?: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [upi, setUpi] = useState<{ upiId: string; payeeName: string }>({ upiId: "", payeeName: "" });
+  const [upi, setUpi] = useState<{ upiId: string; payeeName: string }>({ upiId: DEFAULT_UPI_ID, payeeName: DEFAULT_UPI_PAYEE_NAME });
 
   useEffect(() => {
     if (!isFirebaseConfigured) return;
@@ -173,7 +173,7 @@ function PaymentForm({
       .then((snapshot) => {
         if (!snapshot.exists()) return;
         const data = snapshot.data() as { upiId?: string; payeeName?: string };
-        setUpi({ upiId: data.upiId ?? "", payeeName: data.payeeName ?? "" });
+        setUpi({ upiId: data.upiId || DEFAULT_UPI_ID, payeeName: data.payeeName || DEFAULT_UPI_PAYEE_NAME });
       })
       .catch(() => undefined);
   }, []);

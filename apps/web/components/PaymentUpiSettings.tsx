@@ -4,11 +4,11 @@ import { db, isFirebaseConfigured } from "@sri-narayana/shared/firebase/client";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { QrCode, Save } from "lucide-react";
 import { useEffect, useState } from "react";
-import { UpiQr } from "@/components/UpiQr";
+import { UpiQr, DEFAULT_UPI_ID, DEFAULT_UPI_PAYEE_NAME } from "@/components/UpiQr";
 
 export function PaymentUpiSettings() {
-  const [upiId, setUpiId] = useState("");
-  const [payeeName, setPayeeName] = useState("");
+  const [upiId, setUpiId] = useState(DEFAULT_UPI_ID);
+  const [payeeName, setPayeeName] = useState(DEFAULT_UPI_PAYEE_NAME);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -18,8 +18,8 @@ export function PaymentUpiSettings() {
       .then((snapshot) => {
         if (!snapshot.exists()) return;
         const data = snapshot.data() as { upiId?: string; payeeName?: string };
-        setUpiId(data.upiId ?? "");
-        setPayeeName(data.payeeName ?? "");
+        setUpiId(data.upiId || DEFAULT_UPI_ID);
+        setPayeeName(data.payeeName || DEFAULT_UPI_PAYEE_NAME);
       })
       .catch(() => setMessage("Could not load payment settings from Firebase."));
   }, []);
