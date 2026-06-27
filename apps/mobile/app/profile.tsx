@@ -3,7 +3,7 @@ import { Screen } from "@/components/Screen";
 import { auth } from "@/lib/firebase";
 import { demoTeachers } from "@sri-narayana/shared";
 import { useRouter } from "expo-router";
-import { signOut } from "firebase/auth";
+import { signOut } from "@firebase/auth";
 import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 
 export default function Profile() {

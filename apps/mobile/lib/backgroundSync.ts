@@ -26,9 +26,11 @@ class MobileBackgroundSyncManager {
   private syncListeners: ((status: string) => void)[] = [];
   private appState: AppStateStatus = 'active';
 
+  private appStateSubscription: { remove: () => void } | null = null;
+
   constructor() {
     // Listen for app state changes
-    AppState.addEventListener('change', this.handleAppStateChange);
+    this.appStateSubscription = AppState.addEventListener('change', this.handleAppStateChange);
   }
 
   private handleAppStateChange = (state: AppStateStatus) => {
@@ -191,7 +193,7 @@ class MobileBackgroundSyncManager {
    * Cleanup
    */
   destroy(): void {
-    AppState.removeEventListener('change', this.handleAppStateChange);
+    this.appStateSubscription?.remove();
   }
 }
 

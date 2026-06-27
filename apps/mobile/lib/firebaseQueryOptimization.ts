@@ -11,8 +11,8 @@ import {
   getDocs,
   QueryConstraint,
   Timestamp
-} from 'firebase/firestore';
-import { db } from '@sri-narayana/shared/firebase/client';
+} from '@firebase/firestore';
+import { db } from './firebase';
 
 /**
  * Simple in-memory query cache for mobile

@@ -8,7 +8,9 @@ import {
   type AttendanceStatus
 } from "@sri-narayana/shared";
 import { useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Dimensions, Pressable, StyleSheet, Text, View } from "react-native";
+
+const CELL_WIDTH = (Dimensions.get("window").width - 36 - 28) / 7;
 
 const WEEK_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
@@ -255,10 +257,10 @@ const styles = StyleSheet.create({
   weekDay: { flex: 1, textAlign: "center", color: "#7d86a8", fontSize: 11, fontWeight: "900" },
   grid: { flexDirection: "row", flexWrap: "wrap" },
   dayCell: {
-    width: `${100 / 7}%`,
-    aspectRatio: 0.86,
+    width: CELL_WIDTH,
+    aspectRatio: 1,
     borderWidth: 1,
-    padding: 5,
+    padding: 4,
     justifyContent: "space-between"
   },
   todayCell: { borderWidth: 2, borderColor: "#3033a1" },

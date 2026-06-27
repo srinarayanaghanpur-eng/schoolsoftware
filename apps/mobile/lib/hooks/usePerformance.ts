@@ -4,11 +4,11 @@
 
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { AppState, AppStateStatus } from 'react-native';
-import { mobileCache } from './cache/mobileCache';
-import { mobileLazyLoad } from './lazyLoad';
-import { mobilePerformanceMonitor } from './performanceMonitor';
-import { mobileBackgroundSync } from './backgroundSync';
-import { debounce, throttle } from './requestOptimization';
+import { mobileCache } from '../cache/mobileCache';
+import { mobileLazyLoad } from '../lazyLoad';
+import { mobilePerformanceMonitor } from '../performanceMonitor';
+import { mobileBackgroundSync } from '../backgroundSync';
+import { debounce, throttle } from '../requestOptimization';
 
 /**
  * Hook for lazy loading data with cache
@@ -100,14 +100,10 @@ export function useDebouncedCallback<T extends (...args: any[]) => any>(
   callback: T,
   delay: number = 500
 ) {
-  const debouncedRef = useRef<ReturnType<typeof debounce>>();
+  const debouncedRef = useRef<ReturnType<typeof debounce> | null>(null);
 
   useEffect(() => {
     debouncedRef.current = debounce(callback, delay);
-
-    return () => {
-      // Cleanup if needed
-    };
   }, [callback, delay]);
 
   return debouncedRef.current!;
@@ -120,14 +116,10 @@ export function useThrottledCallback<T extends (...args: any[]) => any>(
   callback: T,
   limit: number = 1000
 ) {
-  const throttledRef = useRef<ReturnType<typeof throttle>>();
+  const throttledRef = useRef<ReturnType<typeof throttle> | null>(null);
 
   useEffect(() => {
     throttledRef.current = throttle(callback, limit);
-
-    return () => {
-      // Cleanup if needed
-    };
   }, [callback, limit]);
 
   return throttledRef.current!;

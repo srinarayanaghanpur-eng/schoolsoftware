@@ -6,9 +6,7 @@ dist
 build
 .next
 coverage
-web-dev.log
-mobile-dev.log
-mobile-dev-*.log
+*.log
 google-services.json
 GoogleService-Info.plist
 
@@ -23,3 +21,6 @@ serviceAccount*.json
 *-firebase-adminsdk-*.json
 
 .vercel
+
+# Editor
+.vscode/settings.json

@@ -1,103 +1,61 @@
-/**
- * Offline Status Indicator for React Native
- * Shows user when app is offline or syncing
- */
-
-import React, { useEffect, useState } from 'react';
-import {
-  View,
-  Text,
-  Animated,
-  StyleSheet,
-  NetInfo,
-  useWindowDimensions
-} from 'react-native';
-import { useBackgroundSyncStatus } from '../hooks/usePerformance';
+import { useBackgroundSyncStatus } from "@/lib/hooks/usePerformance";
+import { useEffect, useRef } from "react";
+import { Animated, Easing, StyleSheet, Text, View } from "react-native";
 
 export function OfflineStatusIndicator() {
-  const [isOnline, setIsOnline] = useState(true);
   const { syncStatus } = useBackgroundSyncStatus();
-  const [fadeAnim] = useState(new Animated.Value(0));
-  const { width } = useWindowDimensions();
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const spinAnim = useRef(new Animated.Value(0)).current;
+  const isSyncing = syncStatus === "syncing";
+  const show = isSyncing;
 
   useEffect(() => {
-    const subscription = NetInfo.addEventListener((state) => {
-      const online = state.isConnected ?? true;
-      setIsOnline(online);
-
-      if (online) {
-        console.log('[OfflineIndicator] Back online');
-      } else {
-        console.log('[OfflineIndicator] Went offline');
-      }
-    });
-
-    return () => {
-      subscription();
-    };
-  }, []);
+    Animated.timing(fadeAnim, {
+      toValue: show ? 1 : 0,
+      duration: 300,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true
+    }).start();
+  }, [show, fadeAnim]);
 
   useEffect(() => {
-    if (isOnline && syncStatus === 'idle') {
-      Animated.timing(fadeAnim, {
-        toValue: 0,
-        duration: 300,
-        useNativeDriver: true
-      }).start();
-    } else {
-      Animated.timing(fadeAnim, {
+    if (!isSyncing) return;
+    const loop = Animated.loop(
+      Animated.timing(spinAnim, {
         toValue: 1,
-        duration: 300,
+        duration: 1000,
+        easing: Easing.linear,
         useNativeDriver: true
-      }).start();
-    }
-  }, [isOnline, syncStatus, fadeAnim]);
+      })
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [isSyncing, spinAnim]);
 
-  const showIndicator = !isOnline || syncStatus === 'syncing';
-
-  if (!showIndicator) {
-    return null;
-  }
-
-  const isSyncing = syncStatus === 'syncing';
+  if (!show) return null;
 
   return (
-    <Animated.View
-      style={[
-        styles.container,
-        { opacity: fadeAnim, width },
-        isSyncing ? styles.syncingContainer : styles.offlineContainer
-      ]}
-    >
+    <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
       <View style={styles.content}>
-        {isSyncing ? (
-          <>
-            <Animated.View
-              style={[
-                styles.spinner,
+        <Animated.View
+          style={[
+            styles.spinner,
+            {
+              transform: [
                 {
-                  transform: [
-                    {
-                      rotate: fadeAnim.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: ['0deg', '360deg']
-                      })
-                    }
-                  ]
+                  rotate: spinAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: ["0deg", "360deg"]
+                  })
                 }
-              ]}
-            />
-            <Text style={styles.text}>Syncing data...</Text>
-          </>
-        ) : (
-          <>
-            <Text style={styles.wifiIcon}>📵</Text>
-            <View>
-              <Text style={styles.boldText}>Offline Mode</Text>
-              <Text style={styles.subText}>Changes will sync when online</Text>
-            </View>
-          </>
-        )}
+              ]
+            }
+          ]}
+        />
+        <View>
+          <Text style={styles.boldText}>Syncing data...</Text>
+          <Text style={styles.subText}>Your data is being updated</Text>
+        </View>
       </View>
     </Animated.View>
   );
@@ -105,98 +63,42 @@ export function OfflineStatusIndicator() {
 
 const styles = StyleSheet.create({
   container: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
+    position: "absolute",
+    bottom: 80,
+    left: 12,
+    right: 12,
+    backgroundColor: "#3033a1",
+    borderRadius: 16,
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#e5e7eb'
-  },
-  offlineContainer: {
-    backgroundColor: '#ef4444'
-  },
-  syncingContainer: {
-    backgroundColor: '#3b82f6'
+    paddingVertical: 14,
+    shadowColor: "#1b1d32",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.15,
+    shadowRadius: 14,
+    elevation: 6
   },
   content: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 12
   },
-  text: {
-    color: '#ffffff',
-    fontSize: 14,
-    fontWeight: '500'
+  spinner: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 3,
+    borderColor: "rgba(255,255,255,0.25)",
+    borderTopColor: "#ffffff"
   },
   boldText: {
-    color: '#ffffff',
+    color: "#ffffff",
     fontSize: 14,
-    fontWeight: '600'
+    fontWeight: "800"
   },
   subText: {
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: "rgba(255,255,255,0.7)",
     fontSize: 12,
-    marginTop: 2
-  },
-  wifiIcon: {
-    fontSize: 20
-  },
-  spinner: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
-    borderTopColor: '#ffffff'
+    marginTop: 2,
+    fontWeight: "600"
   }
 });
-
-/**
- * Monitor cache size
- */
-export function CacheMonitor() {
-  const [cacheSize, setCacheSize] = useState({ itemCount: 0, sizeKB: 0 });
-
-  useEffect(() => {
-    const checkCacheSize = async () => {
-      const stats = await mobileCache.getStats();
-      setCacheSize(stats);
-    };
-
-    checkCacheSize();
-    const interval = setInterval(checkCacheSize, 10000); // Check every 10 seconds
-
-    return () => clearInterval(interval);
-  }, []);
-
-  if (cacheSize.sizeKB === 0) return null;
-
-  return (
-    <View style={styles.cacheMonitor}>
-      <Text style={styles.cacheText}>
-        Cache: {cacheSize.itemCount} items, {cacheSize.sizeKB}KB
-      </Text>
-    </View>
-  );
-}
-
-const cacheStyles = StyleSheet.create({
-  cacheMonitor: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    backgroundColor: '#f3f4f6',
-    borderRadius: 6,
-    margin: 8
-  },
-  cacheText: {
-    fontSize: 12,
-    color: '#6b7280'
-  }
-});
-
-// Import mobile cache
-import { mobileCache } from '../cache/mobileCache';
-
-Object.assign(cacheStyles, cacheStyles);

@@ -16,7 +16,7 @@ import {
   getDocs,
   runTransaction,
   Timestamp,
-} from 'firebase/firestore';
+} from '@firebase/firestore';
 import {
   SalaryLogic,
   ReportLogic,

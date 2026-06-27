@@ -12,8 +12,8 @@ import {
   View
 } from "react-native";
 import { useRouter } from "expo-router";
-import { signInWithEmailAndPassword, signOut } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
+import { signInWithEmailAndPassword, signOut } from "@firebase/auth";
+import { doc, getDoc } from "@firebase/firestore";
 import { employeeIdToInternalEmail, isValidRole } from "@sri-narayana/shared";
 import { auth, db } from "@/lib/firebase";
 

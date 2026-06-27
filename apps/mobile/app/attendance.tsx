@@ -5,11 +5,38 @@ import { auth, db } from "@/lib/firebase";
 import { DEFAULT_SETTINGS, getDistanceFromCampus, isInsideCampus, type SchoolSettings } from "@sri-narayana/shared";
 import * as Device from "expo-device";
 import * as Location from "expo-location";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc } from "@firebase/firestore";
 import { useEffect, useState } from "react";
 import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 
 const DEMO_TEACHER_ID = "teacher_anita";
+
+function DistanceBar({ distance, radius }: { distance: number | null; radius: number }) {
+  if (distance === null) {
+    return (
+      <View style={styles.barTrack}>
+        <View style={[styles.barFill, { width: 0, backgroundColor: "#dfe3f2" }]} />
+      </View>
+    );
+  }
+  const pct = Math.min((distance / radius) * 100, 100);
+  const inside = distance <= radius;
+  return (
+    <View>
+      <View style={styles.barTrack}>
+        <View
+          style={[
+            styles.barFill,
+            { width: `${pct}%`, backgroundColor: inside ? "#148654" : "#c9435e" }
+          ]}
+        />
+      </View>
+      <Text style={[styles.barLabel, { color: inside ? "#148654" : "#c9435e" }]}>
+        {inside ? "Inside campus" : "Outside campus"} &middot; {distance}m / {radius}m
+      </Text>
+    </View>
+  );
+}
 
 export default function Attendance() {
   const [settings, setSettings] = useState<SchoolSettings>(DEFAULT_SETTINGS);
@@ -18,7 +45,7 @@ export default function Attendance() {
   const [loading, setLoading] = useState<"checkin" | "checkout" | null>(null);
 
   useEffect(() => {
-    getDoc<Partial<SchoolSettings>>(doc(db, "settings", "school"))
+    getDoc<Partial<SchoolSettings>, Partial<SchoolSettings>>(doc(db, "settings", "school"))
       .then((snapshot) => {
         if (snapshot.exists()) {
           setSettings({ ...DEFAULT_SETTINGS, ...snapshot.data() });
@@ -71,31 +98,38 @@ export default function Attendance() {
     }
   };
 
+  const inside = distance !== null && distance <= settings.geofenceRadiusMeters;
+  const locationKnown = currentGps !== null;
+
   return (
     <Screen title="Attendance" subtitle="Mark check-in or check-out from inside campus.">
       <Card style={styles.statusCard}>
         <View style={styles.cardHeader}>
           <View>
             <Text style={styles.kicker}>GPS SECURE</Text>
-            <Text style={styles.cardTitle}>Campus location lock</Text>
+            <Text style={styles.cardTitle}>Location status</Text>
           </View>
-          <View style={styles.gpsBadge}>
-            <Text style={styles.gpsBadgeText}>GPS</Text>
+          <View style={[styles.statusBadge, { backgroundColor: locationKnown ? (inside ? "#e4f7ec" : "#fee9ed") : "#f8f9ff" }]}>
+            <Text style={[styles.statusBadgeText, { color: locationKnown ? (inside ? "#148654" : "#c9435e") : "#9aa3bd" }]}>
+              {locationKnown ? (inside ? "OK" : "OUT") : "---"}
+            </Text>
           </View>
         </View>
 
-        <Text style={styles.label}>School location</Text>
-        <Text style={styles.value}>{settings.campusLatitude.toFixed(6)}, {settings.campusLongitude.toFixed(6)}</Text>
+        <Text style={styles.label}>Campus location</Text>
+        <Text style={styles.value}>
+          {settings.campusLatitude.toFixed(4)}, {settings.campusLongitude.toFixed(4)}
+        </Text>
+
         <Text style={styles.label}>Allowed radius</Text>
         <Text style={styles.value}>{settings.geofenceRadiusMeters} meters</Text>
+
         <View style={styles.divider} />
-        <Text style={styles.label}>Your GPS</Text>
-        <Text style={styles.value}>{currentGps ? `${currentGps.latitude.toFixed(6)}, ${currentGps.longitude.toFixed(6)}` : "--"}</Text>
+
         <Text style={styles.label}>Distance from campus</Text>
-        <Text style={[styles.value, distance && distance > settings.geofenceRadiusMeters ? styles.blocked : styles.allowed]}>
-          {distance === null ? "--" : `${distance} meters`}
-        </Text>
+        <DistanceBar distance={distance} radius={settings.geofenceRadiusMeters} />
       </Card>
+
       <View style={styles.row}>
         <Pressable
           accessibilityRole="button"
@@ -123,13 +157,14 @@ const styles = StyleSheet.create({
   cardHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: 18 },
   kicker: { color: "#3033a1", fontSize: 10, fontWeight: "900", letterSpacing: 1 },
   cardTitle: { marginTop: 4, color: "#1b1d32", fontSize: 20, fontWeight: "900", letterSpacing: -0.4 },
-  gpsBadge: { width: 46, height: 46, borderRadius: 15, backgroundColor: "#eeefff", justifyContent: "center", alignItems: "center" },
-  gpsBadgeText: { color: "#3033a1", fontSize: 11, fontWeight: "900" },
+  statusBadge: { width: 52, height: 52, borderRadius: 16, justifyContent: "center", alignItems: "center" },
+  statusBadgeText: { fontSize: 13, fontWeight: "900" },
   label: { color: "#7d86a8", marginBottom: 6, fontSize: 12, fontWeight: "900", textTransform: "uppercase", letterSpacing: 0.4 },
   value: { fontSize: 16, fontWeight: "900", color: "#1b1d32", marginBottom: 14 },
-  allowed: { color: "#148654" },
-  blocked: { color: "#c9435e" },
   divider: { height: 1, backgroundColor: "#e3e6f0", marginVertical: 12 },
+  barTrack: { height: 8, borderRadius: 4, backgroundColor: "#edf0f7", overflow: "hidden", marginBottom: 6 },
+  barFill: { height: "100%", borderRadius: 4 },
+  barLabel: { fontSize: 12, fontWeight: "800", marginBottom: 14 },
   row: { flexDirection: "row", gap: 12 },
   primary: { flex: 1, minHeight: 56, backgroundColor: "#3033a1", padding: 16, borderRadius: 16, justifyContent: "center", alignItems: "center" },
   primaryText: { color: "white", textAlign: "center", fontWeight: "900", fontSize: 16 },

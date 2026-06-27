@@ -3,8 +3,6 @@
  * Tracks app performance metrics and identifies bottlenecks
  */
 
-import { PerformanceObserver } from 'react-native-performance';
-
 export interface PerformanceMetric {
   name: string;
   duration: number;
@@ -32,27 +30,7 @@ class MobilePerformanceMonitor {
   private startTimes: Map<string, number> = new Map();
   private observers: ((metric: PerformanceMetric) => void)[] = [];
 
-  constructor() {
-    this.initPerformanceObserver();
-  }
-
-  /**
-   * Initialize native performance observer
-   */
-  private initPerformanceObserver(): void {
-    try {
-      const obs = new PerformanceObserver((list) => {
-        const entries = list.getEntries();
-        entries.forEach((entry) => {
-          console.log(`[Perf] ${entry.name}: ${entry.duration.toFixed(2)}ms`);
-        });
-      });
-
-      obs.observe({ entryTypes: ['measure', 'navigation'] });
-    } catch (error) {
-      console.debug('[Perf] PerformanceObserver not available:', error);
-    }
-  }
+  constructor() {}
 
   /**
    * Start measuring performance
