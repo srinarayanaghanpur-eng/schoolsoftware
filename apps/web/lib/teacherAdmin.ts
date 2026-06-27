@@ -1,6 +1,7 @@
 import {
   employeeIdToInternalEmail,
   normalizeEmployeeId,
+  type EmploymentType,
   type LateDeductionMode,
   type Teacher,
   type TeacherStatus
@@ -17,6 +18,7 @@ type TeacherProfileInput = {
   biometricUserId?: string;
   joiningDate?: string;
   status: TeacherStatus;
+  employmentType?: EmploymentType;
   allowedCLPerMonth?: number;
   lateDeductionRule?: LateDeductionMode;
 };
@@ -37,6 +39,7 @@ export function buildTeacherAuthProfile(input: TeacherProfileInput) {
     joiningDate: input.joiningDate?.trim() || new Date().toISOString().slice(0, 10),
     status: input.status,
     role: "teacher" as const,
+    employmentType: input.employmentType ?? "full_time",
     allowedCLPerMonth: input.allowedCLPerMonth ?? 2,
     lateDeductionRule: input.lateDeductionRule ?? "after_3_lates_one_day"
   };

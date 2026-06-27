@@ -1,4 +1,25 @@
-import type { SchoolSettings } from "./types/models";
+import type { EmploymentType, SchoolSettings } from "./types/models";
+
+/**
+ * Check-in / check-out time windows per employment type (24h "HH:MM", IST).
+ * - Check-in is only allowed between checkInStart and checkInEnd.
+ * - A check-in at or after lateAfter (but within the window) is marked "late".
+ * - Check-out is only allowed between checkOutStart and checkOutEnd.
+ */
+export const ATTENDANCE_WINDOWS: Record<
+  EmploymentType,
+  { checkInStart: string; checkInEnd: string; lateAfter: string; checkOutStart: string; checkOutEnd: string }
+> = {
+  full_time: { checkInStart: "06:00", checkInEnd: "09:30", lateAfter: "09:00", checkOutStart: "16:30", checkOutEnd: "17:30" },
+  part_time_morning: { checkInStart: "06:00", checkInEnd: "09:30", lateAfter: "09:00", checkOutStart: "11:30", checkOutEnd: "12:30" },
+  part_time_afternoon: { checkInStart: "12:00", checkInEnd: "13:00", lateAfter: "13:00", checkOutStart: "16:30", checkOutEnd: "17:30" }
+};
+
+export const EMPLOYMENT_TYPE_LABELS: Record<EmploymentType, string> = {
+  full_time: "Full-time",
+  part_time_morning: "Part-time (Morning, till 12 PM)",
+  part_time_afternoon: "Part-time (Afternoon, 12–5 PM)"
+};
 
 export const ATTENDANCE_COLORS = {
   present: "bg-emerald-500 text-white",
@@ -15,7 +36,7 @@ export const DEFAULT_SETTINGS: SchoolSettings = {
   campusLongitude: 79.88312064907495,
   geofenceRadiusMeters: 150,
   schoolStartTime: "09:00",
-  graceMinutes: 10,
+  graceMinutes: 0,
   salaryRules: {
     lateDeductionMode: "after_3_lates_one_day",
     fixedLateDeductionAmount: 100,

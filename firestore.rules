@@ -150,6 +150,18 @@ service cloud.firestore {
     match /fee_reminders/{id} { allow read, write: if isAdmin(); }
     match /counters/{id} { allow read, write: if isAdmin(); }
 
+    // Phase 4: transport, library, hostel, inventory. Reads for signed-in users;
+    // writes via admin SDK (API enforces per-role permissions).
+    match /vehicles/{id} { allow read: if signedIn(); allow write: if isAdmin(); }
+    match /transport_routes/{id} { allow read: if signedIn(); allow write: if isAdmin(); }
+    match /transport_assignments/{id} { allow read: if signedIn(); allow write: if isAdmin(); }
+    match /books/{id} { allow read: if signedIn(); allow write: if isAdmin(); }
+    match /library_issues/{id} { allow read: if signedIn(); allow write: if isAdmin(); }
+    match /hostel_rooms/{id} { allow read: if signedIn(); allow write: if isAdmin(); }
+    match /hostel_allotments/{id} { allow read: if signedIn(); allow write: if isAdmin(); }
+    match /inventory_items/{id} { allow read: if signedIn(); allow write: if isAdmin(); }
+    match /inventory_sales/{id} { allow read: if signedIn(); allow write: if isAdmin(); }
+
     match /backup_audit_logs/{logId} {
       allow read, write: if isAdmin();
     }

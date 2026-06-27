@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { FieldValue } from "firebase-admin/firestore";
-import { calculateMonthlySalary, type AttendanceRecord, type Holiday, type SalaryReport, type Teacher } from "@sri-narayana/shared";
+import { calculateMonthlySalaryStage4, type AttendanceRecord, type Holiday, type LeaveRequest, type SalaryReport, type Teacher } from "@sri-narayana/shared";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { serializeDoc, startTimer } from "@/lib/apiUtils";
 import { getSchoolSettings } from "@/lib/firestoreServer";
@@ -59,7 +59,7 @@ export async function POST(req: Request) {
 
     // Query only active teachers (moved filter to DB level) + parallelize all reads
     const dbTimer = startTimer();
-    const [teachersSnapshot, attendanceSnapshot, holidaysSnapshot, settings] = await Promise.all([
+    const [teachersSnapshot, attendanceSnapshot, holidaysSnapshot, leaveSnapshot, settings] = await Promise.all([
       db
         .collection("teachers")
         .where("status", "==", "active") // Filter at DB level (~90% faster than after fetch)
@@ -67,6 +67,7 @@ export async function POST(req: Request) {
         .get(),
       db.collection("attendance").where("month", "==", month).get(),
       db.collection("holidays").where("date", ">=", `${month}-01`).where("date", "<=", `${month}-31`).get(),
+      db.collection("leave_requests").where("status", "==", "approved").get(),
       getSchoolSettings()
     ]);
     const dbMs = dbTimer();
@@ -74,6 +75,19 @@ export async function POST(req: Request) {
     const teachers = teachersSnapshot.docs.map((doc) => serializeDoc<Teacher>(doc));
     const records = attendanceSnapshot.docs.map((doc) => serializeDoc<AttendanceRecord>(doc));
     const holidays = holidaysSnapshot.docs.map((doc) => serializeDoc<Holiday>(doc));
+    // Keep only approved leave whose range overlaps the selected month.
+    const monthStart = `${month}-01`;
+    const monthEnd = `${month}-31`;
+    const leaveRequests = leaveSnapshot.docs
+      .map((doc) => serializeDoc<LeaveRequest>(doc))
+      .filter((leave) => (leave.startDate ?? "").slice(0, 10) <= monthEnd && (leave.endDate ?? leave.startDate ?? "").slice(0, 10) >= monthStart);
+
+    // Group approved leave by teacher for O(1) lookup.
+    const leaveByTeacherId = new Map<string, LeaveRequest[]>();
+    leaveRequests.forEach((leave) => {
+      if (!leaveByTeacherId.has(leave.teacherId)) leaveByTeacherId.set(leave.teacherId, []);
+      leaveByTeacherId.get(leave.teacherId)!.push(leave);
+    });
 
     // Pre-group records by teacherId to avoid O(n*m) filtering in loop (~70% faster)
     const recordsByTeacherId = new Map<string, AttendanceRecord[]>();
@@ -87,10 +101,11 @@ export async function POST(req: Request) {
     const batch = db.batch();
     const reports = teachers.map((teacher) => {
       const previousDoc = db.collection("salary_reports").doc(salaryDocId(month, teacher.id));
-      const report = calculateMonthlySalary({
+      const report = calculateMonthlySalaryStage4({
         teacher,
         records: recordsByTeacherId.get(teacher.id) || [], // O(1) lookup vs O(n) filter
         holidays,
+        leaveRequests: leaveByTeacherId.get(teacher.id) || [],
         month,
         settings
       });

@@ -1,19 +1,9 @@
-/**
- * SALARY CALCULATION TESTS
- * Verify all CL and salary calculations match the business requirements
- * 
- * FORMULAS VERIFIED:
- * - CL Used = absents + floor(lates / 3)
- * - Remaining CL = max(0, 3 - totalClUsed)
- * - Excess Leave = max(0, totalClUsed - 3)
- * - Salary Deduction = excessLeave × dailySalary
- * - Net Salary = baseSalary - deduction + bonus
- */
-
 import { calculateMonthlySalary, type SalaryCalculationInput } from "../services/salaryService";
-import type { AttendanceRecord, Holiday, Teacher, SchoolSettings } from "../types/models";
+import type { AttendanceRecord, Holiday, LeaveRequest, Teacher, SchoolSettings } from "../types/models";
 
-// Test helpers
+const TEST_MONTH = "2026-06";
+const WORKING_DAYS = 30;
+
 const createTeacher = (overrides?: Partial<Teacher>): Teacher => ({
   id: "T001",
   fullName: "Test Teacher",
@@ -22,7 +12,7 @@ const createTeacher = (overrides?: Partial<Teacher>): Teacher => ({
   phone: "9876543210",
   subject: "Mathematics",
   employeeId: "E001",
-  baseSalary: 50000,
+  baseSalary: 30000,
   joiningDate: "2024-01-01",
   status: "active",
   allowedCLPerMonth: 3,
@@ -52,6 +42,19 @@ const createAttendanceRecord = (overrides?: Partial<AttendanceRecord>): Attendan
   ...overrides,
 });
 
+const createLeaveRequest = (overrides?: Partial<LeaveRequest>): LeaveRequest => ({
+  id: "LR001",
+  teacherId: "T001",
+  teacherName: "Test Teacher",
+  employeeId: "E001",
+  startDate: "2026-06-05",
+  endDate: "2026-06-05",
+  reason: "Personal leave",
+  status: "approved",
+  requestedAt: "2026-06-01T00:00:00Z",
+  ...overrides,
+});
+
 const createSettings = (): SchoolSettings => ({
   schoolName: "Test School",
   campusLatitude: 18.3062,
@@ -69,433 +72,590 @@ const createSettings = (): SchoolSettings => ({
   timezone: "Asia/Kolkata",
 });
 
-// ============================================================================
-// TEST SUITE 1: CL CALCULATION FROM ABSENTS
-// ============================================================================
+function padDay(day: number): string {
+  return String(day).padStart(2, "0");
+}
 
-export function testCLFromAbsents() {
-  const tests = [
-    {
-      name: "No absents: 0 CL used",
-      absentDays: 0,
-      lateEntries: 0,
-      expectedTotalClUsed: 0,
-      expectedRemainingCl: 3,
-      expectedExcessLeave: 0,
-    },
-    {
-      name: "1 absent: 1 CL used",
-      absentDays: 1,
-      lateEntries: 0,
-      expectedTotalClUsed: 1,
-      expectedRemainingCl: 2,
-      expectedExcessLeave: 0,
-    },
-    {
-      name: "2 absents: 2 CL used",
-      absentDays: 2,
-      lateEntries: 0,
-      expectedTotalClUsed: 2,
-      expectedRemainingCl: 1,
-      expectedExcessLeave: 0,
-    },
-    {
-      name: "3 absents: 3 CL used (allowance exhausted)",
-      absentDays: 3,
-      lateEntries: 0,
-      expectedTotalClUsed: 3,
-      expectedRemainingCl: 0,
-      expectedExcessLeave: 0,
-    },
-    {
-      name: "4 absents: 1 excess leave",
-      absentDays: 4,
-      lateEntries: 0,
-      expectedTotalClUsed: 4,
-      expectedRemainingCl: 0,
-      expectedExcessLeave: 1,
-    },
-    {
-      name: "5 absents: 2 excess leave",
-      absentDays: 5,
-      lateEntries: 0,
-      expectedTotalClUsed: 5,
-      expectedRemainingCl: 0,
-      expectedExcessLeave: 2,
-    },
-  ];
+function dateStr(day: number): string {
+  return `${TEST_MONTH}-${padDay(day)}`;
+}
 
-  console.log("\n=== TEST SUITE 1: CL FROM ABSENTS ===");
-  let passed = 0;
-  let failed = 0;
-
-  for (const test of tests) {
-    const records: AttendanceRecord[] = [];
-    
-    // Create present records
-    const presentDays = 20;
-    for (let i = 0; i < presentDays; i++) {
-      records.push(createAttendanceRecord({
-        date: `2026-06-${String(i + 1).padStart(2, "0")}`,
-        month: "2026-06",
-        status: "present",
-      }));
-    }
-    
-    // Create absent records
-    for (let i = 0; i < test.absentDays; i++) {
-      records.push(createAttendanceRecord({
-        date: `2026-06-${String(presentDays + i + 1).padStart(2, "0")}`,
-        month: "2026-06",
-        status: "absent",
-      }));
-    }
-    
-    // Create late records
-    for (let i = 0; i < test.lateEntries; i++) {
-      records.push(createAttendanceRecord({
-        date: `2026-06-${String(presentDays + test.absentDays + i + 1).padStart(2, "0")}`,
-        month: "2026-06",
-        status: "late",
-        isLate: true,
-        lateMinutes: 15,
-      }));
-    }
-
-    const input: SalaryCalculationInput = {
-      teacher: createTeacher(),
-      records,
-      holidays: [],
-      month: "2026-06",
-      settings: createSettings(),
-    };
-
-    const report = calculateMonthlySalary(input);
-
-    const totalClUsedMatch = report.totalClUsed === test.expectedTotalClUsed;
-    const remainingClMatch = report.remainingCl === test.expectedRemainingCl;
-    const excessLeaveMatch = report.excessLeave === test.expectedExcessLeave;
-
-    if (totalClUsedMatch && remainingClMatch && excessLeaveMatch) {
-      console.log(`✅ PASS: ${test.name}`);
-      console.log(`   Total CL Used: ${report.totalClUsed}, Remaining: ${report.remainingCl}, Excess: ${report.excessLeave}`);
-      passed++;
-    } else {
-      console.log(`❌ FAIL: ${test.name}`);
-      console.log(`   Expected: Total=${test.expectedTotalClUsed}, Remaining=${test.expectedRemainingCl}, Excess=${test.expectedExcessLeave}`);
-      console.log(`   Got: Total=${report.totalClUsed}, Remaining=${report.remainingCl}, Excess=${report.excessLeave}`);
-      failed++;
-    }
+function presentRecords(fromDay: number, toDay: number): AttendanceRecord[] {
+  const records: AttendanceRecord[] = [];
+  for (let day = fromDay; day <= toDay; day++) {
+    records.push(createAttendanceRecord({
+      date: dateStr(day),
+      month: TEST_MONTH,
+      status: "present",
+    }));
   }
+  return records;
+}
 
-  console.log(`\nResults: ${passed} passed, ${failed} failed`);
-  return { passed, failed };
+function absentRecords(days: number[]): AttendanceRecord[] {
+  return days.map((day) => createAttendanceRecord({
+    date: dateStr(day),
+    month: TEST_MONTH,
+    status: "absent",
+  }));
+}
+
+function lateRecords(days: number[]): AttendanceRecord[] {
+  return days.map((day) => createAttendanceRecord({
+    date: dateStr(day),
+    month: TEST_MONTH,
+    status: "late",
+    isLate: true,
+    lateMinutes: 15,
+  }));
+}
+
+function presentWithCheckin(day: number): AttendanceRecord {
+  return createAttendanceRecord({
+    date: dateStr(day),
+    month: TEST_MONTH,
+    status: "present",
+    checkInTime: "09:00:00",
+  });
 }
 
 // ============================================================================
-// TEST SUITE 2: CL CALCULATION FROM LATE ENTRIES
+// TEST SUITE 1: PLAIN ABSENT
 // ============================================================================
 
-export function testCLFromLates() {
-  const tests = [
-    {
-      name: "1 late: 0 CL used (need 3)",
-      lateEntries: 1,
-      expectedClUsedFromLate: 0,
-      expectedTotalClUsed: 0,
-    },
-    {
-      name: "2 lates: 0 CL used (need 3)",
-      lateEntries: 2,
-      expectedClUsedFromLate: 0,
-      expectedTotalClUsed: 0,
-    },
-    {
-      name: "3 lates: 1 CL used",
-      lateEntries: 3,
-      expectedClUsedFromLate: 1,
-      expectedTotalClUsed: 1,
-    },
-    {
-      name: "4 lates: 1 CL used (need 6 for 2nd)",
-      lateEntries: 4,
-      expectedClUsedFromLate: 1,
-      expectedTotalClUsed: 1,
-    },
-    {
-      name: "6 lates: 2 CL used",
-      lateEntries: 6,
-      expectedClUsedFromLate: 2,
-      expectedTotalClUsed: 2,
-    },
-    {
-      name: "9 lates: 3 CL used (allowance exhausted)",
-      lateEntries: 9,
-      expectedClUsedFromLate: 3,
-      expectedTotalClUsed: 3,
-    },
+export function testPlainAbsent() {
+  console.log("\n=== TEST SUITE 1: PLAIN ABSENT ===");
+
+  const records = [
+    ...presentRecords(1, 29),
+    ...absentRecords([30]),
   ];
 
-  console.log("\n=== TEST SUITE 2: CL FROM LATES ===");
-  let passed = 0;
-  let failed = 0;
+  const input: SalaryCalculationInput = {
+    teacher: createTeacher({ baseSalary: 30000 }),
+    records,
+    holidays: [],
+    month: TEST_MONTH,
+    settings: createSettings(),
+  };
 
-  for (const test of tests) {
-    const records: AttendanceRecord[] = [];
-    
-    // Create present records
-    const presentDays = 20;
-    for (let i = 0; i < presentDays; i++) {
-      records.push(createAttendanceRecord({
-        date: `2026-06-${String(i + 1).padStart(2, "0")}`,
-        month: "2026-06",
-        status: "present",
-      }));
-    }
-    
-    // Create late records
-    for (let i = 0; i < test.lateEntries; i++) {
-      records.push(createAttendanceRecord({
-        date: `2026-06-${String(presentDays + i + 1).padStart(2, "0")}`,
-        month: "2026-06",
-        status: "late",
-        isLate: true,
-        lateMinutes: 15,
-      }));
-    }
+  const report = calculateMonthlySalary(input);
+  const perDay = 30000 / WORKING_DAYS; // 1000
+  const expectedDeduction = perDay;
+  const expectedNet = 30000 - perDay;
 
-    const input: SalaryCalculationInput = {
-      teacher: createTeacher(),
-      records,
-      holidays: [],
-      month: "2026-06",
-      settings: createSettings(),
-    };
+  const passed =
+    report.plainAbsentDays === 1 &&
+    report.totalClUsed === 0 &&
+    report.unpaidDeductionDays === 1 &&
+    Math.abs(report.salaryDeduction - expectedDeduction) < 1 &&
+    Math.abs(report.netPayable - expectedNet) < 1;
 
-    const report = calculateMonthlySalary(input);
-
-    const clUsedFromLateMatch = report.clUsedFromLate === test.expectedClUsedFromLate;
-    const totalClUsedMatch = report.totalClUsed === test.expectedTotalClUsed;
-
-    if (clUsedFromLateMatch && totalClUsedMatch) {
-      console.log(`✅ PASS: ${test.name}`);
-      console.log(`   CL from Lates: ${report.clUsedFromLate}, Total CL Used: ${report.totalClUsed}`);
-      passed++;
-    } else {
-      console.log(`❌ FAIL: ${test.name}`);
-      console.log(`   Expected: From Lates=${test.expectedClUsedFromLate}, Total=${test.expectedTotalClUsed}`);
-      console.log(`   Got: From Lates=${report.clUsedFromLate}, Total=${report.totalClUsed}`);
-      failed++;
-    }
+  if (passed) {
+    console.log(`✅ PASS: 1 plain absent day deducts ₹${expectedDeduction}, net = ₹${expectedNet}`);
+  } else {
+    console.log(`❌ FAIL: plainAbsentDays=${report.plainAbsentDays}, totalClUsed=${report.totalClUsed}, deduction=${report.salaryDeduction}, net=${report.netPayable}`);
+    console.log(`   Expected: plainAbsentDays=1, deduction≈${expectedDeduction}, net≈${expectedNet}`);
   }
 
-  console.log(`\nResults: ${passed} passed, ${failed} failed`);
-  return { passed, failed };
+  return passed ? { passed: 1, failed: 0 } : { passed: 0, failed: 1 };
 }
 
 // ============================================================================
-// TEST SUITE 3: SALARY DEDUCTION FROM EXCESS LEAVE
+// TEST SUITE 2: APPROVED LEAVE WITH NO CHECK-IN
 // ============================================================================
 
-export function testSalaryDeductions() {
-  const tests = [
-    {
-      name: "Example 1: 6 lates + 1 absent = 0 excess leave = ₹0 deduction",
-      baseSalary: 50000,
-      workingDays: 30,
-      absentDays: 1,
-      lateEntries: 6,
-      expectedClUsed: 3, // 1 + floor(6/3) = 3
-      expectedExcessLeave: 0,
-      expectedDeduction: 0,
-      expectedNetSalary: 50000,
-    },
-    {
-      name: "Example 2: 9 lates + 2 absents = 2 excess leave = ₹3333.34 deduction",
-      baseSalary: 50000,
-      workingDays: 30,
-      absentDays: 2,
-      lateEntries: 9,
-      expectedClUsed: 5, // 2 + floor(9/3) = 5
-      expectedExcessLeave: 2,
-      expectedDeduction: 3333.33,
-      expectedNetSalary: 46666.67,
-    },
-    {
-      name: "4 absents = 1 excess leave = ₹1666.67 deduction",
-      baseSalary: 50000,
-      workingDays: 30,
-      absentDays: 4,
-      lateEntries: 0,
-      expectedClUsed: 4,
-      expectedExcessLeave: 1,
-      expectedDeduction: 1666.67,
-      expectedNetSalary: 48333.33,
-    },
-  ];
+export function testApprovedLeaveNoCheckin() {
+  console.log("\n=== TEST SUITE 2: APPROVED LEAVE NO CHECK-IN ===");
 
-  console.log("\n=== TEST SUITE 3: SALARY DEDUCTIONS ===");
-  let passed = 0;
-  let failed = 0;
+  const records = presentRecords(1, 29);
 
-  for (const test of tests) {
-    const records: AttendanceRecord[] = [];
-    
-    // Create present records
-    const presentDays = 20;
-    for (let i = 0; i < presentDays; i++) {
-      records.push(createAttendanceRecord({
-        date: `2026-06-${String(i + 1).padStart(2, "0")}`,
-        month: "2026-06",
-        status: "present",
-      }));
-    }
-    
-    // Create absent records
-    for (let i = 0; i < test.absentDays; i++) {
-      records.push(createAttendanceRecord({
-        date: `2026-06-${String(presentDays + i + 1).padStart(2, "0")}`,
-        month: "2026-06",
-        status: "absent",
-      }));
-    }
-    
-    // Create late records
-    for (let i = 0; i < test.lateEntries; i++) {
-      records.push(createAttendanceRecord({
-        date: `2026-06-${String(presentDays + test.absentDays + i + 1).padStart(2, "0")}`,
-        month: "2026-06",
-        status: "late",
-        isLate: true,
-        lateMinutes: 15,
-      }));
-    }
+  const input: SalaryCalculationInput = {
+    teacher: createTeacher({ baseSalary: 30000 }),
+    records,
+    leaveRequests: [
+      createLeaveRequest({ startDate: dateStr(30), endDate: dateStr(30) }),
+    ],
+    holidays: [],
+    month: TEST_MONTH,
+    settings: createSettings(),
+  };
 
-    const input: SalaryCalculationInput = {
-      teacher: createTeacher({ baseSalary: test.baseSalary }),
-      records,
-      holidays: [],
-      month: "2026-06",
-      settings: createSettings(),
-    };
+  const report = calculateMonthlySalary(input);
 
-    const report = calculateMonthlySalary(input);
+  const passed =
+    report.approvedLeaveCLDays === 1 &&
+    report.attendedApprovedLeaveDays === 0 &&
+    report.totalClUsed === 1 &&
+    report.paidCLDays === 1 &&
+    report.plainAbsentDays === 0 &&
+    report.unpaidDeductionDays === 0 &&
+    report.salaryDeduction === 0 &&
+    report.netPayable === 30000;
 
-    const clUsedMatch = report.totalClUsed === test.expectedClUsed;
-    const excessLeaveMatch = report.excessLeave === test.expectedExcessLeave;
-    const deductionMatch = Math.abs(report.excessLeaveDeduction - test.expectedDeduction) < 1; // Allow ±1 rounding
-    const netSalaryMatch = Math.abs(report.netPayable - test.expectedNetSalary) < 1;
-
-    if (clUsedMatch && excessLeaveMatch && deductionMatch && netSalaryMatch) {
-      console.log(`✅ PASS: ${test.name}`);
-      console.log(`   CL Used: ${report.totalClUsed}, Excess: ${report.excessLeave}, Deduction: ₹${report.excessLeaveDeduction}, Net: ₹${report.netPayable}`);
-      passed++;
-    } else {
-      console.log(`❌ FAIL: ${test.name}`);
-      console.log(`   Expected: ClUsed=${test.expectedClUsed}, Excess=${test.expectedExcessLeave}, Deduction=₹${test.expectedDeduction}, Net=₹${test.expectedNetSalary}`);
-      console.log(`   Got: ClUsed=${report.totalClUsed}, Excess=${report.excessLeave}, Deduction=₹${report.excessLeaveDeduction}, Net=₹${report.netPayable}`);
-      failed++;
-    }
+  if (passed) {
+    console.log("✅ PASS: 1 approved leave without check-in consumes 1 CL, no deduction");
+  } else {
+    console.log(`❌ FAIL: approvedLeaveCLDays=${report.approvedLeaveCLDays}, totalClUsed=${report.totalClUsed}, deduction=${report.salaryDeduction}, net=${report.netPayable}`);
   }
 
-  console.log(`\nResults: ${passed} passed, ${failed} failed`);
-  return { passed, failed };
+  return passed ? { passed: 1, failed: 0 } : { passed: 0, failed: 1 };
 }
 
 // ============================================================================
-// TEST SUITE 4: EDGE CASES
+// TEST SUITE 3: APPROVED LEAVE BUT CHECKED IN
+// ============================================================================
+
+export function testApprovedLeaveWithCheckin() {
+  console.log("\n=== TEST SUITE 3: APPROVED LEAVE WITH CHECK-IN ===");
+
+  const records = [
+    ...presentRecords(1, 4),
+    presentWithCheckin(5),
+    ...presentRecords(6, 30),
+  ];
+
+  const input: SalaryCalculationInput = {
+    teacher: createTeacher({ baseSalary: 30000 }),
+    records,
+    leaveRequests: [
+      createLeaveRequest({ startDate: dateStr(5), endDate: dateStr(5) }),
+    ],
+    holidays: [],
+    month: TEST_MONTH,
+    settings: createSettings(),
+  };
+
+  const report = calculateMonthlySalary(input);
+
+  const passed =
+    report.approvedLeaveCLDays === 0 &&
+    report.attendedApprovedLeaveDays === 1 &&
+    report.totalClUsed === 0 &&
+    report.plainAbsentDays === 0 &&
+    report.salaryDeduction === 0 &&
+    report.netPayable === 30000;
+
+  if (passed) {
+    console.log("✅ PASS: approved leave with check-in does not consume CL, no deduction");
+  } else {
+    console.log(`❌ FAIL: attendedLeave=${report.attendedApprovedLeaveDays}, totalClUsed=${report.totalClUsed}, deduction=${report.salaryDeduction}`);
+  }
+
+  return passed ? { passed: 1, failed: 0 } : { passed: 0, failed: 1 };
+}
+
+// ============================================================================
+// TEST SUITE 4: LATE-DERIVED CL
+// ============================================================================
+
+export function testLateDerivedCL() {
+  console.log("\n=== TEST SUITE 4: LATE-DERIVED CL ===");
+
+  const records = [
+    ...presentRecords(1, 27),
+    ...lateRecords([28, 29, 30]),
+  ];
+
+  const input: SalaryCalculationInput = {
+    teacher: createTeacher({ baseSalary: 30000 }),
+    records,
+    holidays: [],
+    month: TEST_MONTH,
+    settings: createSettings(),
+  };
+
+  const report = calculateMonthlySalary(input);
+
+  const passed =
+    report.lateDerivedCLDays === 1 &&
+    report.approvedLeaveCLDays === 0 &&
+    report.totalClUsed === 1 &&
+    report.paidCLDays === 1 &&
+    report.plainAbsentDays === 0 &&
+    report.unpaidDeductionDays === 0 &&
+    report.salaryDeduction === 0 &&
+    report.netPayable === 30000;
+
+  if (passed) {
+    console.log("✅ PASS: 3 late days = 1 late-derived CL, no deduction");
+  } else {
+    console.log(`❌ FAIL: lateDerivedCL=${report.lateDerivedCLDays}, totalClUsed=${report.totalClUsed}, deduction=${report.salaryDeduction}`);
+  }
+
+  return passed ? { passed: 1, failed: 0 } : { passed: 0, failed: 1 };
+}
+
+// ============================================================================
+// TEST SUITE 5: CL BUCKET SHARED (approved leave + late-derived = 3)
+// ============================================================================
+
+export function testCLBucketShared() {
+  console.log("\n=== TEST SUITE 5: CL BUCKET SHARED ===");
+
+  const records = [
+    ...presentRecords(1, 25),
+    ...lateRecords([26, 27, 28]),
+  ];
+
+  const input: SalaryCalculationInput = {
+    teacher: createTeacher({ baseSalary: 30000 }),
+    records,
+    leaveRequests: [
+      createLeaveRequest({ startDate: dateStr(29), endDate: dateStr(30) }),
+    ],
+    holidays: [],
+    month: TEST_MONTH,
+    settings: createSettings(),
+  };
+
+  const report = calculateMonthlySalary(input);
+
+  const passed =
+    report.approvedLeaveCLDays === 2 &&
+    report.lateDerivedCLDays === 1 &&
+    report.totalClUsed === 3 &&
+    report.paidCLDays === 3 &&
+    report.excessCLDays === 0 &&
+    report.plainAbsentDays === 0 &&
+    report.unpaidDeductionDays === 0 &&
+    report.salaryDeduction === 0 &&
+    report.netPayable === 30000;
+
+  if (passed) {
+    console.log("✅ PASS: 2 leave CL + 1 late CL = 3 total, within allowance, no deduction");
+  } else {
+    console.log(`❌ FAIL: totalClUsed=${report.totalClUsed}, excess=${report.excessCLDays}, deduction=${report.salaryDeduction}`);
+  }
+
+  return passed ? { passed: 1, failed: 0 } : { passed: 0, failed: 1 };
+}
+
+// ============================================================================
+// TEST SUITE 6: CL EXCEEDED
+// ============================================================================
+
+export function testCLExceeded() {
+  console.log("\n=== TEST SUITE 6: CL EXCEEDED ===");
+
+  const records = [
+    ...presentRecords(1, 24),
+    ...lateRecords([25, 26, 27]),
+  ];
+
+  const input: SalaryCalculationInput = {
+    teacher: createTeacher({ baseSalary: 30000 }),
+    records,
+    leaveRequests: [
+      createLeaveRequest({ startDate: dateStr(28), endDate: dateStr(30) }),
+    ],
+    holidays: [],
+    month: TEST_MONTH,
+    settings: createSettings(),
+  };
+
+  const report = calculateMonthlySalary(input);
+  const perDay = 30000 / WORKING_DAYS;
+
+  const passed =
+    report.approvedLeaveCLDays === 3 &&
+    report.lateDerivedCLDays === 1 &&
+    report.totalClUsed === 4 &&
+    report.paidCLDays === 3 &&
+    report.excessCLDays === 1 &&
+    report.plainAbsentDays === 0 &&
+    report.unpaidDeductionDays === 1 &&
+    Math.abs(report.salaryDeduction - perDay) < 1 &&
+    Math.abs(report.netPayable - (30000 - perDay)) < 1;
+
+  if (passed) {
+    console.log(`✅ PASS: totalCLUsed=4, excess=1, deduction=₹${perDay}`);
+  } else {
+    console.log(`❌ FAIL: totalClUsed=${report.totalClUsed}, excess=${report.excessCLDays}, deduction=${report.salaryDeduction}, net=${report.netPayable}`);
+  }
+
+  return passed ? { passed: 1, failed: 0 } : { passed: 0, failed: 1 };
+}
+
+// ============================================================================
+// TEST SUITE 7: APPROVED LEAVE + PLAIN ABSENT
+// ============================================================================
+
+export function testApprovedLeaveAndAbsent() {
+  console.log("\n=== TEST SUITE 7: APPROVED LEAVE + PLAIN ABSENT ===");
+
+  const records = [
+    ...presentRecords(1, 28),
+    ...absentRecords([29]),
+  ];
+
+  const input: SalaryCalculationInput = {
+    teacher: createTeacher({ baseSalary: 30000 }),
+    records,
+    leaveRequests: [
+      createLeaveRequest({ startDate: dateStr(30), endDate: dateStr(30) }),
+    ],
+    holidays: [],
+    month: TEST_MONTH,
+    settings: createSettings(),
+  };
+
+  const report = calculateMonthlySalary(input);
+  const perDay = 30000 / WORKING_DAYS;
+
+  const passed =
+    report.approvedLeaveCLDays === 1 &&
+    report.plainAbsentDays === 1 &&
+    report.totalClUsed === 1 &&
+    report.paidCLDays === 1 &&
+    report.excessCLDays === 0 &&
+    report.unpaidDeductionDays === 1 &&
+    Math.abs(report.salaryDeduction - perDay) < 1 &&
+    Math.abs(report.netPayable - (30000 - perDay)) < 1;
+
+  if (passed) {
+    console.log(`✅ PASS: 1 day CL (leave), 1 day plain absent, deduction=₹${perDay}`);
+  } else {
+    console.log(`❌ FAIL: approvedLeaveCL=${report.approvedLeaveCLDays}, plainAbsent=${report.plainAbsentDays}, deduction=${report.salaryDeduction}, net=${report.netPayable}`);
+  }
+
+  return passed ? { passed: 1, failed: 0 } : { passed: 0, failed: 1 };
+}
+
+// ============================================================================
+// TEST SUITE 8: PENDING / REJECTED LEAVE - treated as plain absent
+// ============================================================================
+
+export function testPendingRejectedLeave() {
+  console.log("\n=== TEST SUITE 8: PENDING/REJECTED LEAVE ===");
+
+  const records = [
+    ...presentRecords(1, 29),
+    ...absentRecords([30]),
+  ];
+
+  const input: SalaryCalculationInput = {
+    teacher: createTeacher({ baseSalary: 30000 }),
+    records,
+    leaveRequests: [
+      createLeaveRequest({ startDate: dateStr(30), endDate: dateStr(30), status: "pending" }),
+    ],
+    holidays: [],
+    month: TEST_MONTH,
+    settings: createSettings(),
+  };
+
+  const report = calculateMonthlySalary(input);
+  const perDay = 30000 / WORKING_DAYS;
+
+  const pendingPassed =
+    report.plainAbsentDays === 1 &&
+    report.approvedLeaveCLDays === 0 &&
+    report.totalClUsed === 0 &&
+    Math.abs(report.salaryDeduction - perDay) < 1;
+
+  // Also test rejected leave
+  const records2 = [
+    ...presentRecords(1, 29),
+    ...absentRecords([30]),
+  ];
+
+  const input2: SalaryCalculationInput = {
+    teacher: createTeacher({ baseSalary: 30000 }),
+    records: records2,
+    leaveRequests: [
+      createLeaveRequest({ startDate: dateStr(30), endDate: dateStr(30), status: "rejected" }),
+    ],
+    holidays: [],
+    month: TEST_MONTH,
+    settings: createSettings(),
+  };
+
+  const report2 = calculateMonthlySalary(input2);
+
+  const rejectedPassed =
+    report2.plainAbsentDays === 1 &&
+    report2.approvedLeaveCLDays === 0 &&
+    report2.totalClUsed === 0 &&
+    Math.abs(report2.salaryDeduction - perDay) < 1;
+
+  if (pendingPassed && rejectedPassed) {
+    console.log(`✅ PASS: pending/rejected leave is treated as plain absent, deduction=₹${perDay}`);
+  } else {
+    console.log(`❌ FAIL: pending - plainAbsent=${report.plainAbsentDays}, cl=${report.approvedLeaveCLDays}`);
+    console.log(`   rejected - plainAbsent=${report2.plainAbsentDays}, cl=${report2.approvedLeaveCLDays}`);
+  }
+
+  return (pendingPassed && rejectedPassed) ? { passed: 1, failed: 0 } : { passed: 0, failed: 1 };
+}
+
+// ============================================================================
+// TEST SUITE 9: DATE RANGE LEAVE REQUEST
+// ============================================================================
+
+export function testDateRangeLeave() {
+  console.log("\n=== TEST SUITE 9: DATE RANGE LEAVE REQUEST ===");
+
+  const records = presentRecords(1, 25);
+
+  const input: SalaryCalculationInput = {
+    teacher: createTeacher({ baseSalary: 30000 }),
+    records,
+    leaveRequests: [
+      createLeaveRequest({
+        startDate: dateStr(26),
+        endDate: dateStr(30),
+      }),
+    ],
+    holidays: [],
+    month: TEST_MONTH,
+    settings: createSettings(),
+  };
+
+  const report = calculateMonthlySalary(input);
+
+  const passed =
+    report.approvedLeaveCLDays === 5 &&
+    report.attendedApprovedLeaveDays === 0 &&
+    report.totalClUsed === 5 &&
+    report.paidCLDays === 3 &&
+    report.excessCLDays === 2 &&
+    report.plainAbsentDays === 0 &&
+    report.unpaidDeductionDays === 2;
+
+  if (passed) {
+    console.log("✅ PASS: 5-day leave range, totalCLUsed=5, paid=3, excess=2");
+  } else {
+    console.log(`❌ FAIL: approvedLeaveCL=${report.approvedLeaveCLDays}, totalClUsed=${report.totalClUsed}, paid=${report.paidCLDays}, excess=${report.excessCLDays}`);
+  }
+
+  return passed ? { passed: 1, failed: 0 } : { passed: 0, failed: 1 };
+}
+
+// ============================================================================
+// EXTRA: EDGE CASES
 // ============================================================================
 
 export function testEdgeCases() {
-  const tests = [
-    {
-      name: "Perfect attendance: all present, 0 deduction",
-      absentDays: 0,
-      lateEntries: 0,
-      expectedClUsed: 0,
-      expectedDeduction: 0,
-      expectedNetSalary: 50000,
-    },
-    {
-      name: "All absent: max deduction",
-      absentDays: 30,
-      lateEntries: 0,
-      expectedClUsed: 30,
-      expectedExcessLeave: 27,
-      expectedDeduction: 45000, // 27 × 1666.67
-    },
-    {
-      name: "Mixed: 2 absent + 6 lates = 3 total + 0 excess",
-      absentDays: 2,
-      lateEntries: 6,
-      expectedClUsed: 3,
-      expectedExcessLeave: 0,
-      expectedDeduction: 0,
-    },
-  ];
+  console.log("\n=== TEST SUITE: EDGE CASES ===");
 
-  console.log("\n=== TEST SUITE 4: EDGE CASES ===");
   let passed = 0;
   let failed = 0;
 
-  for (const test of tests) {
-    const records: AttendanceRecord[] = [];
-    const presentDays = 30 - test.absentDays - test.lateEntries;
-
-    for (let i = 0; i < presentDays; i++) {
-      records.push(createAttendanceRecord({
-        date: `2026-06-${String(i + 1).padStart(2, "0")}`,
-        month: "2026-06",
-        status: "present",
-      }));
-    }
-
-    for (let i = 0; i < test.absentDays; i++) {
-      records.push(createAttendanceRecord({
-        date: `2026-06-${String(presentDays + i + 1).padStart(2, "0")}`,
-        month: "2026-06",
-        status: "absent",
-      }));
-    }
-
-    for (let i = 0; i < test.lateEntries; i++) {
-      records.push(createAttendanceRecord({
-        date: `2026-06-${String(presentDays + test.absentDays + i + 1).padStart(2, "0")}`,
-        month: "2026-06",
-        status: "late",
-        isLate: true,
-        lateMinutes: 15,
-      }));
-    }
-
+  // Edge 1: Perfect attendance
+  {
+    const records = presentRecords(1, 30);
     const input: SalaryCalculationInput = {
-      teacher: createTeacher(),
+      teacher: createTeacher({ baseSalary: 30000 }),
       records,
       holidays: [],
-      month: "2026-06",
+      month: TEST_MONTH,
       settings: createSettings(),
     };
-
     const report = calculateMonthlySalary(input);
-
-    const clUsedMatch = report.totalClUsed === test.expectedClUsed;
-    let deductionMatch = true;
-    if (test.expectedDeduction !== undefined) {
-      deductionMatch = Math.abs(report.excessLeaveDeduction - test.expectedDeduction) < 50;
-    }
-
-    if (clUsedMatch && deductionMatch) {
-      console.log(`✅ PASS: ${test.name}`);
+    if (report.plainAbsentDays === 0 && report.totalClUsed === 0 && report.salaryDeduction === 0 && report.netPayable === 30000) {
+      console.log("✅ PASS: Perfect attendance, no deduction");
       passed++;
     } else {
-      console.log(`❌ FAIL: ${test.name}`);
-      console.log(`   Expected: ClUsed=${test.expectedClUsed}, Deduction≈₹${test.expectedDeduction}`);
-      console.log(`   Got: ClUsed=${report.totalClUsed}, Deduction=₹${report.excessLeaveDeduction}`);
+      console.log(`❌ FAIL: Perfect attendance - deduction=${report.salaryDeduction}, net=${report.netPayable}`);
       failed++;
     }
   }
 
-  console.log(`\nResults: ${passed} passed, ${failed} failed`);
+  // Edge 2: Part-time staff - uses own base salary
+  {
+    const records = presentRecords(1, 30);
+    const input: SalaryCalculationInput = {
+      teacher: createTeacher({ baseSalary: 15000 }),
+      records,
+      holidays: [],
+      month: TEST_MONTH,
+      settings: createSettings(),
+    };
+    const report = calculateMonthlySalary(input);
+    if (report.baseSalary === 15000 && report.netPayable === 15000) {
+      console.log("✅ PASS: Part-time staff uses own base salary (15000)");
+      passed++;
+    } else {
+      console.log(`❌ FAIL: Part-time - base=${report.baseSalary}, net=${report.netPayable}`);
+      failed++;
+    }
+  }
+
+  // Edge 3: 1 or 2 lates should not create CL
+  {
+    const records = [
+      ...presentRecords(1, 28),
+      ...lateRecords([29]),
+    ];
+    const input: SalaryCalculationInput = {
+      teacher: createTeacher({ baseSalary: 30000 }),
+      records,
+      holidays: [],
+      month: TEST_MONTH,
+      settings: createSettings(),
+    };
+    const report = calculateMonthlySalary(input);
+    if (report.lateDerivedCLDays === 0 && report.totalClUsed === 0) {
+      console.log("✅ PASS: 1 late = 0 CL (need 3)");
+      passed++;
+    } else {
+      console.log(`❌ FAIL: 1 late gave ${report.lateDerivedCLDays} CL`);
+      failed++;
+    }
+  }
+
+  // Edge 4: 2 lates should not create CL
+  {
+    const records = [
+      ...presentRecords(1, 28),
+      ...lateRecords([29, 30]),
+    ];
+    const input: SalaryCalculationInput = {
+      teacher: createTeacher({ baseSalary: 30000 }),
+      records,
+      holidays: [],
+      month: TEST_MONTH,
+      settings: createSettings(),
+    };
+    const report = calculateMonthlySalary(input);
+    if (report.lateDerivedCLDays === 0 && report.totalClUsed === 0) {
+      console.log("✅ PASS: 2 lates = 0 CL (need 3)");
+      passed++;
+    } else {
+      console.log(`❌ FAIL: 2 lates gave ${report.lateDerivedCLDays} CL`);
+      failed++;
+    }
+  }
+
+  // Edge 5: Date range spanning outside month - ignore dates outside
+  {
+    const records = presentRecords(1, 28);
+    const input: SalaryCalculationInput = {
+      teacher: createTeacher({ baseSalary: 30000 }),
+      records,
+      leaveRequests: [
+        createLeaveRequest({
+          startDate: "2026-05-30",
+          endDate: "2026-06-02",
+        }),
+      ],
+      holidays: [],
+      month: TEST_MONTH,
+      settings: createSettings(),
+    };
+    const report = calculateMonthlySalary(input);
+    // Only June 1-2 should be counted (2 days in June)
+    if (report.approvedLeaveCLDays === 2 && report.totalClUsed === 2) {
+      console.log("✅ PASS: Date range spans prev month, only June 1-2 counted");
+      passed++;
+    } else {
+      console.log(`❌ FAIL: Date range spanning prev month - approvedLeaveCL=${report.approvedLeaveCLDays}`);
+      failed++;
+    }
+  }
+
+  console.log(`\nEdge Cases: ${passed} passed, ${failed} failed`);
   return { passed, failed };
 }
 
@@ -505,13 +665,19 @@ export function testEdgeCases() {
 
 export function runAllTests() {
   console.log("=" .repeat(80));
-  console.log("SALARY CALCULATION VERIFICATION TESTS");
+  console.log("SALARY CALCULATION TESTS");
   console.log("=" .repeat(80));
 
   const results = [
-    testCLFromAbsents(),
-    testCLFromLates(),
-    testSalaryDeductions(),
+    testPlainAbsent(),
+    testApprovedLeaveNoCheckin(),
+    testApprovedLeaveWithCheckin(),
+    testLateDerivedCL(),
+    testCLBucketShared(),
+    testCLExceeded(),
+    testApprovedLeaveAndAbsent(),
+    testPendingRejectedLeave(),
+    testDateRangeLeave(),
     testEdgeCases(),
   ];
 
@@ -529,12 +695,14 @@ export function runAllTests() {
   };
 }
 
-// For Node.js execution
-if (typeof require !== "undefined" && require.main === module) {
-  runAllTests();
-}
+const isMainModule = () => {
+  try {
+    return typeof process !== "undefined" && process.argv?.[1] && import.meta.url.endsWith(process.argv[1].replace(/\\/g, "/"));
+  } catch {
+    return typeof require !== "undefined" && require.main === module;
+  }
+};
 
-// Direct ESM execution
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isMainModule()) {
   runAllTests();
 }

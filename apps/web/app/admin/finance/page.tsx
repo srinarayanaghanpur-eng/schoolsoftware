@@ -4,7 +4,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { useAdminSession } from "@/components/AdminSessionContext";
 import { AdminApiError, adminApiRequest } from "@/lib/adminApiClient";
 import { hasPermission } from "@sri-narayana/shared";
-import { AlertCircle, ArrowDownRight, ArrowUpRight, Banknote, ReceiptIndianRupee, TrendingUp, Wallet } from "lucide-react";
+import { AlertCircle, ArrowDownRight, ArrowUpRight, ReceiptIndianRupee, TrendingUp, Wallet } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
@@ -128,12 +128,6 @@ export default function FinanceDashboardPage() {
           </article>
         </div>
 
-        <div className="flex flex-wrap gap-3">
-          <Link href="/admin/finance/expenses" className="btn-secondary"><Wallet size={16} /> Expenses</Link>
-          <Link href="/admin/finance/income" className="btn-secondary"><Banknote size={16} /> Income</Link>
-          <Link href="/admin/finance/ledger" className="btn-secondary"><TrendingUp size={16} /> Ledger</Link>
-          <Link href="/admin/finance/dues" className="btn-secondary"><ReceiptIndianRupee size={16} /> Dues</Link>
-        </div>
       </section>
     </>
   );

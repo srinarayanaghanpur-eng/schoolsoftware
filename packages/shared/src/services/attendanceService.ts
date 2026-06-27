@@ -1,8 +1,9 @@
-import { DEFAULT_SETTINGS } from "../constants";
+import { ATTENDANCE_WINDOWS, DEFAULT_SETTINGS } from "../constants";
 import type {
   AttendanceEventType,
   AttendanceRecord,
   AttendanceSource,
+  EmploymentType,
   GpsPoint,
   SchoolSettings
 } from "../types/models";
@@ -49,10 +50,45 @@ export function isInsideCampus(current: GpsPoint, settings: SchoolSettings = DEF
   return getDistanceFromCampus(current, settings) <= settings.geofenceRadiusMeters;
 }
 
-export function getAttendanceStatus(checkInTime: string, settings: SchoolSettings = DEFAULT_SETTINGS) {
-  const time = getTimePartsInZone(checkInTime, settings.timezone);
-  const checkInMinutes = time.hour * 60 + time.minute;
-  const allowedMinutes = minutesFromClock(settings.schoolStartTime) + settings.graceMinutes;
+export function getAttendanceWindow(employmentType: EmploymentType = "full_time") {
+  return ATTENDANCE_WINDOWS[employmentType] ?? ATTENDANCE_WINDOWS.full_time;
+}
+
+function minutesInZone(timestamp: string | Date, settings: SchoolSettings) {
+  const time = getTimePartsInZone(timestamp, settings.timezone);
+  return time.hour * 60 + time.minute;
+}
+
+/** True if the check-in timestamp falls inside this employment type's check-in window. */
+export function isWithinCheckInWindow(
+  timestamp: string | Date,
+  settings: SchoolSettings = DEFAULT_SETTINGS,
+  employmentType: EmploymentType = "full_time"
+) {
+  const window = getAttendanceWindow(employmentType);
+  const now = minutesInZone(timestamp, settings);
+  return now >= minutesFromClock(window.checkInStart) && now <= minutesFromClock(window.checkInEnd);
+}
+
+/** True if the check-out timestamp falls inside this employment type's check-out window. */
+export function isWithinCheckOutWindow(
+  timestamp: string | Date,
+  settings: SchoolSettings = DEFAULT_SETTINGS,
+  employmentType: EmploymentType = "full_time"
+) {
+  const window = getAttendanceWindow(employmentType);
+  const now = minutesInZone(timestamp, settings);
+  return now >= minutesFromClock(window.checkOutStart) && now <= minutesFromClock(window.checkOutEnd);
+}
+
+export function getAttendanceStatus(
+  checkInTime: string,
+  settings: SchoolSettings = DEFAULT_SETTINGS,
+  employmentType: EmploymentType = "full_time"
+) {
+  const window = getAttendanceWindow(employmentType);
+  const checkInMinutes = minutesInZone(checkInTime, settings);
+  const allowedMinutes = minutesFromClock(window.lateAfter);
   const lateMinutes = Math.max(0, checkInMinutes - allowedMinutes);
   return {
     status: lateMinutes > 0 ? "late" : "present",
@@ -61,9 +97,13 @@ export function getAttendanceStatus(checkInTime: string, settings: SchoolSetting
   } as const;
 }
 
-export function createAttendanceFromEvent(event: AttendanceEventInput, settings: SchoolSettings = DEFAULT_SETTINGS) {
+export function createAttendanceFromEvent(
+  event: AttendanceEventInput,
+  settings: SchoolSettings = DEFAULT_SETTINGS,
+  employmentType: EmploymentType = "full_time"
+) {
   const date = toDateKey(event.timestamp, settings.timezone);
-  const status = event.eventType === "checkin" ? getAttendanceStatus(event.timestamp, settings) : undefined;
+  const status = event.eventType === "checkin" ? getAttendanceStatus(event.timestamp, settings, employmentType) : undefined;
   const createdAt = nowIso();
   const record: AttendanceRecord = {
     teacherId: event.teacherId,
@@ -93,9 +133,10 @@ export function createAttendanceFromEvent(event: AttendanceEventInput, settings:
 export function mergeAttendanceEvent(
   existing: AttendanceRecord | undefined,
   event: AttendanceEventInput,
-  settings: SchoolSettings = DEFAULT_SETTINGS
+  settings: SchoolSettings = DEFAULT_SETTINGS,
+  employmentType: EmploymentType = "full_time"
 ) {
-  if (!existing) return createAttendanceFromEvent(event, settings);
+  if (!existing) return createAttendanceFromEvent(event, settings, employmentType);
 
   const updated: AttendanceRecord = {
     ...existing,
@@ -105,7 +146,7 @@ export function mergeAttendanceEvent(
 
   if (event.eventType === "checkin") {
     if (!updated.checkInTime || new Date(event.timestamp) < new Date(updated.checkInTime)) {
-      const status = getAttendanceStatus(event.timestamp, settings);
+      const status = getAttendanceStatus(event.timestamp, settings, employmentType);
       updated.checkInTime = event.timestamp;
       updated.status = status.status;
       updated.isLate = status.isLate;

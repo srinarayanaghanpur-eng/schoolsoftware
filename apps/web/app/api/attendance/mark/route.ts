@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
 import {
+  ATTENDANCE_WINDOWS,
   createAttendanceDocumentId,
   getDistanceFromCampus,
   isInsideCampus,
+  isWithinCheckInWindow,
+  isWithinCheckOutWindow,
   mergeAttendanceEvent,
   mobileAttendancePayloadSchema,
   nowIso,
@@ -79,6 +82,24 @@ export async function POST(req: Request) {
       );
     }
 
+    // ===== Time-window enforcement (admins may mark outside the window) =====
+    const employmentType = teacher.employmentType ?? "full_time";
+    const window = ATTENDANCE_WINDOWS[employmentType] ?? ATTENDANCE_WINDOWS.full_time;
+    if (!isAdmin) {
+      if (payload.eventType === "checkin" && !isWithinCheckInWindow(payload.timestamp, settings, employmentType)) {
+        return NextResponse.json(
+          { ok: false, error: `Check-in is only allowed between ${window.checkInStart} and ${window.checkInEnd}.` },
+          { status: 403 }
+        );
+      }
+      if (payload.eventType === "checkout" && !isWithinCheckOutWindow(payload.timestamp, settings, employmentType)) {
+        return NextResponse.json(
+          { ok: false, error: `Check-out is only allowed between ${window.checkOutStart} and ${window.checkOutEnd}.` },
+          { status: 403 }
+        );
+      }
+    }
+
     const date = toDateKey(payload.timestamp, settings.timezone);
     const attendanceDocumentId = createAttendanceDocumentId(payload.teacherId, date);
     const existing = await getAttendanceRecord(attendanceDocumentId);
@@ -93,7 +114,8 @@ export async function POST(req: Request) {
         distanceFromCampus,
         deviceInfo: payload.deviceInfo
       },
-      settings
+      settings,
+      employmentType
     );
 
     const db = adminDb();

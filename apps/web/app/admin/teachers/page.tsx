@@ -18,6 +18,7 @@ type TeacherFormState = {
   password: string;
   confirmPassword: string;
   status: "active" | "inactive";
+  employmentType: "full_time" | "part_time_morning" | "part_time_afternoon";
 };
 
 const blankForm: TeacherFormState = {
@@ -29,7 +30,8 @@ const blankForm: TeacherFormState = {
   biometricUserId: "",
   password: "",
   confirmPassword: "",
-  status: "active"
+  status: "active",
+  employmentType: "full_time"
 };
 
 function formFromTeacher(teacher: Teacher): TeacherFormState {
@@ -42,7 +44,8 @@ function formFromTeacher(teacher: Teacher): TeacherFormState {
     biometricUserId: teacher.biometricUserId ?? "",
     password: "",
     confirmPassword: "",
-    status: teacher.status
+    status: teacher.status,
+    employmentType: teacher.employmentType ?? "full_time"
   };
 }
 
@@ -54,7 +57,8 @@ function teacherPayload(form: TeacherFormState, includePassword: boolean) {
     phone: form.phone,
     baseSalary: form.baseSalary,
     biometricUserId: form.biometricUserId,
-    status: form.status
+    status: form.status,
+    employmentType: form.employmentType
   };
 
   if (includePassword) {
@@ -299,6 +303,18 @@ export default function TeachersPage() {
                 <select className="field" value={form.status} onChange={(event) => setForm({ ...form, status: event.target.value as "active" | "inactive" })}>
                   <option value="active">Active</option>
                   <option value="inactive">Inactive</option>
+                </select>
+              </label>
+              <label className="space-y-1 text-sm font-medium">
+                <span>Employment type</span>
+                <select
+                  className="field"
+                  value={form.employmentType}
+                  onChange={(event) => setForm({ ...form, employmentType: event.target.value as TeacherFormState["employmentType"] })}
+                >
+                  <option value="full_time">Full-time (6:00–9:30 in · 4:30–5:30 out)</option>
+                  <option value="part_time_morning">Part-time Morning (in by 9:30 · out by 12:00)</option>
+                  <option value="part_time_afternoon">Part-time Afternoon (in 12:00–1:00 · out 4:30–5:30)</option>
                 </select>
               </label>
               {!editingTeacher && (

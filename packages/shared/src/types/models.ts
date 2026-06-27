@@ -13,6 +13,9 @@ export type AcademicYear = {
 };
 
 export type TeacherStatus = "active" | "inactive";
+
+// Employment type drives the check-in/out time windows and salary basis.
+export type EmploymentType = "full_time" | "part_time_morning" | "part_time_afternoon";
 export type RequestStatus = "open" | "resolved" | "rejected";
 export type LeaveRequestStatus = "pending" | "approved" | "rejected";
 
@@ -62,6 +65,7 @@ export type Teacher = {
   joiningDate: string;
   status: TeacherStatus;
   role?: "teacher";
+  employmentType?: EmploymentType;
   allowedCLPerMonth: number;
   lateDeductionRule: LateDeductionMode;
   // CL Tracking (new fields)
@@ -262,15 +266,26 @@ export type SalaryReport = {
   perDaySalary: number;
   // CL Tracking
   clAllowanceThisMonth: number; // Usually 3
-  clUsedFromAbsent: number; // absents × 1
+  clUsedFromAbsent: number; // approved leave CL days (no check-in)
   clUsedFromLate: number; // floor(lateEntries / 3)
-  totalClUsed: number; // absents + floor(lateEntries / 3)
-  remainingCl: number; // max(0, 3 - totalClUsed)
-  excessLeave: number; // max(0, totalClUsed - 3)
+  totalClUsed: number; // approvedLeaveCLDays + lateDerivedCLDays
+  remainingCl: number; // max(0, allowance - totalClUsed)
+  excessLeave: number; // max(0, totalClUsed - allowance)
+  // New CL/leave breakdown
+  approvedLeaveCLDays: number; // approved leave days with no check-in (CL consumed)
+  attendedApprovedLeaveDays: number; // approved leave days where check-in exists
+  lateDerivedCLDays: number; // floor(lateEntries / 3)
+  paidCLDays: number; // min(totalClUsed, allowance) - CL days actually paid
+  excessCLDays: number; // max(totalClUsed - allowance, 0)
+  plainAbsentDays: number; // working days with no check-in and no approved leave
+  unpaidDeductionDays: number; // plainAbsentDays + excessCLDays
+  approvedLeaveRequests: LeaveRequest[]; // approved leave requests for this month
+  approvedLeaveInfo: string; // formatted leave info for Excel
+  salaryDeduction: number; // unpaidDeductionDays × perDaySalary
   // Deductions (detailed breakdown)
-  absentDeduction: number; // 0 if absents <= allowance, else excess × perDaySalary
-  lateDeduction: number; // 0 (lates only consume CL, not salary unless excess)
-  excessLeaveDeduction: number; // excessLeave × perDaySalary
+  absentDeduction: number;
+  lateDeduction: number;
+  excessLeaveDeduction: number; // alias for salaryDeduction (backward compat)
   manualDeduction: number;
   bonus: number;
   totalDeduction: number; // Sum of all deductions
@@ -525,3 +540,22 @@ export type Invoice = {
   createdBy: string;
   createdAt: FirestoreDate;
 };
+
+// ===== Phase 4: Transport =====
+export type Vehicle = { id?: string; regNo: string; model?: string; capacity: number; driverName?: string; driverPhone?: string; createdAt: FirestoreDate; updatedAt: FirestoreDate };
+export type RouteStop = { name: string; fee: number };
+export type TransportRoute = { id?: string; name: string; vehicleId?: string; stops: RouteStop[]; createdAt: FirestoreDate; updatedAt: FirestoreDate };
+export type TransportAssignment = { id?: string; studentId: string; studentName?: string; routeId: string; stopName: string; fee: number; createdAt: FirestoreDate };
+
+// ===== Phase 4: Library =====
+export type Book = { id?: string; title: string; author?: string; isbn?: string; category?: string; copies: number; available: number; createdAt: FirestoreDate; updatedAt: FirestoreDate };
+export type LibraryIssueStatus = "issued" | "returned";
+export type LibraryIssue = { id?: string; bookId: string; bookTitle?: string; memberType: "student" | "staff"; memberId: string; memberName?: string; issueDate: string; dueDate: string; returnDate?: string; fine: number; status: LibraryIssueStatus; createdAt: FirestoreDate };
+
+// ===== Phase 4: Hostel =====
+export type HostelRoom = { id?: string; number: string; type?: string; capacity: number; occupied: number; createdAt: FirestoreDate; updatedAt: FirestoreDate };
+export type HostelAllotment = { id?: string; studentId: string; studentName?: string; roomId: string; roomNumber?: string; fromDate: string; toDate?: string; status: "active" | "vacated"; createdAt: FirestoreDate };
+
+// ===== Phase 4: Inventory / Store =====
+export type InventoryItem = { id?: string; name: string; category?: string; stock: number; unitPrice: number; createdAt: FirestoreDate; updatedAt: FirestoreDate };
+export type InventorySale = { id?: string; itemId: string; itemName?: string; qty: number; amount: number; buyer?: string; date: string; createdBy: string; createdAt: FirestoreDate };

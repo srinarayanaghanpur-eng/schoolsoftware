@@ -1,9 +1,15 @@
 "use client";
 
 import { auth } from "@sri-narayana/shared/firebase/client";
-import type { AttendanceEventType } from "@sri-narayana/shared";
+import {
+  getAttendanceWindow,
+  isWithinCheckInWindow,
+  isWithinCheckOutWindow,
+  type AttendanceEventType,
+  type EmploymentType
+} from "@sri-narayana/shared";
 import { LogIn, LogOut, MapPin, ShieldCheck } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 function getBrowserLocation() {
   return new Promise<GeolocationPosition>((resolve, reject) => {
@@ -15,10 +21,27 @@ function getBrowserLocation() {
   });
 }
 
-export function TeacherAttendancePanel({ teacherId }: { teacherId: string }) {
+export function TeacherAttendancePanel({
+  teacherId,
+  employmentType = "full_time"
+}: {
+  teacherId: string;
+  employmentType?: EmploymentType;
+}) {
   const [loading, setLoading] = useState<AttendanceEventType | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [lastGps, setLastGps] = useState<{ latitude: number; longitude: number; accuracy?: number; distance?: number } | null>(null);
+  const [now, setNow] = useState(() => new Date());
+
+  // Re-evaluate the open/closed windows every 30s so buttons unlock/lock automatically.
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 30000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const window = getAttendanceWindow(employmentType);
+  const canCheckIn = isWithinCheckInWindow(now, undefined, employmentType);
+  const canCheckOut = isWithinCheckOutWindow(now, undefined, employmentType);
 
   const markAttendance = async (eventType: AttendanceEventType) => {
     setLoading(eventType);
@@ -91,12 +114,21 @@ export function TeacherAttendancePanel({ teacherId }: { teacherId: string }) {
         <span className="inline-flex w-fit items-center gap-2 rounded-xl border border-white/15 bg-white/10 px-3 py-2 text-xs font-bold text-[#e3e6ff]"><MapPin size={15} className="text-[#ffd35b]" /> Campus check</span>
       </div>
 
-      <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-        <button className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#f7c548] px-4 py-3.5 text-sm font-extrabold text-[#292b7f] transition hover:-translate-y-0.5 hover:bg-[#ffd35b] disabled:cursor-not-allowed disabled:opacity-60" disabled={Boolean(loading)} onClick={() => markAttendance("checkin")}>
-          <LogIn size={18} /> {loading === "checkin" ? "Checking location…" : "Check in"}
+      <div className="mt-4 flex flex-wrap gap-2 text-xs font-bold text-[#e3e6ff]">
+        <span className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/10 px-2.5 py-1.5">
+          Check-in window: {window.checkInStart}–{window.checkInEnd}
+        </span>
+        <span className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/10 px-2.5 py-1.5">
+          Check-out window: {window.checkOutStart}–{window.checkOutEnd}
+        </span>
+      </div>
+
+      <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+        <button className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#f7c548] px-4 py-3.5 text-sm font-extrabold text-[#292b7f] transition hover:-translate-y-0.5 hover:bg-[#ffd35b] disabled:cursor-not-allowed disabled:opacity-50" disabled={Boolean(loading) || !canCheckIn} onClick={() => markAttendance("checkin")}>
+          <LogIn size={18} /> {loading === "checkin" ? "Checking location…" : canCheckIn ? "Check in" : "Check-in closed"}
         </button>
-        <button className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-white/20 bg-white/10 px-4 py-3.5 text-sm font-extrabold text-white transition hover:-translate-y-0.5 hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-60" disabled={Boolean(loading)} onClick={() => markAttendance("checkout")}>
-          <LogOut size={18} /> {loading === "checkout" ? "Checking location…" : "Check out"}
+        <button className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-white/20 bg-white/10 px-4 py-3.5 text-sm font-extrabold text-white transition hover:-translate-y-0.5 hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-50" disabled={Boolean(loading) || !canCheckOut} onClick={() => markAttendance("checkout")}>
+          <LogOut size={18} /> {loading === "checkout" ? "Checking location…" : canCheckOut ? "Check out" : "Check-out closed"}
         </button>
       </div>
       {message && <p className="mt-4 rounded-xl border border-white/10 bg-white/10 px-3 py-2.5 text-sm font-medium text-[#eef0ff]">{message}</p>}

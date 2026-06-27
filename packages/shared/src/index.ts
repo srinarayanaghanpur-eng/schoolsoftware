@@ -7,5 +7,6 @@ export * from "./utils/employeeAuth";
 export * from "./utils/format";
 export * from "./services/attendanceService";
 export * from "./services/salaryService";
+export * from "./services/salaryServiceStage4";
 export * from "./services/biometricDeviceService";
 export * from "./seed/demoData";

@@ -3,6 +3,11 @@
 import clsx from "clsx";
 import {
   BellRing,
+  BookOpenCheck,
+  Bus,
+  Hotel,
+  Library,
+  Package,
   CalendarDays,
   CalendarRange,
   ChevronDown,
@@ -38,6 +43,7 @@ import { auth, db, isFirebaseConfigured } from "@sri-narayana/shared/firebase/cl
 import { AcademicYearProvider, useAcademicYears } from "@/components/AcademicYearContext";
 import { AdminSessionProvider } from "@/components/AdminSessionContext";
 import { BrandLoader } from "@/components/BrandLoader";
+import { SectionTabs } from "@/components/SectionTabs";
 import { clearPayrollSessionId } from "@/lib/payrollSessionClient";
 
 type NavChild = { href: string; label: string; module?: Module };
@@ -47,54 +53,23 @@ const primaryNav: NavItem[] = [
   { href: "/admin/dashboard", label: "Dashboard", module: "dashboard", icon: Grid2X2 },
   { href: "/admin/students", label: "Students", module: "students", icon: Users },
   { href: "/admin/teachers", label: "Staff", module: "staff", icon: GraduationCap },
-  {
-    href: "/admin/attendance",
-    label: "Attendance",
-    module: "attendance",
-    icon: ClipboardCheck,
-    children: [{ href: "/admin/reports", label: "Attendance Reports", module: "reports" }]
-  },
-  {
-    href: "/admin/payments",
-    label: "Fees & Finance",
-    module: "fees",
-    icon: IndianRupee,
-    children: [
-      { href: "/admin/finance", label: "Finance Dashboard" },
-      { href: "/admin/fee-structures", label: "Fee Structures" },
-      { href: "/admin/fee-concessions", label: "Fee Concessions" },
-      { href: "/admin/fee-reports", label: "Fee Reports" },
-      { href: "/admin/finance/expenses", label: "Expenses" },
-      { href: "/admin/finance/income", label: "Income" },
-      { href: "/admin/finance/dues", label: "Dues" },
-      { href: "/admin/finance/ledger", label: "Ledger" }
-    ]
-  },
+  { href: "/admin/attendance", label: "Attendance", module: "attendance", icon: ClipboardCheck },
+  { href: "/admin/finance", label: "Fees & Finance", module: "fees", icon: IndianRupee },
   { href: "/admin/salary", label: "Salary & Payroll", module: "payroll", icon: Wallet },
-  { href: "/admin/notifications", label: "Communication", module: "communication", icon: Megaphone },
+  { href: "/admin/exams", label: "Exams & Marks", module: "exams", icon: BookOpenCheck },
+  { href: "/admin/notices", label: "Communication", module: "communication", icon: Megaphone },
   { href: "/admin/academic-years", label: "Academic Years", module: "academic_years", icon: CalendarRange },
   { href: "/admin/users", label: "Users & Roles", module: "users", icon: UserCog },
   { href: "/portal", label: "Portal", module: "portal", icon: ShieldCheck }
 ];
 
 const secondaryNav: NavItem[] = [
-  {
-    href: "/admin/calendar",
-    label: "Timetable",
-    module: "academics",
-    icon: CalendarDays,
-    children: [{ href: "/admin/holidays", label: "Holidays" }]
-  },
-  {
-    href: "/admin/settings",
-    label: "Settings",
-    module: "settings",
-    icon: Settings,
-    children: [
-      { href: "/admin/biometric", label: "Biometric Devices" },
-      { href: "/admin/backup", label: "Backup & Restore" }
-    ]
-  }
+  { href: "/admin/calendar", label: "Timetable", module: "academics", icon: CalendarDays },
+  { href: "/admin/transport", label: "Transport", module: "transport", icon: Bus },
+  { href: "/admin/library", label: "Library", module: "library", icon: Library },
+  { href: "/admin/hostel", label: "Hostel", module: "hostel", icon: Hotel },
+  { href: "/admin/inventory", label: "Inventory", module: "inventory", icon: Package },
+  { href: "/admin/settings", label: "Settings", module: "settings", icon: Settings }
 ];
 
 const pageTitles: Record<string, string> = {
@@ -451,7 +426,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           )}
         </header>
         <div key={pathname} className="page-enter flex-1 overflow-y-auto">
-          {sessionLoading ? <BrandLoader message="Loading secure workspace…" /> : routeDenied ? <AccessDeniedState module={currentModule} /> : children}
+          {sessionLoading ? <BrandLoader message="Loading secure workspace…" /> : routeDenied ? <AccessDeniedState module={currentModule} /> : (<><SectionTabs />{children}</>)}
         </div>
       </main>
     </div>

@@ -41,6 +41,7 @@ const teacherBaseSchema = z.object({
   baseSalary: z.coerce.number().nonnegative(),
   joiningDate: z.string().trim().optional().default(""),
   status: z.enum(["active", "inactive"]),
+  employmentType: z.enum(["full_time", "part_time_morning", "part_time_afternoon"]).optional().default("full_time"),
   allowedCLPerMonth: z.coerce.number().int().min(0).optional().default(2),
   lateDeductionRule: z.enum(["none", "half_day", "fixed", "after_3_lates_one_day"]).optional().default("after_3_lates_one_day")
 });
@@ -262,3 +263,19 @@ export const invoiceCreateSchema = z.object({
   items: z.array(invoiceItemSchema).min(1),
   date: z.string().trim().optional().default("")
 });
+
+// ===== Phase 4 schemas =====
+export const vehicleCreateSchema = z.object({ regNo: z.string().trim().min(1), model: z.string().trim().optional().default(""), capacity: z.coerce.number().int().positive(), driverName: z.string().trim().optional().default(""), driverPhone: z.string().trim().optional().default("") });
+export const routeStopSchema = z.object({ name: z.string().trim().min(1), fee: z.coerce.number().nonnegative() });
+export const transportRouteCreateSchema = z.object({ name: z.string().trim().min(1), vehicleId: z.string().trim().optional().default(""), stops: z.array(routeStopSchema).min(1) });
+export const transportAssignmentSchema = z.object({ studentId: z.string().trim().min(1), routeId: z.string().trim().min(1), stopName: z.string().trim().min(1), fee: z.coerce.number().nonnegative() });
+
+export const bookCreateSchema = z.object({ title: z.string().trim().min(1), author: z.string().trim().optional().default(""), isbn: z.string().trim().optional().default(""), category: z.string().trim().optional().default(""), copies: z.coerce.number().int().positive() });
+export const libraryIssueSchema = z.object({ bookId: z.string().trim().min(1), memberType: z.enum(["student", "staff"]), memberId: z.string().trim().min(1), memberName: z.string().trim().optional().default(""), dueDate: z.string().trim().min(8) });
+export const libraryReturnSchema = z.object({ fine: z.coerce.number().nonnegative().optional().default(0) });
+
+export const hostelRoomCreateSchema = z.object({ number: z.string().trim().min(1), type: z.string().trim().optional().default(""), capacity: z.coerce.number().int().positive() });
+export const hostelAllotmentSchema = z.object({ studentId: z.string().trim().min(1), roomId: z.string().trim().min(1), fromDate: z.string().trim().min(8) });
+
+export const inventoryItemCreateSchema = z.object({ name: z.string().trim().min(1), category: z.string().trim().optional().default(""), stock: z.coerce.number().int().nonnegative(), unitPrice: z.coerce.number().nonnegative() });
+export const inventorySaleSchema = z.object({ itemId: z.string().trim().min(1), qty: z.coerce.number().int().positive(), buyer: z.string().trim().optional().default(""), date: z.string().trim().optional().default("") });

@@ -11,8 +11,9 @@ import {
   demoTeachers,
   type SalaryReport
 } from "@sri-narayana/shared";
-import { AlertCircle, Check, CheckCircle2, LockKeyhole, RotateCw, X } from "lucide-react";
+import { AlertCircle, Check, CheckCircle2, Download, LockKeyhole, RotateCw, X } from "lucide-react";
 import { useEffect, useState } from "react";
+import * as XLSX from "xlsx";
 import { payrollSessionHeaders } from "@/lib/payrollSessionClient";
 
 function currentMonth() {
@@ -213,6 +214,37 @@ export default function SalaryPage() {
     }
   };
 
+  const exportToExcel = () => {
+    if (!reports.length) {
+      setError("Generate salary first — nothing to export.");
+      return;
+    }
+    const rows = reports.map((report) => ({
+      "Teacher Name": report.teacherName,
+      "Employee ID": report.employeeId,
+      "Base Salary": report.baseSalary,
+      "Working Days": report.workingDays,
+      Present: report.presentDays,
+      Absent: report.absentDays,
+      Late: report.lateEntries,
+      "Leave / CL Days": report.clDays,
+      "Leave Requests": report.approvedLeaveInfo || "-",
+      "Per-Day Salary": Math.round(report.perDaySalary ?? 0),
+      "Total Deduction": Math.round(report.totalDeduction ?? 0),
+      "Net Payable": Math.round(report.netPayable ?? 0),
+      Status: report.paid ? "Paid" : "Unpaid"
+    }));
+    const worksheet = XLSX.utils.json_to_sheet(rows);
+    worksheet["!cols"] = [
+      { wch: 22 }, { wch: 14 }, { wch: 12 }, { wch: 12 }, { wch: 9 }, { wch: 9 },
+      { wch: 8 }, { wch: 14 }, { wch: 30 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 10 }
+    ];
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, `Salary ${month}`);
+    XLSX.writeFile(workbook, `Salary-${month}.xlsx`);
+    setMessage(`Exported ${reports.length} salary record${reports.length === 1 ? "" : "s"} to Excel.`);
+  };
+
   const requestPayrollApproval = async () => {
     setAccessLoading(true);
     setError(null);
@@ -369,6 +401,9 @@ export default function SalaryPage() {
             <RotateCw size={16} /> {loading ? "Working..." : "Generate monthly salary"}
           </button>
           <button className="btn-secondary" onClick={loadReports} disabled={loading}>Refresh</button>
+          <button className="btn-secondary md:ml-auto" onClick={exportToExcel} disabled={loading || !reports.length}>
+            <Download size={16} /> Export Excel
+          </button>
         </div>
         <div className="card overflow-x-auto">
           <table className="w-full min-w-[1400px] text-left text-sm">
@@ -379,6 +414,7 @@ export default function SalaryPage() {
                 <th className="px-4 py-3">Present</th>
                 <th className="px-4 py-3">Late</th>
                 <th className="px-4 py-3">Absent</th>
+                <th className="px-4 py-3">Leave (CL)</th>
                 <th className="px-4 py-3">CL Used</th>
                 <th className="px-4 py-3">CL Balance</th>
                 <th className="px-4 py-3">Excess</th>
@@ -397,6 +433,10 @@ export default function SalaryPage() {
                   <td className="px-4 py-3">{report.presentDays}</td>
                   <td className="px-4 py-3">{report.lateEntries}</td>
                   <td className="px-4 py-3">{report.absentDays}</td>
+                  <td className="px-4 py-3" title={report.approvedLeaveInfo || "No approved leave"}>
+                    {report.approvedLeaveCLDays ?? 0}
+                    {report.attendedApprovedLeaveDays ? <span className="ml-1 text-xs text-[#7d86a8]">(+{report.attendedApprovedLeaveDays} worked)</span> : null}
+                  </td>
                   <td className="px-4 py-3">
                     <span className="text-xs">
                       {report.clUsedFromAbsent}a + {report.clUsedFromLate}l = {report.totalClUsed}
@@ -423,7 +463,7 @@ export default function SalaryPage() {
               ))}
               {!loading && reports.length === 0 && (
                 <tr>
-                  <td className="px-4 py-6 text-center text-sm font-medium text-[#7d86a8]" colSpan={13}>No salary reports yet. Click Generate monthly salary.</td>
+                  <td className="px-4 py-6 text-center text-sm font-medium text-[#7d86a8]" colSpan={14}>No salary reports yet. Click Generate monthly salary.</td>
                 </tr>
               )}
             </tbody>

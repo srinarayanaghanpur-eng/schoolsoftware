@@ -184,7 +184,7 @@ export default function TeacherDashboardPage() {
         </div>
 
         <div className="grid gap-5 xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.8fr)]">
-          <TeacherAttendancePanel teacherId={teacher.id} />
+          <TeacherAttendancePanel teacherId={teacher.id} employmentType={teacher.employmentType} />
 
           <article className="dashboard-animate rounded-2xl border border-[#e3e6f0] bg-white p-5 shadow-[0_2px_4px_rgba(36,42,94,0.03)]" style={{ animationDelay: "260ms" }}>
             <div className="flex items-center justify-between gap-3"><div><p className="text-sm font-bold text-[#242640]">Monthly overview</p><p className="mt-1 text-xs font-medium text-[#7d86a8]">{monthLabel}</p></div><span className="grid h-9 w-9 place-items-center rounded-xl bg-[#eef0ff] text-[#3436a2]"><UserRound size={18} /></span></div>
