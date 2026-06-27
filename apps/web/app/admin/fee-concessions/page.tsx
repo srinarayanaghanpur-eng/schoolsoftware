@@ -10,7 +10,7 @@ import { useAdminSession } from "@/components/AdminSessionContext";
 
 export default function ConcessionsPage() {
   const { role } = useAdminSession();
-  const canCreateConcession = role === "admin";
+  const canCreateConcession = role === "admin" || role === "super_admin";
   const [concessions, setConcessions] = useState<Concession[]>([]);
   const [filteredConcessions, setFilteredConcessions] = useState<Concession[]>([]);
   const [loading, setLoading] = useState(true);

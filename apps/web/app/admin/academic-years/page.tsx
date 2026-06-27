@@ -69,8 +69,8 @@ export default function AcademicYearsPage() {
   const [pendingId, setPendingId] = useState<string | null>(null);
 
   const canView = Boolean(role && hasPermission(role, "academic_years.view"));
-  const canWrite = Boolean(canView && (role === "admin" || role === "principal"));
-  const canDelete = role === "admin";
+  const canWrite = Boolean(canView && (role === "admin" || role === "principal" || role === "super_admin"));
+  const canDelete = role === "admin" || role === "super_admin";
   const activeYear = useMemo(() => years.find((year) => year.isActive) ?? null, [years]);
 
   const openCreate = () => {

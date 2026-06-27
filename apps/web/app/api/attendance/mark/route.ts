@@ -43,7 +43,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: "Active teacher profile not found" }, { status: 404 });
     }
 
-    const isAdmin = decodedToken.role === "admin";
+    const isAdmin = decodedToken.role === "admin" || decodedToken.role === "super_admin";
     if (!isAdmin && teacher.uid !== decodedToken.uid) {
       return NextResponse.json({ ok: false, error: "You can only mark your own attendance" }, { status: 403 });
     }

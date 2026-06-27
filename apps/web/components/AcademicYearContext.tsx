@@ -27,7 +27,7 @@ export function AcademicYearProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const [accessDenied, setAccessDenied] = useState(false);
 
-  const canSwitchYear = Boolean(role && hasPermission(role, "academic_years.view") && (role === "admin" || role === "principal"));
+  const canSwitchYear = Boolean(role && hasPermission(role, "academic_years.view") && (role === "admin" || role === "principal" || role === "super_admin"));
   const activeYear = useMemo(() => years.find((year) => year.isActive) ?? null, [years]);
 
   const refreshYears = useCallback(async () => {

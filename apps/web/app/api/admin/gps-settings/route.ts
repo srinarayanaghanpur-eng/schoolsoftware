@@ -52,7 +52,7 @@ async function commitBatch(batch: WriteBatch, operationCount: number) {
 export async function PATCH(request: Request) {
   try {
     const decodedToken = await verifyBearerToken(request);
-    if (!decodedToken || decodedToken.role !== "admin") {
+    if (!decodedToken || (decodedToken.role !== "admin" && decodedToken.role !== "super_admin")) {
       return NextResponse.json({ ok: false, error: "Admin access required" }, { status: 403 });
     }
 

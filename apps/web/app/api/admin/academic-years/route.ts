@@ -19,7 +19,7 @@ export async function GET(req: Request) {
 // POST /api/admin/academic-years — create a year. Only admin/principal may write.
 export async function POST(req: Request) {
   const token = await requirePermission(req, "academic_years.view");
-  if (!token || (token.role !== "admin" && token.role !== "principal")) {
+  if (!token || (token.role !== "admin" && token.role !== "principal" && token.role !== "super_admin")) {
     return NextResponse.json({ ok: false, error: "Admin or principal access required" }, { status: 403 });
   }
 

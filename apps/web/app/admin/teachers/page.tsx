@@ -71,7 +71,7 @@ function teacherPayload(form: TeacherFormState, includePassword: boolean) {
 
 export default function TeachersPage() {
   const { role } = useAdminSession();
-  const canManageTeachers = role === "admin";
+  const canManageTeachers = role === "admin" || role === "super_admin";
   const [query, setQuery] = useState("");
   const [teachers, setTeachers] = useState<Teacher[]>(isFirebaseConfigured ? [] : demoTeachers);
   const [form, setForm] = useState<TeacherFormState>(blankForm);

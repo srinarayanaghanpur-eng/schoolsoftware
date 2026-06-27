@@ -6,7 +6,7 @@ import { verifyBearerToken } from "./firebaseAdmin";
 
 export async function requireAdmin(req: Request): Promise<DecodedIdToken | null> {
   const decodedToken = await verifyBearerToken(req);
-  if (!decodedToken || decodedToken.role !== "admin") {
+  if (!decodedToken || (decodedToken.role !== "admin" && decodedToken.role !== "super_admin")) {
     return null;
   }
   return decodedToken;
@@ -28,7 +28,8 @@ export async function requireTeacher(req: Request): Promise<DecodedIdToken | nul
 export async function requireRole(req: Request, roles: Role[]): Promise<DecodedIdToken | null> {
   const decodedToken = await verifyBearerToken(req);
   const role = decodedToken?.role as Role | undefined;
-  if (!decodedToken || !role || !roles.includes(role)) {
+  // super_admin has all permissions, so it is always allowed regardless of `roles`.
+  if (!decodedToken || !role || (role !== "super_admin" && !roles.includes(role))) {
     return null;
   }
   return decodedToken;

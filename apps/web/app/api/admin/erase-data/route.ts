@@ -39,7 +39,7 @@ async function deleteCollection(collectionName: string) {
 export async function POST(req: Request) {
   try {
     const decodedToken = await verifyBearerToken(req);
-    if (!decodedToken || decodedToken.role !== "admin") {
+    if (!decodedToken || (decodedToken.role !== "admin" && decodedToken.role !== "super_admin")) {
       return NextResponse.json({ ok: false, error: "Admin access required" }, { status: 403 });
     }
 

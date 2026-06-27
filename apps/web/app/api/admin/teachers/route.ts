@@ -11,7 +11,7 @@ import {
 
 async function requireAdmin(req: Request) {
   const decodedToken = await verifyBearerToken(req);
-  if (!decodedToken || decodedToken.role !== "admin") {
+  if (!decodedToken || (decodedToken.role !== "admin" && decodedToken.role !== "super_admin")) {
     return null;
   }
   return decodedToken;
