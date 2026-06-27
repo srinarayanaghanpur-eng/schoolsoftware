@@ -57,7 +57,7 @@ const featureCards: Feature[] = [
 ];
 
 async function signInAndResolveRole(loginId: string, password: string, rememberMe: boolean) {
-  const [{ browserLocalPersistence, browserSessionPersistence, setPersistence, signInWithEmailAndPassword, signOut }, { doc, getDoc }, firebaseClient] =
+  const [{ browserLocalPersistence, browserSessionPersistence, getIdTokenResult, setPersistence, signInWithEmailAndPassword, signOut }, { doc, getDoc }, firebaseClient] =
     await Promise.all([
       import("firebase/auth"),
       import("firebase/firestore"),
@@ -74,7 +74,7 @@ async function signInAndResolveRole(loginId: string, password: string, rememberM
   const uid = credential.user.uid;
   // Force a token refresh so a recently-changed role (updated custom claims)
   // is picked up immediately instead of using a stale cached token.
-  const tokenResult = await auth.currentUser?.getIdTokenResult(true);
+  const tokenResult = auth.currentUser ? await getIdTokenResult(auth.currentUser, true) : undefined;
   const tokenRole = tokenResult?.claims.role as UserRole | undefined;
   const userSnapshot = await getDoc(doc(db, "users", uid));
   const userData = userSnapshot.exists() ? (userSnapshot.data() as { role?: UserRole; status?: string }) : undefined;

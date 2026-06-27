@@ -33,7 +33,7 @@ import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { onAuthStateChanged, signOut } from "firebase/auth";
+import { getIdTokenResult, onAuthStateChanged, signOut } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import {
   ROLE_LABELS,
@@ -333,7 +333,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       let name = user.displayName ?? "";
       let role: Role | undefined;
       try {
-        const token = await user.getIdTokenResult(true);
+        const token = await getIdTokenResult(user, true);
         if (isValidRole(token.claims.role)) role = token.claims.role;
         const snapshot = await getDoc(doc(db, "users", user.uid));
         if (snapshot.exists()) {

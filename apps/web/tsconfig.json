@@ -16,6 +16,9 @@
       ],
       "@sri-narayana/shared/*": [
         "../../packages/shared/src/*"
+      ],
+      "firebase/auth": [
+        "../../node_modules/@firebase/auth/dist/auth-public.d.ts"
       ]
     },
     "incremental": true
