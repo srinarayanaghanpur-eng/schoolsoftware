@@ -14,7 +14,7 @@ import {
 import { useRouter } from "expo-router";
 import { signInWithEmailAndPassword, signOut } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
-import { employeeIdToInternalEmail } from "@sri-narayana/shared";
+import { employeeIdToInternalEmail, isValidRole } from "@sri-narayana/shared";
 import { auth, db } from "@/lib/firebase";
 
 export default function Login() {
@@ -33,16 +33,23 @@ export default function Login() {
     try {
       const credential = await signInWithEmailAndPassword(auth, employeeIdToInternalEmail(employeeId.trim()), password);
       const token = await credential.user.getIdTokenResult();
-      if (token.claims.role !== "teacher") {
+
+      // Resolve role from the custom claim, falling back to the users doc so that
+      // accounts whose claim hasn't propagated yet (or any valid role) can still sign in.
+      const userSnapshot = await getDoc(doc(db, "users", credential.user.uid));
+      const userData = userSnapshot.exists() ? (userSnapshot.data() as { role?: unknown; status?: string }) : undefined;
+      const claimRole = token.claims.role;
+      const docRole = userData?.role;
+      const role = isValidRole(claimRole) ? claimRole : isValidRole(docRole) ? docRole : undefined;
+
+      if (!role) {
         await signOut(auth);
-        throw new Error("Teacher access required.");
+        throw new Error("Your login role is missing. Please contact admin.");
       }
 
-      const userSnapshot = await getDoc(doc(db, "users", credential.user.uid));
-      const userData = userSnapshot.exists() ? (userSnapshot.data() as { status?: string }) : undefined;
-      if (userData?.status !== "active") {
+      if (userData?.status && userData.status !== "active") {
         await signOut(auth);
-        throw new Error("Your teacher login is inactive. Please contact admin.");
+        throw new Error("Your login is inactive. Please contact admin.");
       }
 
       router.replace("/home");
