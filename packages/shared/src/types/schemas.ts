@@ -114,6 +114,13 @@ export const attendanceEditSchema = z.object({
 // ===== Phase 2 schemas =====
 export const examTypeSchema = z.enum(["unit_test", "midterm", "final", "olympiad", "other"]);
 
+export const examTimetableEntrySchema = z.object({
+  subject: z.string().trim().min(1),
+  date: z.string().trim().min(8),
+  time: z.string().trim().min(1),
+  maxMarks: z.coerce.number().positive().optional()
+});
+
 export const examCreateSchema = z.object({
   name: z.string().trim().min(1),
   academicYearId: z.string().trim().min(1),
@@ -123,6 +130,7 @@ export const examCreateSchema = z.object({
   startDate: z.string().trim().min(8),
   endDate: z.string().trim().optional().default(""),
   maxMarks: z.coerce.number().positive(),
+  timetable: z.array(examTimetableEntrySchema).optional().default([]),
   status: z.enum(["scheduled", "ongoing", "completed", "published"]).optional().default("scheduled")
 });
 
@@ -140,12 +148,15 @@ export const examMarksBulkSchema = z.object({
 });
 
 export const noticeChannelSchema = z.enum(["app", "sms", "whatsapp", "email"]);
+export const noticeCategorySchema = z.enum(["school", "branch", "class", "holiday", "exam", "event", "fee", "emergency"]);
 
 export const noticeCreateSchema = z.object({
   title: z.string().trim().min(1),
   body: z.string().trim().min(1),
+  category: noticeCategorySchema.optional().default("school"),
   audienceRoles: z.array(z.string()).optional().default([]),
   audienceClasses: z.array(z.string()).optional().default([]),
+  branch: z.string().trim().optional().default(""),
   channels: z.array(noticeChannelSchema).optional().default(["app"]),
   academicYearId: z.string().trim().optional().default("")
 });
@@ -353,4 +364,48 @@ export const parentStudentLinkSchema = z.object({
   studentId: z.string().trim().min(1),
   relationship: z.enum(["father", "mother", "guardian", "other"]),
   isPrimary: z.boolean().optional().default(false)
+});
+
+// ===== Parent Account Management =====
+export const parentCreateSchema = z.object({
+  fullName: z.string().trim().min(2, "Name must be at least 2 characters"),
+  phone: z.string().trim().min(10, "Phone must be at least 10 digits"),
+  loginId: z.string().trim().min(3, "Login ID must be at least 3 characters"),
+  email: z.string().email().optional().or(z.literal("")),
+  password: z.string().min(8, "Password must be at least 8 characters"),
+  confirmPassword: z.string().min(8, "Confirm password must be at least 8 characters")
+}).refine((value) => value.password === value.confirmPassword, {
+  message: "Password and confirm password must match",
+  path: ["confirmPassword"]
+});
+
+export const parentUpdateSchema = z.object({
+  fullName: z.string().trim().min(2).optional(),
+  phone: z.string().trim().min(10).optional(),
+  email: z.string().email().optional().or(z.literal(""))
+});
+
+// ===== Parent Messages =====
+export const parentMessageTypeSchema = z.enum(["enquiry", "support_ticket", "complaint", "meeting_request"]);
+export const parentMessageStatusSchema = z.enum(["open", "in_progress", "resolved"]);
+
+export const parentMessageCreateSchema = z.object({
+  parentUid: z.string().trim().min(1),
+  studentId: z.string().trim().min(1),
+  type: parentMessageTypeSchema,
+  subject: z.string().trim().min(1, "Subject is required"),
+  body: z.string().trim().min(1, "Message body is required")
+});
+
+export const parentMessageReplySchema = z.object({
+  status: parentMessageStatusSchema,
+  reply: z.string().trim().min(1, "Reply is required")
+});
+
+// ===== Fee Reminder =====
+export const feeReminderCreateSchema = z.object({
+  studentId: z.string().trim().min(1),
+  amount: z.coerce.number().positive(),
+  dueDate: z.string().trim().min(8),
+  note: z.string().trim().optional().default("")
 });

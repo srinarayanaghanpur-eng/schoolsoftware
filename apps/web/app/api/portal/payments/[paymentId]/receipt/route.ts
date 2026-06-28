@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { DEFAULT_SETTINGS } from "@sri-narayana/shared";
 import { adminDb, verifyBearerToken } from "@/lib/firebaseAdmin";
 import { hasPermission, type Role } from "@sri-narayana/shared";
+import { getLinkedStudentIds } from "@/lib/portalHelpers";
 
 export async function GET(req: Request, { params }: { params: { paymentId: string } }) {
   const token = await verifyBearerToken(req);
@@ -11,8 +12,7 @@ export async function GET(req: Request, { params }: { params: { paymentId: strin
   }
 
   const db = adminDb();
-  const userDoc = await db.collection("users").doc(token.uid).get();
-  const studentIds: string[] = (userDoc.data()?.studentIds as string[]) || [];
+  const studentIds = await getLinkedStudentIds(token);
 
   const paySnap = await db.collection("payments").doc(params.paymentId).get();
   if (!paySnap.exists) return NextResponse.json({ ok: false, error: "Payment not found" }, { status: 404 });

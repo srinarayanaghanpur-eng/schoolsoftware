@@ -148,6 +148,21 @@ async function applyApprovalEffect(request: ApprovalRequest, status: ApprovalSta
       }
       break;
     }
+    case "profile_update": {
+      // Parent/student profile update: write the new mobile/address to the doc.
+      if (status === "approved") {
+        const payload = request.payload ?? {};
+        const entityType = request.entityType; // "parent" or "student"
+        const collection = entityType === "student" ? "students" : "users";
+        const updateData: Record<string, unknown> = { updatedAt: new Date() };
+        if (payload.mobile) updateData.phone = payload.mobile;
+        if (payload.address) updateData.address = payload.address;
+        if (payload.email) updateData.email = payload.email;
+        await db.collection(collection).doc(request.entityId).set(updateData, { merge: true });
+      }
+      // On reject, no-op — the request is simply closed.
+      break;
+    }
     default:
       // Other request types apply their effect in their own flow.
       break;

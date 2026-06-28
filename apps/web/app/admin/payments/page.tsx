@@ -11,6 +11,7 @@ import { adminApiRequest } from "@/lib/adminApiClient";
 import { db, isFirebaseConfigured } from "@sri-narayana/shared/firebase/client";
 import { doc, getDoc } from "firebase/firestore";
 import { UpiQr, DEFAULT_UPI_ID, DEFAULT_UPI_PAYEE_NAME } from "@/components/UpiQr";
+import { useRefreshOnFocus } from "@/lib/useRefreshOnFocus";
 
 type PaymentMethod = "cash" | "bank_transfer" | "upi" | "cheque" | "card";
 
@@ -58,6 +59,7 @@ export default function PaymentsPage() {
   useEffect(() => {
     fetchPayments();
   }, []);
+  useRefreshOnFocus(() => fetchPayments());
 
   const fetchPayments = async () => {
     try {

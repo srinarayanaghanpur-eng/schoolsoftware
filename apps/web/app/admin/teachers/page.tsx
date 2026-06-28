@@ -7,6 +7,7 @@ import { demoTeachers, type Teacher } from "@sri-narayana/shared";
 import { CheckCircle2, Edit3, KeyRound, Plus, Search, UserX, X } from "lucide-react";
 import type { FormEvent } from "react";
 import { useEffect, useMemo, useState } from "react";
+import { useRefreshOnFocus } from "@/lib/useRefreshOnFocus";
 
 type TeacherFormState = {
   fullName: string;
@@ -129,6 +130,7 @@ export default function TeachersPage() {
   useEffect(() => {
     loadTeachers();
   }, []);
+  useRefreshOnFocus(loadTeachers);
 
   const startCreate = () => {
     if (!canManageTeachers) return;

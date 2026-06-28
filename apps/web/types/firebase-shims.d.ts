@@ -16,6 +16,8 @@ declare module "firebase/auth" {
     currentUser: User | null;
   };
   export type Persistence = unknown;
+  export type ActionCodeSettings = unknown;
+  export type UserCredential = { user: User };
   export const browserLocalPersistence: Persistence;
   export const browserSessionPersistence: Persistence;
   export const inMemoryPersistence: Persistence;
@@ -23,9 +25,15 @@ declare module "firebase/auth" {
   export function initializeAuth(app: unknown, options?: unknown): Auth;
   export function getReactNativePersistence(storage: unknown): unknown;
   export function setPersistence(auth: Auth, persistence: Persistence): Promise<void>;
-  export function signInWithEmailAndPassword(auth: Auth, email: string, password: string): Promise<{ user: User }>;
+  export function signInWithEmailAndPassword(auth: Auth, email: string, password: string): Promise<UserCredential>;
   export function onAuthStateChanged(auth: Auth, callback: (user: User | null) => void): () => void;
   export function signOut(auth: Auth): Promise<void>;
+  export class EmailAuthProvider {
+    static credential(email: string, password: string): AuthCredential;
+  }
+  export type AuthCredential = { providerId: string; signInMethod: string };
+  export function reauthenticateWithCredential(user: User, credential: AuthCredential): Promise<UserCredential>;
+  export function updatePassword(user: User, newPassword: string): Promise<void>;
 }
 
 declare module "firebase/firestore" {

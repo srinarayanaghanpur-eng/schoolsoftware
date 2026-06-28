@@ -11,6 +11,7 @@ import {
   UsersRound
 } from "lucide-react";
 import { adminDb } from "@/lib/firebaseAdmin";
+import { LiveClock } from "@/components/LiveClock";
 
 export const dynamic = "force-dynamic";
 
@@ -165,6 +166,11 @@ export default async function AdminDashboardPage() {
 
   return (
     <section className="space-y-5 p-4 md:p-7">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-xl font-extrabold tracking-tight text-[#1b1d32]">Dashboard</h1>
+        <LiveClock />
+      </div>
+
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard label="Total Students" value={d.totalStudents.toLocaleString("en-IN")} helper={`${d.totalStudents === 0 ? "No students yet" : "Enrolled students"}`} helperTone="text-[#7d86a8]" icon={UsersRound} tone="bg-[#eeefff] text-[#3033a1]" delay={30} />
         <MetricCard label="Present Today" value={`${d.presentToday}/${d.totalTeachers}`} helper={d.totalTeachers ? `${attendancePct}% staff attendance` : "No staff yet"} helperTone="text-[#7d86a8]" icon={ClipboardCheck} tone="bg-[#e6f8ef] text-[#14a762]" delay={70} />

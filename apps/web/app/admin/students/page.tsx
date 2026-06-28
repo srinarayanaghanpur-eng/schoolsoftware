@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRefreshOnFocus } from "@/lib/useRefreshOnFocus";
 import { Plus, X, Edit2, Trash2, Search, Upload, Camera, QrCode, Printer } from "lucide-react";
 import Link from "next/link";
 import { PageHeader } from "@/components/PageHeader";
@@ -156,6 +157,7 @@ export default function StudentsPage() {
     fetchStudents();
     fetchTransportRoutes();
   }, []);
+  useRefreshOnFocus(() => fetchStudents());
 
   useEffect(() => {
     if (activeYear?.id) {

@@ -2,11 +2,15 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CreditCard, LayoutDashboard } from "lucide-react";
+import { LayoutDashboard, IndianRupee, BookOpenCheck, Megaphone, MessageSquare, UserCircle } from "lucide-react";
 
 const TABS = [
   { href: "/portal", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/portal/payments", label: "Payments", icon: CreditCard },
+  { href: "/portal/fees", label: "Fees", icon: IndianRupee },
+  { href: "/portal/exams", label: "Exams", icon: BookOpenCheck },
+  { href: "/portal/notices", label: "Notices", icon: Megaphone },
+  { href: "/portal/contact", label: "Contact", icon: MessageSquare },
+  { href: "/portal/profile", label: "Profile", icon: UserCircle },
 ];
 
 export function PortalSubnav() {

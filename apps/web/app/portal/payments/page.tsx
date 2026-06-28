@@ -3,6 +3,7 @@
 import { AppShell } from "@/components/AppShell";
 import { AuthGate } from "@/components/AuthGate";
 import { PageHeader } from "@/components/PageHeader";
+import { usePortalChild } from "@/components/PortalChildContext";
 import { adminApiRequest } from "@/lib/adminApiClient";
 import { ROLES } from "@sri-narayana/shared";
 import { Download, ReceiptText } from "lucide-react";
@@ -24,26 +25,19 @@ type PaymentRecord = {
   createdAt: string;
 };
 
-type LinkedStudent = { id: string; name: string; className: string };
-
 function PaymentHistory() {
+  const { selectedChildId, selectedChild, children, switchChild, loading: childrenLoading } = usePortalChild();
   const [payments, setPayments] = useState<PaymentRecord[]>([]);
-  const [linkedStudents, setLinkedStudents] = useState<LinkedStudent[]>([]);
-  const [selectedStudentId, setSelectedStudentId] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const loadPayments = async (studentId = "") => {
+  const loadPayments = async (studentId: string) => {
+    if (!studentId) return;
     setLoading(true);
     setError(null);
     try {
-      const params = studentId ? `?studentId=${encodeURIComponent(studentId)}` : "";
-      const result = await adminApiRequest<{ ok: true; payments: PaymentRecord[]; linkedStudentIds: string[]; linkedStudents: LinkedStudent[] }>(`/api/portal/payments${params}`);
+      const result = await adminApiRequest<{ ok: true; payments: PaymentRecord[] }>(`/api/portal/payments?studentId=${encodeURIComponent(studentId)}`);
       setPayments(result.payments);
-      setLinkedStudents(result.linkedStudents);
-      if (result.linkedStudents.length > 0 && !studentId) {
-        setSelectedStudentId(result.linkedStudents[0].id);
-      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to load payment history.");
     } finally {
@@ -52,27 +46,22 @@ function PaymentHistory() {
   };
 
   useEffect(() => {
-    void loadPayments("");
-  }, []);
+    if (selectedChildId) void loadPayments(selectedChildId);
+  }, [selectedChildId]);
+
+  if (childrenLoading) {
+    return <section className="p-4 md:p-7"><div className="card p-8 text-center text-sm font-semibold text-[#7d86a8]">Loading...</div></section>;
+  }
 
   return (
     <>
       <PageHeader
         title="Payment History"
-        description={linkedStudents.length > 1 ? "Select a student to view their payment history" : (linkedStudents[0] ? `${linkedStudents[0].name} · Class ${linkedStudents[0].className}` : undefined)}
+        description={selectedChild ? `${selectedChild.name} · Class ${selectedChild.className}` : "View payment history"}
         action={
-          linkedStudents.length > 1 ? (
-            <select
-              className="field min-w-[220px]"
-              value={selectedStudentId}
-              onChange={(event) => {
-                setSelectedStudentId(event.target.value);
-                void loadPayments(event.target.value);
-              }}
-            >
-              {linkedStudents.map((s) => (
-                <option key={s.id} value={s.id}>{s.name} · Class {s.className}</option>
-              ))}
+          children.length > 1 ? (
+            <select className="field min-w-[220px]" value={selectedChildId} onChange={(e) => { switchChild(e.target.value); }}>
+              {children.map((s) => <option key={s.id} value={s.id}>{s.name} · Class {s.className}</option>)}
             </select>
           ) : null
         }
@@ -98,7 +87,7 @@ function PaymentHistory() {
                   <th className="px-4 py-3">Method</th>
                   <th className="px-4 py-3">Amount</th>
                   <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3">Receipt</th>
+                  <th className="px-4 py-3"></th>
                 </tr>
               </thead>
               <tbody>
@@ -106,10 +95,10 @@ function PaymentHistory() {
                   const date = pmt.createdAt ? new Date(pmt.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "--";
                   return (
                     <tr key={pmt.id} className="border-t border-[#edf0f7]">
-                      <td className="px-4 py-3 font-semibold text-[#303247] whitespace-nowrap">{date}</td>
-                      <td className="px-4 py-3 text-[#7d86a8] font-mono text-xs">{pmt.receiptNumber || pmt.id.slice(0, 8)}</td>
-                      <td className="px-4 py-3 text-[#7d86a8] capitalize">{pmt.paymentType.replace(/-/g, " ")}</td>
-                      <td className="px-4 py-3 text-[#7d86a8] capitalize">{pmt.paymentMethod}</td>
+                      <td className="whitespace-nowrap px-4 py-3 font-semibold text-[#303247]">{date}</td>
+                      <td className="px-4 py-3 font-mono text-xs text-[#7d86a8]">{pmt.receiptNumber || pmt.id.slice(0, 8)}</td>
+                      <td className="px-4 py-3 capitalize text-[#7d86a8]">{pmt.paymentType.replace(/-/g, " ")}</td>
+                      <td className="px-4 py-3 capitalize text-[#7d86a8]">{pmt.paymentMethod}</td>
                       <td className="px-4 py-3 font-bold text-[#303247]">{formatINR(pmt.amountPaid)}</td>
                       <td className="px-4 py-3">
                         <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold ${
@@ -125,8 +114,7 @@ function PaymentHistory() {
                           href={`/portal/payments/${pmt.id}`}
                           className="inline-flex items-center gap-1.5 rounded-lg bg-[#eef0ff] px-3 py-1.5 text-xs font-bold text-[#3033a1] transition hover:bg-[#dde0ff]"
                         >
-                          <Download size={13} />
-                          View
+                          <Download size={13} /> View
                         </Link>
                       </td>
                     </tr>

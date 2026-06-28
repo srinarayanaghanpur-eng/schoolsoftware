@@ -20,7 +20,7 @@ Website: **https://schoolsoftware-two.vercel.app**
 
 > Passwords are set when the account is created. If you forget one, the **Admin** can reset it from **Staff → Reset Password**, or use **Forgot Password** on the login screen.
 
-**Tip:** If something looks out of date after a change, **log out and log back in**, then refresh the page (Ctrl + Shift + R).
+**Tip:** The app keeps itself up to date automatically — new records appear on their own when you switch back to it. You normally never need to log out or refresh.
 
 ---
 
@@ -186,7 +186,7 @@ Go to **Settings** to configure:
 
 | Problem | Fix |
 |--------|-----|
-| New data not showing | Log out, log back in, then hard refresh (Ctrl + Shift + R). |
+| New data not showing | It refreshes automatically when you switch back to the app. If not, reopen the page from the menu. |
 | "Access denied" | You're not logged in with a role that allows that page. Use the right account. |
 | "Login role is missing" | Ask the admin to set your role in **Users & Roles**. |
 | Forgot password | Admin resets it in **Staff → Reset Password**. |

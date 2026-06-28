@@ -317,6 +317,13 @@ export type DashboardSummary = {
 export type ExamType = "unit_test" | "midterm" | "final" | "olympiad" | "other";
 export type ExamStatus = "scheduled" | "ongoing" | "completed" | "published";
 
+export type ExamTimetableEntry = {
+  subject: string;
+  date: string; // ISO date
+  time: string; // e.g. "09:00 AM"
+  maxMarks?: number; // override default exam maxMarks per subject
+};
+
 export type Exam = {
   id?: string;
   name: string; // e.g. "Unit Test 1"
@@ -327,9 +334,31 @@ export type Exam = {
   startDate: string; // ISO date
   endDate?: string;
   maxMarks: number; // default per-subject max
+  timetable?: ExamTimetableEntry[];
   status: ExamStatus;
   createdAt: FirestoreDate;
   updatedAt: FirestoreDate;
+};
+
+export type ExamReportCard = {
+  studentId: string;
+  studentName: string;
+  className: string;
+  section?: string;
+  examName: string;
+  subjects: {
+    subject: string;
+    marksObtained: number;
+    maxMarks: number;
+    grade?: string;
+    remarks?: string;
+  }[];
+  totalMarks: number;
+  totalMaxMarks: number;
+  percentage: number;
+  grade?: string;
+  rank?: number;
+  remarks?: string;
 };
 
 export type ExamMark = {
@@ -346,13 +375,16 @@ export type ExamMark = {
 
 // ===== Phase 2: Communication (notices / circulars) =====
 export type NoticeChannel = "app" | "sms" | "whatsapp" | "email";
+export type NoticeCategory = "school" | "branch" | "class" | "holiday" | "exam" | "event" | "fee" | "emergency";
 
 export type Notice = {
   id?: string;
   title: string;
   body: string;
+  category: NoticeCategory;
   audienceRoles: UserRole[]; // empty = everyone
   audienceClasses: string[]; // empty = all classes
+  branch?: string; // specific branch code, empty = all branches
   channels: NoticeChannel[]; // "app" delivered now; others queued for integration
   academicYearId?: string;
   createdBy: string; // uid
@@ -669,6 +701,7 @@ export type ApprovalRequestType =
   | "salary"
   | "student_delete"
   | "data_edit"
+  | "profile_update"
   | string;
 
 export type ApprovalStatus = "pending" | "approved" | "rejected";
@@ -713,5 +746,41 @@ export type ParentStudentLink = {
   studentId: string;
   relationship: "father" | "mother" | "guardian" | "other";
   isPrimary: boolean;
+  createdAt: FirestoreDate;
+};
+
+// ===== Parent Messages =====
+export type ParentMessageType = "enquiry" | "support_ticket" | "complaint" | "meeting_request";
+export type ParentMessageStatus = "open" | "in_progress" | "resolved";
+
+export type ParentMessage = {
+  id?: string;
+  parentUid: string;
+  parentName?: string;
+  studentId: string;
+  studentName?: string;
+  type: ParentMessageType;
+  subject: string;
+  body: string;
+  status: ParentMessageStatus;
+  reply?: string;
+  repliedBy?: string;
+  repliedAt?: FirestoreDate;
+  createdAt: FirestoreDate;
+  updatedAt: FirestoreDate;
+};
+
+// ===== Fee Reminder =====
+export type FeeReminder = {
+  id?: string;
+  studentId: string;
+  studentName?: string;
+  className?: string;
+  amount: number;
+  dueDate: string;
+  note?: string;
+  sent: boolean;
+  sentAt?: FirestoreDate;
+  createdBy: string;
   createdAt: FirestoreDate;
 };
