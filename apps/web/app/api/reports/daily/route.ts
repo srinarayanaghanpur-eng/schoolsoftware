@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 import { buildDailyAttendanceRows } from "@sri-narayana/shared/services/reports";
-import { adminDb, verifyBearerToken } from "@/lib/firebaseAdmin";
-import { startTimer } from "@/lib/apiUtils";
+import { adminDb } from "@/lib/firebaseAdmin";
+import { requireAdmin, startTimer } from "@/lib/apiUtils";
 
 export async function GET(req: Request) {
   const totalTimer = startTimer();
-  const decodedToken = await verifyBearerToken(req);
-  if (!decodedToken || (decodedToken.role !== "admin" && decodedToken.role !== "super_admin")) {
+  const decodedToken = await requireAdmin(req);
+  if (!decodedToken) {
     return NextResponse.json({ ok: false, error: "Admin access required" }, { status: 403 });
   }
 

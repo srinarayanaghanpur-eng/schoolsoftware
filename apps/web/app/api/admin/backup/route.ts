@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createHash } from "crypto";
-import { adminDb, verifyBearerToken } from "@/lib/firebaseAdmin";
+import { adminDb } from "@/lib/firebaseAdmin";
+import { requireAdmin } from "@/lib/apiUtils";
 
 const BACKUP_COLLECTIONS = [
   "users",
@@ -31,8 +32,8 @@ function serializeFirestoreValue(value: unknown): unknown {
 
 export async function GET(req: Request) {
   try {
-    const decodedToken = await verifyBearerToken(req);
-    if (!decodedToken || (decodedToken.role !== "admin" && decodedToken.role !== "super_admin")) {
+    const decodedToken = await requireAdmin(req);
+    if (!decodedToken) {
       return NextResponse.json({ ok: false, error: "Admin access required" }, { status: 403 });
     }
 

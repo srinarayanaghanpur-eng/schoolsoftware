@@ -1,10 +1,8 @@
 import { NextResponse } from "next/server";
 import { hasPermission, type Role } from "@sri-narayana/shared";
 import { adminDb, verifyBearerToken } from "@/lib/firebaseAdmin";
+import { getPortalLinkedStudents, verifyStudentLinked } from "@/lib/portalHelpers";
 
-// GET /api/portal/summary?studentId= — parent/student portal view.
-// Returns the linked student's profile, fees, attendance %, PUBLISHED exam marks, and notices.
-// Only students the signed-in user is linked to (users/{uid}.studentIds) are accessible.
 export async function GET(req: Request) {
   const token = await verifyBearerToken(req);
   if (!token) return NextResponse.json({ ok: false, error: "Authentication required" }, { status: 401 });
@@ -13,21 +11,27 @@ export async function GET(req: Request) {
   }
 
   const db = adminDb();
-  const userDoc = await db.collection("users").doc(token.uid).get();
-  const studentIds: string[] = (userDoc.data()?.studentIds as string[]) || [];
-  if (studentIds.length === 0) {
+  const { searchParams } = new URL(req.url);
+  const requestedStudentId = searchParams.get("studentId");
+
+  const linkedStudents = await getPortalLinkedStudents(token);
+  if (linkedStudents.length === 0) {
     return NextResponse.json({ ok: false, error: "No student linked to this account" }, { status: 404 });
   }
 
-  const { searchParams } = new URL(req.url);
-  const requested = searchParams.get("studentId");
-  const studentId = requested && studentIds.includes(requested) ? requested : studentIds[0];
+  const studentId = requestedStudentId && linkedStudents.some((s) => s.id === requestedStudentId)
+    ? requestedStudentId
+    : linkedStudents[0].id;
+
+  const valid = await verifyStudentLinked(token, studentId);
+  if (!valid) {
+    return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
+  }
 
   const studentSnap = await db.collection("students").doc(studentId).get();
   if (!studentSnap.exists) return NextResponse.json({ ok: false, error: "Student not found" }, { status: 404 });
   const s = studentSnap.data() as Record<string, unknown>;
 
-  // Published exam marks for this student
   const marksSnap = await db.collection("exam_marks").where("studentId", "==", studentId).get();
   const examIds = [...new Set(marksSnap.docs.map((d) => d.data().examId as string))];
   const publishedExamNames = new Map<string, string>();
@@ -44,7 +48,6 @@ export async function GET(req: Request) {
       return { examName: publishedExamNames.get(m.examId) || "", subject: m.subject, marksObtained: m.marksObtained, maxMarks: m.maxMarks, grade: m.grade || "" };
     });
 
-  // Recent notices visible to this role / class
   const noticeSnap = await db.collection("notices").orderBy("createdAt", "desc").limit(20).get();
   const role = token.role as string;
   const notices = noticeSnap.docs
@@ -58,16 +61,6 @@ export async function GET(req: Request) {
     })
     .slice(0, 10)
     .map((n) => ({ title: n.title as string, body: n.body as string, createdAt: n.createdAt ? String(n.createdAt) : undefined }));
-
-  const studentSnaps = await Promise.all(
-    studentIds.map((id) => db.collection("students").doc(id).get())
-  );
-  const linkedStudents = studentSnaps
-    .filter((snap) => snap.exists)
-    .map((snap) => {
-      const st = snap.data() as Record<string, unknown>;
-      return { id: snap.id, name: String(st.studentName || ""), className: String(st.class || "") };
-    });
 
   const due = Math.max(0, ((s.totalFeesDue as number) || 0) - ((s.totalFeesPaid as number) || 0));
 
@@ -94,17 +87,25 @@ export async function GET(req: Request) {
     };
   });
 
+  const holidaySnap = await db.collection("holidays").where("date", ">=", new Date().toISOString().slice(0, 10)).orderBy("date", "asc").limit(5).get();
+  const upcomingHolidays = holidaySnap.docs.map((doc) => {
+    const h = doc.data();
+    return { title: h.title || h.name || "Holiday", date: h.date || "", type: h.type || "holiday" };
+  });
+
+  const feeBalanceCarriedForward = (s.feeBalanceCarriedForward as number) || 0;
+
   return NextResponse.json({
     ok: true,
     summary: {
-      student: { id: studentId, name: s.studentName || "", className: s.class || "", section: s.section || "" },
-      fees: { total: (s.totalFeeAmount as number) || 0, paid: (s.totalFeesPaid as number) || 0, due, status: s.feeStatus },
+      student: { id: studentId, name: s.studentName || "", className: s.class || "", section: s.section || "", admissionNo: s.admissionNumber || "" },
+      fees: { total: (s.totalFeeAmount as number) || 0, paid: (s.totalFeesPaid as number) || 0, due, status: s.feeStatus, feeBalanceCarriedForward },
       attendancePercentage: (s.attendancePercentage as number) ?? undefined,
       marks,
       notices,
       recentPayments,
+      upcomingHolidays,
     },
-    linkedStudentIds: studentIds,
     linkedStudents
   });
 }

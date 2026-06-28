@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { FieldValue, type WriteBatch } from "firebase-admin/firestore";
-import { adminDb, verifyBearerToken } from "@/lib/firebaseAdmin";
+import { adminDb } from "@/lib/firebaseAdmin";
+import { requireAdmin } from "@/lib/apiUtils";
 
 type GpsUpdateMode = "teacher" | "all";
 
@@ -51,8 +52,8 @@ async function commitBatch(batch: WriteBatch, operationCount: number) {
 
 export async function PATCH(request: Request) {
   try {
-    const decodedToken = await verifyBearerToken(request);
-    if (!decodedToken || (decodedToken.role !== "admin" && decodedToken.role !== "super_admin")) {
+    const decodedToken = await requireAdmin(request);
+    if (!decodedToken) {
       return NextResponse.json({ ok: false, error: "Admin access required" }, { status: 403 });
     }
 

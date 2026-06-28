@@ -1,14 +1,38 @@
 import type { DecodedIdToken } from "firebase-admin/auth";
 import type { QueryDocumentSnapshot } from "firebase-admin/firestore";
 import { NextResponse } from "next/server";
-import { hasPermission, type Permission, type Role } from "@sri-narayana/shared";
-import { verifyBearerToken } from "./firebaseAdmin";
+import { hasPermission, isValidRole, type Permission, type Role } from "@sri-narayana/shared";
+import { adminDb, verifyBearerToken } from "./firebaseAdmin";
+
+/**
+ * Effective role for a request. Prefers the token's custom claim, but falls
+ * back to the Firestore `users/{uid}` doc when the claim is missing/invalid —
+ * mirroring how the frontend resolves the role. This keeps API access in sync
+ * with the role the admin manages in the database, even if a user's custom
+ * claim is stale or was never set. The resolved role is patched back onto the
+ * token so existing `decodedToken.role` reads keep working.
+ */
+export async function resolveRole(decodedToken: DecodedIdToken): Promise<Role | undefined> {
+  const claimRole = decodedToken.role;
+  if (isValidRole(claimRole)) return claimRole;
+  try {
+    const snapshot = await adminDb().collection("users").doc(decodedToken.uid).get();
+    const docRole = snapshot.exists ? (snapshot.data() as { role?: unknown })?.role : undefined;
+    if (isValidRole(docRole)) {
+      (decodedToken as { role?: string }).role = docRole;
+      return docRole;
+    }
+  } catch {
+    // Firestore unavailable — fall through with no role.
+  }
+  return undefined;
+}
 
 export async function requireAdmin(req: Request): Promise<DecodedIdToken | null> {
   const decodedToken = await verifyBearerToken(req);
-  if (!decodedToken || (decodedToken.role !== "admin" && decodedToken.role !== "super_admin")) {
-    return null;
-  }
+  if (!decodedToken) return null;
+  const role = await resolveRole(decodedToken);
+  if (role !== "admin" && role !== "super_admin") return null;
   return decodedToken;
 }
 
@@ -27,9 +51,10 @@ export async function requireTeacher(req: Request): Promise<DecodedIdToken | nul
 /** Allow the request only if the signed-in user's role is in `roles`. */
 export async function requireRole(req: Request, roles: Role[]): Promise<DecodedIdToken | null> {
   const decodedToken = await verifyBearerToken(req);
-  const role = decodedToken?.role as Role | undefined;
+  if (!decodedToken) return null;
+  const role = await resolveRole(decodedToken);
   // super_admin has all permissions, so it is always allowed regardless of `roles`.
-  if (!decodedToken || !role || (role !== "super_admin" && !roles.includes(role))) {
+  if (!role || (role !== "super_admin" && !roles.includes(role))) {
     return null;
   }
   return decodedToken;
@@ -38,8 +63,9 @@ export async function requireRole(req: Request, roles: Role[]): Promise<DecodedI
 /** Allow the request only if the signed-in user's role grants `permission`. */
 export async function requirePermission(req: Request, permission: Permission): Promise<DecodedIdToken | null> {
   const decodedToken = await verifyBearerToken(req);
-  const role = decodedToken?.role as Role | undefined;
-  if (!decodedToken || !hasPermission(role, permission)) {
+  if (!decodedToken) return null;
+  const role = await resolveRole(decodedToken);
+  if (!hasPermission(role, permission)) {
     return null;
   }
   return decodedToken;

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { hasPermission, type Role } from "@sri-narayana/shared";
 import { adminDb, verifyBearerToken } from "@/lib/firebaseAdmin";
+import { getPortalLinkedStudents, verifyStudentLinked } from "@/lib/portalHelpers";
 
 export async function GET(req: Request) {
   const token = await verifyBearerToken(req);
@@ -10,25 +11,22 @@ export async function GET(req: Request) {
   }
 
   const db = adminDb();
-  const userDoc = await db.collection("users").doc(token.uid).get();
-  const studentIds: string[] = (userDoc.data()?.studentIds as string[]) || [];
-  if (studentIds.length === 0) {
+  const { searchParams } = new URL(req.url);
+  const requestedStudentId = searchParams.get("studentId");
+
+  const linkedStudents = await getPortalLinkedStudents(token);
+  if (linkedStudents.length === 0) {
     return NextResponse.json({ ok: false, error: "No student linked to this account" }, { status: 404 });
   }
 
-  const { searchParams } = new URL(req.url);
-  const requested = searchParams.get("studentId");
-  const studentId = requested && studentIds.includes(requested) ? requested : studentIds[0];
+  const studentId = requestedStudentId && linkedStudents.some((s) => s.id === requestedStudentId)
+    ? requestedStudentId
+    : linkedStudents[0].id;
 
-  const studentSnaps = await Promise.all(
-    studentIds.map((id) => db.collection("students").doc(id).get())
-  );
-  const linkedStudents = studentSnaps
-    .filter((snap) => snap.exists)
-    .map((snap) => {
-      const s = snap.data() as Record<string, unknown>;
-      return { id: snap.id, name: String(s.studentName || ""), className: String(s.class || "") };
-    });
+  const valid = await verifyStudentLinked(token, studentId);
+  if (!valid) {
+    return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
+  }
 
   const paymentsSnap = await db
     .collection("payments")
@@ -50,5 +48,5 @@ export async function GET(req: Request) {
     };
   });
 
-  return NextResponse.json({ ok: true, payments, linkedStudentIds: studentIds, linkedStudents });
+  return NextResponse.json({ ok: true, payments, linkedStudents });
 }
