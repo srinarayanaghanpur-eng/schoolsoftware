@@ -2,6 +2,7 @@
 
 import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
+import { DarkModeToggle } from "@/components/DarkModeToggle";
 import { isValidRole } from "@sri-narayana/shared";
 import { refreshClaims } from "@/lib/authClaims";
 import { employeeIdToInternalEmail, normalizeEmployeeId } from "@sri-narayana/shared/utils/employeeAuth";
@@ -496,26 +497,29 @@ function DesktopLoginExperience() {
   } = useTeacherLoginController();
 
   return (
-    <section className="relative flex h-screen items-center justify-center overflow-hidden bg-[#f5f6fd] p-2">
-      <FloatingBlob className="left-[-90px] top-[-120px] h-80 w-80 bg-[#eef0ff]/90" />
-      <FloatingBlob className="bottom-[-120px] right-[-80px] h-96 w-96 bg-[#c5ceff]/70" />
-      <div className="relative flex h-[calc(100vh-1rem)] max-h-[820px] min-h-0 w-full max-w-[1280px] overflow-hidden rounded-[24px] bg-white shadow-[0_24px_65px_rgba(36,42,94,0.16)] ring-1 ring-stone-200">
+    <section className="relative flex h-screen items-center justify-center overflow-hidden bg-[#f5f6fd] p-2 dark:bg-[#0f1117]">
+      <FloatingBlob className="left-[-90px] top-[-120px] h-80 w-80 bg-[#eef0ff]/90 dark:bg-[#1e2040]/50" />
+      <FloatingBlob className="bottom-[-120px] right-[-80px] h-96 w-96 bg-[#c5ceff]/70 dark:bg-[#1a1c3a]/50" />
+      <div className="absolute right-6 top-6 z-20">
+        <DarkModeToggle />
+      </div>
+      <div className="relative flex h-[calc(100vh-1rem)] max-h-[820px] min-h-0 w-full max-w-[1280px] overflow-hidden rounded-[24px] bg-white shadow-[0_24px_65px_rgba(36,42,94,0.16)] ring-1 ring-stone-200 dark:bg-[#1a1c26] dark:ring-[#2a2d3a]">
         <LeftBrandPanel />
-        <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden bg-[#f8f8fc] px-5 py-8 sm:px-8 lg:w-[55%]">
+        <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden bg-[#f8f8fc] px-5 py-8 sm:px-8 lg:w-[55%] dark:bg-[#13151e]">
           <DotGrid className="right-8 top-8" />
           <DotGrid className="bottom-10 right-12" />
           <div className="absolute left-[8%] top-[16%] h-52 w-52 rounded-full bg-[#eef0ff]/80 blur-3xl" />
           <div className="absolute bottom-[18%] right-[18%] h-44 w-44 rounded-full bg-[#c5ceff]/70 blur-3xl" />
           <form
             onSubmit={onSubmit}
-            className="relative z-10 w-full max-w-[460px] rounded-[24px] border border-stone-200 bg-white/90 px-7 py-6 shadow-[0_22px_65px_rgba(36,42,94,0.12)] backdrop-blur-2xl"
+            className="relative z-10 w-full max-w-[460px] rounded-[24px] border border-stone-200 bg-white/90 px-7 py-6 shadow-[0_22px_65px_rgba(36,42,94,0.12)] backdrop-blur-2xl dark:border-[#2a2d3a] dark:bg-[#1a1c26]/90"
           >
             <div className="text-center">
               <div className="mx-auto flex h-[60px] w-[60px] items-center justify-center rounded-full bg-[linear-gradient(145deg,#eef0ff,#f8f8fc)] shadow-[inset_0_10px_28px_rgba(48,51,161,0.1)]">
                 <UsersRound className="h-8 w-8 text-[#3033a1]" strokeWidth={2.4} />
               </div>
-              <h2 className="mt-3 text-[27px] font-extrabold tracking-[-0.035em] text-stone-950">Welcome back!</h2>
-              <p className="mt-1 text-[15px] font-medium text-stone-500">Use your ID and password. We will open the correct dashboard automatically.</p>
+              <h2 className="mt-3 text-[27px] font-extrabold tracking-[-0.035em] text-stone-950 dark:text-[#e2e4ec]">Welcome back!</h2>
+              <p className="mt-1 text-[15px] font-medium text-stone-500 dark:text-[#8b94b8]">Use your ID and password. We will open the correct dashboard automatically.</p>
             </div>
             <div className="mt-6 space-y-3">
               <DesktopInput
@@ -543,7 +547,7 @@ function DesktopLoginExperience() {
               />
             </div>
             <div className="mt-4 flex items-center justify-between gap-4">
-              <label className="flex cursor-pointer items-center gap-3 text-[15px] font-medium text-stone-600">
+              <label className="flex cursor-pointer items-center gap-3 text-[15px] font-medium text-stone-600 dark:text-[#8b94b8]">
                 <input className="peer sr-only" type="checkbox" checked={rememberMe} onChange={(event) => setRememberMe(event.target.checked)} />
                 <span className="flex h-5 w-5 items-center justify-center rounded-[6px] border border-[#c7caf0] bg-white text-white shadow-[0_6px_14px_rgba(48,51,161,0.14)] transition peer-checked:border-transparent peer-checked:bg-[linear-gradient(135deg,#292b8d,#4748a9)]">
                   <Check className="h-4 w-4" strokeWidth={3} />
@@ -641,7 +645,7 @@ function MobileLoginExperience() {
   } = useTeacherLoginController();
 
   return (
-    <section className="relative min-h-screen overflow-hidden bg-[#f5f6fd] px-4 py-5 text-stone-950">
+    <section className="relative min-h-screen overflow-hidden bg-[#f5f6fd] px-4 py-5 text-stone-950 dark:bg-[#0f1117] dark:text-[#e2e4ec]">
       <div className="absolute inset-x-0 top-0 h-[318px] overflow-hidden bg-[linear-gradient(135deg,#292b8d_0%,#3033a1_55%,#4748a9_100%)]">
         <div className="absolute -left-16 -top-14 h-44 w-44 rounded-full bg-white/12" />
         <div className="absolute right-[-50px] top-20 h-36 w-36 rounded-full bg-[#c5ceff]/24 blur-2xl" />
@@ -649,6 +653,9 @@ function MobileLoginExperience() {
         <MobileWave />
       </div>
 
+      <div className="absolute right-4 top-4 z-20">
+        <DarkModeToggle className="bg-white/20 hover:bg-white/30" />
+      </div>
       <div className="relative z-10 mx-auto flex h-screen w-full max-w-[358px] flex-col overflow-hidden">
         <header className="shrink-0 pt-4 text-center text-white">
           <SchoolLogo id="school-logo-mobile-login" className="mx-auto h-[90px] w-[90px]" />
@@ -659,12 +666,12 @@ function MobileLoginExperience() {
 
         <form
           onSubmit={onSubmit}
-          className="mt-4 w-full flex-1 overflow-y-auto rounded-[28px] border border-white/80 bg-white px-4 py-4 shadow-[0_26px_70px_rgba(36,42,94,0.14)]" style={{scrollbarWidth: 'thin'}}
+          className="mt-4 w-full flex-1 overflow-y-auto rounded-[28px] border border-white/80 bg-white px-4 py-4 shadow-[0_26px_70px_rgba(36,42,94,0.14)] dark:border-[#2a2d3a]/80 dark:bg-[#1a1c26]" style={{scrollbarWidth: 'thin'}}
         >
           <div>
             <p className="text-sm font-bold uppercase tracking-[0.22em] text-[#3033a1]">Secure Login</p>
-            <h2 className="mt-2 text-3xl font-extrabold tracking-[-0.02em] text-slate-950">Welcome back!</h2>
-            <p className="mt-2 text-sm font-medium leading-6 text-slate-500">
+            <h2 className="mt-2 text-3xl font-extrabold tracking-[-0.02em] text-slate-950 dark:text-[#e2e4ec]">Welcome back!</h2>
+            <p className="mt-2 text-sm font-medium leading-6 text-slate-500 dark:text-[#8b94b8]">
               Use your ID and password.
             </p>
           </div>
@@ -703,7 +710,7 @@ function MobileLoginExperience() {
           </div>
 
           <div className="mt-3 flex items-center justify-between gap-2">
-            <label className="flex cursor-pointer items-center gap-2 text-xs font-semibold text-slate-600">
+            <label className="flex cursor-pointer items-center gap-2 text-xs font-semibold text-slate-600 dark:text-[#8b94b8]">
               <input className="peer sr-only" type="checkbox" checked={rememberMe} onChange={(event) => setRememberMe(event.target.checked)} />
               <span className="flex h-4 w-4 items-center justify-center rounded-md border border-[#c7caf0] bg-white text-white transition peer-checked:border-transparent peer-checked:bg-[#3033a1]">
                 <Check className="h-3 w-3" strokeWidth={3} />
@@ -731,7 +738,7 @@ function MobileLoginExperience() {
 
         </form>
 
-        <p className="mx-auto shrink-0 mt-2 max-w-sm rounded-2xl bg-white/75 px-3 py-2 text-center text-xs font-semibold leading-4 text-slate-500 shadow-sm">
+        <p className="mx-auto shrink-0 mt-2 max-w-sm rounded-2xl bg-white/75 px-3 py-2 text-center text-xs font-semibold leading-4 text-slate-500 shadow-sm dark:bg-[#1a1c26]/75 dark:text-[#8b94b8]">
           For GPS attendance marking, use the Sri Narayana mobile app in campus.
         </p>
       </div>
@@ -741,7 +748,7 @@ function MobileLoginExperience() {
 
 function LoginForm() {
   return (
-    <main className="min-h-screen bg-[#F5F7FF] text-[#0F172A]">
+    <main className="min-h-screen bg-[#F5F7FF] text-[#0F172A] dark:bg-[#0f1117] dark:text-[#e2e4ec]">
       <div className="hidden lg:block">
         <DesktopLoginExperience />
       </div>

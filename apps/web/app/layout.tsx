@@ -1,5 +1,7 @@
 import "./globals.css";
+import type { ReactNode } from "react";
 import { ServiceWorkerInit, OfflineStatusIndicator } from "@/components/OfflineStatusIndicator";
+import { ThemeProvider } from "@/components/ThemeProvider";
 
 export const metadata = {
   title: "SRI NARAYANA HIGH SCHOOL",
@@ -18,9 +20,9 @@ export const viewport = {
   viewportFit: "cover"
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
         <link rel="manifest" href="/manifest.json" />
         <link rel="icon" href="/sri-narayana-high-school-logo.jpg" type="image/jpeg" />
@@ -30,10 +32,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="apple-mobile-web-app-title" content="School ERP" />
+        <script dangerouslySetInnerHTML={{
+          __html: `(function(){try{var e=localStorage.getItem("erp-theme"),r=window.matchMedia("(prefers-color-scheme:dark)").matches;document.documentElement.classList.toggle("dark",e==="dark"||(!e&&r))}catch(e){}})()`
+        }} />
       </head>
       <body>
         <ServiceWorkerInit />
-        {children}
+        <ThemeProvider>{children}</ThemeProvider>
         <OfflineStatusIndicator />
       </body>
     </html>

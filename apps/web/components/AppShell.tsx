@@ -53,6 +53,7 @@ import { AcademicYearProvider, useAcademicYears } from "@/components/AcademicYea
 import { AdminSessionProvider } from "@/components/AdminSessionContext";
 import { BrandLoader } from "@/components/BrandLoader";
 import { LiveClock } from "@/components/LiveClock";
+import { DarkModeToggle } from "@/components/DarkModeToggle";
 import { SectionTabs } from "@/components/SectionTabs";
 import { clearPayrollSessionId } from "@/lib/payrollSessionClient";
 import { refreshClaims } from "@/lib/authClaims";
@@ -499,7 +500,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <AdminSessionProvider value={sessionValue}>
       <AcademicYearProvider>
-    <div className="min-h-screen bg-[#f5f6fd] text-[#181a31] md:flex">
+    <div className="min-h-screen bg-white text-[#181a31] md:flex">
       {/* Mobile backdrop */}
       {mobileNavOpen && (
         <div
@@ -633,6 +634,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </label>
           <AcademicYearSwitcher />
           <LiveClock className="hidden sm:inline-flex" />
+          <DarkModeToggle />
           {role && canAccessModule(role, "communication") && (
             <Link href="/admin/notifications" aria-label="Communication & notifications" className="relative grid h-11 w-11 place-items-center rounded-xl bg-[#f3f4fb] text-[#313581] transition hover:bg-[#e9ebfa]">
               <BellRing size={19} />

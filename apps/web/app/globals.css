@@ -4,7 +4,7 @@
 
 html, body {
   height: 100%;
-  background: #f5f7ff;
+  background: #ffffff;
   color: #0f172a;
   font-family: "Poppins", "Inter", "Segoe UI", sans-serif;
   font-size: 18px;
@@ -453,4 +453,83 @@ html, body {
 @media (prefers-reduced-motion: reduce) {
   .bl-logo, .bl-star, .bl-arc { animation-duration: 0s; }
   .bl-arc { animation: bl-spin 1.3s linear infinite; }
+}
+
+/* ── Dark mode overrides ── */
+.dark html,
+.dark body {
+  background: #0f1117;
+  color: #e2e4ec;
+}
+
+.dark .card {
+  background: #1a1c26;
+  border-color: #2a2d3a;
+}
+
+.dark .card:hover {
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.25);
+}
+
+.dark .field {
+  background: #20222e;
+  border-color: #2f3242;
+  color: #e2e4ec;
+}
+
+.dark .field::placeholder {
+  color: #5c6485;
+}
+
+.dark .field:focus {
+  border-color: #5b5fc7;
+  background: #1a1c26;
+  box-shadow: 0 0 0 4px rgba(91, 95, 199, 0.15);
+}
+
+.dark .field:disabled,
+.dark .field[readonly] {
+  background: #161822;
+  color: #5c6485;
+}
+
+.dark .btn-primary {
+  background: #3d40a6;
+}
+
+.dark .btn-primary:hover {
+  background: #4a4db8;
+}
+
+.dark .btn-secondary {
+  background: #1a1c26;
+  border-color: #2f3242;
+  color: #e2e4ec;
+}
+
+.dark .btn-secondary:hover {
+  border-color: #5b5fc7;
+  background: #20222e;
+  color: #b6baf2;
+}
+
+.dark .card table thead {
+  background: #20222e;
+  color: #8b94b8;
+}
+
+.dark .card table th {
+  color: #8b94b8;
+}
+
+.dark .card table tbody tr {
+  border-color: #2a2d3a;
+}
+
+.dark .card table tbody tr:hover {
+  background: #20222e;
+}
+
+.dark .card table td {
+  color: #e2e4ec;
 }
