@@ -3,7 +3,6 @@
 import { AppShell } from "@/components/AppShell";
 import { AuthGate } from "@/components/AuthGate";
 import { PageHeader } from "@/components/PageHeader";
-import { LiveClock } from "@/components/LiveClock";
 import { usePortalChild } from "@/components/PortalChildContext";
 import { adminApiRequest } from "@/lib/adminApiClient";
 import { ROLES } from "@sri-narayana/shared";
@@ -121,7 +120,6 @@ function PortalDashboard() {
                 ))}
               </select>
             ) : null}
-            <LiveClock />
           </div>
         }
       />

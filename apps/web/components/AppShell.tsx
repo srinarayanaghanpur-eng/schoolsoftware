@@ -110,7 +110,7 @@ const mobileNav: MobileNavItem[] = [
   { href: "/admin/dashboard", label: "Summary", short: "Summary", icon: Grid2X2, module: "dashboard" },
   { href: "/admin/reports", label: "Reports", short: "Reports", icon: BarChart3, module: "reports" },
   { href: "/admin/notices", label: "Notices", short: "Notices", icon: Megaphone, module: "communication" },
-  { href: "/admin/my-attendance", label: "My Attendance", short: "Attendance", icon: CalendarCheck },
+  { href: "/admin/my-attendance", label: "My Attendance", short: "Attendance", icon: CalendarCheck, module: "attendance" },
   { href: "/admin/notifications", label: "Notifications & Leave", short: "Alerts", icon: BellRing, module: "communication" }
 ];
 
@@ -572,20 +572,24 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </>
           )}
 
-          <p className="px-2 pb-2 pt-7 text-[11px] font-bold tracking-[0.13em] text-[#9ba9ed]">ME</p>
-          <Link
-            href="/admin/my-attendance"
-            className={clsx(
-              "group relative flex items-center gap-4 rounded-xl px-4 py-3 text-sm font-semibold transition duration-200",
-              pathname === "/admin/my-attendance"
-                ? "bg-[#4748a9] text-white shadow-[0_8px_20px_rgba(8,10,92,0.18)]"
-                : "text-[#dce2ff] hover:bg-white/10 hover:text-white"
-            )}
-          >
-            {pathname === "/admin/my-attendance" && <span className="absolute inset-y-3 -left-2 w-1 rounded-r-full bg-[#ffd23f]" />}
-            <CalendarCheck size={20} strokeWidth={2.4} className={pathname === "/admin/my-attendance" ? "text-white" : "text-[#c5ceff] group-hover:text-white"} />
-            My Attendance
-          </Link>
+          {role && canAccessModule(role, "attendance") && (
+            <>
+              <p className="px-2 pb-2 pt-7 text-[11px] font-bold tracking-[0.13em] text-[#9ba9ed]">ME</p>
+              <Link
+                href="/admin/my-attendance"
+                className={clsx(
+                  "group relative flex items-center gap-4 rounded-xl px-4 py-3 text-sm font-semibold transition duration-200",
+                  pathname === "/admin/my-attendance"
+                    ? "bg-[#4748a9] text-white shadow-[0_8px_20px_rgba(8,10,92,0.18)]"
+                    : "text-[#dce2ff] hover:bg-white/10 hover:text-white"
+                )}
+              >
+                {pathname === "/admin/my-attendance" && <span className="absolute inset-y-3 -left-2 w-1 rounded-r-full bg-[#ffd23f]" />}
+                <CalendarCheck size={20} strokeWidth={2.4} className={pathname === "/admin/my-attendance" ? "text-white" : "text-[#c5ceff] group-hover:text-white"} />
+                My Attendance
+              </Link>
+            </>
+          )}
         </nav>
 
         <button
