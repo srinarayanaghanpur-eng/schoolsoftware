@@ -4,22 +4,25 @@ import { useState } from "react";
 import { FileDown } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 
+type TabType = "class-wise" | "student-wise" | "attendance-fee" | "monthly-collection";
+
 interface ReportData {
-  type: "class-wise" | "student-wise" | "attendance-fee";
+  type: TabType;
   data: any[];
   loading: boolean;
   error: string;
 }
 
 export default function FeeReportsPage() {
-  const [activeTab, setActiveTab] = useState<"class-wise" | "student-wise" | "attendance-fee">("class-wise");
+  const [activeTab, setActiveTab] = useState<TabType>("class-wise");
   const [reports, setReports] = useState<Record<string, ReportData>>({
     "class-wise": { type: "class-wise", data: [], loading: false, error: "" },
     "student-wise": { type: "student-wise", data: [], loading: false, error: "" },
-    "attendance-fee": { type: "attendance-fee", data: [], loading: false, error: "" }
+    "attendance-fee": { type: "attendance-fee", data: [], loading: false, error: "" },
+    "monthly-collection": { type: "monthly-collection", data: [], loading: false, error: "" }
   });
 
-  const generateReport = async (reportType: "class-wise" | "student-wise" | "attendance-fee") => {
+  const generateReport = async (reportType: TabType) => {
     try {
       setReports((prev) => ({
         ...prev,
@@ -30,9 +33,10 @@ export default function FeeReportsPage() {
       const data = await response.json();
 
       if (data.success) {
+        const reportData = reportType === "monthly-collection" ? data.months : data.data;
         setReports((prev) => ({
           ...prev,
-          [reportType]: { ...prev[reportType], data: data.data, loading: false }
+          [reportType]: { ...prev[reportType], data: reportData, loading: false }
         }));
       } else {
         throw new Error(data.error || "Failed to generate report");
@@ -75,6 +79,10 @@ export default function FeeReportsPage() {
     "attendance-fee": {
       label: "Attendance vs Fee Report",
       description: "Analyze attendance against fee payment status"
+    },
+    "monthly-collection": {
+      label: "Monthly Collection",
+      description: "Payment collection totals broken down by month"
     }
   };
 

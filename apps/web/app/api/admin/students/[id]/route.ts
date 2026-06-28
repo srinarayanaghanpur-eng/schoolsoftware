@@ -1,13 +1,39 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { adminDb } from "@/lib/firebaseAdmin";
+import { adminDb, verifyBearerToken } from "@/lib/firebaseAdmin";
 
 const db = adminDb();
+
+/**
+ * GET /api/admin/students/[id]
+ * Fetch a single student by ID.
+ */
+export async function GET(_request: NextRequest, { params }: { params: { id: string } }) {
+  try {
+    const { id } = params;
+    const docRef = db.collection('students').doc(id);
+    const snapshot = await docRef.get();
+    if (!snapshot.exists) {
+      return NextResponse.json({ success: false, error: 'Student not found' }, { status: 404 });
+    }
+    return NextResponse.json({ success: true, data: { id, ...snapshot.data() } });
+  } catch (error) {
+    console.error('Error fetching student:', error);
+    return NextResponse.json({ success: false, error: 'Failed to fetch student' }, { status: 500 });
+  }
+}
 
 /**
  * PATCH /api/admin/students/[id]
  * Update an existing student. Fee fields are recomputed so totals stay consistent.
  */
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
+  const authResult = await verifyBearerToken(request);
+  if (!authResult) {
+    return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
+  }
+  if (authResult.role !== "admin" && authResult.role !== "super_admin") {
+    return NextResponse.json({ success: false, error: 'Admin access required' }, { status: 403 });
+  }
   try {
     const { id } = params;
     const body = await request.json();
@@ -22,12 +48,22 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       studentName,
       class: classStr,
       section,
+      gender,
       fatherName,
       motherName,
       dateOfBirth,
       email,
       phone,
-      address
+      address,
+      photoURL,
+      aadhaarNumber,
+      documentURLs,
+      previousSchool,
+      siblingAdmissionNumbers,
+      emergencyContact,
+      transportRouteId,
+      transportStopName,
+      transportFee
     } = body;
 
     if (!studentName || !classStr || !section) {
@@ -42,16 +78,28 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     const totalFeesDue = Math.max(0, totalFeeAmount - totalFeesPaid);
     const feeStatus = totalFeesDue <= 0 ? 'paid' : totalFeesPaid > 0 ? 'partial' : 'pending';
 
-    const updateData = {
+    const updateData: Record<string, unknown> = {
       studentName,
       class: classStr,
       section,
+      gender: gender ?? existing.gender ?? '',
       fatherName: fatherName || '',
+      fatherPhone: body.fatherPhone ?? existing.fatherPhone ?? '',
       motherName: motherName || '',
+      motherPhone: body.motherPhone ?? existing.motherPhone ?? '',
       dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
       email: email || '',
       phone: phone || '',
       address: address || '',
+      photoURL: photoURL ?? existing.photoURL ?? '',
+      aadhaarNumber: aadhaarNumber ?? existing.aadhaarNumber ?? '',
+      documentURLs: documentURLs ?? existing.documentURLs ?? [],
+      previousSchool: previousSchool !== undefined ? previousSchool : (existing.previousSchool ?? null),
+      siblingAdmissionNumbers: siblingAdmissionNumbers ?? existing.siblingAdmissionNumbers ?? [],
+      emergencyContact: emergencyContact !== undefined ? emergencyContact : (existing.emergencyContact ?? null),
+      transportRouteId: transportRouteId ?? existing.transportRouteId ?? '',
+      transportStopName: transportStopName ?? existing.transportStopName ?? '',
+      transportFee: Number(transportFee ?? existing.transportFee ?? 0),
       annualEnrollmentFee,
       commitmentFee,
       totalFeeAmount,
@@ -74,7 +122,14 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
  * DELETE /api/admin/students/[id]
  * Remove a student record.
  */
-export async function DELETE(_request: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+  const authResult = await verifyBearerToken(request);
+  if (!authResult) {
+    return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
+  }
+  if (authResult.role !== "admin" && authResult.role !== "super_admin") {
+    return NextResponse.json({ success: false, error: 'Admin access required' }, { status: 403 });
+  }
   try {
     const { id } = params;
     const docRef = db.collection('students').doc(id);

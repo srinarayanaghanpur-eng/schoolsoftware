@@ -21,8 +21,6 @@ export async function POST(req: Request) {
 
     const now = FieldValue.serverTimestamp();
     const studentRef = db.collection("students").doc(order.studentId);
-    const studentSnap = await studentRef.get();
-    const prevPaid = (studentSnap.data()?.totalFeesPaid as number) || 0;
 
     const batch = db.batch();
     // 1) record the payment (same `payments` collection the admin uses)
@@ -31,15 +29,15 @@ export async function POST(req: Request) {
       studentId: order.studentId,
       amountPaid: order.amount,
       paymentType: order.paymentType,
-      paymentMethod: parsed.method,
+      paymentMethod: parsed.method || "cash",
       transactionId: parsed.transactionId || orderSnap.id,
       status: "completed",
       source: "online",
       paidBy: token.uid,
       createdAt: now
     });
-    // 2) update the student's running paid total
-    batch.set(studentRef, { totalFeesPaid: prevPaid + order.amount, feeLastUpdated: now }, { merge: true });
+    // 2) update the student's running paid total atomically
+    batch.set(studentRef, { totalFeesPaid: FieldValue.increment(order.amount), feeLastUpdated: now }, { merge: true });
     // 3) close the order
     batch.update(orderRef, { status: "paid", updatedAt: now });
     await batch.commit();

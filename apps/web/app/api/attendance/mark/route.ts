@@ -11,6 +11,7 @@ import {
   nowIso,
   toDateKey
 } from "@sri-narayana/shared";
+import { FieldValue } from "firebase-admin/firestore";
 import { adminDb, verifyBearerToken } from "@/lib/firebaseAdmin";
 import { removeUndefinedFields } from "@/lib/firestoreSanitize";
 import { getAttendanceRecord, getSchoolSettings, getTeacherById } from "@/lib/firestoreServer";
@@ -119,13 +120,43 @@ export async function POST(req: Request) {
     );
 
     const db = adminDb();
-    const batch = db.batch();
-    
-    // Mark attendance
-    batch.set(db.collection("attendance").doc(attendanceDocumentId), removeUndefinedFields(attendance), { merge: true });
-    
-    // Log attendance event
-    batch.set(db.collection("attendance_logs").doc(), removeUndefinedFields({
+    const attendanceRef = db.collection("attendance").doc(attendanceDocumentId);
+    const teacherRef = db.collection("teachers").doc(payload.teacherId);
+
+    // Use a transaction so the CL deduction reads the freshest late-entry count atomically
+    await db.runTransaction(async (transaction) => {
+      // Mark attendance
+      transaction.set(attendanceRef, removeUndefinedFields(attendance), { merge: true });
+
+      // Read the latest teacher data – no race possible inside a transaction
+      const teacherSnap = await transaction.get(teacherRef);
+      const latest = teacherSnap.data() ?? {};
+
+      const clUpdate: Record<string, unknown> = { updatedAt: nowIso() };
+
+      if (attendance.status === "late") {
+        const newLateCount = (latest.lateEntriesThisMonth ?? 0) + 1;
+        clUpdate.lateEntriesThisMonth = newLateCount;
+        // Every 3 lates = 1 CL deducted
+        if (newLateCount % 3 === 0) {
+          clUpdate.casualLeaveBalance = Math.max(0, (latest.casualLeaveBalance ?? 3) - 1);
+        }
+      } else if (attendance.status === "absent") {
+        clUpdate.absentDaysThisMonth = (latest.absentDaysThisMonth ?? 0) + 1;
+        clUpdate.casualLeaveBalance = Math.max(0, (latest.casualLeaveBalance ?? 3) - 1);
+        clUpdate.casualLeaveUsedThisMonth = (latest.casualLeaveUsedThisMonth ?? 0) + 1;
+      } else if (attendance.status === "present") {
+        if (latest.lateEntriesThisMonth === undefined) clUpdate.lateEntriesThisMonth = 0;
+        if (latest.absentDaysThisMonth === undefined) clUpdate.absentDaysThisMonth = 0;
+        if (latest.casualLeaveUsedThisMonth === undefined) clUpdate.casualLeaveUsedThisMonth = 0;
+        if (latest.casualLeaveBalance === undefined) clUpdate.casualLeaveBalance = 3;
+      }
+
+      transaction.set(teacherRef, clUpdate, { merge: true });
+    });
+
+    // Best-effort attendance log outside the transaction (no critical data)
+    await db.collection("attendance_logs").add(removeUndefinedFields({
       teacherId: payload.teacherId,
       date,
       timestamp: payload.timestamp,
@@ -138,43 +169,7 @@ export async function POST(req: Request) {
       deviceInfo: payload.deviceInfo,
       rawData: payload,
       createdAt: nowIso()
-    }));
-    
-    // ========== CASUAL LEAVE AUTO-DEDUCTION ==========
-    // Update teacher's CL balance based on attendance status
-    const month = date.slice(0, 7); // Extract "YYYY-MM" from date
-    const clUpdateData: Record<string, unknown> = {
-      updatedAt: nowIso()
-    };
-    
-    if (attendance.status === "late") {
-      // Increment late entries this month
-      const newLateCount = (teacher.lateEntriesThisMonth ?? 0) + 1;
-      clUpdateData.lateEntriesThisMonth = newLateCount;
-      
-      // Every 3 lates = 1 CL deducted
-      if (newLateCount % 3 === 0) {
-        clUpdateData.casualLeaveBalance = Math.max(0, (teacher.casualLeaveBalance ?? 3) - 1);
-      }
-    } else if (attendance.status === "absent") {
-      // Increment absent days this month
-      clUpdateData.absentDaysThisMonth = (teacher.absentDaysThisMonth ?? 0) + 1;
-      
-      // 1 absent = 1 CL deducted immediately
-      clUpdateData.casualLeaveBalance = Math.max(0, (teacher.casualLeaveBalance ?? 3) - 1);
-      clUpdateData.casualLeaveUsedThisMonth = (teacher.casualLeaveUsedThisMonth ?? 0) + 1;
-    } else if (attendance.status === "present") {
-      // Present day - no CL deduction, just ensure tracking fields exist
-      if (!teacher.lateEntriesThisMonth) clUpdateData.lateEntriesThisMonth = 0;
-      if (!teacher.absentDaysThisMonth) clUpdateData.absentDaysThisMonth = 0;
-      if (!teacher.casualLeaveUsedThisMonth) clUpdateData.casualLeaveUsedThisMonth = 0;
-      if (teacher.casualLeaveBalance === undefined) clUpdateData.casualLeaveBalance = 3;
-    }
-    
-    // Update teacher document with CL changes
-    batch.set(db.collection("teachers").doc(payload.teacherId), clUpdateData, { merge: true });
-    
-    await batch.commit();
+    })).catch(() => {});
 
     return NextResponse.json({ ok: true, attendance, gpsRequired });
   } catch (error) {

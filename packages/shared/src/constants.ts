@@ -30,6 +30,15 @@ export const ATTENDANCE_COLORS = {
   not_marked: "bg-slate-200 text-slate-700"
 } as const;
 
+export const FEE_HEAD_PRESETS = [
+  "Tuition Fee",
+  "Transport Fee", 
+  "Books & Supplies",
+  "Examination Fee",
+  "Hostel Fee",
+  "Uniform Fee"
+] as const;
+
 export const DEFAULT_SETTINGS: SchoolSettings = {
   schoolName: "SRI NARAYANA HIGH SCHOOL",
   campusLatitude: 18.30639479001936,

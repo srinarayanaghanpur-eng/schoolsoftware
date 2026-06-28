@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from "@/lib/firebaseAdmin";
-
-const db = adminDb();
+import { requirePermission } from "@/lib/apiUtils";
 
 /**
  * GET /api/admin/reports/dashboard-stats
@@ -9,6 +8,10 @@ const db = adminDb();
  */
 export async function GET(request: NextRequest) {
   try {
+    const auth = await requirePermission(request, "reports.view");
+    if (!auth) return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+
+    const db = adminDb();
     // Get total students
     const studentsSnapshot = await db.collection('students').get();
     const students = studentsSnapshot.docs.map((d) => d.data());

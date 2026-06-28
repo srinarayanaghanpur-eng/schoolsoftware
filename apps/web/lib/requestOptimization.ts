@@ -129,6 +129,9 @@ export class BatchProcessor<T, R> {
     }, this.timeout);
   }
 
+  private itemRetryCount = new Map<T, number>();
+  private maxRetries = 3;
+
   private async flush(): Promise<void> {
     if (this.processing || this.queue.length === 0) return;
 
@@ -137,10 +140,27 @@ export class BatchProcessor<T, R> {
 
     try {
       await this.processor(batch);
+      // Clear retry counts for successfully processed items
+      for (const item of batch) {
+        this.itemRetryCount.delete(item);
+      }
     } catch (error) {
       console.error('Batch processing failed:', error);
-      // Re-add failed items to queue
-      this.queue.unshift(...batch);
+      // Re-add failed items with retry limit
+      const retryBatch: T[] = [];
+      for (const item of batch) {
+        const retries = this.itemRetryCount.get(item) ?? 0;
+        if (retries < this.maxRetries) {
+          this.itemRetryCount.set(item, retries + 1);
+          retryBatch.push(item);
+        } else {
+          console.error(`Item failed after ${this.maxRetries} retries, dropping:`, item);
+          this.itemRetryCount.delete(item);
+        }
+      }
+      if (retryBatch.length > 0) {
+        this.queue.unshift(...retryBatch);
+      }
     } finally {
       this.processing = false;
 

@@ -96,7 +96,7 @@ class IndexedDBCache {
 
         // Check if expired
         if (entry.ttl && Date.now() - entry.timestamp > entry.ttl) {
-          this.delete(storeName, key); // clean up expired entry
+          this.delete(storeName, key).catch(() => {}); // clean up expired entry
           resolve(null);
           return;
         }

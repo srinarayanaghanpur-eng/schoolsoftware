@@ -7,10 +7,15 @@ import {
   getDoc,
   addDoc,
   updateDoc,
+  setDoc,
   doc,
   serverTimestamp,
+  writeBatch,
   QueryConstraint
 } from 'firebase/firestore';
+// `increment` is missing from the firebase/firestore wrapper's type defs (v10.14.1),
+// so import it from the underlying package which declares it.
+import { increment } from '@firebase/firestore';
 import { db } from '@sri-narayana/shared/firebase/client';
 import { Payment, Receipt } from '@/types/fee.types';
 
@@ -67,27 +72,56 @@ export const paymentService = {
       updatedAt: new Date().toISOString()
     };
 
-    const docRef = await addDoc(collection(db, 'payments'), paymentData);
+    // Use batched write for atomicity across payment, student update, and receipt
+    const batch = writeBatch(db);
 
-    await updateDoc(studentRef, {
-      totalFeesPaid: (student.totalFeesPaid || 0) + amountPaid,
+    const paymentRef = doc(collection(db, 'payments'));
+    batch.set(paymentRef, paymentData);
+
+    batch.update(studentRef, {
+      totalFeesPaid: increment(amountPaid),
       totalFeesDue: remainingAmount,
       feeStatus,
       lastPaymentDate: new Date().toISOString(),
       feeLastUpdated: serverTimestamp()
     });
 
-    await this.generateReceipt(docRef.id, studentId, student, amountPaid, receiptNumber, userId);
-
-    await this.logAuditEvent(
-      'payment_recorded',
-      docRef.id,
+    // Generate receipt
+    const receiptData: Omit<Receipt, 'id'> = {
+      receiptNumber,
+      paymentId: paymentRef.id,
       studentId,
-      { oldData: {}, newData: paymentData },
-      userId
-    );
+      admissionNumber: student.admissionNumber,
+      studentName: student.studentName,
+      class: student.class,
+      section: student.section,
+      amountPaid,
+      paymentDate: new Date().toISOString(),
+      receiptDate: new Date().toISOString(),
+      issuedBy: userId,
+      status: 'issued',
+      createdAt: new Date().toISOString()
+    };
+    const receiptRef = doc(collection(db, 'receipts'));
+    batch.set(receiptRef, receiptData);
 
-    return docRef.id;
+    // Update payment with receipt reference
+    batch.update(paymentRef, { receiptNumber });
+
+    // Log audit
+    const auditRef = doc(collection(db, 'feeAuditLogs'));
+    batch.set(auditRef, {
+      action: 'payment_recorded',
+      entityType: 'payment',
+      entityId: paymentRef.id,
+      studentId,
+      changes: { oldData: {}, newData: paymentData },
+      userId,
+      timestamp: serverTimestamp()
+    });
+
+    await batch.commit();
+    return paymentRef.id;
   },
 
   /**
@@ -183,29 +217,23 @@ export const paymentService = {
     const date = new Date();
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
+    const counterId = `receipt_counter_${year}_${month}`;
 
-    // Get count of receipts this month
-    const startOfMonth = new Date(year, date.getMonth(), 1);
-    const endOfMonth = new Date(year, date.getMonth() + 1, 0);
+    // Use a counter document with Firestore transaction for atomic increment
+    const counterRef = doc(db, 'counters', counterId);
+    const counterSnap = await getDoc(counterRef);
 
-    const q = query(
-      collection(db, 'receipts'),
-      where(
-        'receiptDate',
-        '>=',
-        startOfMonth.toISOString()
-      ),
-      where(
-        'receiptDate',
-        '<=',
-        endOfMonth.toISOString()
-      )
-    );
+    let count: number;
+    if (!counterSnap.exists()) {
+      await setDoc(counterRef, { count: 1, createdAt: serverTimestamp() });
+      count = 1;
+    } else {
+      const current = (counterSnap.data().count || 0) + 1;
+      await updateDoc(counterRef, { count: current });
+      count = current;
+    }
 
-    const snapshot = await getDocs(q);
-    const count = String(snapshot.size + 1).padStart(4, '0');
-
-    return `RCP-${year}-${month}-${count}`;
+    return `RCP-${year}-${month}-${String(count).padStart(4, '0')}`;
   },
 
   /**

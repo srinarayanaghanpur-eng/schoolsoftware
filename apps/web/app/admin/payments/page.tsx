@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { CheckCircle2, Plus } from "lucide-react";
+import { CheckCircle2, Plus, Printer, XCircle } from "lucide-react";
 import { Payment } from "@/types/fee.types";
 import { FeeStatusBadge, PaymentMethodBadge } from "@/components/FeeComponents";
 import { PageHeader } from "@/components/PageHeader";
@@ -11,6 +11,8 @@ import { adminApiRequest } from "@/lib/adminApiClient";
 import { db, isFirebaseConfigured } from "@sri-narayana/shared/firebase/client";
 import { doc, getDoc } from "firebase/firestore";
 import { UpiQr, DEFAULT_UPI_ID, DEFAULT_UPI_PAYEE_NAME } from "@/components/UpiQr";
+
+type PaymentMethod = "cash" | "bank_transfer" | "upi" | "cheque" | "card";
 
 type StudentOption = {
   id: string;
@@ -23,6 +25,14 @@ type StudentOption = {
   totalFeesPaid?: number;
 };
 
+const PAYMENT_METHODS: { value: PaymentMethod; label: string }[] = [
+  { value: "cash", label: "Cash" },
+  { value: "bank_transfer", label: "Bank Transfer" },
+  { value: "upi", label: "UPI" },
+  { value: "cheque", label: "Cheque" },
+  { value: "card", label: "Card" },
+];
+
 function formatPaymentDate(value: unknown) {
   if (!value) return "--";
   if (typeof value === "string") return new Date(value).toLocaleDateString("en-IN");
@@ -33,11 +43,17 @@ function formatPaymentDate(value: unknown) {
 }
 
 export default function PaymentsPage() {
-  const { role } = useAdminSession();
+  const { role, profile } = useAdminSession();
   const canRecordPayment = Boolean(role && hasPermission(role, "fees.create"));
+  const canCancelPayment = Boolean(role && hasPermission(role, "fees.create"));
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [cancelTarget, setCancelTarget] = useState<Payment | null>(null);
+  const [cancelReason, setCancelReason] = useState("");
+  const [cancelling, setCancelling] = useState(false);
+  const [cancelError, setCancelError] = useState<string | null>(null);
+  const [cancelSuccess, setCancelSuccess] = useState<string | null>(null);
 
   useEffect(() => {
     fetchPayments();
@@ -54,6 +70,31 @@ export default function PaymentsPage() {
       console.error("Failed to fetch payments:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleCancel = async () => {
+    if (!cancelTarget || !cancelReason.trim()) return;
+    setCancelling(true);
+    setCancelError(null);
+    setCancelSuccess(null);
+
+    try {
+      const result = await adminApiRequest<{ ok: boolean; approvalId?: string; message: string }>(
+        `/api/admin/finance/receipt/${cancelTarget.id}/cancel`,
+        {
+          method: "POST",
+          body: JSON.stringify({ reason: cancelReason.trim() }),
+        }
+      );
+      setCancelSuccess(result.message || "Cancellation request submitted for approval.");
+      setCancelTarget(null);
+      setCancelReason("");
+      fetchPayments();
+    } catch (err) {
+      setCancelError(err instanceof Error ? err.message : "Failed to cancel receipt.");
+    } finally {
+      setCancelling(false);
     }
   };
 
@@ -140,16 +181,74 @@ export default function PaymentsPage() {
                     <div className="mt-1"><FeeStatusBadge status={payment.status} size="sm" /></div>
                   </div>
                 </div>
+                <div className="mt-3 flex flex-wrap gap-2 border-t border-[#edf0f7] pt-3">
+                  <a
+                    href={`/admin/finance/receipt/${payment.id}`}
+                    target="_blank"
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-[#eeefff] px-3 py-1.5 text-xs font-bold text-[#3033a1] hover:bg-[#e3e5ff]"
+                  >
+                    <Printer size={14} />
+                    Print Receipt
+                  </a>
+                  {canCancelPayment && payment.status === "completed" && (
+                    <button
+                      onClick={() => { setCancelTarget(payment); setCancelReason(""); setCancelError(null); }}
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-[#ffebed] px-3 py-1.5 text-xs font-bold text-[#ed515d] hover:bg-[#ffd5da]"
+                    >
+                      <XCircle size={14} />
+                      Cancel
+                    </button>
+                  )}
+                </div>
               </div>
             ))
           )}
         </div>
       </section>
+
+      {cancelTarget && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" onClick={() => setCancelTarget(null)}>
+          <div className="card w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-bold text-[#1f2136]">Cancel Receipt</h3>
+            <p className="mt-1 text-sm font-medium text-[#7d86a8]">
+              This will create an approval request to cancel the payment of ₹{cancelTarget.amountPaid.toLocaleString("en-IN")} for {cancelTarget.studentName}.
+            </p>
+            {cancelSuccess ? (
+              <div className="mt-4 rounded-xl border border-[#c8f0dc] bg-[#e6f8ef] px-4 py-3 text-sm font-semibold text-[#0f8d52]">
+                {cancelSuccess}
+              </div>
+            ) : (
+              <>
+                {cancelError && (
+                  <div className="mt-4 rounded-xl border border-[#ffd5da] bg-[#ffebed] px-4 py-3 text-sm font-semibold text-[#c83f4d]">{cancelError}</div>
+                )}
+                <label className="mt-4 block text-sm font-semibold text-[#303247]">
+                  Reason for cancellation
+                  <textarea
+                    className="field mt-1 min-h-[80px] resize-y"
+                    value={cancelReason}
+                    onChange={(e) => setCancelReason(e.target.value)}
+                    placeholder="Explain why this payment needs to be cancelled..."
+                    required
+                  />
+                </label>
+                <div className="mt-5 flex flex-wrap gap-2">
+                  <button className="btn-primary" disabled={cancelling || !cancelReason.trim()} onClick={handleCancel}>
+                    {cancelling ? "Submitting..." : "Submit Cancellation Request"}
+                  </button>
+                  <button type="button" onClick={() => setCancelTarget(null)} className="btn-secondary">
+                    Close
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </>
   );
 }
 
-// Simple payment form component
 function PaymentForm({
   onSuccess,
   onCancel
@@ -161,11 +260,26 @@ function PaymentForm({
   const [studentId, setStudentId] = useState("");
   const [amount, setAmount] = useState("");
   const [paymentType, setPaymentType] = useState("tuition");
+  const [method, setMethod] = useState<PaymentMethod>("cash");
   const [note, setNote] = useState("");
   const [loading, setLoading] = useState(false);
   const [receipt, setReceipt] = useState<{ receiptId: string; amount: number; providerOrderId?: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [upi, setUpi] = useState<{ upiId: string; payeeName: string }>({ upiId: DEFAULT_UPI_ID, payeeName: DEFAULT_UPI_PAYEE_NAME });
+
+  // Bank Transfer fields
+  const [bankName, setBankName] = useState("");
+  const [bankRef, setBankRef] = useState("");
+
+  // Cheque fields
+  const [chequeNumber, setChequeNumber] = useState("");
+  const [chequeBank, setChequeBank] = useState("");
+  const [chequeDate, setChequeDate] = useState("");
+
+  // Card fields
+  const [cardType, setCardType] = useState("");
+  const [cardLast4, setCardLast4] = useState("");
+  const [cardTxnId, setCardTxnId] = useState("");
 
   useEffect(() => {
     if (!isFirebaseConfigured) return;
@@ -196,6 +310,22 @@ function PaymentForm({
     }
   }, [selectedStudent, amount]);
 
+  const buildTransactionId = () => {
+    const ts = Date.now();
+    switch (method) {
+      case "bank_transfer":
+        return `BT-${ts}`;
+      case "cheque":
+        return `CQ-${chequeNumber || ts}`;
+      case "card":
+        return cardTxnId || `CARD-${ts}`;
+      case "upi":
+        return `UPI-${ts}`;
+      default:
+        return `CSH-${ts}`;
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
@@ -210,16 +340,17 @@ function PaymentForm({
 
       const order = await adminApiRequest<{ ok: true; orderId: string; providerOrderId: string; amount: number }>("/api/fees/order", {
         method: "POST",
-        body: JSON.stringify({ studentId, amount: payable, paymentType, note })
+        body: JSON.stringify({ studentId, amount: payable, paymentType, note: buildMethodNote() })
       });
       const confirmation = await adminApiRequest<{ ok: true; receiptId: string; amount: number }>("/api/fees/confirm", {
         method: "POST",
         body: JSON.stringify({
           orderId: order.orderId,
-          transactionId: `SIM-${Date.now()}`,
-          method: "online"
+          transactionId: buildTransactionId(),
+          method
         })
       });
+      const methodLabel = PAYMENT_METHODS.find((m) => m.value === method)?.label || method;
       setReceipt({ receiptId: confirmation.receiptId, amount: confirmation.amount, providerOrderId: order.providerOrderId });
       onSuccess();
     } catch (err) {
@@ -229,14 +360,40 @@ function PaymentForm({
     }
   };
 
+  const buildMethodNote = () => {
+    const parts: string[] = [];
+    if (note) parts.push(note);
+    switch (method) {
+      case "bank_transfer":
+        if (bankName) parts.push(`Bank: ${bankName}`);
+        if (bankRef) parts.push(`Ref: ${bankRef}`);
+        break;
+      case "cheque":
+        if (chequeNumber) parts.push(`Cheque: ${chequeNumber}`);
+        if (chequeBank) parts.push(`Bank: ${chequeBank}`);
+        if (chequeDate) parts.push(`Date: ${chequeDate}`);
+        break;
+      case "card":
+        if (cardType) parts.push(`Card: ${cardType}`);
+        if (cardLast4) parts.push(`Last4: ${cardLast4}`);
+        if (cardTxnId) parts.push(`Txn: ${cardTxnId}`);
+        break;
+    }
+    return parts.join(" | ") || `Payment via ${method}`;
+  };
+
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {error && <div className="rounded-xl border border-[#ffd5da] bg-[#ffebed] px-4 py-3 text-sm font-semibold text-[#c83f4d]">{error}</div>}
       {receipt && (
         <div className="rounded-xl border border-[#c8f0dc] bg-[#e6f8ef] px-4 py-3 text-sm font-semibold text-[#0f8d52]">
-          <span className="inline-flex items-center gap-2"><CheckCircle2 size={17} /> Receipt {receipt.receiptId} generated for ₹{receipt.amount.toLocaleString("en-IN")}.</span>
+          <span className="inline-flex items-center gap-2">
+            <CheckCircle2 size={17} />
+            Receipt {receipt.receiptId} generated for ₹{receipt.amount.toLocaleString("en-IN")} via {PAYMENT_METHODS.find((m) => m.value === method)?.label || method}.
+          </span>
         </div>
       )}
+
       <div className="grid gap-4 md:grid-cols-2">
         <label className="text-sm font-semibold text-[#303247] md:col-span-2">
           Student
@@ -271,27 +428,102 @@ function PaymentForm({
       </div>
 
       <div className="rounded-2xl border border-[#e3e6f0] bg-[#f9faff] p-4">
-        <p className="mb-3 text-sm font-bold text-[#1f2136]">Scan & Pay (UPI)</p>
-        <UpiQr
-          upiId={upi.upiId}
-          payeeName={upi.payeeName}
-          amount={Number(amount) > 0 ? Number(amount) : undefined}
-          note={selectedStudent ? `Fee - ${selectedStudent.studentName}` : "Fee payment"}
-          size={190}
-        />
+        <p className="mb-3 text-sm font-bold text-[#1f2136]">Payment Method</p>
+        <div className="flex flex-wrap gap-2">
+          {PAYMENT_METHODS.map((pm) => (
+            <button
+              key={pm.value}
+              type="button"
+              onClick={() => setMethod(pm.value)}
+              className={`rounded-full px-4 py-2 text-sm font-bold transition ${
+                method === pm.value
+                  ? "bg-[#2d3094] text-white shadow-sm"
+                  : "bg-white text-[#475067] ring-1 ring-[#e3e6f0] hover:bg-[#f3f4fb]"
+              }`}
+            >
+              {pm.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="mt-4">
+          {method === "cash" && (
+            <div className="rounded-xl bg-[#e6f8ef] px-4 py-5 text-center text-sm font-semibold text-[#0f8d52]">
+              Cash payment recorded
+            </div>
+          )}
+
+          {method === "bank_transfer" && (
+            <div className="grid gap-3 md:grid-cols-2">
+              <label className="text-sm font-semibold text-[#303247]">
+                Bank Name
+                <input className="field mt-1" value={bankName} onChange={(e) => setBankName(e.target.value)} placeholder="e.g. HDFC Bank" />
+              </label>
+              <label className="text-sm font-semibold text-[#303247]">
+                Transaction Reference
+                <input className="field mt-1" value={bankRef} onChange={(e) => setBankRef(e.target.value)} placeholder="e.g. NEFT Ref No." />
+              </label>
+            </div>
+          )}
+
+          {method === "upi" && (
+            <UpiQr
+              upiId={upi.upiId}
+              payeeName={upi.payeeName}
+              amount={Number(amount) > 0 ? Number(amount) : undefined}
+              note={selectedStudent ? `Fee - ${selectedStudent.studentName}` : "Fee payment"}
+              size={190}
+            />
+          )}
+
+          {method === "cheque" && (
+            <div className="grid gap-3 md:grid-cols-3">
+              <label className="text-sm font-semibold text-[#303247]">
+                Cheque Number
+                <input className="field mt-1" value={chequeNumber} onChange={(e) => setChequeNumber(e.target.value)} placeholder="e.g. 123456" />
+              </label>
+              <label className="text-sm font-semibold text-[#303247]">
+                Bank Name
+                <input className="field mt-1" value={chequeBank} onChange={(e) => setChequeBank(e.target.value)} placeholder="e.g. SBI" />
+              </label>
+              <label className="text-sm font-semibold text-[#303247]">
+                Date
+                <input className="field mt-1" type="date" value={chequeDate} onChange={(e) => setChequeDate(e.target.value)} />
+              </label>
+            </div>
+          )}
+
+          {method === "card" && (
+            <div className="grid gap-3 md:grid-cols-3">
+              <label className="text-sm font-semibold text-[#303247]">
+                Card Type
+                <select className="field mt-1" value={cardType} onChange={(e) => setCardType(e.target.value)}>
+                  <option value="">Select</option>
+                  <option value="visa">Visa</option>
+                  <option value="mastercard">Mastercard</option>
+                  <option value="rupay">RuPay</option>
+                  <option value="amex">Amex</option>
+                  <option value="other">Other</option>
+                </select>
+              </label>
+              <label className="text-sm font-semibold text-[#303247]">
+                Last 4 Digits
+                <input className="field mt-1" value={cardLast4} onChange={(e) => setCardLast4(e.target.value)} maxLength={4} placeholder="e.g. 1234" />
+              </label>
+              <label className="text-sm font-semibold text-[#303247]">
+                Transaction ID
+                <input className="field mt-1" value={cardTxnId} onChange={(e) => setCardTxnId(e.target.value)} placeholder="e.g. Txn123" />
+              </label>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-2">
         <button className="btn-primary" disabled={loading}>
-          {loading ? "Processing..." : "Pay and confirm"}
+          {loading ? "Processing..." : `Pay via ${PAYMENT_METHODS.find((m) => m.value === method)?.label || method}`}
         </button>
-        <button
-          type="button"
-          onClick={onCancel}
-          className="btn-secondary"
-        >
-          Close
-        </button>
+        <button type="button" onClick={onCancel} className="btn-secondary">Close</button>
       </div>
     </form>
   );

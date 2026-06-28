@@ -1,15 +1,8 @@
 import { NextResponse } from "next/server";
 import { FieldValue } from "firebase-admin/firestore";
 import { passwordResetSchema } from "@sri-narayana/shared";
-import { adminAuth, adminDb, verifyBearerToken } from "@/lib/firebaseAdmin";
-
-async function requireAdmin(req: Request) {
-  const decodedToken = await verifyBearerToken(req);
-  if (!decodedToken || (decodedToken.role !== "admin" && decodedToken.role !== "super_admin")) {
-    return null;
-  }
-  return decodedToken;
-}
+import { adminAuth, adminDb } from "@/lib/firebaseAdmin";
+import { requireAdmin } from "@/lib/apiUtils";
 
 export async function POST(req: Request, { params }: { params: { teacherId: string } }) {
   try {

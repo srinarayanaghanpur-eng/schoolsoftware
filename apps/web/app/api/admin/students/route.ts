@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from "@/lib/firebaseAdmin";
-
-const db = adminDb();
+import { requirePermission } from "@/lib/apiUtils";
 
 /**
  * GET /api/admin/students
@@ -9,6 +8,10 @@ const db = adminDb();
  */
 export async function GET(request: NextRequest) {
   try {
+    const auth = await requirePermission(request, "students.view");
+    if (!auth) return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+
+    const db = adminDb();
     const searchParams = request.nextUrl.searchParams;
     const classStr = searchParams.get('class');
     const section = searchParams.get('section');
@@ -46,18 +49,32 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
+    const auth = await requirePermission(request, "students.create");
+    if (!auth) return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+
+    const db = adminDb();
     const body = await request.json();
     const {
       admissionNumber,
       studentName,
       class: classStr,
       section,
+      gender,
       fatherName,
       motherName,
       dateOfBirth,
       email,
       phone,
-      address
+      address,
+      photoURL,
+      aadhaarNumber,
+      documentURLs,
+      previousSchool,
+      siblingAdmissionNumbers,
+      emergencyContact,
+      transportRouteId,
+      transportStopName,
+      transportFee
     } = body;
 
     // Validation
@@ -89,17 +106,29 @@ export async function POST(request: NextRequest) {
     const feeStatus = totalFeeAmount > 0 ? 'pending' : 'paid';
 
     // Create student document
-    const studentData = {
+    const studentData: Record<string, unknown> = {
       admissionNumber,
       studentName,
       class: classStr,
       section,
+      gender: gender || '',
       fatherName: fatherName || '',
+      fatherPhone: body.fatherPhone || '',
       motherName: motherName || '',
+      motherPhone: body.motherPhone || '',
       dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
       email: email || '',
       phone: phone || '',
       address: address || '',
+      photoURL: photoURL || '',
+      aadhaarNumber: aadhaarNumber || '',
+      documentURLs: documentURLs || [],
+      previousSchool: previousSchool || null,
+      siblingAdmissionNumbers: siblingAdmissionNumbers || [],
+      emergencyContact: emergencyContact || null,
+      transportRouteId: transportRouteId || '',
+      transportStopName: transportStopName || '',
+      transportFee: Number(transportFee || 0),
       annualEnrollmentFee,
       commitmentFee,
       totalFeeAmount,

@@ -183,8 +183,8 @@ export function calculateMonthlySalary(input: SalaryCalculationInput): SalaryRep
     approvedLeaveInfo: approvedLeaveInfo.approvedLeaveInfo,
     salaryDeduction: Math.round(salaryDeduction * 100) / 100,
 
-    absentDeduction: 0,
-    lateDeduction: 0,
+    absentDeduction: Math.round(plainAbsentDays * perDaySalary * 100) / 100,
+    lateDeduction: Math.round(lateDerivedCLDays * perDaySalary * 100) / 100,
     excessLeaveDeduction: Math.round(salaryDeduction * 100) / 100,
     manualDeduction: Math.round(manualDeduction),
     bonus: Math.round(bonus),

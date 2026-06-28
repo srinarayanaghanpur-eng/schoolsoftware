@@ -1,32 +1,19 @@
-import {
-  collection,
-  query,
-  where,
-  getDocs,
-  orderBy,
-  QueryConstraint
-} from 'firebase/firestore';
-import { db } from '@sri-narayana/shared/firebase/client';
+import { adminDb } from '@/lib/firebaseAdmin';
 import { Payment } from '@/types/fee.types';
 
-/**
- * Report Service - Generate various fee reports
- */
+const db = adminDb();
 
 export const reportService = {
-  /**
-   * Generate Class-Wise Fee Report
-   */
   async generateClassWiseFeeReport(filters?: {
     class?: string;
     dateRange?: { from: Date; to: Date };
   }): Promise<any[]> {
-    let queryRef: any = collection(db, 'students');
+    let queryRef: FirebaseFirestore.Query = db.collection('students');
     if (filters?.class) {
-      queryRef = query(collection(db, 'students'), where('class', '==', filters.class));
+      queryRef = queryRef.where('class', '==', filters.class);
     }
 
-    const studentsSnapshot = await getDocs(queryRef);
+    const studentsSnapshot = await queryRef.get();
     const students = studentsSnapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data()
@@ -34,7 +21,7 @@ export const reportService = {
 
     const byClass: Record<string, any> = {};
 
-    students.forEach((student) => {
+    students.forEach((student: any) => {
       const key = student.class;
       if (!byClass[key]) {
         byClass[key] = {
@@ -56,7 +43,7 @@ export const reportService = {
       byClass[key].students.push(student);
     });
 
-    const result = Object.values(byClass).map((classData) => ({
+    return Object.values(byClass).map((classData: any) => ({
       ...classData,
       averageAnnualFee:
         classData.totalStudents > 0
@@ -66,33 +53,27 @@ export const reportService = {
         classData.totalFeeDue > 0
           ? ((classData.totalFeePaid / classData.totalFeeDue) * 100).toFixed(2)
           : '0.00'
-    }));
-
-    return result.sort((a, b) => a.class.localeCompare(b.class));
+    })).sort((a: any, b: any) => a.class.localeCompare(b.class));
   },
 
-  /**
-   * Generate Student-Wise Fee Report
-   */
   async generateStudentWiseFeeReport(filters?: {
     class?: string;
   }): Promise<any[]> {
-    const constraints: QueryConstraint[] = [];
+    let queryRef: FirebaseFirestore.Query = db.collection('students');
 
     if (filters?.class) {
-      constraints.push(where('class', '==', filters.class));
+      queryRef = queryRef.where('class', '==', filters.class);
     }
 
-    constraints.push(orderBy('studentName'));
+    queryRef = queryRef.orderBy('studentName');
 
-    const q = query(collection(db, 'students'), ...constraints);
-    const snapshot = await getDocs(q);
+    const snapshot = await queryRef.get();
     const students = snapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data()
     }));
 
-    const paymentsSnapshot = await getDocs(collection(db, 'payments'));
+    const paymentsSnapshot = await db.collection('payments').get();
     const paymentsByStudent: Record<string, Payment[]> = {};
 
     paymentsSnapshot.forEach((doc) => {
@@ -103,7 +84,7 @@ export const reportService = {
       paymentsByStudent[payment.studentId].push(payment);
     });
 
-    return students.map((student) => {
+    return students.map((student: any) => {
       const payments = paymentsByStudent[student.id] || [];
       const totalPaid = payments
         .filter((p) => p.status === 'completed')
@@ -127,25 +108,22 @@ export const reportService = {
     });
   },
 
-  /**
-   * Generate Attendance vs Fee Report
-   */
   async generateAttendanceFeeReport(filters?: {
     class?: string;
     minAttendance?: number;
     maxAttendance?: number;
   }): Promise<any[]> {
-    const studentsSnapshot = await getDocs(collection(db, 'students'));
+    const studentsSnapshot = await db.collection('students').get();
     let students = studentsSnapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data()
     }));
 
     if (filters?.class) {
-      students = students.filter((s) => s.class === filters.class);
+      students = students.filter((s: any) => s.class === filters.class);
     }
 
-    const paymentsSnapshot = await getDocs(collection(db, 'payments'));
+    const paymentsSnapshot = await db.collection('payments').get();
     const paymentsByStudent: Record<string, Payment[]> = {};
 
     paymentsSnapshot.forEach((doc) => {
@@ -156,7 +134,7 @@ export const reportService = {
       paymentsByStudent[payment.studentId].push(payment);
     });
 
-    let report = students.map((student) => {
+    let report = students.map((student: any) => {
       const payments = paymentsByStudent[student.id] || [];
       const totalPaid = payments
         .filter((p) => p.status === 'completed')
@@ -181,38 +159,28 @@ export const reportService = {
       };
     });
 
-    // Filter by attendance range if provided
     if (filters?.minAttendance || filters?.maxAttendance) {
       const min = filters?.minAttendance || 0;
       const max = filters?.maxAttendance || 100;
 
       report = report.filter(
-        (r) => r.attendancePercentage >= min && r.attendancePercentage <= max
+        (r: any) => r.attendancePercentage >= min && r.attendancePercentage <= max
       );
     }
 
-    return report.sort((a, b) => b.attendancePercentage - a.attendancePercentage);
+    return report.sort((a: any, b: any) => b.attendancePercentage - a.attendancePercentage);
   },
 
-  /**
-   * Generate Monthly Collection Report
-   */
   async generateMonthlyCollectionReport(month: number, year: number): Promise<any> {
     const startDate = new Date(year, month - 1, 1);
     const endDate = new Date(year, month, 0);
 
-    const q = query(
-      collection(db, 'payments'),
-      where('status', '==', 'completed')
-    );
-
-    const snapshot = await getDocs(q);
+    const snapshot = await db.collection('payments').where('status', '==', 'completed').get();
     let payments = snapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data()
     })) as Payment[];
 
-    // Filter by date range
     payments = payments.filter((p) => {
       const paymentDate = new Date(p.paymentDate);
       return paymentDate >= startDate && paymentDate <= endDate;
@@ -223,7 +191,6 @@ export const reportService = {
     const averageTransaction =
       totalTransactions > 0 ? totalCollected / totalTransactions : 0;
 
-    // Group by payment method
     const byMethod: Record<string, { count: number; amount: number }> = {};
     payments.forEach((payment) => {
       if (!byMethod[payment.paymentMethod]) {
@@ -246,11 +213,8 @@ export const reportService = {
     };
   },
 
-  /**
-   * Generate Class-Wise Fee Status Report
-   */
   async generateClassWiseFeeStatusReport(): Promise<any[]> {
-    const studentsSnapshot = await getDocs(collection(db, 'students'));
+    const studentsSnapshot = await db.collection('students').get();
     const students = studentsSnapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data()
@@ -258,7 +222,7 @@ export const reportService = {
 
     const byClass: Record<string, any> = {};
 
-    students.forEach((student) => {
+    students.forEach((student: any) => {
       const key = student.class;
 
       if (!byClass[key]) {
@@ -281,8 +245,7 @@ export const reportService = {
       byClass[key].students.push(student);
     });
 
-    // Calculate percentages
-    return Object.values(byClass).map((classData) => ({
+    return Object.values(byClass).map((classData: any) => ({
       ...classData,
       feePaidPercentage:
         classData.totalFeeDue > 0

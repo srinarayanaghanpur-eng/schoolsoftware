@@ -257,6 +257,23 @@ export const bankTxnSchema = z.object({
   toAccountId: z.string().trim().optional().default("")
 });
 
+// ===== Installment schemas =====
+export const installmentSchema = z.object({
+  number: z.coerce.number().int().positive(),
+  amount: z.coerce.number().positive(),
+  dueDate: z.string().trim().min(8),
+  status: z.enum(["pending", "paid", "overdue", "cancelled"]).optional().default("pending"),
+  paidDate: z.string().trim().optional().default(""),
+  paymentId: z.string().trim().optional().default("")
+});
+
+export const installmentPlanCreateSchema = z.object({
+  studentId: z.string().trim().min(1),
+  totalAmount: z.coerce.number().positive(),
+  installments: z.array(installmentSchema).min(1),
+  academicYearId: z.string().trim().min(1)
+});
+
 export const invoiceItemSchema = z.object({ name: z.string().trim().min(1), amount: z.coerce.number().nonnegative() });
 export const invoiceCreateSchema = z.object({
   studentId: z.string().trim().min(1),
@@ -279,3 +296,61 @@ export const hostelAllotmentSchema = z.object({ studentId: z.string().trim().min
 
 export const inventoryItemCreateSchema = z.object({ name: z.string().trim().min(1), category: z.string().trim().optional().default(""), stock: z.coerce.number().int().nonnegative(), unitPrice: z.coerce.number().nonnegative() });
 export const inventorySaleSchema = z.object({ itemId: z.string().trim().min(1), qty: z.coerce.number().int().positive(), buyer: z.string().trim().optional().default(""), date: z.string().trim().optional().default("") });
+
+// ===== Phase 4: Promotion =====
+export const promotionTypeSchema = z.enum(["promote", "detain", "section_change"]);
+
+export const promotionCreateSchema = z.object({
+  promotionType: promotionTypeSchema,
+  academicYearId: z.string().trim().min(1, "Target academic year is required"),
+  studentIds: z.array(z.string().trim().min(1)).min(1, "At least one student must be selected"),
+  fromClass: z.string().trim().min(1),
+  fromSection: z.string().trim().optional().default(""),
+  toClass: z.string().trim().optional().default(""),
+  toSection: z.string().trim().optional().default(""),
+  feeBalanceCarryForward: z.boolean().optional().default(false),
+  requireApproval: z.boolean().optional().default(false),
+  notes: z.string().trim().optional().default("")
+});
+
+// ===== Phase 0: Audit Log =====
+export const auditLogSchema = z.object({
+  action: z.string().trim().min(1),
+  entityType: z.string().trim().min(1),
+  entityId: z.string().trim().min(1),
+  actorId: z.string().trim().min(1),
+  actorRole: z.string().trim().min(1),
+  oldValues: z.record(z.unknown()).optional().default({}),
+  newValues: z.record(z.unknown()).optional().default({}),
+  reason: z.string().trim().optional().default(""),
+  branch: z.string().trim().optional().default(""),
+  deviceInfo: z.string().trim().optional().default(""),
+  ipAddress: z.string().trim().optional().default(""),
+  approvalId: z.string().trim().optional().default(""),
+  academicYearId: z.string().trim().optional().default("")
+});
+
+// ===== Phase 0: Approval Workflow =====
+export const approvalRequestCreateSchema = z.object({
+  requestType: z.string().trim().min(1),
+  entityType: z.string().trim().min(1),
+  entityId: z.string().trim().min(1),
+  title: z.string().trim().min(1),
+  description: z.string().trim().optional().default(""),
+  payload: z.record(z.unknown()).optional().default({}),
+  branch: z.string().trim().optional().default(""),
+  academicYearId: z.string().trim().optional().default("")
+});
+
+export const approvalRequestReviewSchema = z.object({
+  status: z.enum(["approved", "rejected"]),
+  notes: z.string().trim().optional().default("")
+});
+
+// ===== Phase 0: Parent–Student Link =====
+export const parentStudentLinkSchema = z.object({
+  parentUid: z.string().trim().min(1),
+  studentId: z.string().trim().min(1),
+  relationship: z.enum(["father", "mother", "guardian", "other"]),
+  isPrimary: z.boolean().optional().default(false)
+});

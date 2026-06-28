@@ -1,14 +1,15 @@
 import { OfflineStatusIndicator } from "@/components/OfflineStatusIndicator";
 import { usePathname } from "expo-router";
 import { Link } from "expo-router";
-import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const NAV_ITEMS = [
-  { href: "/home", label: "Home", icon: "⌂" },
-  { href: "/attendance", label: "Mark", icon: "◉" },
-  { href: "/calendar", label: "Calendar", icon: "☰" },
-  { href: "/history", label: "History", icon: "⚇" },
-  { href: "/profile", label: "Profile", icon: "◎" }
+  { href: "/home", label: "Home", glyph: "Hm" },
+  { href: "/attendance", label: "Mark", glyph: "Mk" },
+  { href: "/calendar", label: "Calendar", glyph: "Ca" },
+  { href: "/history", label: "History", glyph: "Hi" },
+  { href: "/profile", label: "Profile", glyph: "Pr" }
 ] as const;
 
 export function Screen({
@@ -21,24 +22,25 @@ export function Screen({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const insets = useSafeAreaInsets();
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <View style={styles.flex}>
       <View style={styles.topBar}>
         <View>
-          <Text style={styles.brand}>Sri Narayana</Text>
-          <Text style={styles.brandSubtext}>Teacher App</Text>
+          <Text style={styles.brand} allowFontScaling={false}>Sri Narayana</Text>
+          <Text style={styles.brandSubtext} allowFontScaling={false}>Teacher App</Text>
         </View>
       </View>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} nestedScrollEnabled>
         <View style={styles.header}>
-          <Text style={styles.title}>{title}</Text>
-          {subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
+          <Text style={styles.title} allowFontScaling={false}>{title}</Text>
+          {subtitle && <Text style={styles.subtitle} allowFontScaling={false}>{subtitle}</Text>}
         </View>
         {children}
       </ScrollView>
       <OfflineStatusIndicator />
-      <View style={styles.bottomNav}>
+      <View style={[styles.bottomNav, { marginBottom: insets.bottom > 0 ? insets.bottom : 8 }]}>
         {NAV_ITEMS.map((item) => {
           const active = pathname === item.href;
           return (
@@ -48,19 +50,21 @@ export function Screen({
                 accessibilityLabel={`Open ${item.label}`}
                 style={({ pressed }) => [styles.navItem, active && styles.navItemActive, pressed && styles.pressed]}
               >
-                <Text style={[styles.navIcon, active && styles.navIconActive]}>{item.icon}</Text>
-                <Text style={[styles.navLabel, active && styles.navLabelActive]}>{item.label}</Text>
+                <View style={[styles.navIconWrap, active && styles.navIconWrapActive]}>
+                  <Text style={[styles.navIcon, active && styles.navIconActive]} allowFontScaling={false}>{item.glyph}</Text>
+                </View>
+                <Text style={[styles.navLabel, active && styles.navLabelActive]} allowFontScaling={false}>{item.label}</Text>
               </Pressable>
             </Link>
           );
         })}
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#f5f6fd" },
+  flex: { flex: 1, backgroundColor: "#f5f6fd" },
   topBar: {
     paddingHorizontal: 18,
     paddingTop: 12,
@@ -78,7 +82,6 @@ const styles = StyleSheet.create({
   subtitle: { marginTop: 6, color: "#7d86a8", fontSize: 14, fontWeight: "500" },
   bottomNav: {
     marginHorizontal: 12,
-    marginBottom: 8,
     padding: 6,
     borderRadius: 24,
     backgroundColor: "white",
@@ -101,8 +104,16 @@ const styles = StyleSheet.create({
     gap: 1
   },
   navItemActive: { backgroundColor: "#eeefff" },
-  navIcon: { color: "#8a93b2", fontSize: 16, fontWeight: "900" },
-  navIconActive: { color: "#3033a1" },
+  navIconWrap: {
+    width: 24,
+    height: 24,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  navIconWrapActive: { backgroundColor: "#3033a1" },
+  navIcon: { color: "#8a93b2", fontSize: 10, fontWeight: "900" },
+  navIconActive: { color: "white", fontSize: 10, fontWeight: "900" },
   navLabel: { color: "#7d86a8", fontSize: 10, fontWeight: "800" },
   navLabelActive: { color: "#3033a1" },
   pressed: { opacity: 0.78, transform: [{ scale: 0.98 }] }

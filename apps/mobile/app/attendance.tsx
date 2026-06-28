@@ -5,11 +5,9 @@ import { auth, db } from "@/lib/firebase";
 import { DEFAULT_SETTINGS, getDistanceFromCampus, isInsideCampus, type SchoolSettings } from "@sri-narayana/shared";
 import * as Device from "expo-device";
 import * as Location from "expo-location";
-import { doc, getDoc } from "@firebase/firestore";
+import { doc, getDoc } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
-
-const DEMO_TEACHER_ID = "teacher_anita";
 
 function DistanceBar({ distance, radius }: { distance: number | null; radius: number }) {
   if (distance === null) {
@@ -31,7 +29,7 @@ function DistanceBar({ distance, radius }: { distance: number | null; radius: nu
           ]}
         />
       </View>
-      <Text style={[styles.barLabel, { color: inside ? "#148654" : "#c9435e" }]}>
+      <Text style={[styles.barLabel, { color: inside ? "#148654" : "#c9435e" }]} allowFontScaling={false}>
         {inside ? "Inside campus" : "Outside campus"} &middot; {distance}m / {radius}m
       </Text>
     </View>
@@ -45,7 +43,7 @@ export default function Attendance() {
   const [loading, setLoading] = useState<"checkin" | "checkout" | null>(null);
 
   useEffect(() => {
-    getDoc<Partial<SchoolSettings>, Partial<SchoolSettings>>(doc(db, "settings", "school"))
+    getDoc(doc(db, "settings", "school"))
       .then((snapshot) => {
         if (snapshot.exists()) {
           setSettings({ ...DEFAULT_SETTINGS, ...snapshot.data() });
@@ -79,7 +77,7 @@ export default function Attendance() {
       }
 
       const token = await auth.currentUser?.getIdTokenResult();
-      const teacherId = typeof token?.claims.teacherId === "string" ? token.claims.teacherId : DEMO_TEACHER_ID;
+      const teacherId = typeof token?.claims.teacherId === "string" ? token.claims.teacherId : (() => { throw new Error("Missing teacherId in auth claims. Cannot mark attendance."); })();
 
       await postAttendance({
         teacherId,
@@ -106,27 +104,27 @@ export default function Attendance() {
       <Card style={styles.statusCard}>
         <View style={styles.cardHeader}>
           <View>
-            <Text style={styles.kicker}>GPS SECURE</Text>
-            <Text style={styles.cardTitle}>Location status</Text>
+            <Text style={styles.kicker} allowFontScaling={false}>GPS SECURE</Text>
+            <Text style={styles.cardTitle} allowFontScaling={false}>Location status</Text>
           </View>
           <View style={[styles.statusBadge, { backgroundColor: locationKnown ? (inside ? "#e4f7ec" : "#fee9ed") : "#f8f9ff" }]}>
-            <Text style={[styles.statusBadgeText, { color: locationKnown ? (inside ? "#148654" : "#c9435e") : "#9aa3bd" }]}>
+            <Text style={[styles.statusBadgeText, { color: locationKnown ? (inside ? "#148654" : "#c9435e") : "#9aa3bd" }]} allowFontScaling={false}>
               {locationKnown ? (inside ? "OK" : "OUT") : "---"}
             </Text>
           </View>
         </View>
 
-        <Text style={styles.label}>Campus location</Text>
-        <Text style={styles.value}>
+        <Text style={styles.label} allowFontScaling={false}>Campus location</Text>
+        <Text style={styles.value} allowFontScaling={false}>
           {settings.campusLatitude.toFixed(4)}, {settings.campusLongitude.toFixed(4)}
         </Text>
 
-        <Text style={styles.label}>Allowed radius</Text>
-        <Text style={styles.value}>{settings.geofenceRadiusMeters} meters</Text>
+        <Text style={styles.label} allowFontScaling={false}>Allowed radius</Text>
+        <Text style={styles.value} allowFontScaling={false}>{settings.geofenceRadiusMeters} meters</Text>
 
         <View style={styles.divider} />
 
-        <Text style={styles.label}>Distance from campus</Text>
+        <Text style={styles.label} allowFontScaling={false}>Distance from campus</Text>
         <DistanceBar distance={distance} radius={settings.geofenceRadiusMeters} />
       </Card>
 
@@ -137,7 +135,7 @@ export default function Attendance() {
           disabled={Boolean(loading)}
           onPress={() => mark("checkin")}
         >
-          <Text style={styles.primaryText}>{loading === "checkin" ? "Checking..." : "Check in"}</Text>
+          <Text style={styles.primaryText} allowFontScaling={false}>{loading === "checkin" ? "Checking..." : "Check in"}</Text>
         </Pressable>
         <Pressable
           accessibilityRole="button"
@@ -145,7 +143,7 @@ export default function Attendance() {
           disabled={Boolean(loading)}
           onPress={() => mark("checkout")}
         >
-          <Text style={styles.secondaryText}>{loading === "checkout" ? "Checking..." : "Check out"}</Text>
+          <Text style={styles.secondaryText} allowFontScaling={false}>{loading === "checkout" ? "Checking..." : "Check out"}</Text>
         </Pressable>
       </View>
     </Screen>

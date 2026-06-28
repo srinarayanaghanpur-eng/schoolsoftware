@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  reactStrictMode: false,
+  reactStrictMode: true,
   transpilePackages: ["@sri-narayana/shared"],
   experimental: {
     optimizePackageImports: ["lucide-react", "recharts"],
@@ -21,6 +21,28 @@ const nextConfig = {
     return [
       {
         source: "/:path*",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=0, must-revalidate"
+          }
+        ]
+      },
+      {
+        source: "/api/:path*",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "no-store, no-cache, must-revalidate, proxy-revalidate"
+          },
+          {
+            key: "Pragma",
+            value: "no-cache"
+          }
+        ]
+      },
+      {
+        source: "/:path*.:ext(jpg|png|svg|js|css|woff2|ico|webp)",
         headers: [
           {
             key: "Cache-Control",

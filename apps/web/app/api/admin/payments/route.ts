@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from "@/lib/firebaseAdmin";
-
-const db = adminDb();
+import { requirePermission } from "@/lib/apiUtils";
 
 /**
  * GET /api/admin/payments
@@ -9,6 +8,10 @@ const db = adminDb();
  */
 export async function GET(request: NextRequest) {
   try {
+    const auth = await requirePermission(request, "fees.view");
+    if (!auth) return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+
+    const db = adminDb();
     const searchParams = request.nextUrl.searchParams;
     const studentId = searchParams.get('studentId');
     const status = searchParams.get('status');
@@ -46,6 +49,10 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
+    const auth = await requirePermission(request, "fees.create");
+    if (!auth) return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+
+    const db = adminDb();
     const body = await request.json();
     const {
       studentId,

@@ -82,5 +82,25 @@ declare module "firebase/firestore" {
 
 declare module "firebase/storage" {
   export type FirebaseStorage = unknown;
+  export type StorageReference = unknown;
+  export type UploadTask = {
+    on(
+      event: string,
+      next?: (snapshot: UploadTaskSnapshot) => void,
+      error?: (error: Error) => void,
+      complete?: () => void
+    ): () => void;
+    snapshot: UploadTaskSnapshot;
+  };
+  export type UploadTaskSnapshot = {
+    bytesTransferred: number;
+    totalBytes: number;
+    ref: StorageReference;
+  };
+  export type SettableMetadata = Record<string, unknown>;
   export function getStorage(app?: unknown): FirebaseStorage;
+  export function ref(storage: FirebaseStorage, path: string): StorageReference;
+  export function uploadBytesResumable(ref: StorageReference, data: Blob | Uint8Array | ArrayBuffer, metadata?: SettableMetadata): UploadTask;
+  export function getDownloadURL(ref: StorageReference): Promise<string>;
+  export function deleteObject(ref: StorageReference): Promise<void>;
 }

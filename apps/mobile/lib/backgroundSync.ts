@@ -19,6 +19,14 @@ export interface MobileBackgroundTask {
 }
 
 const TASK_PREFIX = 'attendance-task-';
+let backgroundTaskRegistered = false;
+
+// Define background task once at module level
+TaskManager.defineTask(TASK_PREFIX + 'sync', async () => {
+  console.log('[MobileSync] Background task executing');
+  await mobileBackgroundSync.startSync();
+  return BackgroundFetch.BackgroundFetchResult.NewData;
+});
 
 class MobileBackgroundSyncManager {
   private tasks: Map<string, MobileBackgroundTask> = new Map();
@@ -40,8 +48,11 @@ class MobileBackgroundSyncManager {
       console.log('[MobileSync] App resumed - starting sync');
       this.startSync();
     } else if (state === 'background') {
-      console.log('[MobileSync] App backgrounded - registering background task');
-      this.registerBackgroundTask();
+      console.log('[MobileSync] App backgrounded');
+      // Only register background task once
+      if (!backgroundTaskRegistered) {
+        this.registerBackgroundTask();
+      }
     }
   };
 
@@ -120,20 +131,13 @@ class MobileBackgroundSyncManager {
    */
   private async registerBackgroundTask(): Promise<void> {
     try {
-      // Define background task
-      TaskManager.defineTask(TASK_PREFIX + 'sync', async () => {
-        console.log('[MobileSync] Background task executing');
-        await this.startSync();
-        return BackgroundFetch.BackgroundFetchResult.NewData;
-      });
-
-      // Register with system
+      // Register with system (task already defined at module level)
       await BackgroundFetch.registerTaskAsync(TASK_PREFIX + 'sync', {
         minimumInterval: 15 * 60, // 15 minutes
         stopOnTerminate: false,
         startOnBoot: true
       });
-
+      backgroundTaskRegistered = true;
       console.log('[MobileSync] Background task registered');
     } catch (error) {
       console.error('[MobileSync] Failed to register background task:', error);

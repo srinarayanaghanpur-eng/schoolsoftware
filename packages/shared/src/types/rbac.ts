@@ -37,7 +37,8 @@ export const MODULES = [
   "settings",
   "academic_years",
   "users",
-  "portal"
+  "portal",
+  "promotions"
 ] as const;
 export type Module = (typeof MODULES)[number];
 
@@ -70,6 +71,7 @@ export const ROLE_PERMISSIONS: Record<Role, readonly (Permission | typeof ALL)[]
     "communication.view", "communication.create",
     "reports.view", "reports.export",
     "academic_years.view",
+    "promotions.view", "promotions.create", "promotions.approve",
     "settings.view"
   ],
   accountant: [

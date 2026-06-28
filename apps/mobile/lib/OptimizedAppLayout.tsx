@@ -4,7 +4,8 @@
  */
 
 import React, { useEffect } from 'react';
-import { SafeAreaView, StatusBar, Platform } from 'react-native';
+import { SafeAreaView, StatusBar, Platform, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { mobileBackgroundSync, initializeMobileBackgroundSync } from './backgroundSync';
 import { mobileLazyLoad } from './lazyLoad';
 import { mobilePerformanceMonitor } from './performanceMonitor';
@@ -96,17 +97,14 @@ export function usePerformanceOptimization() {
  */
 export function OptimizedMobileLayout({ children }: OptimizedMobileLayoutProps) {
   usePerformanceOptimization();
+  const insets = useSafeAreaInsets();
 
   return (
-    <SafeAreaView
-      style={{
-        flex: 1,
-        backgroundColor: '#f5f6fd',
-        paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0
-      }}
-    >
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#f5f6fd' }}>
       <StatusBar barStyle="dark-content" backgroundColor="#f5f6fd" />
-      {children}
+      <View style={{ flex: 1, paddingTop: Platform.OS === 'android' ? insets.top : 0 }}>
+        {children}
+      </View>
     </SafeAreaView>
   );
 }

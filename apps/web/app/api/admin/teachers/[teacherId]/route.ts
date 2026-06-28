@@ -1,16 +1,9 @@
 import { NextResponse } from "next/server";
 import { FieldValue } from "firebase-admin/firestore";
 import { teacherLoginUpdateSchema, type LateDeductionMode } from "@sri-narayana/shared";
-import { adminAuth, adminDb, verifyBearerToken } from "@/lib/firebaseAdmin";
+import { adminAuth, adminDb } from "@/lib/firebaseAdmin";
+import { requireAdmin } from "@/lib/apiUtils";
 import { assertEmployeeIdAvailable, buildTeacherAuthProfile, serializeTeacherDoc } from "@/lib/teacherAdmin";
-
-async function requireAdmin(req: Request) {
-  const decodedToken = await verifyBearerToken(req);
-  if (!decodedToken || (decodedToken.role !== "admin" && decodedToken.role !== "super_admin")) {
-    return null;
-  }
-  return decodedToken;
-}
 
 function isLateDeductionMode(value: unknown): value is LateDeductionMode {
   return value === "none" || value === "half_day" || value === "fixed" || value === "after_3_lates_one_day";

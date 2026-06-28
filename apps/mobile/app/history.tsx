@@ -61,6 +61,7 @@ export default function History() {
           onChangeText={setSearch}
           autoCapitalize="none"
           autoCorrect={false}
+          allowFontScaling={false}
         />
       </View>
 
@@ -75,7 +76,7 @@ export default function History() {
             ]}
             onPress={() => setStatusFilter(f.value)}
           >
-            <Text style={[styles.filterChipText, statusFilter === f.value && styles.filterChipTextActive]}>
+            <Text style={[styles.filterChipText, statusFilter === f.value && styles.filterChipTextActive]} allowFontScaling={false}>
               {f.label}
             </Text>
           </Pressable>
@@ -84,19 +85,19 @@ export default function History() {
 
       {grouped.length === 0 ? (
         <Card>
-          <Text style={styles.emptyTitle}>No records found</Text>
-          <Text style={styles.emptySub}>Try adjusting your search or filter.</Text>
+          <Text style={styles.emptyTitle} allowFontScaling={false}>No records found</Text>
+          <Text style={styles.emptySub} allowFontScaling={false}>Try adjusting your search or filter.</Text>
         </Card>
       ) : (
         grouped.map(([month, records]) => (
           <View key={month}>
-            <Text style={styles.monthLabel}>{formatMonth(month)}</Text>
+            <Text style={styles.monthLabel} allowFontScaling={false}>{formatMonth(month)}</Text>
             {records.map((record) => (
               <Card key={`${record.teacherId}_${record.date}`}>
                 <View style={styles.row}>
                   <View style={styles.copy}>
-                    <Text style={styles.date}>{record.date}</Text>
-                    <Text style={styles.muted}>
+                    <Text style={styles.date} allowFontScaling={false}>{record.date}</Text>
+                    <Text style={styles.muted} allowFontScaling={false}>
                       {record.source}
                       {record.lateMinutes > 0 ? ` · ${record.lateMinutes} min late` : ""}
                     </Text>

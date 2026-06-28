@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from "@/lib/firebaseAdmin";
 import { QueryDocumentSnapshot } from "firebase-admin/firestore";
+import { requirePermission } from "@/lib/apiUtils";
 
 export const dynamic = "force-dynamic";
-
-const db = adminDb();
 
 /**
  * GET /api/admin/reports/class-wise
@@ -12,6 +11,10 @@ const db = adminDb();
  */
 export async function GET(request: NextRequest) {
   try {
+    const auth = await requirePermission(request, "reports.view");
+    if (!auth) return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+
+    const db = adminDb();
     const searchParams = request.nextUrl.searchParams;
     const classFilter = searchParams.get('class');
 

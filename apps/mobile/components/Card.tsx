@@ -1,3 +1,4 @@
+import React from "react";
 import { StyleSheet, type StyleProp, type ViewStyle, View } from "react-native";
 
 export function Card({ children, style }: { children: React.ReactNode; style?: StyleProp<ViewStyle> }) {

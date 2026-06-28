@@ -1,21 +1,14 @@
 import { NextResponse } from "next/server";
 import { FieldValue } from "firebase-admin/firestore";
 import { teacherLoginCreateSchema } from "@sri-narayana/shared";
-import { adminAuth, adminDb, verifyBearerToken } from "@/lib/firebaseAdmin";
+import { adminAuth, adminDb } from "@/lib/firebaseAdmin";
+import { requireAdmin } from "@/lib/apiUtils";
 import {
   assertEmployeeIdAvailable,
   buildTeacherAuthProfile,
   makeTeacherDocumentId,
   serializeTeacherDoc
 } from "@/lib/teacherAdmin";
-
-async function requireAdmin(req: Request) {
-  const decodedToken = await verifyBearerToken(req);
-  if (!decodedToken || (decodedToken.role !== "admin" && decodedToken.role !== "super_admin")) {
-    return null;
-  }
-  return decodedToken;
-}
 
 export async function GET(req: Request) {
   try {

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Banknote, BarChart3, Bell, Building2, FileStack, FileText, Landmark, Layers, ReceiptIndianRupee, ScrollText, Tag, Wallet } from "lucide-react";
+import { Banknote, BarChart3, Bell, BookOpen, Building2, CalendarCheck, DollarSign, FileStack, FileText, Landmark, Layers, ReceiptIndianRupee, ScrollText, Tag, TrendingDown, TrendingUp, Users, Wallet } from "lucide-react";
 
 const TABS = [
   { href: "/admin/finance", label: "Dashboard", icon: BarChart3 },
@@ -12,11 +12,23 @@ const TABS = [
   { href: "/admin/finance/expenses", label: "Expenses", icon: Wallet },
   { href: "/admin/finance/income", label: "Income", icon: Banknote },
   { href: "/admin/finance/dues", label: "Dues", icon: FileStack },
+  { href: "/admin/finance/installments", label: "Installments", icon: Layers },
   { href: "/admin/finance/reminders", label: "Reminders", icon: Bell },
+  { href: "/admin/finance/collections", label: "Closing", icon: CalendarCheck },
+  { href: "/admin/finance/statements", label: "Statements", icon: Users },
+  { href: "/admin/finance/defaulters", label: "Defaulters", icon: FileStack },
+  { href: "/admin/finance/receipts", label: "Receipts", icon: ScrollText },
   { href: "/admin/finance/invoices", label: "Invoices", icon: FileText },
   { href: "/admin/finance/vendors", label: "Vendors", icon: Building2 },
-  { href: "/admin/finance/banking", label: "Banking", icon: Landmark },
+  { href: "/admin/finance/banking", label: "Bank Book", icon: Landmark },
+  { href: "/admin/finance/cash-book", label: "Cash Book", icon: Banknote },
   { href: "/admin/finance/ledger", label: "Ledger", icon: ScrollText },
+  { href: "/admin/finance/trial-balance", label: "Trial Balance", icon: BookOpen },
+  { href: "/admin/finance/profit-loss", label: "P&L", icon: TrendingUp },
+  { href: "/admin/finance/payables", label: "Payables", icon: TrendingDown },
+  { href: "/admin/finance/receivables", label: "Receivables", icon: DollarSign },
+  { href: "/admin/finance/deleted-bills", label: "Deleted Bills", icon: FileText },
+  { href: "/admin/finance/branch-accounts", label: "Branch Accts", icon: Building2 },
   { href: "/admin/fee-reports", label: "Reports", icon: BarChart3 }
 ];
 

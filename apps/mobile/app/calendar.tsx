@@ -8,9 +8,12 @@ import {
   type AttendanceStatus
 } from "@sri-narayana/shared";
 import { useState } from "react";
-import { Dimensions, Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 
-const CELL_WIDTH = (Dimensions.get("window").width - 36 - 28) / 7;
+function useCellWidth() {
+  const { width } = useWindowDimensions();
+  return (width - 36 - 28) / 7;
+}
 
 const WEEK_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
@@ -47,6 +50,7 @@ function dateLabel(value: string) {
 }
 
 export default function Calendar() {
+  const cellWidth = useCellWidth();
   const teacher = demoTeachers[0];
   const teacherRecords = demoAttendance.filter((record) => record.teacherId === teacher.id);
   const [visibleMonth, setVisibleMonth] = useState(() => monthFromRecord(teacherRecords[0]));
@@ -115,11 +119,11 @@ export default function Calendar() {
             onPress={() => moveMonth(-1)}
             style={({ pressed }) => [styles.monthButton, pressed && styles.pressed]}
           >
-            <Text style={styles.monthButtonText}>‹</Text>
+            <Text style={styles.monthButtonText} allowFontScaling={false}>‹</Text>
           </Pressable>
           <View style={styles.monthTitleWrap}>
-            <Text style={styles.monthEyebrow}>Attendance month</Text>
-            <Text style={styles.monthTitle}>{monthTitle}</Text>
+            <Text style={styles.monthEyebrow} allowFontScaling={false}>Attendance month</Text>
+            <Text style={styles.monthTitle} allowFontScaling={false}>{monthTitle}</Text>
           </View>
           <Pressable
             accessibilityRole="button"
@@ -127,32 +131,32 @@ export default function Calendar() {
             onPress={() => moveMonth(1)}
             style={({ pressed }) => [styles.monthButton, pressed && styles.pressed]}
           >
-            <Text style={styles.monthButtonText}>›</Text>
+            <Text style={styles.monthButtonText} allowFontScaling={false}>›</Text>
           </Pressable>
         </View>
 
         <View style={styles.summaryRow}>
           <View style={styles.summaryItem}>
-            <Text style={styles.summaryValue}>{summary.present}</Text>
-            <Text style={styles.summaryLabel}>Present</Text>
+            <Text style={styles.summaryValue} allowFontScaling={false}>{summary.present}</Text>
+            <Text style={styles.summaryLabel} allowFontScaling={false}>Present</Text>
           </View>
           <View style={styles.summaryItem}>
-            <Text style={styles.summaryValue}>{summary.late}</Text>
-            <Text style={styles.summaryLabel}>Late</Text>
+            <Text style={styles.summaryValue} allowFontScaling={false}>{summary.late}</Text>
+            <Text style={styles.summaryLabel} allowFontScaling={false}>Late</Text>
           </View>
           <View style={styles.summaryItem}>
-            <Text style={styles.summaryValue}>{summary.leave}</Text>
-            <Text style={styles.summaryLabel}>CL</Text>
+            <Text style={styles.summaryValue} allowFontScaling={false}>{summary.leave}</Text>
+            <Text style={styles.summaryLabel} allowFontScaling={false}>CL</Text>
           </View>
           <View style={styles.summaryItem}>
-            <Text style={styles.summaryValue}>{summary.holiday}</Text>
-            <Text style={styles.summaryLabel}>Holiday</Text>
+            <Text style={styles.summaryValue} allowFontScaling={false}>{summary.holiday}</Text>
+            <Text style={styles.summaryLabel} allowFontScaling={false}>Holiday</Text>
           </View>
         </View>
 
         <View style={styles.weekRow}>
           {WEEK_DAYS.map((day) => (
-            <Text key={day} style={styles.weekDay}>
+            <Text key={day} style={styles.weekDay} allowFontScaling={false}>
               {day}
             </Text>
           ))}
@@ -166,10 +170,10 @@ export default function Calendar() {
 
             const meta = STATUS_META[cell.status];
             return (
-              <View key={cell.key} style={[styles.dayCell, { backgroundColor: meta.bg, borderColor: meta.border }, cell.key === todayKey && styles.todayCell]}>
-                <Text style={styles.dayNumber}>{cell.day}</Text>
+              <View key={cell.key} style={[styles.dayCell, { width: cellWidth, backgroundColor: meta.bg, borderColor: meta.border }, cell.key === todayKey && styles.todayCell]}>
+                <Text style={styles.dayNumber} allowFontScaling={false}>{cell.day}</Text>
                 <View style={[styles.statusDot, { backgroundColor: meta.fg }]}>
-                  <Text style={styles.statusShort}>{meta.short}</Text>
+                  <Text style={styles.statusShort} allowFontScaling={false}>{meta.short}</Text>
                 </View>
               </View>
             );
@@ -184,7 +188,7 @@ export default function Calendar() {
               return (
                 <View key={status} style={styles.legendItem}>
                   <View style={[styles.legendDot, { backgroundColor: meta.fg }]} />
-                  <Text style={styles.legendText}>{meta.label}</Text>
+                  <Text style={styles.legendText} allowFontScaling={false}>{meta.label}</Text>
                 </View>
               );
             })}
@@ -192,9 +196,9 @@ export default function Calendar() {
       </Card>
 
       <Card>
-        <Text style={styles.sectionTitle}>Month details</Text>
+        <Text style={styles.sectionTitle} allowFontScaling={false}>Month details</Text>
         {detailEntries.length === 0 ? (
-          <Text style={styles.emptyText}>No attendance records found for {monthTitle}.</Text>
+          <Text style={styles.emptyText} allowFontScaling={false}>No attendance records found for {monthTitle}.</Text>
         ) : (
           <>
             {detailEntries.map((entry) => {
@@ -202,11 +206,11 @@ export default function Calendar() {
                 return (
                   <View key={entry.key} style={styles.detailRow}>
                     <View style={styles.detailCopy}>
-                      <Text style={styles.detailDate}>{dateLabel(entry.holiday.date)}</Text>
-                      <Text style={styles.detailMeta}>{entry.holiday.type} holiday</Text>
+                      <Text style={styles.detailDate} allowFontScaling={false}>{dateLabel(entry.holiday.date)}</Text>
+                      <Text style={styles.detailMeta} allowFontScaling={false}>{entry.holiday.type} holiday</Text>
                     </View>
                     <View style={[styles.detailBadge, { backgroundColor: STATUS_META.holiday.bg }]}>
-                      <Text style={[styles.detailBadgeText, { color: STATUS_META.holiday.fg }]}>{entry.holiday.title}</Text>
+                      <Text style={[styles.detailBadgeText, { color: STATUS_META.holiday.fg }]} allowFontScaling={false}>{entry.holiday.title}</Text>
                     </View>
                   </View>
                 );
@@ -216,13 +220,13 @@ export default function Calendar() {
               return (
                 <View key={entry.key} style={styles.detailRow}>
                   <View style={styles.detailCopy}>
-                    <Text style={styles.detailDate}>{dateLabel(entry.record.date)}</Text>
-                    <Text style={styles.detailMeta}>
+                    <Text style={styles.detailDate} allowFontScaling={false}>{dateLabel(entry.record.date)}</Text>
+                    <Text style={styles.detailMeta} allowFontScaling={false}>
                       {entry.record.source} · {entry.record.lateMinutes} late min
                     </Text>
                   </View>
                   <View style={[styles.detailBadge, { backgroundColor: meta.bg }]}>
-                    <Text style={[styles.detailBadgeText, { color: meta.fg }]}>{meta.label}</Text>
+                    <Text style={[styles.detailBadgeText, { color: meta.fg }]} allowFontScaling={false}>{meta.label}</Text>
                   </View>
                 </View>
               );
@@ -257,13 +261,12 @@ const styles = StyleSheet.create({
   weekDay: { flex: 1, textAlign: "center", color: "#7d86a8", fontSize: 11, fontWeight: "900" },
   grid: { flexDirection: "row", flexWrap: "wrap" },
   dayCell: {
-    width: CELL_WIDTH,
     aspectRatio: 1,
-    borderWidth: 1,
+    borderWidth: 0.5,
     padding: 4,
     justifyContent: "space-between"
   },
-  todayCell: { borderWidth: 2, borderColor: "#3033a1" },
+  todayCell: { borderWidth: 2.5, borderColor: "#3033a1" },
   emptyCell: { backgroundColor: "transparent", borderColor: "transparent" },
   dayNumber: { color: "#1b1d32", fontSize: 12, fontWeight: "900" },
   statusDot: {

@@ -1,14 +1,15 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   Alert,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   Pressable,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
+  TouchableWithoutFeedback,
   View
 } from "react-native";
 import { useRouter } from "expo-router";
@@ -22,6 +23,7 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const passwordRef = useRef<TextInput>(null);
 
   const login = async () => {
     if (!employeeId.trim() || !password.trim()) {
@@ -34,8 +36,6 @@ export default function Login() {
       const credential = await signInWithEmailAndPassword(auth, employeeIdToInternalEmail(employeeId.trim()), password);
       const token = await credential.user.getIdTokenResult();
 
-      // Resolve role from the custom claim, falling back to the users doc so that
-      // accounts whose claim hasn't propagated yet (or any valid role) can still sign in.
       const userSnapshot = await getDoc(doc(db, "users", credential.user.uid));
       const userData = userSnapshot.exists() ? (userSnapshot.data() as { role?: unknown; status?: string }) : undefined;
       const claimRole = token.claims.role;
@@ -61,20 +61,20 @@ export default function Login() {
   };
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.keyboard}>
+    <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.flex} keyboardVerticalOffset={Platform.OS === "android" ? -200 : 0}>
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <ScrollView contentContainerStyle={styles.page} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
           <View style={styles.hero}>
             <View style={styles.heroGlow} />
-            <Text style={styles.kicker}>Sri Narayana High School</Text>
-            <Text style={styles.title}>Teacher Attendance</Text>
-            <Text style={styles.subtitle}>Sign in to mark GPS-secured attendance and view your monthly records.</Text>
+            <Text style={styles.kicker} allowFontScaling={false}>Sri Narayana High School</Text>
+            <Text style={styles.title} allowFontScaling={false}>Teacher Attendance</Text>
+            <Text style={styles.subtitle} allowFontScaling={false}>Sign in to mark GPS-secured attendance and view your monthly records.</Text>
           </View>
 
           <View style={styles.formCard}>
-            <Text style={styles.formTitle}>Welcome back</Text>
-            <Text style={styles.formHint}>Use the Employee ID given by the admin office.</Text>
-            <Text style={styles.label}>Employee ID</Text>
+            <Text style={styles.formTitle} allowFontScaling={false}>Welcome back</Text>
+            <Text style={styles.formHint} allowFontScaling={false}>Use the Employee ID given by the admin office.</Text>
+            <Text style={styles.label} allowFontScaling={false}>Employee ID</Text>
             <TextInput
               style={styles.input}
               placeholder="Example: TCH001"
@@ -84,9 +84,12 @@ export default function Login() {
               value={employeeId}
               onChangeText={setEmployeeId}
               returnKeyType="next"
+              onSubmitEditing={() => passwordRef.current?.focus()}
+              allowFontScaling={false}
             />
-            <Text style={styles.label}>Password</Text>
+            <Text style={styles.label} allowFontScaling={false}>Password</Text>
             <TextInput
+              ref={passwordRef}
               style={styles.input}
               placeholder="Enter password"
               placeholderTextColor="#9aa3bd"
@@ -95,6 +98,7 @@ export default function Login() {
               onChangeText={setPassword}
               returnKeyType="go"
               onSubmitEditing={login}
+              allowFontScaling={false}
             />
             <Pressable
               accessibilityRole="button"
@@ -102,18 +106,17 @@ export default function Login() {
               onPress={login}
               disabled={loading}
             >
-              <Text style={styles.buttonText}>{loading ? "Signing in..." : "Sign in"}</Text>
+              <Text style={styles.buttonText} allowFontScaling={false}>{loading ? "Signing in..." : "Sign in"}</Text>
             </Pressable>
           </View>
         </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+      </TouchableWithoutFeedback>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#f5f6fd" },
-  keyboard: { flex: 1 },
+  flex: { flex: 1, backgroundColor: "#f5f6fd" },
   page: { flexGrow: 1, justifyContent: "center", padding: 20, gap: 18 },
   hero: { overflow: "hidden", borderRadius: 26, backgroundColor: "#2c2f8d", padding: 22, minHeight: 190, justifyContent: "flex-end" },
   heroGlow: { position: "absolute", width: 220, height: 220, borderRadius: 110, backgroundColor: "#5458bd", opacity: 0.38, right: -72, top: -78 },

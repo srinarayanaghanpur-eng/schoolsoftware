@@ -53,8 +53,8 @@ export function OfflineStatusIndicator() {
           ]}
         />
         <View>
-          <Text style={styles.boldText}>Syncing data...</Text>
-          <Text style={styles.subText}>Your data is being updated</Text>
+          <Text style={styles.boldText} allowFontScaling={false}>Syncing data...</Text>
+          <Text style={styles.subText} allowFontScaling={false}>Your data is being updated</Text>
         </View>
       </View>
     </Animated.View>

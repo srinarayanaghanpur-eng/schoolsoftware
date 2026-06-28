@@ -23,7 +23,7 @@ export default function Profile() {
     <Screen title="Profile" subtitle={teacher.employeeId}>
       <Card style={styles.profileCard}>
         <View style={styles.avatar}>
-          <Text style={styles.avatarText}>
+          <Text style={styles.avatarText} allowFontScaling={false}>
             {teacher.fullName
               .split(" ")
               .filter(Boolean)
@@ -33,20 +33,20 @@ export default function Profile() {
               .toUpperCase()}
           </Text>
         </View>
-        <Text style={styles.name}>{teacher.fullName}</Text>
-        <Text style={styles.muted}>{teacher.subject}</Text>
+        <Text style={styles.name} allowFontScaling={false}>{teacher.fullName}</Text>
+        <Text style={styles.muted} allowFontScaling={false}>{teacher.subject}</Text>
         <View style={styles.divider} />
         <View style={styles.detailRow}>
-          <Text style={styles.detailLabel}>Employee ID</Text>
-          <Text style={styles.detailValue}>{teacher.employeeId}</Text>
+          <Text style={styles.detailLabel} allowFontScaling={false}>Employee ID</Text>
+          <Text style={styles.detailValue} allowFontScaling={false}>{teacher.employeeId}</Text>
         </View>
         <View style={styles.detailRow}>
-          <Text style={styles.detailLabel}>Phone</Text>
-          <Text style={styles.detailValue}>{teacher.phone}</Text>
+          <Text style={styles.detailLabel} allowFontScaling={false}>Phone</Text>
+          <Text style={styles.detailValue} allowFontScaling={false}>{teacher.phone}</Text>
         </View>
         <View style={styles.detailRow}>
-          <Text style={styles.detailLabel}>Biometric ID</Text>
-          <Text style={styles.detailValue}>{teacher.biometricUserId}</Text>
+          <Text style={styles.detailLabel} allowFontScaling={false}>Biometric ID</Text>
+          <Text style={styles.detailValue} allowFontScaling={false}>{teacher.biometricUserId}</Text>
         </View>
       </Card>
       <Pressable
@@ -55,7 +55,7 @@ export default function Profile() {
         style={({ pressed }) => [styles.button, pressed && styles.pressed]}
         onPress={logout}
       >
-        <Text style={styles.buttonText}>Logout from this device</Text>
+        <Text style={styles.buttonText} allowFontScaling={false}>Logout from this device</Text>
       </Pressable>
     </Screen>
   );

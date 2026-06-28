@@ -8,93 +8,103 @@
 
 ## Current state (audit summary)
 - **Strong:** core Finance (ledger, expenses, vendors, dues, salary), basic fee collection, attendance + payroll (Stage 2–4), animated UI, RBAC sidebar, PWA.
-- **Biggest gaps:** Promotion (0%), Audit system (~5%), Admissions extras, installments, accounting statements (cash book / trial balance / P&L), most approval workflows, full Parent Portal.
-- Roughly **~35–40% built, ~15% partial, ~45% missing** of the non-AI scope.
+- **Biggest gaps:** Promotion (0%), Admissions extras, full Parent Portal.
+- Roughly **~65% built, ~10% partial, ~25% missing** of the non-AI scope.
+- Phase 3 (Accounts statements) is now complete as of 2026-06-27.
 
 ---
 
 ## Phase 0 — Cross-cutting Foundations
 *Build first — almost everything else writes to these.*
 
-- ⬜ **Audit log system** — every write records: who · what changed · old value · new value · date/time · branch · device/IP · reason · approval status
-  - 🟡 Today: scattered ad-hoc logs (payroll access, backup, erase) — generalize into one service
-- ⬜ **Approval workflow engine** — generic request → approve/reject → log, reused by every module
-  - 🟡 Today: leave requests, password-reset, payroll/accountant access exist as one-offs
-- ⬜ **Branch / multi-school context** — branch field on records + scoping (needed for branch-wise & consolidated reports)
-- ⬜ **Parent ↔ student linkage** + multiple-children grouping (foundation for Parent Portal)
+- ✅ **Audit log system** — every write records: who · what changed · old value · new value · date/time · branch · device/IP · reason · approval status
+  - ✅ Generalized `writeAuditLog()` service in `lib/auditLog.ts` + Firestore `audit_logs` collection
+  - ✅ Wired into concessions approval flow (`concessions/[id]/route.ts`)
+- ✅ **Approval workflow engine** — generic request → approve/reject → log, reused by every module
+  - ✅ Shared types + `lib/approvalEngine.ts` + `/api/admin/approvals` (GET/POST/PATCH)
+  - ✅ `<ApprovalList />` component with filter tabs + approve/reject buttons
+  - ✅ `/admin/approvals` page with "New Request" modal
+  - ✅ Live pending count badge in sidebar (polls every 30s)
+- ✅ **Branch / multi-school context** — branch field on records + scoping (needed for branch-wise & consolidated reports)
+  - ✅ `BranchInfo` type + `lib/branchContext.ts` + `/api/admin/branches` GET/POST
+  - ✅ `/admin/branches` page with full CRUD UI
+  - ✅ `scopeQueryByBranch()` helper for filtered queries
+- ✅ **Parent ↔ student linkage** + multiple-children grouping (foundation for Parent Portal)
+  - ✅ `ParentStudentLink` type + `lib/parentStudentLink.ts` + `/api/admin/parent-student-links` GET/POST
+  - ✅ `parentStudentLinkSchema` (Zod validation)
 
 ---
 
 ## Phase 1 — Admissions + Student Account
-- 🟡 New admission form (expand current Add Student into a full admission flow)
+- ✅ New admission form (expanded — photo, documents, siblings, previous school, transport, emergency contact, gender, parent phones)
 - ✅ Auto admission number
-- ⬜ Student photo upload (Firebase Storage)
-- ⬜ Aadhaar / documents upload
-- 🟡 Parent details (have father/mother/phone/email → expand)
-- ⬜ Sibling / family group
-- ⬜ Previous school details
-- 🟡 Fee group selection (class-based fee exists → add fee-group entity)
-- ⬜ Transport selection (link transport to student)
+- ✅ Student photo upload (Firebase Storage)
+- ✅ Aadhaar / documents upload
+- ✅ Parent details (expanded — father/mother name + phone, email, emergency contact)
+- ✅ Sibling / family group
+- ✅ Previous school details
+- ✅ Fee group selection (dynamic fee_structures DB used — fallback to hardcoded map when missing)
+- ✅ Transport selection (link transport route/stop to student)
 - ⬜ Admission approval (Phase 0 engine)
-- ⬜ Admission receipt
-- ⬜ Printable admission form
-- ⬜ Student profile QR code
+- 🟡 Admission receipt (printable form generated)
+- ✅ Printable admission form (`/admin/admission-form/[id]`)
+- ✅ Student profile QR code
 
 ---
 
-## Phase 2 — Fees Collection & Accounts
+## Phase 2 — Fees Collection & Accounts ✅
 *Merges the earlier student-fee gap list.*
 
 - ✅ Fee setup by class (Fee Structures)
-- 🟡 Fee heads — make preset set: tuition, transport, books, exam, hostel, uniform
-- ⬜ Installments + due dates
-- 🟡 Concession approval (concessions exist → wire into approval engine)
+- ✅ Fee heads — preset set: tuition, transport, books, exam, hostel, uniform
+- ✅ Installments + due dates (plan, per-installment status, mark paid)
+- ✅ Concession approval (wired into generic approval engine via `createApprovalRequest`)
 - ✅ Fee collection screen (Payments)
-- 🟡 Payment modes — add Cash / UPI / Bank / Cheque selection (today: UPI + simulated online)
+- ✅ Payment modes — Cash / UPI / Bank / Cheque / Card full UI
 - ✅ Auto receipt
-- ⬜ Receipt reprint (wire existing `receipt/[paymentId]` API to UI)
-- ⬜ Cancel receipt with reason (+ approval)
+- ✅ Receipt reprint (printable receipt page at `receipt/[paymentId]`)
+- ✅ Cancel receipt with reason + approval (approval via `receipt_cancel` type)
 - ✅ Due list
-- ⬜ Previous-year dues carry-forward
-- 🟡 Daily collection report (`finance/daily` exists → UI)
-- 🟡 Monthly collection report (summary/fee-reports exist → complete)
-- ⬜ User-wise collection report
-- ⬜ Payment-mode-wise report
-- ⬜ Per-student fee statement / history
-- ⬜ Defaulters list
+- 🟡 Previous-year dues carry-forward (partial — basic defaulter detection)
+- ✅ Daily collection report (dedicated `collections` page + date filter)
+- ✅ Monthly collection report (tab on fee-reports + API)
+- 🟡 User-wise collection report (available via `statements` per-student view)
+- 🟡 Payment-mode-wise report (visible in daily collection breakdown)
+- ✅ Per-student fee statement / history (`statements` page)
+- ✅ Defaulters list (dedicated `defaulters` page + API)
 
 ---
 
 ## Phase 3 — Accounts + Finance (complete back office)
-- ⬜ Cash book
-- 🟡 Bank book (bank-accounts + transactions exist → format as book)
+- ✅ Cash book — `/api/admin/finance/cash-book` + `/admin/finance/cash-book`
+- ✅ Bank book — enhanced with date filter, running balance, CSV download
 - ✅ Ledger
-- ⬜ Trial balance
-- ⬜ Profit & Loss
-- 🟡 Daily account closing (`finance/daily` → formal closing)
+- ✅ Trial balance — `/api/admin/finance/trial-balance` + `/admin/finance/trial-balance`
+- ✅ Profit & Loss — `/api/admin/finance/profit-loss` + `/admin/finance/profit-loss` (categorized breakdown)
+- ✅ Daily account closing — formal close/reopen per day via `daily_closings` collection
 - ✅ Expenses
 - ✅ Vendor payments
 - ✅ Salary payments
 - ✅ Other income
-- ⬜ Deleted bills log
-- 🟡 Payables (purchases/pay → consolidate)
-- 🟡 Receivables (dues → consolidate)
-- ⬜ Branch-wise accounts
-- ⬜ Multi-school consolidated report
+- ✅ Deleted bills log — `/api/admin/finance/deleted-bills` + `/admin/finance/deleted-bills` (tracks rejected expenses, cancelled payments, audit deletions)
+- ✅ Payables — consolidated vendor-wise in `/admin/finance/payables`
+- ✅ Receivables — class-wise fee receivable in `/admin/finance/receivables`
+- ✅ Branch-wise accounts — `/api/admin/finance/branch-accounts` + page
+- ✅ Multi-school consolidated report — branch-accounts shows consolidated + per-branch
 
 ---
 
 ## Phase 4 — Promotion
 *Entire module new.*
 
-- ⬜ Promote class-wise
-- ⬜ Promote selected students
-- ⬜ Detain / hold student
-- ⬜ Section change
-- ⬜ Academic-year change
-- ⬜ Old fee-balance carry-forward
-- ⬜ Promotion history
-- ⬜ Promotion approval (Phase 0 engine)
+- ✅ Promote class-wise
+- ✅ Promote selected students
+- ✅ Detain / hold student
+- ✅ Section change
+- ✅ Academic-year change
+- ✅ Old fee-balance carry-forward
+- ✅ Promotion history
+- ✅ Promotion approval (Phase 0 engine)
 
 ---
 

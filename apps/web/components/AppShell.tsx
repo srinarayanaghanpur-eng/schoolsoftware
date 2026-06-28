@@ -5,6 +5,7 @@ import {
   BarChart3,
   BellRing,
   BookOpenCheck,
+  Building2,
   Bus,
   CalendarCheck,
   Hotel,
@@ -52,10 +53,9 @@ import { SectionTabs } from "@/components/SectionTabs";
 import { clearPayrollSessionId } from "@/lib/payrollSessionClient";
 import { refreshClaims } from "@/lib/authClaims";
 import { lazyLoad } from "@/lib/lazyLoad";
-import { backgroundSync } from "@/lib/backgroundSync";
 
 type NavChild = { href: string; label: string; module?: Module };
-type NavItem = { href: string; label: string; module: Module; icon: LucideIcon; children?: NavChild[] };
+type NavItem = { href: string; label: string; module: Module; icon: LucideIcon; children?: NavChild[]; badge?: number };
 
 const primaryNav: NavItem[] = [
   { href: "/admin/dashboard", label: "Dashboard", module: "dashboard", icon: Grid2X2 },
@@ -67,7 +67,9 @@ const primaryNav: NavItem[] = [
   { href: "/admin/exams", label: "Exams & Marks", module: "exams", icon: BookOpenCheck },
   { href: "/admin/notices", label: "Communication", module: "communication", icon: Megaphone },
   { href: "/admin/academic-years", label: "Academic Years", module: "academic_years", icon: CalendarRange },
+  { href: "/admin/promotions", label: "Promotion", module: "promotions", icon: GraduationCap },
   { href: "/admin/users", label: "Users & Roles", module: "users", icon: UserCog },
+  { href: "/admin/approvals", label: "Approvals", module: "settings", icon: ShieldCheck, badge: 0 },
   { href: "/portal", label: "Portal", module: "portal", icon: ShieldCheck }
 ];
 
@@ -77,6 +79,7 @@ const secondaryNav: NavItem[] = [
   { href: "/admin/library", label: "Library", module: "library", icon: Library },
   { href: "/admin/hostel", label: "Hostel", module: "hostel", icon: Hotel },
   { href: "/admin/inventory", label: "Inventory", module: "inventory", icon: Package },
+  { href: "/admin/branches", label: "Branches", module: "settings", icon: Building2 },
   { href: "/admin/settings", label: "Settings", module: "settings", icon: Settings }
 ];
 
@@ -108,8 +111,11 @@ const pageTitles: Record<string, string> = {
   "/admin/calendar": "Timetable",
   "/admin/holidays": "Holidays",
   "/admin/academic-years": "Academic Years",
+  "/admin/promotions": "Promotion",
   "/admin/users": "Users & Roles",
+  "/admin/approvals": "Approvals",
   "/portal": "Portal",
+  "/admin/branches": "Branches",
   "/admin/settings": "Settings",
   "/admin/biometric": "Biometric Devices",
   "/admin/backup": "Backup & Restore"
@@ -128,10 +134,13 @@ const routeModules: Array<{ prefix: string; module: Module }> = [
   { prefix: "/admin/notifications", module: "communication" },
   { prefix: "/admin/calendar", module: "academics" },
   { prefix: "/admin/holidays", module: "academics" },
+  { prefix: "/admin/branches", module: "settings" },
   { prefix: "/admin/settings", module: "settings" },
   { prefix: "/admin/biometric", module: "settings" },
   { prefix: "/admin/backup", module: "settings" },
+  { prefix: "/admin/promotions", module: "promotions" },
   { prefix: "/admin/students", module: "students" },
+  { prefix: "/admin/approvals", module: "settings" },
   { prefix: "/admin/users", module: "users" },
   { prefix: "/portal", module: "portal" },
   { prefix: "/admin/dashboard", module: "dashboard" }
@@ -170,7 +179,12 @@ function NavEntry({ item, pathname }: { item: NavItem; pathname: string }) {
         >
           {active && <span className="absolute inset-y-3 -left-2 w-1 rounded-r-full bg-[#ffd23f]" />}
           <item.icon size={20} strokeWidth={2.4} className={active ? "text-white" : "text-[#c5ceff] group-hover:text-white"} />
-          {item.label}
+          <span className="flex-1">{item.label}</span>
+          {item.badge !== undefined && item.badge > 0 && (
+            <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-[#ffd23f] px-1.5 text-[10px] font-extrabold text-[#20226f]">
+              {item.badge > 99 ? "99+" : item.badge}
+            </span>
+          )}
         </Link>
         {item.children && (
           <button
@@ -358,6 +372,26 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const role = profile?.role;
 
+  // Pending approval count badge
+  const [pendingApprovals, setPendingApprovals] = useState(0);
+  useEffect(() => {
+    if (!isFirebaseConfigured || !role) return;
+    const fetchCount = async () => {
+      try {
+        const res = await fetch("/api/admin/approvals?status=pending", {
+          headers: { authorization: `Bearer ${(await auth.currentUser?.getIdToken()) ?? ""}` }
+        });
+        const data = await res.json();
+        if (data.ok) setPendingApprovals(data.requests?.length ?? 0);
+      } catch {
+        // Silently fail — badge is cosmetic
+      }
+    };
+    void fetchCount();
+    const interval = setInterval(fetchCount, 30_000);
+    return () => clearInterval(interval);
+  }, [role]);
+
   // Mobile slide-in nav drawer. Closes automatically on navigation.
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   useEffect(() => setMobileNavOpen(false), [pathname]);
@@ -371,7 +405,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, [sessionLoading, role, pathname, router]);
 
   const sessionValue = useMemo(() => ({ profile, role, loading: sessionLoading }), [profile, role, sessionLoading]);
-  const mainNav = useMemo(() => navForRole(primaryNav, role), [role]);
+  const mainNav = useMemo(
+    () => navForRole(
+      primaryNav.map((item) => item.href === "/admin/approvals" ? { ...item, badge: pendingApprovals } : item),
+      role
+    ),
+    [role, pendingApprovals]
+  );
   const generalNav = useMemo(() => navForRole(secondaryNav, role), [role]);
   const bottomTabs = useMemo(
     () => mobileNav.filter((item) => !item.module || (role && canAccessModule(role, item.module))),
@@ -395,24 +435,30 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     signOut(auth).then(() => router.replace("/login"));
   };
 
+  const [refreshing, setRefreshing] = useState(false);
   const handleHardRefresh = async () => {
+    if (refreshing) return;
+    setRefreshing(true);
     try {
-      // Clear all cached data
+      // Clear all cached app data so the reload pulls everything fresh.
       await lazyLoad.clearCache();
-      
-      // Force refresh auth claims to pick up any updated roles/permissions
+
+      // Refresh auth claims so any updated roles/permissions take effect,
+      // without forcing the user to sign in again.
       if (auth.currentUser) {
         await refreshClaims(auth.currentUser);
       }
-      
-      // Trigger immediate background sync to refetch fresh data
-      backgroundSync.startSync();
-      
-      // Reload current page data by triggering a router refresh
-      router.refresh();
+
+      // Best-effort: drop any cached service-worker responses too.
+      if (typeof caches !== "undefined") {
+        const keys = await caches.keys();
+        await Promise.all(keys.map((key) => caches.delete(key)));
+      }
     } catch (error) {
-      console.error('Hard refresh failed:', error);
-      // Fallback: hard reload the page
+      console.error("Hard refresh cleanup failed:", error);
+    } finally {
+      // Full reload of the whole app. Firebase auth is persisted, so the
+      // session survives and the user stays logged in.
       window.location.reload();
     }
   };
@@ -562,11 +608,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <button
             type="button"
             onClick={handleHardRefresh}
+            disabled={refreshing}
             aria-label="Hard refresh app data"
-            title="Hard refresh (clears cache & reloads data)"
-            className="ml-2 grid h-11 w-11 place-items-center rounded-xl bg-[#f3f4fb] text-[#313581] transition hover:bg-[#e9ebfa]"
+            title="Hard refresh (clears cache & reloads the whole app)"
+            className="ml-2 grid h-11 w-11 place-items-center rounded-xl bg-[#f3f4fb] text-[#313581] transition hover:bg-[#e9ebfa] disabled:cursor-not-allowed disabled:opacity-60"
           >
-            <RefreshCw size={19} />
+            <RefreshCw size={19} className={clsx(refreshing && "animate-spin")} />
           </button>
         </header>
         <div key={pathname} className="page-enter flex-1 overflow-y-auto pb-[76px] md:pb-0">

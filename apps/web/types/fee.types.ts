@@ -84,7 +84,7 @@ export interface Payment {
   concessionApplied?: boolean;
   concessionId?: string;
   paymentDate: string;
-  paymentMethod: 'cash' | 'cheque' | 'online' | 'transfer';
+  paymentMethod: 'cash' | 'cheque' | 'online' | 'transfer' | 'upi' | 'card' | 'bank_transfer';
   transactionId?: string;
   receiptNumber?: string;
   remarks?: string;

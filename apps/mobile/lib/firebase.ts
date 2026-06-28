@@ -1,8 +1,23 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { initializeApp, getApps } from "@firebase/app";
-import { initializeAuth, getReactNativePersistence, getAuth } from "@firebase/auth";
-import { getFirestore } from "@firebase/firestore";
-import { getStorage } from "@firebase/storage";
+import { initializeApp, getApps } from "firebase/app";
+import { initializeAuth, getReactNativePersistence, getAuth } from "firebase/auth";
+import { getFirestore } from "firebase/firestore";
+import { getStorage } from "firebase/storage";
+
+const REQUIRED_ENV_VARS = [
+  'EXPO_PUBLIC_FIREBASE_API_KEY',
+  'EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN',
+  'EXPO_PUBLIC_FIREBASE_PROJECT_ID',
+  'EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET',
+  'EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID',
+  'EXPO_PUBLIC_FIREBASE_APP_ID',
+] as const;
+
+for (const key of REQUIRED_ENV_VARS) {
+  if (!process.env[key]) {
+    throw new Error(`Missing required Firebase env var: ${key}`);
+  }
+}
 
 const firebaseConfig = {
   apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
@@ -20,7 +35,8 @@ try {
   authInstance = initializeAuth(firebaseApp, {
     persistence: getReactNativePersistence(AsyncStorage)
   });
-} catch {
+} catch (e) {
+  console.warn('initializeAuth failed, falling back to getAuth:', e);
   authInstance = getAuth(firebaseApp);
 }
 

@@ -470,6 +470,31 @@ export type ClassDues = {
   students: { id: string; name: string; due: number }[];
 };
 
+// ===== Installment Plans =====
+export type InstallmentStatus = "pending" | "paid" | "overdue" | "cancelled";
+
+export type Installment = {
+  number: number;
+  amount: number;
+  dueDate: string; // YYYY-MM-DD
+  status: InstallmentStatus;
+  paidDate?: string;
+  paymentId?: string;
+};
+
+export type InstallmentPlan = {
+  id?: string;
+  studentId: string;
+  studentName?: string;
+  totalAmount: number;
+  paidAmount: number;
+  installments: Installment[];
+  academicYearId: string;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
 // ===== Finance: vendors, purchases, banking, invoices, reminders =====
 export type Vendor = {
   id?: string;
@@ -559,3 +584,133 @@ export type HostelAllotment = { id?: string; studentId: string; studentName?: st
 // ===== Phase 4: Inventory / Store =====
 export type InventoryItem = { id?: string; name: string; category?: string; stock: number; unitPrice: number; createdAt: FirestoreDate; updatedAt: FirestoreDate };
 export type InventorySale = { id?: string; itemId: string; itemName?: string; qty: number; amount: number; buyer?: string; date: string; createdBy: string; createdAt: FirestoreDate };
+
+// ===== Phase 4: Promotion =====
+export type PromotionType = "promote" | "detain" | "section_change";
+export type PromotionStatus = "pending" | "approved" | "completed" | "rejected";
+
+export type PromotionRecord = {
+  id?: string;
+  promotionType: PromotionType;
+  academicYearId: string;
+  fromAcademicYearId?: string;
+  studentId: string;
+  studentName: string;
+  admissionNumber: string;
+  fromClass: string;
+  fromSection: string;
+  toClass?: string;
+  toSection?: string;
+  feeBalanceCarriedForward: number;
+  notes?: string;
+  status: PromotionStatus;
+  approvalId?: string;
+  approvedBy?: string;
+  approvedAt?: FirestoreDate;
+  createdBy: string;
+  createdAt: FirestoreDate;
+  updatedAt: FirestoreDate;
+};
+
+// ===== Phase 0: Audit Log System =====
+export type AuditAction =
+  | "admission.created"
+  | "student.edited"
+  | "fee.collected"
+  | "receipt.cancelled"
+  | "concession.added"
+  | "concession.updated"
+  | "expense.added"
+  | "expense.deleted"
+  | "expense.approved"
+  | "expense.rejected"
+  | "student.promoted"
+  | "student.suspended"
+  | "tc.issued"
+  | "salary.approved"
+  | "user.login"
+  | "user.logout"
+  | "attendance.edited"
+  | "approval.created"
+  | "approval.approved"
+  | "approval.rejected"
+  | "teacher.created"
+  | "teacher.updated"
+  | "backup.created"
+  | "data.erased"
+  | string; // allow custom actions
+
+export type AuditLogEntry = {
+  id?: string;
+  action: AuditAction;
+  entityType: string; // e.g. "attendance", "student", "fee", "expense"
+  entityId: string;
+  actorId: string;
+  actorRole: string;
+  oldValues?: Record<string, unknown>;
+  newValues?: Record<string, unknown>;
+  reason?: string;
+  branch?: string;
+  deviceInfo?: string;
+  ipAddress?: string;
+  approvalId?: string;
+  academicYearId?: string;
+  createdAt: FirestoreDate;
+};
+
+// ===== Phase 0: Approval Workflow Engine =====
+export type ApprovalRequestType =
+  | "concession"
+  | "expense"
+  | "receipt_cancel"
+  | "promotion"
+  | "tc_issue"
+  | "salary"
+  | "student_delete"
+  | "data_edit"
+  | string;
+
+export type ApprovalStatus = "pending" | "approved" | "rejected";
+
+export type ApprovalRequest = {
+  id?: string;
+  requestType: ApprovalRequestType;
+  entityType: string;
+  entityId: string;
+  title: string;
+  description?: string;
+  requestedBy: string;
+  requestedByName?: string;
+  requestedAt: FirestoreDate;
+  status: ApprovalStatus;
+  reviewedBy?: string;
+  reviewedByName?: string;
+  reviewedAt?: FirestoreDate;
+  notes?: string;
+  payload?: Record<string, unknown>;
+  branch?: string;
+  academicYearId?: string;
+};
+
+// ===== Phase 0: Branch / Multi-school Context =====
+export type BranchInfo = {
+  id: string;
+  name: string;
+  code: string;
+  address?: string;
+  phone?: string;
+  email?: string;
+  isActive: boolean;
+  createdAt: FirestoreDate;
+  updatedAt: FirestoreDate;
+};
+
+// ===== Phase 0: Parent ↔ Student Linkage =====
+export type ParentStudentLink = {
+  id?: string;
+  parentUid: string;
+  studentId: string;
+  relationship: "father" | "mother" | "guardian" | "other";
+  isPrimary: boolean;
+  createdAt: FirestoreDate;
+};

@@ -1,6 +1,4 @@
 node_modules
-.env
-.env.local
 .expo
 dist
 build
@@ -10,10 +8,9 @@ coverage
 google-services.json
 GoogleService-Info.plist
 
-.vercel
+# Environment files (all variants)
 .env*
-env.production
-env.local
+!env.example
 
 # Firebase service account keys (sensitive — never commit)
 serviceAccount*.json
@@ -24,3 +21,6 @@ serviceAccount*.json
 
 # Editor
 .vscode/settings.json
+
+# ESSL bridge local config
+tools/essl-bridge/.env

@@ -22,12 +22,18 @@
       ]
     ],
     "ios": {
-      "supportsTabletMode": false,
+      "supportsTablet": false,
+      "bundleIdentifier": "com.srinarayana.attendance",
       "buildNumber": "1"
     },
     "android": {
       "versionCode": 1,
-      "package": "com.srinarayana.attendance"
+      "package": "com.srinarayana.attendance",
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "CAMERA"
+      ]
     }
   }
 }

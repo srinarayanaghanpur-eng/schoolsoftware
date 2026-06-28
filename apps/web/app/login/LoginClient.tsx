@@ -105,11 +105,8 @@ function getLoginErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : "Login failed";
 }
 
-function getLoginIdCheckStatus(loginId: string) {
-  const normalizedLoginId = normalizeEmployeeId(loginId);
-  if (!normalizedLoginId) return "empty";
-  // Real existence is always confirmed against the DB via /api/login-id/check.
-  return "checking";
+function loginIdInitialStatus(loginId: string): LoginIdCheckStatus {
+  return normalizeEmployeeId(loginId) ? "checking" : "empty";
 }
 
 function LoginIdMatchIndicator({ status }: { status: LoginIdCheckStatus }) {
@@ -361,10 +358,10 @@ function useTeacherLoginController() {
 
   useEffect(() => {
     const normalizedLoginId = normalizeEmployeeId(loginId);
-    const localStatus = getLoginIdCheckStatus(normalizedLoginId);
-    setLoginIdCheckStatus(localStatus);
+    const initialStatus = loginIdInitialStatus(normalizedLoginId);
+    setLoginIdCheckStatus(initialStatus);
 
-    if (localStatus !== "checking") return;
+    if (initialStatus !== "checking") return;
 
     const controller = new AbortController();
     const timeout = window.setTimeout(() => {

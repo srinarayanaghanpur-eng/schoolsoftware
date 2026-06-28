@@ -1,15 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from "@/lib/firebaseAdmin";
-import { getAuth } from 'firebase-admin/auth';
-
-const db = adminDb();
+import { requirePermission } from "@/lib/apiUtils";
 
 /**
- * Legacy GET /api/concessions
+ * GET /api/admin/concessions
  * Get all concession records with optional filtering
  */
 export async function GET(request: NextRequest) {
   try {
+    const auth = await requirePermission(request, "fees.view");
+    if (!auth) return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+
+    const db = adminDb();
     const searchParams = request.nextUrl.searchParams;
     const status = searchParams.get('status');
     const studentId = searchParams.get('studentId');
@@ -51,6 +53,10 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
+    const auth = await requirePermission(request, "fees.create");
+    if (!auth) return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+
+    const db = adminDb();
     const body = await request.json();
     const {
       studentId,

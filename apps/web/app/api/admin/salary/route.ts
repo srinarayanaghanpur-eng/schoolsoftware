@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { FieldValue } from "firebase-admin/firestore";
-import { calculateMonthlySalaryStage4, type AttendanceRecord, type Holiday, type LeaveRequest, type SalaryReport, type Teacher } from "@sri-narayana/shared";
+import { calculateMonthlySalary, type AttendanceRecord, type Holiday, type LeaveRequest, type SalaryReport, type Teacher } from "@sri-narayana/shared";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { serializeDoc, startTimer } from "@/lib/apiUtils";
 import { getSchoolSettings } from "@/lib/firestoreServer";
@@ -101,7 +101,7 @@ export async function POST(req: Request) {
     const batch = db.batch();
     const reports = teachers.map((teacher) => {
       const previousDoc = db.collection("salary_reports").doc(salaryDocId(month, teacher.id));
-      const report = calculateMonthlySalaryStage4({
+      const report = calculateMonthlySalary({
         teacher,
         records: recordsByTeacherId.get(teacher.id) || [], // O(1) lookup vs O(n) filter
         holidays,

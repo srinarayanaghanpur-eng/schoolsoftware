@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from "@/lib/firebaseAdmin";
+import { createApprovalRequest } from "@/lib/approvalEngine";
+import { writeAuditLog } from "@/lib/auditLog";
 
 const db = adminDb();
 
@@ -69,14 +71,13 @@ export async function PATCH(
       updatedAt: new Date()
     };
 
-    if (status) {
+    if (status && (status === "approved" || status === "rejected")) {
+      // Do the actual status update
       updateData.status = status;
       updateData.approvalNotes = approvalNotes;
       updateData.approvedBy = userId;
       updateData.approvalDate = new Date();
       updateData.isActive = status === 'approved';
-
-      // Add to history
       updateData.history = [
         ...(concession.history || []),
         {
@@ -87,7 +88,58 @@ export async function PATCH(
           newData: { status }
         }
       ];
-    } else if (concession.status === 'pending') {
+
+      await docRef.update(updateData);
+
+      // Also create audit trail
+      await writeAuditLog({
+        action: status === 'approved' ? 'concession.added' : 'concession.updated',
+        entityType: 'concession',
+        entityId: params.id,
+        actorId: userId ?? "system",
+        actorRole: "admin",
+        oldValues: { status: concession.status } as Record<string, unknown>,
+        newValues: { status } as Record<string, unknown>,
+        reason: approvalNotes ?? undefined
+      });
+
+      // Create approval request record for the approvals dashboard
+      await createApprovalRequest({
+        requestType: "concession",
+        entityType: "concession",
+        entityId: params.id,
+        title: `Concession ${status} — ${concession.studentName || concession.studentId}`,
+        description: approvalNotes || `${status} by ${userId}`,
+        requestedBy: userId || "system",
+        payload: {
+          ...body,
+          concessionData: concession,
+          finalStatus: status
+        }
+      });
+
+      // Update student if approved
+      if (status === 'approved') {
+        const studentRef = db.collection('students').doc(concession.studentId);
+        const studentSnap = await studentRef.get();
+        if (studentSnap.exists) {
+          const student = studentSnap.data() ?? {};
+          await studentRef.update({
+            totalConcessionAmount: ((student.totalConcessionAmount as number) || 0) + (concessionAmount || 0),
+            activeConcessionCount: ((student.activeConcessionCount as number) || 0) + 1,
+            concessionStatus: 'approved',
+            feeLastUpdated: new Date()
+          });
+        }
+      }
+
+      return NextResponse.json({
+        success: true,
+        data: { id: params.id, ...concession, ...updateData }
+      });
+    }
+
+    if (concession.status === 'pending') {
       // Edit pending concession
       const updates: any = {};
       if (concessionAmount !== undefined) {
@@ -127,21 +179,16 @@ export async function PATCH(
       timestamp: new Date()
     });
 
-    // Update student if approved
-    if (status === 'approved') {
-      const studentRef = db.collection('students').doc(concession.studentId);
-      const studentSnap = await studentRef.get();
-
-      if (studentSnap.exists) {
-        const student = studentSnap.data() ?? {};
-        await studentRef.update({
-          totalConcessionAmount: ((student.totalConcessionAmount as number) || 0) + (concessionAmount || 0),
-          activeConcessionCount: ((student.activeConcessionCount as number) || 0) + 1,
-          concessionStatus: 'approved',
-          feeLastUpdated: new Date()
-        });
-      }
-    }
+    await writeAuditLog({
+      action: 'concession.updated',
+      entityType: 'concession',
+      entityId: params.id,
+      actorId: userId ?? "system",
+      actorRole: "admin",
+      oldValues: { status: concession.status } as Record<string, unknown>,
+      newValues: { status: updateData.status || concession.status } as Record<string, unknown>,
+      reason: approvalNotes ?? undefined
+    });
 
     return NextResponse.json({
       success: true,

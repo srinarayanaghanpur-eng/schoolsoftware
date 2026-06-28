@@ -20,7 +20,7 @@ const labels: Record<AttendanceStatus, string> = {
 };
 
 export function StatusPill({ status }: { status: AttendanceStatus }) {
-  return <Text style={[styles.pill, { backgroundColor: colors[status].bg, color: colors[status].fg }]}>{labels[status]}</Text>;
+  return <Text style={[styles.pill, { backgroundColor: colors[status].bg, color: colors[status].fg }]} allowFontScaling={false}>{labels[status]}</Text>;
 }
 
 const styles = StyleSheet.create({

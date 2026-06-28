@@ -281,16 +281,19 @@ export function FeeCollectionProgressBar({
 export function PaymentMethodBadge({
   method
 }: {
-  method: "cash" | "cheque" | "online" | "transfer";
+  method: "cash" | "cheque" | "online" | "transfer" | "upi" | "card" | "bank_transfer";
 }) {
   const configs = {
     cash: { bg: "bg-[#e6f8ef]", text: "text-[#13a961]", label: "Cash" },
     cheque: { bg: "bg-[#eeefff]", text: "text-[#3033a1]", label: "Cheque" },
     online: { bg: "bg-[#f0edff]", text: "text-[#5751b8]", label: "Online" },
-    transfer: { bg: "bg-[#eeefff]", text: "text-[#3033a1]", label: "Transfer" }
+    transfer: { bg: "bg-[#eeefff]", text: "text-[#3033a1]", label: "Bank Transfer" },
+    upi: { bg: "bg-[#f0edff]", text: "text-[#5751b8]", label: "UPI" },
+    card: { bg: "bg-[#fff4df]", text: "text-[#d79418]", label: "Card" },
+    bank_transfer: { bg: "bg-[#eeefff]", text: "text-[#3033a1]", label: "Bank Transfer" }
   };
 
-  const config = configs[method];
+  const config = method in configs ? configs[method as keyof typeof configs] : configs.cash;
 
   return (
     <span className={clsx("inline-flex rounded-full px-3 py-1 text-xs font-semibold", config.bg, config.text)}>
