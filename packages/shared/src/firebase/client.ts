@@ -1,14 +1,14 @@
 import { initializeApp, getApps } from "firebase/app";
-import { getAuth, initializeAuth, inMemoryPersistence } from "firebase/auth";
+import { getAuth, initializeAuth, browserSessionPersistence } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
-// Security: keep the auth session in memory only. Nothing is written to the
-// browser (no IndexedDB/localStorage), so a full page reload or opening an
-// admin URL directly always requires a fresh login.
+// Security: use session persistence. The login survives page reloads while the
+// browser is open, but closing the browser (or opening a new browser/incognito
+// window) requires a fresh login — it is never saved permanently.
 function createAuth(app: ReturnType<typeof initializeApp>) {
   try {
-    return initializeAuth(app, { persistence: inMemoryPersistence });
+    return initializeAuth(app, { persistence: browserSessionPersistence });
   } catch {
     // initializeAuth throws if auth was already initialized (e.g. HMR/double
     // import). Fall back to the existing instance in that case.
