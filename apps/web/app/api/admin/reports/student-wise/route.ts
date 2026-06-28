@@ -55,6 +55,7 @@ export async function GET(request: NextRequest) {
         section: student.section,
         annualEnrollmentFee: student.annualEnrollmentFee || 0,
         commitmentFee: student.commitmentFee || 0,
+        previousYearDues: student.feeBalanceCarriedForward || 0,
         totalFeeAmount: student.totalFeeAmount || 0,
         totalFeeDue: student.totalFeesDue || 0,
         totalPaid,

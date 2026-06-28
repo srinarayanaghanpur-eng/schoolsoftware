@@ -18,6 +18,7 @@ declare module "firebase/auth" {
   export type Persistence = unknown;
   export const browserLocalPersistence: Persistence;
   export const browserSessionPersistence: Persistence;
+  export const inMemoryPersistence: Persistence;
   export function getAuth(app?: unknown): Auth;
   export function initializeAuth(app: unknown, options?: unknown): Auth;
   export function getReactNativePersistence(storage: unknown): unknown;

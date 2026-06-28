@@ -1,3 +1,4 @@
+import { FieldValue } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { writeAuditLog } from "@/lib/auditLog";
 import type { ApprovalRequest, ApprovalStatus } from "@sri-narayana/shared";
@@ -97,6 +98,60 @@ export async function reviewApprovalRequest(params: ReviewApprovalParams): Promi
     branch: existing.branch,
     academicYearId: existing.academicYearId
   });
+
+  // Apply the real side-effect once a request is decided.
+  await applyApprovalEffect(existing, params.status);
+}
+
+/**
+ * Performs the concrete action tied to an approval request after it is decided.
+ * Only handles request types whose effect isn't already applied elsewhere.
+ */
+async function applyApprovalEffect(request: ApprovalRequest, status: ApprovalStatus): Promise<void> {
+  const db = adminDb();
+
+  switch (request.requestType) {
+    case "admission": {
+      // Activate (or reject) the student admission.
+      await db.collection("students").doc(request.entityId).set(
+        {
+          admissionStatus: status === "approved" ? "approved" : "rejected",
+          updatedAt: new Date()
+        },
+        { merge: true }
+      );
+      break;
+    }
+    case "receipt_cancel": {
+      // The cancel route only flags the payment "cancellation_requested";
+      // the real effect happens here once an admin decides.
+      const paymentId = request.entityId;
+      const payRef = db.collection("payments").doc(paymentId);
+      const paySnap = await payRef.get();
+      if (!paySnap.exists) break;
+      const payment = paySnap.data() as Record<string, unknown>;
+
+      if (status === "approved") {
+        await payRef.update({ status: "cancelled", cancelledAt: new Date().toISOString() });
+        // Reverse the student's running paid total.
+        const studentId = (payment.studentId as string) || (request.payload?.studentId as string);
+        const amount = Number(payment.amountPaid ?? request.payload?.amount ?? 0);
+        if (studentId && amount > 0) {
+          await db.collection("students").doc(studentId).set(
+            { totalFeesPaid: FieldValue.increment(-amount), feeLastUpdated: new Date() },
+            { merge: true }
+          );
+        }
+      } else {
+        // Rejected → restore the payment to completed.
+        await payRef.update({ status: "completed", cancellationReason: FieldValue.delete() });
+      }
+      break;
+    }
+    default:
+      // Other request types apply their effect in their own flow.
+      break;
+  }
 }
 
 export async function getApprovalRequests(options: {

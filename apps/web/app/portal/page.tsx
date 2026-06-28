@@ -5,7 +5,8 @@ import { AuthGate } from "@/components/AuthGate";
 import { PageHeader } from "@/components/PageHeader";
 import { adminApiRequest } from "@/lib/adminApiClient";
 import { ROLES, type PortalSummary } from "@sri-narayana/shared";
-import { Award, BellRing, CreditCard, Percent, ReceiptText } from "lucide-react";
+import { Award, BellRing, CreditCard, ExternalLink, Percent, ReceiptText } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 
 function formatINR(amount: number) {
@@ -152,6 +153,36 @@ function PortalDashboard() {
                 </div>
               </div>
             </div>
+
+            {summary.recentPayments && summary.recentPayments.length > 0 && (
+              <div className="card p-5">
+                <div className="mb-4 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <ReceiptText size={20} className="text-[#3033a1]" />
+                    <h2 className="font-extrabold text-[#1f2136]">Recent Payments</h2>
+                  </div>
+                  <Link href="/portal/payments" className="inline-flex items-center gap-1.5 text-sm font-bold text-[#3033a1] hover:underline">
+                    View all <ExternalLink size={14} />
+                  </Link>
+                </div>
+                <div className="space-y-3">
+                  {summary.recentPayments.map((pmt) => (
+                    <div key={pmt.id} className="flex items-center justify-between rounded-xl bg-[#f7f8fd] p-3">
+                      <div>
+                        <p className="text-sm font-bold text-[#303247]">{formatINR(pmt.amountPaid)}</p>
+                        <p className="text-xs font-medium text-[#7d86a8]">{pmt.createdAt} · {pmt.paymentMethod}</p>
+                      </div>
+                      <Link
+                        href={`/portal/payments/${pmt.id}`}
+                        className="rounded-lg bg-white px-3 py-1.5 text-xs font-bold text-[#3033a1] ring-1 ring-[#e3e6f0] transition hover:bg-[#eef0ff]"
+                      >
+                        Receipt
+                      </Link>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div className="grid gap-5 xl:grid-cols-2">
               <div className="card overflow-hidden">

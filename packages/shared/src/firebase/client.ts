@@ -1,7 +1,20 @@
 import { initializeApp, getApps } from "firebase/app";
-import { getAuth } from "firebase/auth";
+import { getAuth, initializeAuth, inMemoryPersistence } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
+
+// Security: keep the auth session in memory only. Nothing is written to the
+// browser (no IndexedDB/localStorage), so a full page reload or opening an
+// admin URL directly always requires a fresh login.
+function createAuth(app: ReturnType<typeof initializeApp>) {
+  try {
+    return initializeAuth(app, { persistence: inMemoryPersistence });
+  } catch {
+    // initializeAuth throws if auth was already initialized (e.g. HMR/double
+    // import). Fall back to the existing instance in that case.
+    return getAuth(app);
+  }
+}
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY ?? process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
@@ -16,6 +29,6 @@ const firebaseConfig = {
 export const isFirebaseConfigured = Object.values(firebaseConfig).every(Boolean);
 
 export const firebaseApp = isFirebaseConfigured ? (getApps().length ? getApps()[0] : initializeApp(firebaseConfig)) : undefined;
-export const auth = firebaseApp ? getAuth(firebaseApp) : ({ currentUser: null } as ReturnType<typeof getAuth>);
+export const auth = firebaseApp ? createAuth(firebaseApp) : ({ currentUser: null } as ReturnType<typeof getAuth>);
 export const db = firebaseApp ? getFirestore(firebaseApp) : ({} as ReturnType<typeof getFirestore>);
 export const storage = firebaseApp ? getStorage(firebaseApp) : ({} as ReturnType<typeof getStorage>);

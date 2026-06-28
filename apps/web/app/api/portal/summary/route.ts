@@ -61,6 +61,29 @@ export async function GET(req: Request) {
 
   const due = Math.max(0, ((s.totalFeesDue as number) || 0) - ((s.totalFeesPaid as number) || 0));
 
+  const paymentsSnap = await db
+    .collection("payments")
+    .where("studentId", "==", studentId)
+    .orderBy("createdAt", "desc")
+    .limit(5)
+    .get();
+  const recentPayments = paymentsSnap.docs.map((doc) => {
+    const p = doc.data();
+    const created = p.createdAt;
+    const dateStr = created
+      ? typeof created === "object" && typeof (created as { toDate?: () => Date }).toDate === "function"
+        ? (created as { toDate: () => Date }).toDate().toISOString()
+        : String(created)
+      : "";
+    return {
+      id: doc.id,
+      amountPaid: p.amountPaid || 0,
+      paymentMethod: p.paymentMethod || "",
+      receiptNumber: p.receiptNumber || "",
+      createdAt: dateStr.slice(0, 10),
+    };
+  });
+
   return NextResponse.json({
     ok: true,
     summary: {
@@ -68,7 +91,8 @@ export async function GET(req: Request) {
       fees: { total: (s.totalFeeAmount as number) || 0, paid: (s.totalFeesPaid as number) || 0, due, status: s.feeStatus },
       attendancePercentage: (s.attendancePercentage as number) ?? undefined,
       marks,
-      notices
+      notices,
+      recentPayments,
     },
     linkedStudentIds: studentIds
   });

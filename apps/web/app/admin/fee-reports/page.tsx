@@ -4,7 +4,7 @@ import { useState } from "react";
 import { FileDown } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 
-type TabType = "class-wise" | "student-wise" | "attendance-fee" | "monthly-collection";
+type TabType = "class-wise" | "student-wise" | "attendance-fee" | "monthly-collection" | "user-wise" | "payment-mode";
 
 interface ReportData {
   type: TabType;
@@ -19,7 +19,9 @@ export default function FeeReportsPage() {
     "class-wise": { type: "class-wise", data: [], loading: false, error: "" },
     "student-wise": { type: "student-wise", data: [], loading: false, error: "" },
     "attendance-fee": { type: "attendance-fee", data: [], loading: false, error: "" },
-    "monthly-collection": { type: "monthly-collection", data: [], loading: false, error: "" }
+    "monthly-collection": { type: "monthly-collection", data: [], loading: false, error: "" },
+    "user-wise": { type: "user-wise", data: [], loading: false, error: "" },
+    "payment-mode": { type: "payment-mode", data: [], loading: false, error: "" }
   });
 
   const generateReport = async (reportType: TabType) => {
@@ -83,6 +85,14 @@ export default function FeeReportsPage() {
     "monthly-collection": {
       label: "Monthly Collection",
       description: "Payment collection totals broken down by month"
+    },
+    "user-wise": {
+      label: "User-Wise Collection",
+      description: "Collections grouped by the user who recorded each payment"
+    },
+    "payment-mode": {
+      label: "Payment-Mode Report",
+      description: "Collections grouped by mode — cash, UPI, bank, cheque, card"
     }
   };
 

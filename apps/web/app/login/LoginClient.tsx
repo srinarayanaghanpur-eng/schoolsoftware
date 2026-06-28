@@ -58,7 +58,7 @@ const featureCards: Feature[] = [
 ];
 
 async function signInAndResolveRole(loginId: string, password: string, rememberMe: boolean) {
-  const [{ browserLocalPersistence, browserSessionPersistence, setPersistence, signInWithEmailAndPassword, signOut }, { doc, getDoc }, firebaseClient] =
+  const [{ inMemoryPersistence, setPersistence, signInWithEmailAndPassword, signOut }, { doc, getDoc }, firebaseClient] =
     await Promise.all([
       import("firebase/auth"),
       import("firebase/firestore"),
@@ -70,7 +70,11 @@ async function signInAndResolveRole(loginId: string, password: string, rememberM
     throw new Error("Firebase is not configured yet. Add Firebase environment values to enable login.");
   }
 
-  await setPersistence(auth, rememberMe ? browserLocalPersistence : browserSessionPersistence);
+  // Security: in-memory only — the session is never written to the browser, so
+  // a reload or opening an admin URL directly always requires a fresh login.
+  // `rememberMe` is intentionally ignored under this policy.
+  void rememberMe;
+  await setPersistence(auth, inMemoryPersistence);
   const credential = await signInWithEmailAndPassword(auth, employeeIdToInternalEmail(loginId), password);
   const uid = credential.user.uid;
   // Force a token refresh so a recently-changed role (updated custom claims)

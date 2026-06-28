@@ -45,8 +45,8 @@
 - ✅ Previous school details
 - ✅ Fee group selection (dynamic fee_structures DB used — fallback to hardcoded map when missing)
 - ✅ Transport selection (link transport route/stop to student)
-- ⬜ Admission approval (Phase 0 engine)
-- 🟡 Admission receipt (printable form generated)
+- ✅ Admission approval (Phase 0 engine — new admissions create a pending approval; approve activates the student)
+- ✅ Admission receipt (acknowledgment + signature block on the printable admission form)
 - ✅ Printable admission form (`/admin/admission-form/[id]`)
 - ✅ Student profile QR code
 
@@ -65,11 +65,11 @@
 - ✅ Receipt reprint (printable receipt page at `receipt/[paymentId]`)
 - ✅ Cancel receipt with reason + approval (approval via `receipt_cancel` type)
 - ✅ Due list
-- 🟡 Previous-year dues carry-forward (partial — basic defaulter detection)
+- ✅ Previous-year dues carry-forward (`feeBalanceCarriedForward` set on promotion, surfaced in student-wise report)
 - ✅ Daily collection report (dedicated `collections` page + date filter)
 - ✅ Monthly collection report (tab on fee-reports + API)
-- 🟡 User-wise collection report (available via `statements` per-student view)
-- 🟡 Payment-mode-wise report (visible in daily collection breakdown)
+- ✅ User-wise collection report (`reports/user-wise` API + fee-reports tab, grouped by collector)
+- ✅ Payment-mode-wise report (`reports/payment-mode` API + fee-reports tab, with share %)
 - ✅ Per-student fee statement / history (`statements` page)
 - ✅ Defaulters list (dedicated `defaulters` page + API)
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from "@/lib/firebaseAdmin";
 import { requirePermission } from "@/lib/apiUtils";
+import { createApprovalRequest } from "@/lib/approvalEngine";
 
 /**
  * GET /api/admin/students
@@ -98,6 +99,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Whether new admissions require admin approval. Controlled by the
+    // settings/admissions doc (default true), overridable per-request.
+    let requireApproval = true;
+    try {
+      const cfgSnap = await db.collection("settings").doc("admissions").get();
+      const cfg = cfgSnap.exists ? cfgSnap.data() : undefined;
+      if (cfg && typeof cfg.requireApproval === "boolean") requireApproval = cfg.requireApproval;
+    } catch {
+      // settings doc unavailable → keep default (require approval)
+    }
+    if (typeof body.requireApproval === "boolean") requireApproval = body.requireApproval;
+
     const annualEnrollmentFee = Number(body.annualEnrollmentFee || 0);
     const commitmentFee = Number(body.commitmentFee || 0);
     const totalFeeAmount = annualEnrollmentFee + commitmentFee;
@@ -136,12 +149,29 @@ export async function POST(request: NextRequest) {
       totalFeesPaid,
       feeStatus,
       attendancePercentage: 0,
+      admissionStatus: requireApproval ? "pending" : "approved",
       feeLastUpdated: new Date(),
       createdAt: new Date(),
       updatedAt: new Date()
     };
 
     const docRef = await db.collection('students').add(studentData);
+
+    // Raise an approval request only when approval is required.
+    if (requireApproval) try {
+      await createApprovalRequest({
+        requestType: "admission",
+        entityType: "student",
+        entityId: docRef.id,
+        title: `Admission: ${studentName} (${admissionNumber})`,
+        description: `Class ${classStr}-${section}`,
+        requestedBy: auth.uid,
+        requestedByName: auth.name ?? auth.uid,
+        payload: { admissionNumber, studentName, class: classStr, section }
+      });
+    } catch (approvalError) {
+      console.error("Admission approval request failed (student still created):", approvalError);
+    }
 
     return NextResponse.json({
       success: true,

@@ -396,6 +396,7 @@ export type PortalSummary = {
   attendancePercentage?: number;
   marks: { examName: string; subject: string; marksObtained: number; maxMarks: number; grade?: string }[];
   notices: { title: string; body: string; createdAt?: string }[];
+  recentPayments?: { id: string; amountPaid: number; paymentMethod: string; receiptNumber: string; createdAt: string }[];
 };
 
 // ===== Finance & Accounting =====

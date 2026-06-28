@@ -34,6 +34,7 @@ export async function POST(req: Request) {
       status: "completed",
       source: "online",
       paidBy: token.uid,
+      paidByName: token.name ?? token.uid,
       createdAt: now
     });
     // 2) update the student's running paid total atomically

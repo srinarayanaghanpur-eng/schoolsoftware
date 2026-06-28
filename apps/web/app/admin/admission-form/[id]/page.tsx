@@ -232,10 +232,27 @@ export default function AdmissionFormPage() {
             </div>
           </div>
 
+          {/* Admission acknowledgment / receipt */}
+          <div className="mt-6 rounded-xl border border-[#edf0f7] bg-[#f9faff] p-4 text-sm print:bg-white">
+            <h3 className="mb-2 text-xs font-bold uppercase tracking-wide text-[#3033a1]">Admission Receipt — Acknowledgment</h3>
+            <p className="text-[#303247]">
+              This is to acknowledge that <strong>{student.studentName}</strong> (Admission No.
+              <strong> {student.admissionNumber}</strong>) has been admitted to Class
+              <strong> {student.class}-{student.section}</strong> with a total fee commitment of
+              <strong> ₹{Number(student.totalFeeAmount || 0).toLocaleString("en-IN")}</strong> for the academic year.
+            </p>
+          </div>
+
+          {/* Signatures */}
+          <div className="mt-10 grid grid-cols-2 gap-8 text-center text-xs font-semibold text-[#7d86a8]">
+            <div className="border-t border-[#9aa4c4] pt-2">Parent / Guardian Signature</div>
+            <div className="border-t border-[#9aa4c4] pt-2">Principal / Authorised Signatory</div>
+          </div>
+
           {/* Footer */}
           <div className="mt-8 border-t border-[#edf0f7] pt-4 flex justify-between text-xs font-medium text-[#9aa4c4]">
             <span>Sri Narayana High School</span>
-            <span>Admission Form — Generated on {new Date().toLocaleDateString("en-IN")}</span>
+            <span>Admission Form &amp; Receipt — Generated on {new Date().toLocaleDateString("en-IN")}</span>
           </div>
         </div>
       </div>

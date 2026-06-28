@@ -1,3 +1,4 @@
+import { AdmissionApprovalSettings } from "@/components/AdmissionApprovalSettings";
 import { BackupErasePanel } from "@/components/BackupErasePanel";
 import { CampusGpsSettings } from "@/components/CampusGpsSettings";
 import { PageHeader } from "@/components/PageHeader";
@@ -28,6 +29,7 @@ export default function SettingsPage() {
             </div>
           </div>
           <PaymentUpiSettings />
+          <AdmissionApprovalSettings />
         </div>
         <BackupErasePanel />
       </section>
