@@ -3,7 +3,7 @@
  * Handles caching strategies, offline fallback, and background task queuing
  */
 
-const CACHE_VERSION = 'v1';
+const CACHE_VERSION = 'v2';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const DYNAMIC_CACHE = `${CACHE_VERSION}-dynamic`;
 const API_CACHE = `${CACHE_VERSION}-api`;
@@ -75,12 +75,18 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Static assets - cache-first
+  // Build chunks (JS/CSS) - ALWAYS network-first. These change on every deploy,
+  // and serving a stale chunk from cache breaks the webpack runtime
+  // ("a[t] is not a function"). Cache is only used as an offline fallback.
+  if (request.method === 'GET' && (url.pathname.endsWith('.js') || url.pathname.endsWith('.css'))) {
+    event.respondWith(networkFirstStrategy(request));
+    return;
+  }
+
+  // Images/fonts - cache-first (these are safe to cache; names are stable or hashed)
   if (
     request.method === 'GET' &&
-    (url.pathname.endsWith('.js') ||
-      url.pathname.endsWith('.css') ||
-      url.pathname.endsWith('.png') ||
+    (url.pathname.endsWith('.png') ||
       url.pathname.endsWith('.jpg') ||
       url.pathname.endsWith('.jpeg') ||
       url.pathname.endsWith('.gif') ||
