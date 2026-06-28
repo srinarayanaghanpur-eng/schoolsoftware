@@ -10,6 +10,7 @@ import { useEffect, useMemo, useState } from "react";
 import { BrandLoader } from "./BrandLoader";
 
 const ROLE_HINT_KEY = "erp-auth-role";
+const ROLE_HINT_TTL = 10 * 60 * 1000; // 10 minutes
 
 function clearRoleHint() {
   if (typeof window === "undefined") return;
@@ -26,6 +27,18 @@ function writeRoleHint(role: UserRole) {
     window.sessionStorage.setItem(ROLE_HINT_KEY, JSON.stringify({ role, at: Date.now() }));
   } catch {
     // ignore
+  }
+}
+
+function readRoleHint(allowedRoles: readonly UserRole[]): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    const raw = window.sessionStorage.getItem(ROLE_HINT_KEY);
+    if (!raw) return false;
+    const hint = JSON.parse(raw) as { role?: UserRole; at?: number };
+    return Boolean(hint.role && allowedRoles.includes(hint.role) && typeof hint.at === "number" && Date.now() - hint.at < ROLE_HINT_TTL);
+  } catch {
+    return false;
   }
 }
 
@@ -49,9 +62,9 @@ export function AuthGate({
   useEffect(() => {
     let cancelled = false;
 
-    // Security: do NOT optimistically render from a cached hint. Auth is
-    // in-memory only, so every fresh page load must wait for Firebase to
-    // confirm a live session before showing any protected content.
+    // Optimistically render when the freshly-stored login hint matches this
+    // role. Full validation still runs below and redirects if anything is wrong.
+    if (readRoleHint(allowedRoles)) setReady(true);
 
     if (!isFirebaseConfigured) {
       router.replace("/login");
