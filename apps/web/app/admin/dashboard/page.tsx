@@ -52,17 +52,21 @@ async function loadDashboard(): Promise<DashboardData> {
   const today = istDateKey(new Date());
   const weekAgo = istDateKey(new Date(Date.now() - 6 * 24 * 60 * 60 * 1000));
 
-  const [studentsSnap, teachersSnap, weekAttSnap, noticesSnap] = await Promise.all([
+  const [studentsSnap, teachersSnap, weekAttSnap, noticesSnap, paymentsSnap] = await Promise.all([
     db.collection("students").get(),
     db.collection("teachers").where("status", "==", "active").get(),
     db.collection("attendance").where("date", ">=", weekAgo).get(),
-    db.collection("notifications").orderBy("createdAt", "desc").limit(3).get().catch(() => null)
+    db.collection("notifications").orderBy("createdAt", "desc").limit(3).get().catch(() => null),
+    db.collection("payments").get()
   ]);
 
   const students = studentsSnap.docs.map((d) => d.data());
   const totalTeachers = teachersSnap.size;
 
-  const feesCollected = students.reduce((s, st) => s + (st.totalFeesPaid || 0), 0);
+  // "Fees Collected" reads from the `payments` transaction log — the single
+  // source of truth that Finance also uses — so the dashboard and Finance
+  // always agree. (Per-student `totalFeesPaid` is a cache and can drift.)
+  const feesCollected = paymentsSnap.docs.reduce((s, d) => s + (Number(d.data().amountPaid) || 0), 0);
   const feesOutstanding = students.reduce((s, st) => s + Math.max(0, (st.totalFeesDue || 0) - (st.totalFeesPaid || 0)), 0);
   const totalFeeAmount = students.reduce((s, st) => s + (st.totalFeeAmount || 0), 0);
   const studentsPending = students.filter((st) => Math.max(0, (st.totalFeesDue || 0) - (st.totalFeesPaid || 0)) > 0).length;

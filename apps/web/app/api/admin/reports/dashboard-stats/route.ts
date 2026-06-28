@@ -39,10 +39,6 @@ export async function GET(request: NextRequest) {
       0
     );
     const totalFeeDue = students.reduce((sum, s) => sum + (s.totalFeesDue || 0), 0);
-    const totalFeeCollected = students.reduce(
-      (sum, s) => sum + (s.totalFeesPaid || 0),
-      0
-    );
     const totalFeeOutstanding = students.reduce(
       (sum, s) => sum + Math.max(0, (s.totalFeesDue || 0) - (s.totalFeesPaid || 0)),
       0
@@ -65,17 +61,28 @@ export async function GET(request: NextRequest) {
     const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
     const paymentsSnapshot = await db.collection('payments').get();
-    const monthlyPayments = paymentsSnapshot.docs
-      .map((d) => d.data())
-      .filter((p) => {
-        const paymentDate = new Date(p.createdAt);
-        return paymentDate >= monthStart && paymentDate <= monthEnd;
-      });
+    const payments = paymentsSnapshot.docs.map((d) => d.data());
 
-    const monthlyCollection = monthlyPayments.reduce(
-      (sum, p) => sum + p.amountPaid,
+    // Total collected reads from the `payments` log (single source of truth that
+    // Finance also uses) so dashboards and finance reports always agree.
+    const totalFeeCollected = payments.reduce(
+      (sum, p) => sum + (Number(p.amountPaid) || 0),
       0
     );
+
+    // `createdAt` may be an ISO string or a Firestore Timestamp — normalize both.
+    const toDate = (v: unknown): Date | null => {
+      if (!v) return null;
+      if (typeof v === 'string') return new Date(v);
+      if (typeof (v as { toDate?: () => Date }).toDate === 'function') return (v as { toDate: () => Date }).toDate();
+      return null;
+    };
+
+    const monthlyCollection = payments.reduce((sum, p) => {
+      const paymentDate = toDate(p.createdAt ?? p.paymentDate ?? p.date);
+      if (!paymentDate || paymentDate < monthStart || paymentDate > monthEnd) return sum;
+      return sum + (Number(p.amountPaid) || 0);
+    }, 0);
 
     const averageConcession =
       studentsWithConcession > 0

@@ -2,6 +2,7 @@
 
 import { useAdminSession } from "@/components/AdminSessionContext";
 import { PageHeader } from "@/components/PageHeader";
+import { SalaryAdvancesPanel } from "@/components/SalaryAdvancesPanel";
 import { auth, isFirebaseConfigured } from "@sri-narayana/shared/firebase/client";
 import {
   DEFAULT_SETTINGS,
@@ -469,6 +470,8 @@ export default function SalaryPage() {
             </tbody>
           </table>
         </div>
+
+        <SalaryAdvancesPanel />
       </section>
     </>
   );
