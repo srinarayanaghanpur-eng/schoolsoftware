@@ -18,6 +18,7 @@ import {
   GraduationCap,
   Grid2X2,
   IndianRupee,
+  LayoutDashboard,
   LogOut,
   Megaphone,
   Menu,
@@ -27,6 +28,7 @@ import {
   Settings,
   ShieldAlert,
   ShieldCheck,
+  UserCircle,
   UserCog,
   Users,
   Wallet,
@@ -50,6 +52,7 @@ import { auth, db, isFirebaseConfigured } from "@sri-narayana/shared/firebase/cl
 import { AcademicYearProvider, useAcademicYears } from "@/components/AcademicYearContext";
 import { AdminSessionProvider } from "@/components/AdminSessionContext";
 import { BrandLoader } from "@/components/BrandLoader";
+import { LiveClock } from "@/components/LiveClock";
 import { SectionTabs } from "@/components/SectionTabs";
 import { clearPayrollSessionId } from "@/lib/payrollSessionClient";
 import { refreshClaims } from "@/lib/authClaims";
@@ -74,7 +77,14 @@ const primaryNav: NavItem[] = [
   { href: "/admin/promotions", label: "Promotion", module: "promotions", icon: GraduationCap },
   { href: "/admin/users", label: "Users & Roles", module: "users", icon: UserCog },
   { href: "/admin/approvals", label: "Approvals", module: "settings", icon: ShieldCheck, badge: 0 },
-  { href: "/portal", label: "Portal", module: "portal", icon: ShieldCheck }
+  {
+    href: "/portal", label: "Dashboard", module: "portal", icon: LayoutDashboard
+  },
+  { href: "/portal/fees", label: "Fees", module: "portal", icon: IndianRupee },
+  { href: "/portal/exams", label: "Exams", module: "portal", icon: BookOpenCheck },
+  { href: "/portal/notices", label: "Notices", module: "portal", icon: Megaphone },
+  { href: "/portal/contact", label: "Contact", module: "portal", icon: MessageSquare },
+  { href: "/portal/profile", label: "Profile", module: "portal", icon: UserCircle }
 ];
 
 const secondaryNav: NavItem[] = [
@@ -91,6 +101,12 @@ const secondaryNav: NavItem[] = [
 // gated by `module` access where one is given; My Attendance is always shown.
 type MobileNavItem = { href: string; label: string; short: string; icon: LucideIcon; module?: Module };
 const mobileNav: MobileNavItem[] = [
+  // Portal (parent) mobile nav
+  { href: "/portal", label: "Dashboard", short: "Home", icon: LayoutDashboard, module: "portal" },
+  { href: "/portal/fees", label: "Fees", short: "Fees", icon: IndianRupee, module: "portal" },
+  { href: "/portal/exams", label: "Exams", short: "Exams", icon: BookOpenCheck, module: "portal" },
+  { href: "/portal/notices", label: "Notices", short: "Notices", icon: Megaphone, module: "portal" },
+  // Admin mobile nav
   { href: "/admin/dashboard", label: "Summary", short: "Summary", icon: Grid2X2, module: "dashboard" },
   { href: "/admin/reports", label: "Reports", short: "Reports", icon: BarChart3, module: "reports" },
   { href: "/admin/notices", label: "Notices", short: "Notices", icon: Megaphone, module: "communication" },
@@ -612,10 +628,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             />
           </label>
           <AcademicYearSwitcher />
-          <button type="button" className="hidden h-11 items-center gap-3 rounded-xl border border-[#e0e3f0] bg-[#f8f8fc] px-4 text-sm font-bold text-[#20223a] sm:flex">
-            <span className="grid h-7 w-7 place-items-center rounded-lg bg-[#eef0ff] text-[#292b8d]"><ClipboardCheck size={17} /></span>
-            {profile?.name ?? "Administrator"}
-          </button>
+          <LiveClock className="hidden sm:inline-flex" />
           {role && canAccessModule(role, "communication") && (
             <Link href="/admin/notifications" aria-label="Communication & notifications" className="relative grid h-11 w-11 place-items-center rounded-xl bg-[#f3f4fb] text-[#313581] transition hover:bg-[#e9ebfa]">
               <BellRing size={19} />
