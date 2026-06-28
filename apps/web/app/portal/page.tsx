@@ -13,9 +13,11 @@ function formatINR(amount: number) {
   return `₹${Number(amount || 0).toLocaleString("en-IN")}`;
 }
 
+type LinkedStudent = { id: string; name: string; className: string };
+
 function PortalDashboard() {
   const [summary, setSummary] = useState<PortalSummary | null>(null);
-  const [linkedStudentIds, setLinkedStudentIds] = useState<string[]>([]);
+  const [linkedStudents, setLinkedStudents] = useState<LinkedStudent[]>([]);
   const [selectedStudentId, setSelectedStudentId] = useState("");
   const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState(false);
@@ -27,9 +29,9 @@ function PortalDashboard() {
     setError(null);
     try {
       const params = studentId ? `?studentId=${encodeURIComponent(studentId)}` : "";
-      const result = await adminApiRequest<{ ok: true; summary: PortalSummary; linkedStudentIds: string[] }>(`/api/portal/summary${params}`);
+      const result = await adminApiRequest<{ ok: true; summary: PortalSummary; linkedStudentIds: string[]; linkedStudents: LinkedStudent[] }>(`/api/portal/summary${params}`);
       setSummary(result.summary);
-      setLinkedStudentIds(result.linkedStudentIds);
+      setLinkedStudents(result.linkedStudents);
       setSelectedStudentId(result.summary.student.id);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to load portal summary.");
@@ -80,7 +82,7 @@ function PortalDashboard() {
         title="Portal"
         description={summary ? `${summary.student.name} · Class ${summary.student.className}${summary.student.section || ""}` : "Student and parent dashboard"}
         action={
-          linkedStudentIds.length > 1 ? (
+          linkedStudents.length > 1 ? (
             <select
               className="field min-w-[220px]"
               value={selectedStudentId}
@@ -89,8 +91,8 @@ function PortalDashboard() {
                 void loadSummary(event.target.value);
               }}
             >
-              {linkedStudentIds.map((studentId) => (
-                <option key={studentId} value={studentId}>{studentId}</option>
+              {linkedStudents.map((s) => (
+                <option key={s.id} value={s.id}>{s.name} · Class {s.className}</option>
               ))}
             </select>
           ) : null

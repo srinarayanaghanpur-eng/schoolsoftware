@@ -11,11 +11,10 @@ const TABS = [
 
 export function PortalSubnav() {
   const pathname = usePathname();
-  const active = pathname;
   return (
     <nav className="flex flex-wrap gap-2 px-4 pt-4 md:px-7">
       {TABS.map(({ href, label, icon: Icon }) => {
-        const isActive = active === href;
+        const isActive = pathname === href || (href !== "/portal" && pathname.startsWith(`${href}/`));
         return (
           <Link
             key={href}

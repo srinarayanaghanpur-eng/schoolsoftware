@@ -20,6 +20,16 @@ export async function GET(req: Request) {
   const requested = searchParams.get("studentId");
   const studentId = requested && studentIds.includes(requested) ? requested : studentIds[0];
 
+  const studentSnaps = await Promise.all(
+    studentIds.map((id) => db.collection("students").doc(id).get())
+  );
+  const linkedStudents = studentSnaps
+    .filter((snap) => snap.exists)
+    .map((snap) => {
+      const s = snap.data() as Record<string, unknown>;
+      return { id: snap.id, name: String(s.studentName || ""), className: String(s.class || "") };
+    });
+
   const paymentsSnap = await db
     .collection("payments")
     .where("studentId", "==", studentId)
@@ -40,5 +50,5 @@ export async function GET(req: Request) {
     };
   });
 
-  return NextResponse.json({ ok: true, payments, linkedStudentIds: studentIds });
+  return NextResponse.json({ ok: true, payments, linkedStudentIds: studentIds, linkedStudents });
 }

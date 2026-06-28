@@ -59,6 +59,16 @@ export async function GET(req: Request) {
     .slice(0, 10)
     .map((n) => ({ title: n.title as string, body: n.body as string, createdAt: n.createdAt ? String(n.createdAt) : undefined }));
 
+  const studentSnaps = await Promise.all(
+    studentIds.map((id) => db.collection("students").doc(id).get())
+  );
+  const linkedStudents = studentSnaps
+    .filter((snap) => snap.exists)
+    .map((snap) => {
+      const st = snap.data() as Record<string, unknown>;
+      return { id: snap.id, name: String(st.studentName || ""), className: String(st.class || "") };
+    });
+
   const due = Math.max(0, ((s.totalFeesDue as number) || 0) - ((s.totalFeesPaid as number) || 0));
 
   const paymentsSnap = await db
@@ -94,6 +104,7 @@ export async function GET(req: Request) {
       notices,
       recentPayments,
     },
-    linkedStudentIds: studentIds
+    linkedStudentIds: studentIds,
+    linkedStudents
   });
 }

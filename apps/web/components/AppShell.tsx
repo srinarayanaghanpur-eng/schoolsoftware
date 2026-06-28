@@ -116,6 +116,7 @@ const pageTitles: Record<string, string> = {
   "/admin/approvals": "Approvals",
   "/portal": "Portal",
   "/portal/payments": "Payment History",
+  "/portal/payments/receipt": "Receipt",
   "/admin/branches": "Branches",
   "/admin/settings": "Settings",
   "/admin/biometric": "Biometric Devices",

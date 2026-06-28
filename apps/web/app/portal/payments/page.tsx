@@ -24,9 +24,11 @@ type PaymentRecord = {
   createdAt: string;
 };
 
+type LinkedStudent = { id: string; name: string; className: string };
+
 function PaymentHistory() {
   const [payments, setPayments] = useState<PaymentRecord[]>([]);
-  const [linkedStudentIds, setLinkedStudentIds] = useState<string[]>([]);
+  const [linkedStudents, setLinkedStudents] = useState<LinkedStudent[]>([]);
   const [selectedStudentId, setSelectedStudentId] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -36,11 +38,11 @@ function PaymentHistory() {
     setError(null);
     try {
       const params = studentId ? `?studentId=${encodeURIComponent(studentId)}` : "";
-      const result = await adminApiRequest<{ ok: true; payments: PaymentRecord[]; linkedStudentIds: string[] }>(`/api/portal/payments${params}`);
+      const result = await adminApiRequest<{ ok: true; payments: PaymentRecord[]; linkedStudentIds: string[]; linkedStudents: LinkedStudent[] }>(`/api/portal/payments${params}`);
       setPayments(result.payments);
-      setLinkedStudentIds(result.linkedStudentIds);
-      if (result.linkedStudentIds.length > 0 && !studentId) {
-        setSelectedStudentId(result.linkedStudentIds[0]);
+      setLinkedStudents(result.linkedStudents);
+      if (result.linkedStudents.length > 0 && !studentId) {
+        setSelectedStudentId(result.linkedStudents[0].id);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to load payment history.");
@@ -57,9 +59,9 @@ function PaymentHistory() {
     <>
       <PageHeader
         title="Payment History"
-        description={linkedStudentIds.length > 1 ? "Select a student to view their payment history" : undefined}
+        description={linkedStudents.length > 1 ? "Select a student to view their payment history" : (linkedStudents[0] ? `${linkedStudents[0].name} · Class ${linkedStudents[0].className}` : undefined)}
         action={
-          linkedStudentIds.length > 1 ? (
+          linkedStudents.length > 1 ? (
             <select
               className="field min-w-[220px]"
               value={selectedStudentId}
@@ -68,8 +70,8 @@ function PaymentHistory() {
                 void loadPayments(event.target.value);
               }}
             >
-              {linkedStudentIds.map((id) => (
-                <option key={id} value={id}>{id}</option>
+              {linkedStudents.map((s) => (
+                <option key={s.id} value={s.id}>{s.name} · Class {s.className}</option>
               ))}
             </select>
           ) : null
