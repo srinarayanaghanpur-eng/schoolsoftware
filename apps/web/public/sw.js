@@ -3,7 +3,7 @@
  * Handles caching strategies, offline fallback, and background task queuing
  */
 
-const CACHE_VERSION = 'v2';
+const CACHE_VERSION = 'v3';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const DYNAMIC_CACHE = `${CACHE_VERSION}-dynamic`;
 const API_CACHE = `${CACHE_VERSION}-api`;
@@ -69,43 +69,65 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // NEVER cache POST/PUT/DELETE/PATCH — Cache API only supports GET
+  // Pass them straight through without SW interference
+  if (request.method !== 'GET') {
+    return;
+  }
+
+  // Skip RSC (React Server Components) internal payloads — these must
+  // always go to the server fresh or they break the webpack runtime.
+  if (url.searchParams.has('__rsc') || url.searchParams.has('__nextDataRequest')) {
+    return;
+  }
+
+  // Skip Next.js internal routes (_next/image, _next/data, etc.)
+  if (url.pathname.startsWith('/_next/')) {
+    // Only cache static chunks from _next/static; everything else passes through
+    if (url.pathname.startsWith('/_next/static/')) {
+      event.respondWith(cacheFirstStrategy(request));
+    }
+    return;
+  }
+
   // API requests - network-first with cache fallback
   if (url.pathname.startsWith('/api/')) {
-    event.respondWith(networkFirstStrategy(request));
+    event.respondWith(networkFirstStrategy(request, API_CACHE));
     return;
   }
 
   // Build chunks (JS/CSS) - ALWAYS network-first. These change on every deploy,
   // and serving a stale chunk from cache breaks the webpack runtime
   // ("a[t] is not a function"). Cache is only used as an offline fallback.
-  if (request.method === 'GET' && (url.pathname.endsWith('.js') || url.pathname.endsWith('.css'))) {
-    event.respondWith(networkFirstStrategy(request));
+  if (url.pathname.endsWith('.js') || url.pathname.endsWith('.css') || url.pathname.endsWith('.mjs')) {
+    event.respondWith(networkFirstStrategy(request, DYNAMIC_CACHE));
     return;
   }
 
   // Images/fonts - cache-first (these are safe to cache; names are stable or hashed)
   if (
-    request.method === 'GET' &&
-    (url.pathname.endsWith('.png') ||
-      url.pathname.endsWith('.jpg') ||
-      url.pathname.endsWith('.jpeg') ||
-      url.pathname.endsWith('.gif') ||
-      url.pathname.endsWith('.svg') ||
-      url.pathname.endsWith('.woff') ||
-      url.pathname.endsWith('.woff2'))
+    url.pathname.endsWith('.png') ||
+    url.pathname.endsWith('.jpg') ||
+    url.pathname.endsWith('.jpeg') ||
+    url.pathname.endsWith('.gif') ||
+    url.pathname.endsWith('.svg') ||
+    url.pathname.endsWith('.webp') ||
+    url.pathname.endsWith('.woff') ||
+    url.pathname.endsWith('.woff2') ||
+    url.pathname.endsWith('.ico')
   ) {
     event.respondWith(cacheFirstStrategy(request));
     return;
   }
 
-  // HTML pages - network-first with cache fallback
-  if (request.method === 'GET' && (url.pathname === '/' || url.pathname.endsWith('.html'))) {
-    event.respondWith(networkFirstStrategy(request));
+  // HTML / page navigations - network-first
+  if (request.mode === 'navigate' || url.pathname === '/' || url.pathname.endsWith('.html')) {
+    event.respondWith(networkFirstStrategy(request, DYNAMIC_CACHE));
     return;
   }
 
-  // Default - network-first
-  event.respondWith(networkFirstStrategy(request));
+  // Default: network-first for everything else
+  event.respondWith(networkFirstStrategy(request, DYNAMIC_CACHE));
 });
 
 /**
@@ -135,19 +157,13 @@ async function cacheFirstStrategy(request) {
 /**
  * Network-first strategy: Try network first, fallback to cache
  */
-async function networkFirstStrategy(request) {
+async function networkFirstStrategy(request, cacheName = DYNAMIC_CACHE) {
   try {
     const response = await fetch(request);
 
     if (response.ok) {
-      // Cache successful API responses
-      if (request.url.includes('/api/')) {
-        const cache = await caches.open(API_CACHE);
-        cache.put(request, response.clone());
-      } else {
-        const cache = await caches.open(DYNAMIC_CACHE);
-        cache.put(request, response.clone());
-      }
+      const cache = await caches.open(cacheName);
+      cache.put(request, response.clone());
     }
 
     return response;
@@ -162,7 +178,8 @@ async function networkFirstStrategy(request) {
     }
 
     // Offline response
-    if (request.headers.get('accept').includes('application/json')) {
+    const accept = (request.headers.get('accept') || '');
+    if (accept.includes('application/json')) {
       return new Response(
         JSON.stringify({
           error: 'Offline',
@@ -199,7 +216,6 @@ async function syncAttendanceData() {
   try {
     console.log('[ServiceWorker] Syncing attendance data...');
     
-    // Open IndexedDB to get queued attendance records
     const db = await openAttendanceDB();
     const queue = await getQueuedRecords(db, 'attendance-queue');
 
@@ -222,7 +238,7 @@ async function syncAttendanceData() {
     console.log('[ServiceWorker] Attendance sync complete');
   } catch (error) {
     console.error('[ServiceWorker] Attendance sync failed:', error);
-    throw error; // Retry sync
+    throw error;
   }
 }
 
@@ -347,7 +363,6 @@ self.addEventListener('notificationclick', (event) => {
 
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-      // Check if client already open
       for (let i = 0; i < clientList.length; i++) {
         const client = clientList[i];
         if (client.url === urlToOpen && 'focus' in client) {
@@ -355,7 +370,6 @@ self.addEventListener('notificationclick', (event) => {
         }
       }
 
-      // Open new window
       if (clients.openWindow) {
         return clients.openWindow(urlToOpen);
       }

@@ -100,7 +100,7 @@ export async function GET(req: Request) {
     summary: {
       student: { id: studentId, name: s.studentName || "", className: s.class || "", section: s.section || "", admissionNo: s.admissionNumber || "" },
       fees: { total: (s.totalFeeAmount as number) || 0, paid: (s.totalFeesPaid as number) || 0, due, status: s.feeStatus, feeBalanceCarriedForward },
-      attendancePercentage: (s.attendancePercentage as number) ?? undefined,
+
       marks,
       notices,
       recentPayments,

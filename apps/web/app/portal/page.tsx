@@ -7,7 +7,7 @@ import { LiveClock } from "@/components/LiveClock";
 import { usePortalChild } from "@/components/PortalChildContext";
 import { adminApiRequest } from "@/lib/adminApiClient";
 import { ROLES } from "@sri-narayana/shared";
-import { Award, BellRing, CalendarDays, CreditCard, DollarSign, ExternalLink, GraduationCap, Percent, ReceiptText, TriangleAlert, User } from "lucide-react";
+import { Award, BellRing, CalendarDays, CreditCard, ExternalLink, Percent, ReceiptText, TriangleAlert, User } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
@@ -18,7 +18,7 @@ function formatINR(amount: number) {
 type DashboardSummary = {
   student: { id: string; name: string; className: string; section?: string; admissionNo?: string };
   fees: { total: number; paid: number; due: number; status?: string; feeBalanceCarriedForward?: number };
-  attendancePercentage?: number;
+
   marks: { examName: string; subject: string; marksObtained: number; maxMarks: number; grade?: string }[];
   notices: { title: string; body: string; createdAt?: string }[];
   recentPayments?: { id: string; amountPaid: number; paymentMethod: string; receiptNumber: string; createdAt: string }[];
@@ -146,7 +146,7 @@ function PortalDashboard() {
               </div>
             )}
 
-            <div className="stagger-children grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="stagger-children grid gap-4 sm:grid-cols-3">
               <div className="card p-5">
                 <p className="text-sm font-semibold text-[#7d86a8]">Total Fees</p>
                 <p className="mt-3 text-[30px] font-extrabold leading-none text-[#1b1d32]">{formatINR(summary.fees.total)}</p>
@@ -158,10 +158,6 @@ function PortalDashboard() {
               <div className="card p-5">
                 <p className="text-sm font-semibold text-[#7d86a8]">Due</p>
                 <p className="mt-3 text-[30px] font-extrabold leading-none text-[#ed515d]">{formatINR(summary.fees.due)}</p>
-              </div>
-              <div className="card p-5">
-                <p className="text-sm font-semibold text-[#7d86a8]">Attendance</p>
-                <p className="mt-3 text-[30px] font-extrabold leading-none text-[#3033a1]">{summary.attendancePercentage ?? 0}%</p>
               </div>
             </div>
 
