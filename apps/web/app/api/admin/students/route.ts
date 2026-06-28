@@ -26,13 +26,19 @@ export async function GET(request: NextRequest) {
       query = query.where('section', '==', section);
     }
 
-    query = query.orderBy('admissionNumber', 'asc');
-
+    // NOTE: do not use Firestore orderBy('admissionNumber') here — it silently
+    // drops any student document missing that field, which made the list show
+    // fewer students than the dashboard count. Fetch all and sort in memory so
+    // every student appears regardless of which fields are populated.
     const snapshot = await query.get();
     const students = snapshot.docs.map((doc: { id: string; data: () => any }) => ({
       id: doc.id,
       ...doc.data()
     }));
+
+    students.sort((a: any, b: any) =>
+      String(a.admissionNumber ?? '').localeCompare(String(b.admissionNumber ?? ''), undefined, { numeric: true })
+    );
 
     return NextResponse.json({ success: true, data: students });
   } catch (error) {
