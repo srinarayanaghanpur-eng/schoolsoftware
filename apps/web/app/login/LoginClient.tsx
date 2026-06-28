@@ -260,7 +260,11 @@ function LeftBrandPanel() {
         <div className="text-center">
           <SchoolLogo id="school-logo-desktop" className="mx-auto h-[86px] w-[86px] xl:h-[96px] xl:w-[96px]" />
           <h1 className="mt-2 text-[20px] font-extrabold leading-tight tracking-[-0.035em] drop-shadow-sm xl:text-[22px]">{SCHOOL_NAME}</h1>
+          <p className="mt-1.5 text-[13px] font-bold tracking-[0.02em] text-[#ffd23f]">Integrated School Management System</p>
           <div className="mx-auto mt-2.5 h-0.5 w-10 rounded-full bg-[#ffd23f]/70" />
+          <p className="mx-auto mt-2.5 max-w-[300px] text-[12.5px] font-medium leading-5 text-white/85">
+            Managing Students, Staff, Academics, Finance and Communication — All in One Place.
+          </p>
         </div>
         <div className="min-h-0 py-1">
           <DesktopIllustration />
@@ -649,7 +653,8 @@ function MobileLoginExperience() {
         <header className="shrink-0 pt-4 text-center text-white">
           <SchoolLogo id="school-logo-mobile-login" className="mx-auto h-[90px] w-[90px]" />
           <h1 className="mt-3 text-[18px] font-extrabold leading-tight tracking-[-0.03em]">{SCHOOL_NAME}</h1>
-          <p className="text-xs font-semibold text-white/90">ERP</p>
+          <p className="mt-1 text-[11px] font-bold tracking-[0.02em] text-[#ffd23f]">Integrated School Management System</p>
+          <p className="mt-1 text-[11px] font-medium leading-4 text-white/85">Managing Students, Staff, Academics, Finance and Communication — All in One Place.</p>
         </header>
 
         <form
