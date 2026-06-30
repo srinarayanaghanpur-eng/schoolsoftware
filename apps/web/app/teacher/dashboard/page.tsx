@@ -5,7 +5,6 @@ import { LazyTeacherPieChart } from "@/components/LazyDashboardCharts";
 import { StatusBadge } from "@/components/StatusBadge";
 import { TeacherAttendancePanel } from "@/components/TeacherAttendancePanel";
 import { BrandLoader } from "@/components/BrandLoader";
-import { LiveClock } from "@/components/LiveClock";
 import { auth } from "@sri-narayana/shared/firebase/client";
 import { getAttendancePercentage, type AttendanceRecord, type Teacher } from "@sri-narayana/shared";
 import { signOut } from "firebase/auth";
@@ -170,7 +169,6 @@ export default function TeacherDashboardPage() {
               <h2 className="mt-2 text-2xl font-extrabold tracking-tight md:text-3xl">Ready when you are.</h2>
               <p className="mt-2 max-w-xl text-sm font-medium leading-6 text-[#d7dcff]">Use the secure attendance action below to record your check-in or check-out from campus.</p>
             </div>
-            <LiveClock tone="dark" className="backdrop-blur-sm" />
           </div>
         </article>
 

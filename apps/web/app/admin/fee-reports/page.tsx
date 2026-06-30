@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { FileDown } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
+import { adminApiRequest, AdminApiError } from "@/lib/adminApiClient";
 
 type TabType = "class-wise" | "student-wise" | "attendance-fee" | "monthly-collection" | "user-wise" | "payment-mode";
 
@@ -31,22 +32,21 @@ export default function FeeReportsPage() {
         [reportType]: { ...prev[reportType], loading: true, error: "" }
       }));
 
-      const response = await fetch(`/api/admin/reports/${reportType}`);
-      const data = await response.json();
+      const data = await adminApiRequest<{ success?: boolean; data?: any[]; months?: any[] }>(
+        `/api/admin/reports/${reportType}`
+      );
 
-      if (data.success) {
-        const reportData = reportType === "monthly-collection" ? data.months : data.data;
-        setReports((prev) => ({
-          ...prev,
-          [reportType]: { ...prev[reportType], data: reportData, loading: false }
-        }));
-      } else {
-        throw new Error(data.error || "Failed to generate report");
-      }
-    } catch (error: any) {
+      const reportData = (reportType === "monthly-collection" ? data.months : data.data) ?? [];
       setReports((prev) => ({
         ...prev,
-        [reportType]: { ...prev[reportType], loading: false, error: error.message }
+        [reportType]: { ...prev[reportType], data: reportData, loading: false }
+      }));
+    } catch (error) {
+      const message =
+        error instanceof AdminApiError ? error.message : error instanceof Error ? error.message : "Failed to generate report";
+      setReports((prev) => ({
+        ...prev,
+        [reportType]: { ...prev[reportType], loading: false, error: message }
       }));
     }
   };

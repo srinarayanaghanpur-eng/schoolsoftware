@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { useAdminSession } from "@/components/AdminSessionContext";
 import { auth } from "@sri-narayana/shared/firebase/client";
 import { getClassDisplayName } from "@/lib/classUtils";
+import { adminApiRequest, AdminApiError } from "@/lib/adminApiClient";
 import { AlertCircle } from "lucide-react";
 
 interface StudentOption {
@@ -40,14 +41,11 @@ export default function CreateConcessionPage() {
 
   const fetchStudents = async () => {
     try {
-      // Fetch from Firestore directly or from API
-      const response = await fetch("/api/admin/students");
-      const data = await response.json();
-      if (data.success) {
-        setStudents(data.data);
-      }
+      const data = await adminApiRequest<{ success?: boolean; data: StudentOption[] }>("/api/admin/students");
+      setStudents(data.data ?? []);
     } catch (error) {
       console.error("Failed to fetch students:", error);
+      setError(error instanceof AdminApiError ? error.message : "Unable to load students.");
     }
   };
 
@@ -81,21 +79,14 @@ export default function CreateConcessionPage() {
         userId: user?.uid
       };
 
-      const response = await fetch("/api/admin/concessions", {
+      await adminApiRequest("/api/admin/concessions", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
       });
 
-      const data = await response.json();
-
-      if (data.success) {
-        router.push("/admin/fee-concessions");
-      } else {
-        setError(data.error || "Failed to create concession");
-      }
+      router.push("/admin/fee-concessions");
     } catch (err) {
-      setError("An error occurred. Please try again.");
+      setError(err instanceof AdminApiError ? err.message : "Failed to create concession");
       console.error(err);
     } finally {
       setLoading(false);

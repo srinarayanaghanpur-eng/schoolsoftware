@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from "@/lib/firebaseAdmin";
+import { requirePermission } from "@/lib/apiUtils";
 import { createApprovalRequest } from "@/lib/approvalEngine";
 import { writeAuditLog } from "@/lib/auditLog";
 
@@ -14,6 +15,9 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
+    const auth = await requirePermission(request, "fees.view");
+    if (!auth) return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+
     const docSnap = await db.collection('concessions').doc(params.id).get();
 
     if (!docSnap.exists) {
@@ -45,6 +49,9 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
+    const auth = await requirePermission(request, "fees.edit");
+    if (!auth) return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+
     const body = await request.json();
     const { status, approvalNotes, concessionAmount, validUpto, userId } = body;
 
@@ -212,6 +219,9 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
+    const auth = await requirePermission(request, "fees.delete");
+    if (!auth) return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+
     const { userId } = await request.json();
 
     const docRef = db.collection('concessions').doc(params.id);

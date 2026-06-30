@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { Printer, ArrowLeft } from "lucide-react";
 import Link from "next/link";
+import { adminApiRequest } from "@/lib/adminApiClient";
 
 interface StudentData {
   id: string;
@@ -37,9 +38,10 @@ export default function AdmissionFormPage() {
   useEffect(() => {
     const fetchStudent = async () => {
       try {
-        const res = await fetch(`/api/admin/students/${params.id}`);
-        const data = await res.json();
-        if (data.success) setStudent(data.data);
+        const data = await adminApiRequest<{ success?: boolean; data: StudentData }>(
+          `/api/admin/students/${params.id}`
+        );
+        if (data.data) setStudent(data.data);
       } catch (err) {
         console.error(err);
       } finally {

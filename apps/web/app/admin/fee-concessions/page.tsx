@@ -7,6 +7,7 @@ import { Concession } from "@/types/fee.types";
 import { ConcessionListItem } from "@/components/FeeComponents";
 import { PageHeader } from "@/components/PageHeader";
 import { useAdminSession } from "@/components/AdminSessionContext";
+import { adminApiRequest } from "@/lib/adminApiClient";
 
 export default function ConcessionsPage() {
   const { role } = useAdminSession();
@@ -36,11 +37,8 @@ export default function ConcessionsPage() {
 
   const fetchConcessions = async () => {
     try {
-      const response = await fetch("/api/admin/concessions");
-      const data = await response.json();
-      if (data.success) {
-        setConcessions(data.data);
-      }
+      const data = await adminApiRequest<{ success?: boolean; data: Concession[] }>("/api/admin/concessions");
+      setConcessions(data.data ?? []);
     } catch (error) {
       console.error("Failed to fetch concessions:", error);
     } finally {

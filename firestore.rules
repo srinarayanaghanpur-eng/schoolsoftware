@@ -187,11 +187,11 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // Fee Structures collection
-    match /feeStructures/{structureId} {
-      allow read: if isAdmin() || isAccountant() || isPrincipal();
-      allow write: if isAdmin();
-    }
+    // NOTE: Fee structures use the canonical snake_case collection `fee_structures`
+    // (defined above). The legacy camelCase `feeStructures` rule block was removed
+    // to eliminate the split-brain collection naming. Accountant/Principal retain
+    // read access to `fee_structures` because that rule allows any signed-in user
+    // to read; writes remain admin-only.
 
     // Payments collection
     match /payments/{paymentId} {

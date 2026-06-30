@@ -156,9 +156,8 @@ export default function PromotionsPage() {
       setLoading(true);
       const params = new URLSearchParams();
       if (fromClass) params.set("class", fromClass);
-      const res = await fetch(`/api/admin/students?${params}`);
-      const data = await res.json();
-      if (data.success) setStudents(data.data);
+      const data = await adminApiRequest<{ success?: boolean; data: Student[] }>(`/api/admin/students?${params}`);
+      setStudents(data.data ?? []);
     } catch {
       setError("Failed to fetch students");
     } finally {

@@ -9,6 +9,7 @@ import { useAdminSession } from "@/components/AdminSessionContext";
 import { useAcademicYears } from "@/components/AcademicYearContext";
 import { hasPermission } from "@sri-narayana/shared";
 import { uploadFile, getStudentPhotoPath, getDocumentPath } from "@/lib/uploadService";
+import { adminApiRequest, AdminApiError } from "@/lib/adminApiClient";
 
 interface FeeStructureItem {
   id?: string;
@@ -168,18 +169,20 @@ export default function StudentsPage() {
   const fetchFeeStructures = async (academicYearId: string) => {
     setFeeLoading(true);
     try {
-      const res = await fetch(`/api/admin/fee-structures?academicYearId=${academicYearId}`);
-      const data = await res.json();
-      if (data.ok) setFeeStructures(data.structures);
+      const data = await adminApiRequest<{ ok?: boolean; structures?: FeeStructureItem[] }>(
+        `/api/admin/fee-structures?academicYearId=${academicYearId}`
+      );
+      if (data.structures) setFeeStructures(data.structures);
     } catch { /* silently ignore */ }
     finally { setFeeLoading(false); }
   };
 
   const fetchTransportRoutes = async () => {
     try {
-      const res = await fetch("/api/admin/transport/routes");
-      const data = await res.json();
-      if (data.success) setTransportRoutes(data.data);
+      const data = await adminApiRequest<{ success?: boolean; data?: TransportRoute[] }>(
+        "/api/admin/transport/routes"
+      );
+      if (data.data) setTransportRoutes(data.data);
     } catch { /* silently ignore */ }
   };
 
@@ -203,14 +206,11 @@ export default function StudentsPage() {
   const fetchStudents = async () => {
     try {
       setLoading(true);
-      const response = await fetch("/api/admin/students");
-      const data = await response.json();
-      if (data.success) {
-        setStudents(data.data);
-      }
+      const data = await adminApiRequest<{ success?: boolean; data: Student[] }>("/api/admin/students");
+      setStudents(data.data ?? []);
     } catch (err) {
       console.error("Failed to fetch students:", err);
-      setError("Failed to fetch students");
+      setError(err instanceof AdminApiError ? err.message : "Failed to fetch students");
     } finally {
       setLoading(false);
     }
@@ -274,27 +274,26 @@ export default function StudentsPage() {
         payload.transportFee = Number(formData.transportFee || 0);
       }
 
-      const response = await fetch(
+      await adminApiRequest(
         isEditing ? `/api/admin/students/${editingId}` : "/api/admin/students",
         {
           method: isEditing ? "PATCH" : "POST",
-          headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload)
         }
       );
 
-      const data = await response.json();
-
-      if (data.success) {
-        setSuccess(isEditing ? "Student updated successfully!" : "Student added successfully!");
-        resetForm();
-        setShowForm(false);
-        fetchStudents();
-      } else {
-        setError(data.error || (isEditing ? "Failed to update student" : "Failed to add student"));
-      }
+      setSuccess(isEditing ? "Student updated successfully!" : "Student added successfully!");
+      resetForm();
+      setShowForm(false);
+      fetchStudents();
     } catch (err) {
-      setError("An error occurred. Please try again.");
+      setError(
+        err instanceof AdminApiError
+          ? err.message
+          : isEditing
+            ? "Failed to update student"
+            : "Failed to add student"
+      );
     }
   };
 
@@ -439,16 +438,11 @@ export default function StudentsPage() {
     setError("");
     setSuccess("");
     try {
-      const response = await fetch(`/api/admin/students/${student.id}`, { method: "DELETE" });
-      const data = await response.json();
-      if (data.success) {
-        setSuccess("Student deleted.");
-        fetchStudents();
-      } else {
-        setError(data.error || "Failed to delete student");
-      }
-    } catch {
-      setError("An error occurred while deleting.");
+      await adminApiRequest(`/api/admin/students/${student.id}`, { method: "DELETE" });
+      setSuccess("Student deleted.");
+      fetchStudents();
+    } catch (err) {
+      setError(err instanceof AdminApiError ? err.message : "Failed to delete student");
     }
   };
 

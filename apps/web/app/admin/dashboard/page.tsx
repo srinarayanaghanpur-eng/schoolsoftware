@@ -11,7 +11,6 @@ import {
   UsersRound
 } from "lucide-react";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { LiveClock } from "@/components/LiveClock";
 
 export const dynamic = "force-dynamic";
 
@@ -168,7 +167,6 @@ export default async function AdminDashboardPage() {
     <section className="space-y-5 p-4 md:p-7">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-xl font-extrabold tracking-tight text-[#1b1d32]">Dashboard</h1>
-        <LiveClock />
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">

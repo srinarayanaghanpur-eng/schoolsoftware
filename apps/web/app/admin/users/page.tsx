@@ -133,10 +133,9 @@ export default function UsersRolesPage() {
 
   useEffect(() => {
     if (!isAdmin) return;
-    fetch("/api/admin/students")
-      .then((response) => response.json())
-      .then((result: { success?: boolean; data?: StudentOption[] }) => {
-        if (result.success) setStudents(result.data ?? []);
+    adminApiRequest<{ success?: boolean; data?: StudentOption[] }>("/api/admin/students")
+      .then((result) => {
+        setStudents(result.data ?? []);
       })
       .catch(() => undefined);
   }, [isAdmin]);

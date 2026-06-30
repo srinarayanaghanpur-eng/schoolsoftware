@@ -21,7 +21,7 @@ export const feeService = {
    * Get all fee structures
    */
   async getAllFeeStructures(): Promise<FeeStructure[]> {
-    const snapshot = await getDocs(collection(db, 'feeStructures'));
+    const snapshot = await getDocs(collection(db, 'fee_structures'));
     return snapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data()
@@ -33,7 +33,7 @@ export const feeService = {
    */
   async getFeeStructureByClass(classRange: string): Promise<FeeStructure | null> {
     const q = query(
-      collection(db, 'feeStructures'),
+      collection(db, 'fee_structures'),
       where('classRange', '==', classRange)
     );
     const snapshot = await getDocs(q);
@@ -47,7 +47,7 @@ export const feeService = {
    * Create new fee structure
    */
   async createFeeStructure(data: Omit<FeeStructure, 'id'>): Promise<string> {
-    const docRef = await addDoc(collection(db, 'feeStructures'), {
+    const docRef = await addDoc(collection(db, 'fee_structures'), {
       ...data,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp()
@@ -62,7 +62,7 @@ export const feeService = {
     id: string,
     updates: Partial<Omit<FeeStructure, 'id' | 'createdAt'>>
   ): Promise<void> {
-    await updateDoc(doc(db, 'feeStructures', id), {
+    await updateDoc(doc(db, 'fee_structures', id), {
       ...updates,
       updatedAt: serverTimestamp()
     });

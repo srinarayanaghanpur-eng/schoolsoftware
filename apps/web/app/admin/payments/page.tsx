@@ -63,13 +63,11 @@ export default function PaymentsPage() {
 
   const fetchPayments = async () => {
     try {
-      const response = await fetch("/api/admin/payments");
-      const data = await response.json();
-      if (data.success) {
-        setPayments(data.data);
-      }
+      const data = await adminApiRequest<{ success?: boolean; data: Payment[] }>("/api/admin/payments");
+      setPayments(data.data ?? []);
     } catch (error) {
       console.error("Failed to fetch payments:", error);
+      setError(error instanceof Error ? error.message : "Failed to load payments.");
     } finally {
       setLoading(false);
     }
@@ -295,10 +293,9 @@ function PaymentForm({
   }, []);
 
   useEffect(() => {
-    fetch("/api/admin/students")
-      .then((response) => response.json())
-      .then((result: { success?: boolean; data?: StudentOption[] }) => {
-        if (result.success) setStudents(result.data ?? []);
+    adminApiRequest<{ success?: boolean; data?: StudentOption[] }>("/api/admin/students")
+      .then((result) => {
+        setStudents(result.data ?? []);
       })
       .catch(() => setError("Unable to load students."));
   }, []);

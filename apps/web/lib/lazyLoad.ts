@@ -6,7 +6,7 @@
 import { backgroundSync } from './backgroundSync';
 import { cache, getCachedOrFetch } from './cache/indexedDBCache';
 import { getDocs, collection, query, limit, where } from 'firebase/firestore';
-import { db } from '@sri-narayana/shared/firebase/client';
+import { db, auth } from '@sri-narayana/shared/firebase/client';
 
 interface LazyLoadConfig {
   initialLimit?: number;
@@ -88,7 +88,9 @@ class LazyLoadManager {
     const cacheKey = 'dashboard-stats';
 
     return getCachedOrFetch('dashboard', cacheKey, async () => {
+      const token = await auth.currentUser?.getIdToken();
       const response = await fetch('/api/admin/reports/dashboard-stats', {
+        headers: token ? { authorization: `Bearer ${token}` } : {},
         signal: AbortSignal.timeout(5000) // 5 second timeout
       });
 

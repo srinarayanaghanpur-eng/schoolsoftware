@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { adminDb, verifyBearerToken } from "@/lib/firebaseAdmin";
+import { adminDb } from "@/lib/firebaseAdmin";
+import { requirePermission } from "@/lib/apiUtils";
 
 const db = adminDb();
 
@@ -7,8 +8,11 @@ const db = adminDb();
  * GET /api/admin/students/[id]
  * Fetch a single student by ID.
  */
-export async function GET(_request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
+    const auth = await requirePermission(request, "students.view");
+    if (!auth) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+
     const { id } = params;
     const docRef = db.collection('students').doc(id);
     const snapshot = await docRef.get();
@@ -27,12 +31,11 @@ export async function GET(_request: NextRequest, { params }: { params: { id: str
  * Update an existing student. Fee fields are recomputed so totals stay consistent.
  */
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
-  const authResult = await verifyBearerToken(request);
+  // Use requirePermission so admins whose role lives in the users/{uid} Firestore
+  // doc (not as a custom claim) are authorized consistently with GET/POST.
+  const authResult = await requirePermission(request, "students.edit");
   if (!authResult) {
-    return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
-  }
-  if (authResult.role !== "admin" && authResult.role !== "super_admin") {
-    return NextResponse.json({ success: false, error: 'Admin access required' }, { status: 403 });
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
   }
   try {
     const { id } = params;
@@ -123,12 +126,10 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
  * Remove a student record.
  */
 export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
-  const authResult = await verifyBearerToken(request);
+  // Consistent auth with GET/POST: resolves role from custom claim OR users/{uid} doc.
+  const authResult = await requirePermission(request, "students.delete");
   if (!authResult) {
-    return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
-  }
-  if (authResult.role !== "admin" && authResult.role !== "super_admin") {
-    return NextResponse.json({ success: false, error: 'Admin access required' }, { status: 403 });
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
   }
   try {
     const { id } = params;

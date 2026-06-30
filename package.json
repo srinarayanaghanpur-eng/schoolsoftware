@@ -11,6 +11,7 @@
     "dev:mobile": "npm --workspace @sri-narayana/mobile run start",
     "build:web": "npm --workspace @sri-narayana/web run build",
     "typecheck:web": "npm --workspace @sri-narayana/web run typecheck",
+    "check:admin-api-auth": "node scripts/check-admin-api-auth.js",
     "seed": "npm --workspace @sri-narayana/shared run seed"
   },
   "dependencies": {

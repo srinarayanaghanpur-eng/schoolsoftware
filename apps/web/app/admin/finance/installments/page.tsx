@@ -37,10 +37,10 @@ export default function InstallmentsPage() {
     try {
       const [pRes, sRes] = await Promise.all([
         adminApiRequest<{ plans: InstallmentPlan[] }>("/api/admin/finance/installments"),
-        fetch("/api/admin/students").then((r) => r.json())
+        adminApiRequest<{ success?: boolean; data?: Student[] }>("/api/admin/students")
       ]);
       setPlans(pRes.plans);
-      if (sRes.success) setStudents(sRes.data);
+      setStudents(sRes.data ?? []);
     } catch (e) {
       setError(e instanceof AdminApiError ? e.message : "Failed to load");
     } finally {
