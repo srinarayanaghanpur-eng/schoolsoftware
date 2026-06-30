@@ -77,10 +77,14 @@ const primaryNav: NavItem[] = [
   { href: "/admin/academic-years", label: "Academic Years", module: "academic_years", icon: CalendarRange },
   { href: "/admin/promotions", label: "Promotion", module: "promotions", icon: GraduationCap },
   { href: "/admin/users", label: "Users & Roles", module: "users", icon: UserCog },
-  { href: "/admin/approvals", label: "Approvals", module: "settings", icon: ShieldCheck, badge: 0 },
-  {
-    href: "/portal", label: "Dashboard", module: "portal", icon: LayoutDashboard
-  },
+  { href: "/admin/approvals", label: "Approvals", module: "settings", icon: ShieldCheck, badge: 0 }
+];
+
+// Parent/student portal nav — shown only for portal roles. Admin roles have the
+// "portal" module via their wildcard grant, so these must NOT be merged into
+// primaryNav or they leak into the admin sidebar (duplicate Dashboard, etc.).
+const portalNav: NavItem[] = [
+  { href: "/portal", label: "Dashboard", module: "portal", icon: LayoutDashboard },
   { href: "/portal/fees", label: "Fees", module: "portal", icon: IndianRupee },
   { href: "/portal/exams", label: "Exams", module: "portal", icon: BookOpenCheck },
   { href: "/portal/notices", label: "Notices", module: "portal", icon: Megaphone },
@@ -91,6 +95,7 @@ const primaryNav: NavItem[] = [
 const secondaryNav: NavItem[] = [
   { href: "/admin/calendar", label: "Timetable", module: "academics", icon: CalendarDays },
   { href: "/admin/transport", label: "Transport", module: "transport", icon: Bus },
+  { href: "/admin/transport/bus-finance", label: "Bus Finance / EMI", module: "bus_finance", icon: Wallet },
   { href: "/admin/library", label: "Library", module: "library", icon: Library },
   { href: "/admin/hostel", label: "Hostel", module: "hostel", icon: Hotel },
   { href: "/admin/inventory", label: "Inventory", module: "inventory", icon: Package },
@@ -439,17 +444,24 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, [sessionLoading, role, pathname, router]);
 
   const sessionValue = useMemo(() => ({ profile, role, loading: sessionLoading }), [profile, role, sessionLoading]);
+  const isPortalRole = role === "parent" || role === "student";
   const mainNav = useMemo(
     () => navForRole(
-      primaryNav.map((item) => item.href === "/admin/approvals" ? { ...item, badge: pendingApprovals } : item),
+      (isPortalRole ? portalNav : primaryNav).map((item) => item.href === "/admin/approvals" ? { ...item, badge: pendingApprovals } : item),
       role
     ),
-    [role, pendingApprovals]
+    [role, isPortalRole, pendingApprovals]
   );
-  const generalNav = useMemo(() => navForRole(secondaryNav, role), [role]);
+  const generalNav = useMemo(() => (isPortalRole ? [] : navForRole(secondaryNav, role)), [role, isPortalRole]);
   const bottomTabs = useMemo(
-    () => mobileNav.filter((item) => !item.module || (role && canAccessModule(role, item.module))),
-    [role]
+    () => mobileNav.filter((item) => {
+      if (!item.module) return true;
+      if (!role || !canAccessModule(role, item.module)) return false;
+      // Keep portal tabs for portal roles and admin tabs for everyone else, so
+      // the wildcard "portal" grant doesn't surface parent tabs for admins.
+      return isPortalRole ? item.href.startsWith("/portal") : !item.href.startsWith("/portal");
+    }),
+    [role, isPortalRole]
   );
   const currentModule = moduleForPath(pathname);
   const routeDenied = !sessionLoading && Boolean(currentModule && (!role || !canAccessModule(role, currentModule)));

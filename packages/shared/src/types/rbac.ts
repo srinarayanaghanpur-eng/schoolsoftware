@@ -29,6 +29,7 @@ export const MODULES = [
   "fees",
   "payroll",
   "transport",
+  "bus_finance",
   "communication",
   "library",
   "hostel",
@@ -80,6 +81,7 @@ export const ROLE_PERMISSIONS: Record<Role, readonly (Permission | typeof ALL)[]
     "fees.view", "fees.create", "fees.edit", "fees.approve", "fees.export",
     "payroll.view", "payroll.create", "payroll.edit", "payroll.export",
     "inventory.view", "inventory.create", "inventory.edit",
+    "bus_finance.view", "bus_finance.create", "bus_finance.edit", "bus_finance.export",
     "reports.view", "reports.export",
     "academic_years.view"
   ],

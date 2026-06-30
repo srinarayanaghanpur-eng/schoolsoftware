@@ -162,6 +162,16 @@ service cloud.firestore {
     match /inventory_items/{id} { allow read: if signedIn(); allow write: if isAdmin(); }
     match /inventory_sales/{id} { allow read: if signedIn(); allow write: if isAdmin(); }
 
+    // Bus EMI / Vehicle Finance — admin/accountant only. All writes go via the
+    // admin SDK (API routes enforce bus_finance.* permissions); delete is
+    // admin-only at the API layer. Separate from the student transport module.
+    match /bus_finance/{id} {
+      allow read, write: if isAdmin() || isAccountant();
+    }
+    match /bus_emi_payments/{id} {
+      allow read, write: if isAdmin() || isAccountant();
+    }
+
     match /backup_audit_logs/{logId} {
       allow read, write: if isAdmin();
     }
