@@ -1,6 +1,7 @@
 "use client";
 
 import { PageHeader } from "@/components/PageHeader";
+import { DateRangeFilter } from "@/components/DateRangeFilter";
 import { useAdminSession } from "@/components/AdminSessionContext";
 import { AdminApiError, adminApiRequest } from "@/lib/adminApiClient";
 import { hasPermission } from "@sri-narayana/shared";
@@ -46,7 +47,7 @@ export default function CollectionsPage() {
     } finally { setLoading(false); }
   };
 
-  useEffect(() => { fetchData(from, to); }, [from, to]);
+  useEffect(() => { fetchData(from, to); }, []);
 
   async function toggleClose(date: string) {
     try {
@@ -74,16 +75,13 @@ export default function CollectionsPage() {
       <section className="space-y-5 p-4 md:p-7">
         {error && <div className="card border-l-4 border-l-[#ed515d] p-4 text-sm font-semibold text-[#ed515d]">{error}</div>}
 
-        <div className="card flex flex-wrap items-end gap-4 p-5">
-          <label className="text-sm font-semibold text-[#303247]">
-            From
-            <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="field mt-1 block" />
-          </label>
-          <label className="text-sm font-semibold text-[#303247]">
-            To
-            <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="field mt-1 block" />
-          </label>
-        </div>
+        <DateRangeFilter
+          from={from}
+          to={to}
+          onChange={({ from, to }) => { setFrom(from); setTo(to); }}
+          onApply={({ from, to }) => fetchData(from, to)}
+          loading={loading}
+        />
 
         <div className="grid gap-4 sm:grid-cols-4">
           <div className="card p-5">

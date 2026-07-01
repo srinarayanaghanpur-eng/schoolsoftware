@@ -1,6 +1,7 @@
 "use client";
 
 import { PageHeader } from "@/components/PageHeader";
+import { DateRangeFilter } from "@/components/DateRangeFilter";
 import { useAdminSession } from "@/components/AdminSessionContext";
 import { AdminApiError, adminApiRequest } from "@/lib/adminApiClient";
 import { hasPermission } from "@sri-narayana/shared";
@@ -21,10 +22,10 @@ export default function DeletedBillsPage() {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
 
-  async function load() {
+  async function load(range = { from, to }) {
     setLoading(true);
     try {
-      const q = new URLSearchParams(); if (from) q.set("from", from); if (to) q.set("to", to);
+      const q = new URLSearchParams(); if (range.from) q.set("from", range.from); if (range.to) q.set("to", range.to);
       const r = await adminApiRequest<{ bills: DeletedBill[]; count: number }>(`/api/admin/finance/deleted-bills?${q}`);
       setBills(r.bills); setCount(r.count);
     } catch (e) { setError(e instanceof AdminApiError ? e.message : "Failed to load"); }
@@ -42,12 +43,14 @@ export default function DeletedBillsPage() {
       <section className="space-y-4 p-4 md:p-7">
         {error && <div className="card border-l-4 border-l-[#ed515d] p-4 text-sm font-semibold text-[#ed515d]">{error}</div>}
 
-        <div className="card flex flex-wrap items-end gap-3 p-4">
-          <label className="text-sm font-semibold text-[#303247]">From<input type="date" className="field mt-1" value={from} onChange={(e) => setFrom(e.target.value)} /></label>
-          <label className="text-sm font-semibold text-[#303247]">To<input type="date" className="field mt-1" value={to} onChange={(e) => setTo(e.target.value)} /></label>
-          <button className="btn-primary" onClick={load}>Apply</button>
-          <span className="ml-auto text-sm font-bold text-[#1f2136]">{count} deleted · {inr(totalLost)} total</span>
-        </div>
+        <DateRangeFilter
+          from={from}
+          to={to}
+          onChange={({ from, to }) => { setFrom(from); setTo(to); }}
+          onApply={load}
+          loading={loading}
+          rightSlot={<span className="text-sm font-bold text-[#1f2136]">{count} deleted · {inr(totalLost)} total</span>}
+        />
 
         <div className="card overflow-x-auto">
           <table className="w-full min-w-[680px] text-left text-sm">

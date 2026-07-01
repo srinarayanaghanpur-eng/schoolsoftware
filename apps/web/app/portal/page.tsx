@@ -2,11 +2,28 @@
 
 import { AppShell } from "@/components/AppShell";
 import { AuthGate } from "@/components/AuthGate";
+import { useAdminSession } from "@/components/AdminSessionContext";
 import { PageHeader } from "@/components/PageHeader";
+import { LiveClock } from "@/components/LiveClock";
 import { usePortalChild } from "@/components/PortalChildContext";
 import { adminApiRequest } from "@/lib/adminApiClient";
 import { ROLES } from "@sri-narayana/shared";
-import { Award, BellRing, CalendarDays, CreditCard, ExternalLink, Percent, ReceiptText, TriangleAlert, User } from "lucide-react";
+import {
+  Award,
+  BellRing,
+  CalendarDays,
+  CheckCircle2,
+  CreditCard,
+  ExternalLink,
+  MessageSquare,
+  ReceiptText,
+  TrendingUp,
+  TriangleAlert,
+  User,
+  UserCircle,
+  Wallet,
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
@@ -39,8 +56,16 @@ function NoLinkedStudents() {
   );
 }
 
+function firstName(name?: string) {
+  if (!name) return "Parent";
+  return name.trim().split(/\s+/)[0] || "Parent";
+}
+
+type QuickAction = { label: string; icon: LucideIcon; href?: string; onClick?: () => void; accent: string };
+
 function PortalDashboard() {
   const { children, selectedChildId, selectedChild, switchChild, loading: childrenLoading } = usePortalChild();
+  const { profile } = useAdminSession();
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState(false);
@@ -102,12 +127,37 @@ function PortalDashboard() {
     );
   }
 
+  const paidPercent = summary && summary.fees.total > 0
+    ? Math.min(100, Math.round((summary.fees.paid / summary.fees.total) * 100))
+    : 0;
+  const noDues = summary ? summary.fees.due <= 0 : false;
+
+  const average = summary && summary.marks.length
+    ? Math.round(
+        (summary.marks.reduce((acc, m) => acc + (m.maxMarks > 0 ? (m.marksObtained / m.maxMarks) * 100 : 0), 0) /
+          summary.marks.length) * 10,
+      ) / 10
+    : null;
+
+  const quickActions: QuickAction[] = [
+    { label: "Make Payment", icon: CreditCard, onClick: () => void payNow(), accent: "bg-[#eef0ff] text-[#3033a1]" },
+    { label: "Download Receipt", icon: ReceiptText, href: "/portal/payments", accent: "bg-[#e6f8ef] text-[#0f8d52]" },
+    { label: "Report Card", icon: Award, href: "/portal/exams", accent: "bg-[#fff3df] text-[#b87d0e]" },
+    { label: "Notices", icon: BellRing, href: "/portal/notices", accent: "bg-[#fdeef0] text-[#d84d5b]" },
+    { label: "Contact", icon: MessageSquare, href: "/portal/contact", accent: "bg-[#eaf3ff] text-[#2f6fed]" },
+    { label: "Profile", icon: UserCircle, href: "/portal/profile", accent: "bg-[#f1ecff] text-[#6b46c1]" },
+  ];
+
   return (
     <>
-      <PageHeader
-        title="Dashboard"
-        description={selectedChild ? `${selectedChild.name} · Class ${selectedChild.className}${selectedChild.section ? ` - ${selectedChild.section}` : ""}` : "Student and parent dashboard"}
-        action={
+      <div className="dashboard-animate px-4 pt-5 md:px-7">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="min-w-0">
+            <h2 className="text-[22px] font-extrabold leading-tight tracking-tight text-[#1b1d32]">Dashboard</h2>
+            <p className="mt-1 text-sm font-medium text-[#7d86a8]">
+              Welcome back, {firstName(profile?.name)} <span aria-hidden>👋</span>
+            </p>
+          </div>
           <div className="flex flex-wrap items-center gap-3">
             {children.length > 1 ? (
               <select
@@ -119,10 +169,16 @@ function PortalDashboard() {
                   <option key={s.id} value={s.id}>{s.name} · Class {s.className}</option>
                 ))}
               </select>
+            ) : selectedChild ? (
+              <span className="inline-flex items-center gap-2 rounded-2xl border border-[#e3e6f0] bg-white px-4 py-2.5 text-sm font-bold text-[#1b1d32]">
+                <span className="grid h-7 w-7 place-items-center rounded-lg bg-[#eef0ff] text-[#3033a1]"><User size={15} /></span>
+                {selectedChild.name} · Class {selectedChild.className}{selectedChild.section ? ` - ${selectedChild.section}` : ""}
+              </span>
             ) : null}
+            <LiveClock className="hidden sm:inline-flex" />
           </div>
-        }
-      />
+        </div>
+      </div>
 
       <section className="space-y-5 p-4 md:p-7">
         {error && <div className="rounded-2xl border border-[#ffd5da] bg-[#ffebed] px-4 py-3 text-sm font-semibold text-[#c83f4d]">{error}</div>}
@@ -137,73 +193,176 @@ function PortalDashboard() {
                 <div className="flex items-center gap-3">
                   <TriangleAlert size={20} className="text-[#b87d0e]" />
                   <p className="text-sm font-bold text-[#7d5d0a]">
-                    Outstanding fee of {formatINR(summary.fees.due)} is due. 
+                    Outstanding fee of {formatINR(summary.fees.due)} is due.
                     {summary.fees.feeBalanceCarriedForward ? ` (Includes ₹${summary.fees.feeBalanceCarriedForward.toLocaleString("en-IN")} carried forward)` : ""}
                   </p>
                 </div>
               </div>
             )}
 
-            <div className="stagger-children grid gap-4 sm:grid-cols-3">
+            {/* Metric cards — Total Fees / Paid / Due / Fee Status */}
+            <div className="stagger-children grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
               <div className="card p-5">
-                <p className="text-sm font-semibold text-[#7d86a8]">Total Fees</p>
-                <p className="mt-3 text-[30px] font-extrabold leading-none text-[#1b1d32]">{formatINR(summary.fees.total)}</p>
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-[#7d86a8]">Total Fees</p>
+                    <p className="mt-3 text-[28px] font-extrabold leading-none text-[#1b1d32]">{formatINR(summary.fees.total)}</p>
+                    <p className="mt-2 text-xs font-medium text-[#9aa2bd]">All inclusive</p>
+                  </div>
+                  <span className="grid h-11 w-11 place-items-center rounded-xl bg-[#eef0ff] text-[#3033a1]"><Wallet size={20} /></span>
+                </div>
               </div>
               <div className="card p-5">
-                <p className="text-sm font-semibold text-[#7d86a8]">Paid</p>
-                <p className="mt-3 text-[30px] font-extrabold leading-none text-[#13a961]">{formatINR(summary.fees.paid)}</p>
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-[#7d86a8]">Paid</p>
+                    <p className="mt-3 text-[28px] font-extrabold leading-none text-[#13a961]">{formatINR(summary.fees.paid)}</p>
+                    <p className="mt-2 text-xs font-medium text-[#9aa2bd]">{paidPercent}% completed</p>
+                  </div>
+                  <span className="grid h-11 w-11 place-items-center rounded-xl bg-[#e6f8ef] text-[#0f8d52]"><CheckCircle2 size={20} /></span>
+                </div>
               </div>
               <div className="card p-5">
-                <p className="text-sm font-semibold text-[#7d86a8]">Due</p>
-                <p className="mt-3 text-[30px] font-extrabold leading-none text-[#ed515d]">{formatINR(summary.fees.due)}</p>
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-[#7d86a8]">Due</p>
+                    <p className="mt-3 text-[28px] font-extrabold leading-none text-[#ed515d]">{formatINR(summary.fees.due)}</p>
+                    <p className="mt-2 text-xs font-medium text-[#9aa2bd]">{noDues ? "No dues" : "Pending payment"}</p>
+                  </div>
+                  <span className="grid h-11 w-11 place-items-center rounded-xl bg-[#fdeef0] text-[#d84d5b]"><ReceiptText size={20} /></span>
+                </div>
+              </div>
+              <div className="card p-5">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-[#7d86a8]">Fee Status</p>
+                    <p className={`mt-3 text-[22px] font-extrabold capitalize leading-none ${noDues ? "text-[#13a961]" : "text-[#b87d0e]"}`}>
+                      {noDues ? "No dues" : (summary.fees.status ?? "Pending")}
+                    </p>
+                    <p className="mt-2 text-xs font-medium text-[#9aa2bd]">{noDues ? "You're all set!" : "Action needed"}</p>
+                  </div>
+                  <span className={`grid h-11 w-11 place-items-center rounded-xl ${noDues ? "bg-[#e6f8ef] text-[#0f8d52]" : "bg-[#fff3df] text-[#b87d0e]"}`}>
+                    <CheckCircle2 size={20} />
+                  </span>
+                </div>
               </div>
             </div>
 
-            <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
+            {/* Fee Payment + Performance Summary */}
+            <div className="grid gap-5 xl:grid-cols-2">
               <div className="card p-5">
                 <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                   <div>
                     <h2 className="font-extrabold text-[#1f2136]">Fee Payment</h2>
-                    <p className="mt-1 text-sm font-medium text-[#7d86a8]">Pay the current outstanding amount online.</p>
+                    <p className="mt-1 text-sm font-medium text-[#7d86a8]">
+                      {noDues ? "You're up to date with your fee payments." : "Pay the current outstanding amount online."}
+                    </p>
                   </div>
                   <button className="btn-primary" onClick={() => void payNow()} disabled={paying || summary.fees.due <= 0}>
                     <CreditCard size={16} /> {paying ? "Processing..." : summary.fees.due > 0 ? `Pay ${formatINR(summary.fees.due)}` : "No dues"}
                   </button>
                 </div>
                 <div className="mt-5 h-3 overflow-hidden rounded-full bg-[#eef0f7]">
-                  <div
-                    className="h-full rounded-full bg-[#3033a1]"
-                    style={{ width: `${summary.fees.total > 0 ? Math.min(100, Math.round((summary.fees.paid / summary.fees.total) * 100)) : 0}%` }}
-                  />
+                  <div className="h-full rounded-full bg-[#3033a1]" style={{ width: `${paidPercent}%` }} />
                 </div>
                 <div className="mt-3 flex justify-between text-xs font-medium text-[#7d86a8]">
                   <span>{formatINR(summary.fees.paid)} paid</span>
                   <span>{formatINR(summary.fees.due)} remaining</span>
                 </div>
-              </div>
-
-              <div className="card p-5">
-                <div className="flex items-center gap-3">
-                  <span className="grid h-10 w-10 place-items-center rounded-xl bg-[#eef0ff] text-[#3033a1]"><Percent size={20} /></span>
-                  <div>
-                    <h2 className="font-extrabold text-[#1f2136]">Fee Status</h2>
-                    <p className="text-sm font-semibold text-[#7d86a8] capitalize">{summary.fees.status ?? "pending"}</p>
-                  </div>
-                </div>
                 {summary.fees.feeBalanceCarriedForward ? (
-                  <div className="mt-3 rounded-xl bg-[#f7f8fd] p-3 text-xs font-medium text-[#7d86a8]">
+                  <div className="mt-4 rounded-xl bg-[#f7f8fd] p-3 text-xs font-medium text-[#7d86a8]">
                     Previous year carry forward: {formatINR(summary.fees.feeBalanceCarriedForward)}
                   </div>
                 ) : null}
               </div>
+
+              <div className="card p-5">
+                <div className="mb-4 flex items-center gap-3">
+                  <span className="grid h-10 w-10 place-items-center rounded-xl bg-[#eef0ff] text-[#3033a1]"><TrendingUp size={20} /></span>
+                  <h2 className="font-extrabold text-[#1f2136]">Performance Summary</h2>
+                </div>
+                {average !== null ? (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="rounded-xl bg-[#f7f8fd] p-4">
+                      <p className="text-xs font-semibold text-[#7d86a8]">Overall Average</p>
+                      <p className="mt-2 text-[28px] font-extrabold leading-none text-[#1b1d32]">{average}%</p>
+                    </div>
+                    <div className="rounded-xl bg-[#f7f8fd] p-4">
+                      <p className="text-xs font-semibold text-[#7d86a8]">Subjects Graded</p>
+                      <p className="mt-2 text-[28px] font-extrabold leading-none text-[#1b1d32]">{summary.marks.length}</p>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="rounded-xl bg-[#f7f8fd] p-4 text-center text-sm font-medium text-[#7d86a8]">No published marks yet.</p>
+                )}
+                <div className="mt-4">
+                  <Link href="/portal/exams" className="text-sm font-bold text-[#3033a1] hover:underline">View exam details →</Link>
+                </div>
+              </div>
             </div>
 
+            {/* Upcoming Events + Quick Actions */}
+            <div className="grid gap-5 xl:grid-cols-2">
+              <div className="card p-5">
+                <div className="mb-4 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <CalendarDays size={20} className="text-[#3033a1]" />
+                    <h2 className="font-extrabold text-[#1f2136]">Upcoming Events</h2>
+                  </div>
+                  <Link href="/portal/notices" className="inline-flex items-center gap-1.5 text-sm font-bold text-[#3033a1] hover:underline">
+                    View all <ExternalLink size={14} />
+                  </Link>
+                </div>
+                <div className="space-y-3">
+                  {(summary.upcomingHolidays ?? []).map((h, i) => (
+                    <div key={i} className="flex items-center gap-4 rounded-xl bg-[#f7f8fd] p-3">
+                      <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-[#eef0ff] text-center leading-none text-[#3033a1]">
+                        <span className="text-base font-extrabold">{h.date ? h.date.slice(8, 10) : "--"}</span>
+                      </span>
+                      <div className="min-w-0">
+                        <p className="truncate font-bold text-[#303247]">{h.title}</p>
+                        <p className="mt-0.5 text-xs font-medium text-[#7d86a8] capitalize">{h.date} · {h.type}</p>
+                      </div>
+                    </div>
+                  ))}
+                  {!(summary.upcomingHolidays ?? []).length && (
+                    <p className="rounded-xl bg-[#f7f8fd] p-4 text-center text-sm font-medium text-[#7d86a8]">No upcoming events.</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="card p-5">
+                <div className="mb-4 flex items-center gap-3">
+                  <Award size={20} className="text-[#3033a1]" />
+                  <h2 className="font-extrabold text-[#1f2136]">Quick Actions</h2>
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  {quickActions.map((action) => {
+                    const Icon = action.icon;
+                    const inner = (
+                      <>
+                        <span className={`grid h-11 w-11 place-items-center rounded-xl ${action.accent}`}><Icon size={20} /></span>
+                        <span className="text-center text-xs font-bold leading-tight text-[#303247]">{action.label}</span>
+                      </>
+                    );
+                    const className = "flex flex-col items-center gap-2 rounded-xl border border-[#edf0f7] bg-white p-4 transition hover:border-[#cdd3ec] hover:bg-[#f7f8fd]";
+                    return action.href ? (
+                      <Link key={action.label} href={action.href} className={className}>{inner}</Link>
+                    ) : (
+                      <button key={action.label} type="button" onClick={action.onClick} disabled={paying || noDues} className={`${className} disabled:cursor-not-allowed disabled:opacity-50`}>{inner}</button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* Recent Payments */}
             {summary.recentPayments && summary.recentPayments.length > 0 && (
               <div className="card p-5">
                 <div className="mb-4 flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <ReceiptText size={20} className="text-[#3033a1]" />
-                    <h2 className="font-extrabold text-[#1f2136]">Recent Payments</h2>
+                    <h2 className="font-extrabold text-[#1f2136]">Recent Transactions</h2>
                   </div>
                   <Link href="/portal/payments" className="inline-flex items-center gap-1.5 text-sm font-bold text-[#3033a1] hover:underline">
                     View all <ExternalLink size={14} />
@@ -228,6 +387,7 @@ function PortalDashboard() {
               </div>
             )}
 
+            {/* Latest Exam Result + Recent Notices */}
             <div className="grid gap-5 xl:grid-cols-2">
               <div className="card overflow-hidden">
                 <div className="flex items-center gap-3 border-b border-[#edf0f7] px-5 py-4">
@@ -283,23 +443,6 @@ function PortalDashboard() {
                 </div>
               </div>
             </div>
-
-            {summary.upcomingHolidays && summary.upcomingHolidays.length > 0 && (
-              <div className="card p-5">
-                <div className="mb-4 flex items-center gap-3">
-                  <CalendarDays size={20} className="text-[#3033a1]" />
-                  <h2 className="font-extrabold text-[#1f2136]">Upcoming Events & Holidays</h2>
-                </div>
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                  {summary.upcomingHolidays.map((h, i) => (
-                    <div key={i} className="rounded-xl bg-[#f7f8fd] p-3">
-                      <p className="font-bold text-[#303247]">{h.title}</p>
-                      <p className="mt-1 text-xs font-medium text-[#7d86a8]">{h.date}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
           </>
         ) : summary === null && !loading ? (
           <div className="card p-8 text-center text-sm font-semibold text-[#7d86a8]">

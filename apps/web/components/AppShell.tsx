@@ -57,6 +57,7 @@ import { DarkModeToggle } from "@/components/DarkModeToggle";
 import { SectionTabs } from "@/components/SectionTabs";
 import { clearPayrollSessionId } from "@/lib/payrollSessionClient";
 import { refreshClaims } from "@/lib/authClaims";
+import { isRoleAllowedForPath } from "@/lib/routeAccess";
 import { lazyLoad } from "@/lib/lazyLoad";
 
 type NavChild = { href: string; label: string; module?: Module };
@@ -101,6 +102,15 @@ const secondaryNav: NavItem[] = [
   { href: "/admin/inventory", label: "Inventory", module: "inventory", icon: Package },
   { href: "/admin/branches", label: "Branches", module: "settings", icon: Building2 },
   { href: "/admin/settings", label: "Settings", module: "settings", icon: Settings }
+];
+
+const desktopNavSections: Array<{ label: string; hrefs: string[] }> = [
+  { label: "Core", hrefs: ["/admin/dashboard", "/admin/students", "/admin/parents", "/admin/teachers"] },
+  { label: "Academics", hrefs: ["/admin/attendance", "/admin/exams", "/admin/calendar", "/admin/academic-years", "/admin/promotions"] },
+  { label: "Operations", hrefs: ["/admin/transport", "/admin/transport/bus-finance", "/admin/library", "/admin/hostel", "/admin/inventory"] },
+  { label: "Finance", hrefs: ["/admin/finance", "/admin/salary"] },
+  { label: "Communication", hrefs: ["/admin/notices", "/admin/messages"] },
+  { label: "System", hrefs: ["/admin/users", "/admin/approvals", "/admin/branches", "/admin/settings"] }
 ];
 
 // Curated mobile nav — a focused subset of the app for phones. Items are still
@@ -192,10 +202,15 @@ function moduleForPath(pathname: string): Module | undefined {
 function navForRole(items: NavItem[], role?: Role): NavItem[] {
   const allowed = new Set(modulesForRole(role));
   return items
-    .filter((item) => allowed.has(item.module))
+    // Must pass BOTH the module RBAC matrix and the route table, so we never
+    // show a link the route guard would deny (e.g. Fees & Finance to principal,
+    // Settings to admin). Keeps the sidebar consistent with actual access.
+    .filter((item) => allowed.has(item.module) && isRoleAllowedForPath(item.href, role))
     .map((item) => ({
       ...item,
-      children: item.children?.filter((child) => !child.module || allowed.has(child.module))
+      children: item.children?.filter(
+        (child) => (!child.module || allowed.has(child.module)) && isRoleAllowedForPath(child.href, role)
+      )
     }));
 }
 
@@ -210,14 +225,14 @@ function NavEntry({ item, pathname }: { item: NavItem; pathname: string }) {
         <Link
           href={item.href}
           className={clsx(
-            "group relative flex flex-1 items-center gap-4 rounded-xl px-4 py-3 text-sm font-semibold transition duration-200",
+            "group relative flex flex-1 items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] font-semibold transition duration-200",
             active
-              ? "bg-[#4748a9] text-white shadow-[0_8px_20px_rgba(8,10,92,0.18)]"
-              : "text-[#dce2ff] hover:bg-white/10 hover:text-white"
+              ? "bg-white/[0.14] text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08),0_8px_18px_rgba(5,8,55,0.18)]"
+              : "text-[#d7defb] hover:bg-white/[0.09] hover:text-white"
           )}
         >
-          {active && <span className="absolute inset-y-3 -left-2 w-1 rounded-r-full bg-[#ffd23f]" />}
-          <item.icon size={20} strokeWidth={2.4} className={active ? "text-white" : "text-[#c5ceff] group-hover:text-white"} />
+          {active && <span className="absolute inset-y-2 -left-2 w-1 rounded-r-full bg-[#f7c948]" />}
+          <item.icon size={18} strokeWidth={2.35} className={active ? "text-white" : "text-[#bbc6ff] group-hover:text-white"} />
           <span className="flex-1">{item.label}</span>
           {item.badge !== undefined && item.badge > 0 && (
             <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-[#ffd23f] px-1.5 text-[10px] font-extrabold text-[#20226f]">
@@ -231,7 +246,7 @@ function NavEntry({ item, pathname }: { item: NavItem; pathname: string }) {
             aria-label={open ? `Collapse ${item.label}` : `Expand ${item.label}`}
             aria-expanded={open}
             onClick={() => setOpen((value) => !value)}
-            className="ml-1 grid w-9 shrink-0 place-items-center rounded-xl text-[#c5ceff] transition hover:bg-white/10 hover:text-white"
+            className="ml-1 grid w-8 shrink-0 place-items-center rounded-lg text-[#c5ceff] transition hover:bg-white/10 hover:text-white"
           >
             <ChevronDown size={16} className={clsx("transition-transform duration-200", open && "rotate-180")} />
           </button>
@@ -246,8 +261,8 @@ function NavEntry({ item, pathname }: { item: NavItem; pathname: string }) {
                 key={child.href}
                 href={child.href}
                 className={clsx(
-                  "flex items-center gap-3 rounded-lg px-4 py-2 text-[13px] font-semibold transition duration-200",
-                  childIsActive ? "bg-white/15 text-white" : "text-[#b9c2ee] hover:bg-white/10 hover:text-white"
+                  "flex items-center gap-3 rounded-lg px-3 py-2 text-[12px] font-semibold transition duration-200",
+                  childIsActive ? "bg-white/[0.15] text-white" : "text-[#b9c2ee] hover:bg-white/10 hover:text-white"
                 )}
               >
                 <span className={clsx("h-1.5 w-1.5 rounded-full", childIsActive ? "bg-[#ffd23f]" : "bg-[#6f78c4]")} />
@@ -314,7 +329,7 @@ function AcademicYearSwitcher() {
       <CalendarRange size={17} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[#8490b9]" />
       <select
         aria-label="Academic year"
-        className="h-11 w-full appearance-none rounded-xl border border-[#e0e3f0] bg-[#f8f8fc] pl-10 pr-4 text-sm font-bold text-[#20223a] outline-none transition focus:border-[#4a4bb1] focus:ring-4 focus:ring-[#4a4bb1]/10 disabled:cursor-not-allowed disabled:text-[#8b94b2]"
+        className="h-11 w-full appearance-none rounded-lg border border-[#e0e5f2] bg-[#f8faff] pl-10 pr-4 text-sm font-bold text-[#20223a] outline-none transition focus:border-[#4a4bb1] focus:ring-4 focus:ring-[#4a4bb1]/10 disabled:cursor-not-allowed disabled:text-[#8b94b2]"
         value={value}
         disabled={disabled}
         onChange={(event) => void handleChange(event.target.value)}
@@ -359,7 +374,9 @@ type Profile = { uid: string; name: string; email?: string; role?: Role };
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const title = pageTitles[pathname] ?? "Administration";
+  const title = pathname.startsWith("/admin/finance")
+    ? "Finance / Accounts"
+    : pageTitles[pathname] ?? "Administration";
 
   // Live, current date. Starts null so SSR and first client render match
   // (no hydration mismatch); filled on mount and refreshed every minute so it
@@ -453,6 +470,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     [role, isPortalRole, pendingApprovals]
   );
   const generalNav = useMemo(() => (isPortalRole ? [] : navForRole(secondaryNav, role)), [role, isPortalRole]);
+  const desktopNavGroups = useMemo(() => {
+    if (isPortalRole) return mainNav.length ? [{ label: "Portal", items: mainNav }] : [];
+    const itemMap = new Map([...mainNav, ...generalNav].map((item) => [item.href, item]));
+    return desktopNavSections
+      .map((section) => ({
+        label: section.label,
+        items: section.hrefs.map((href) => itemMap.get(href)).filter((item): item is NavItem => Boolean(item))
+      }))
+      .filter((section) => section.items.length > 0);
+  }, [mainNav, generalNav, isPortalRole]);
   const bottomTabs = useMemo(
     () => mobileNav.filter((item) => {
       if (!item.module) return true;
@@ -464,7 +491,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     [role, isPortalRole]
   );
   const currentModule = moduleForPath(pathname);
-  const routeDenied = !sessionLoading && Boolean(currentModule && (!role || !canAccessModule(role, currentModule)));
+  // Denied if EITHER the module RBAC matrix OR the central route table blocks the
+  // current path. The route table covers the sensitive sub-areas (finance,
+  // settings, users, roles) that the coarse module check alone would let through.
+  const routeDenied =
+    !sessionLoading &&
+    ((Boolean(currentModule) && (!role || !canAccessModule(role, currentModule!))) ||
+      !isRoleAllowedForPath(pathname, role));
   const roleLabel = role ? ROLE_LABELS[role] : "Loading...";
 
   const handleSignOut = () => {
@@ -512,7 +545,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <AdminSessionProvider value={sessionValue}>
       <AcademicYearProvider>
-    <div className="min-h-screen bg-white text-[#181a31] md:flex">
+    <div className="min-h-screen bg-[#f6f8ff] text-[#181a31] md:flex">
       {/* Mobile backdrop */}
       {mobileNavOpen && (
         <div
@@ -524,17 +557,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       <aside
         className={clsx(
-          "fixed inset-y-0 left-0 z-50 flex w-[280px] max-w-[85vw] flex-col overflow-hidden bg-[linear-gradient(180deg,#292b8d_0%,#20226f_100%)] text-white shadow-2xl transition-transform duration-300 ease-out md:w-[276px] md:max-w-none md:shadow-none md:translate-x-0",
+          "fixed inset-y-0 left-0 z-50 flex w-[264px] max-w-[85vw] flex-col overflow-hidden bg-[linear-gradient(180deg,#17217f_0%,#11195f_100%)] text-white shadow-2xl transition-transform duration-300 ease-out md:w-[248px] md:max-w-none md:shadow-[12px_0_28px_rgba(18,27,105,0.12)] md:translate-x-0",
           mobileNavOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
-        <div className="flex items-center gap-3 border-b border-white/10 px-4 py-6 md:px-5">
-          <div className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-xl bg-white p-1 shadow-lg shadow-black/10">
+        <div className="flex items-center gap-3 border-b border-white/10 px-4 py-5">
+          <div className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-lg bg-white p-1 shadow-lg shadow-black/10">
             <img src="/sri-narayana-high-school-logo.jpg" alt="Sri Narayana High School" className="h-full w-full object-cover" />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="truncate font-serif text-lg font-bold leading-5 text-white">Sri Narayana</p>
-            <p className="mt-0.5 text-[11px] font-medium tracking-[0.08em] text-[#c1c9ff]">HIGH SCHOOL · ERP</p>
+            <p className="truncate font-serif text-base font-bold leading-5 text-white">Sri Narayana</p>
+            <p className="mt-0.5 text-[10px] font-bold tracking-[0.08em] text-[#b7c3ff]">HIGH SCHOOL · ERP</p>
           </div>
           <button
             type="button"
@@ -548,107 +581,100 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
         {/* Mobile: curated essentials only */}
         <nav className="nav-scroll min-h-0 flex-1 space-y-1 overflow-y-auto px-3 py-5 md:hidden">
-          {mobileNav
-            .filter((item) => !item.module || (role && canAccessModule(role, item.module)))
-            .map((item) => {
-              const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={clsx(
-                    "group relative flex items-center gap-4 rounded-xl px-4 py-3.5 text-sm font-semibold transition duration-200",
-                    active ? "bg-[#4748a9] text-white shadow-[0_8px_20px_rgba(8,10,92,0.18)]" : "text-[#dce2ff] hover:bg-white/10 hover:text-white"
-                  )}
-                >
-                  {active && <span className="absolute inset-y-3 -left-2 w-1 rounded-r-full bg-[#ffd23f]" />}
-                  <item.icon size={20} strokeWidth={2.4} className={active ? "text-white" : "text-[#c5ceff] group-hover:text-white"} />
-                  {item.label}
-                </Link>
-              );
-            })}
+          {bottomTabs.map((item) => {
+            const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={clsx(
+                  "group relative flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-semibold transition duration-200",
+                  active ? "bg-white/[0.14] text-white shadow-[0_8px_20px_rgba(8,10,92,0.18)]" : "text-[#dce2ff] hover:bg-white/10 hover:text-white"
+                )}
+              >
+                {active && <span className="absolute inset-y-3 -left-2 w-1 rounded-r-full bg-[#ffd23f]" />}
+                <item.icon size={20} strokeWidth={2.4} className={active ? "text-white" : "text-[#c5ceff] group-hover:text-white"} />
+                {item.label}
+              </Link>
+            );
+          })}
         </nav>
 
         {/* Desktop: full navigation */}
-        <nav className="nav-scroll hidden min-h-0 flex-1 space-y-1 overflow-y-auto px-3 py-5 md:block md:px-4">
-          <p className="px-2 pb-2 text-[11px] font-bold tracking-[0.13em] text-[#9ba9ed]">MAIN</p>
-          {mainNav.map((item) => (
-            <NavEntry key={item.href} item={item} pathname={pathname} />
-          ))}
-
-          {generalNav.length > 0 && (
-            <>
-              <p className="px-2 pb-2 pt-7 text-[11px] font-bold tracking-[0.13em] text-[#9ba9ed]">GENERAL</p>
-              {generalNav.map((item) => (
+        <nav className="nav-scroll hidden min-h-0 flex-1 space-y-5 overflow-y-auto px-3 py-4 md:block">
+          {desktopNavGroups.map((section) => (
+            <div key={section.label} className="space-y-1">
+              <p className="px-2 pb-1.5 text-[10px] font-extrabold uppercase tracking-[0.13em] text-[#8fa0ed]">{section.label}</p>
+              {section.items.map((item) => (
                 <NavEntry key={item.href} item={item} pathname={pathname} />
               ))}
-            </>
-          )}
+            </div>
+          ))}
 
           {role && canAccessModule(role, "attendance") && (
-            <>
-              <p className="px-2 pb-2 pt-7 text-[11px] font-bold tracking-[0.13em] text-[#9ba9ed]">ME</p>
+            <div className="space-y-1 pt-1">
+              <p className="px-2 pb-1.5 text-[10px] font-extrabold uppercase tracking-[0.13em] text-[#8fa0ed]">Me</p>
               <Link
                 href="/admin/my-attendance"
                 className={clsx(
-                  "group relative flex items-center gap-4 rounded-xl px-4 py-3 text-sm font-semibold transition duration-200",
+                  "group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] font-semibold transition duration-200",
                   pathname === "/admin/my-attendance"
-                    ? "bg-[#4748a9] text-white shadow-[0_8px_20px_rgba(8,10,92,0.18)]"
-                    : "text-[#dce2ff] hover:bg-white/10 hover:text-white"
+                    ? "bg-white/[0.14] text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08),0_8px_18px_rgba(5,8,55,0.18)]"
+                    : "text-[#d7defb] hover:bg-white/[0.09] hover:text-white"
                 )}
               >
-                {pathname === "/admin/my-attendance" && <span className="absolute inset-y-3 -left-2 w-1 rounded-r-full bg-[#ffd23f]" />}
-                <CalendarCheck size={20} strokeWidth={2.4} className={pathname === "/admin/my-attendance" ? "text-white" : "text-[#c5ceff] group-hover:text-white"} />
+                {pathname === "/admin/my-attendance" && <span className="absolute inset-y-2 -left-2 w-1 rounded-r-full bg-[#ffd23f]" />}
+                <CalendarCheck size={18} strokeWidth={2.35} className={pathname === "/admin/my-attendance" ? "text-white" : "text-[#c5ceff] group-hover:text-white"} />
                 My Attendance
               </Link>
-            </>
+            </div>
           )}
         </nav>
 
         <button
           type="button"
           onClick={handleSignOut}
-          className="mt-auto flex items-center gap-3 border-t border-white/10 px-5 py-5 text-left transition hover:bg-white/5"
+          className="mt-auto flex items-center gap-3 border-t border-white/10 px-4 py-4 text-left transition hover:bg-white/5"
           title="Sign out"
         >
-          <span className="grid h-10 w-10 place-items-center rounded-full bg-[#ffc73d] text-sm font-extrabold text-[#2a2c87]">
+          <span className="grid h-9 w-9 place-items-center rounded-full bg-[#ffc73d] text-xs font-extrabold text-[#2a2c87]">
             {profile ? initialsOf(profile.name) : "··"}
           </span>
           <span className="min-w-0 flex-1">
-            <span className="block truncate text-sm font-bold">{profile?.name ?? "Loading…"}</span>
+            <span className="block truncate text-[13px] font-bold">{profile?.name ?? "Loading…"}</span>
             <span className="block text-xs text-[#aeb9f2]">{roleLabel}</span>
           </span>
           <LogOut size={19} className="text-[#bdc8ff]" />
         </button>
       </aside>
 
-      <main key={pathname} className="min-w-0 flex-1 md:ml-[276px] flex flex-col">
-        <header className="sticky top-0 z-20 flex min-h-[64px] items-center gap-3 border-b border-[#e4e6f0] bg-white/95 px-3 py-2.5 backdrop-blur md:min-h-[76px] md:gap-4 md:px-7 md:py-3 flex-shrink-0">
+      <main key={pathname} className="flex min-w-0 flex-1 flex-col md:ml-[248px]">
+        <header className="sticky top-0 z-20 flex min-h-[64px] shrink-0 items-center gap-3 border-b border-[#e5e9f4] bg-white/[0.92] px-3 py-2.5 shadow-[0_6px_18px_rgba(38,47,110,0.04)] backdrop-blur md:min-h-[72px] md:gap-4 md:px-6 md:py-3">
           <button
             type="button"
             onClick={() => setMobileNavOpen(true)}
             aria-label="Open menu"
-            className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#f3f4fb] text-[#313581] transition hover:bg-[#e9ebfa] md:hidden"
+            className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-[#eef2ff] text-[#27318d] transition hover:bg-[#e3e8ff] md:hidden"
           >
             <Menu size={20} />
           </button>
-          <div className="min-w-0 flex-1 md:min-w-[170px] md:flex-none">
+          <div className="min-w-0 flex-1 md:min-w-[170px]">
             <h1 className="truncate text-lg font-extrabold tracking-tight text-[#15172d] md:text-xl">{title}</h1>
             <p className="truncate text-xs font-medium text-[#7b85a8]"><HeaderDateLabel now={now} /></p>
           </div>
-          <label className="relative ml-auto hidden max-w-[330px] flex-1 lg:block">
+          <label className="relative ml-auto hidden max-w-[420px] flex-1 xl:block">
             <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#8490b9]" />
             <input
               aria-label="Search school records"
-              placeholder="Search students, fees, notices..."
-              className="h-11 w-full rounded-xl border border-[#e0e3f0] bg-[#f4f5fb] pl-12 pr-4 text-sm text-[#242744] outline-none placeholder:text-[#99a2c3] focus:border-[#4a4bb1] focus:ring-4 focus:ring-[#4a4bb1]/10"
+              placeholder="Search students, staff, invoices..."
+              className="h-11 w-full rounded-lg border border-[#e0e5f2] bg-[#f8faff] pl-11 pr-4 text-sm font-semibold text-[#242744] outline-none placeholder:text-[#9aa4c4] focus:border-[#4a4bb1] focus:bg-white focus:ring-4 focus:ring-[#4a4bb1]/10"
             />
           </label>
           <AcademicYearSwitcher />
           <LiveClock className="hidden sm:inline-flex" />
           <DarkModeToggle />
           {role && canAccessModule(role, "communication") && (
-            <Link href="/admin/notifications" aria-label="Communication & notifications" className="relative grid h-11 w-11 place-items-center rounded-xl bg-[#f3f4fb] text-[#313581] transition hover:bg-[#e9ebfa]">
+            <Link href="/admin/notifications" aria-label="Communication & notifications" className="relative grid h-11 w-11 place-items-center rounded-lg bg-[#f1f4ff] text-[#27318d] transition hover:bg-[#e7ecff]">
               <BellRing size={19} />
               <span className="absolute right-3 top-3 h-1.5 w-1.5 rounded-full bg-[#f05b62] ring-2 ring-[#f3f4fb]" />
             </Link>
@@ -659,7 +685,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             disabled={refreshing}
             aria-label="Hard refresh app data"
             title="Hard refresh (clears cache & reloads the whole app)"
-            className="ml-2 grid h-11 w-11 place-items-center rounded-xl bg-[#f3f4fb] text-[#313581] transition hover:bg-[#e9ebfa] disabled:cursor-not-allowed disabled:opacity-60"
+            className="ml-1 grid h-11 w-11 place-items-center rounded-lg bg-[#f1f4ff] text-[#27318d] transition hover:bg-[#e7ecff] disabled:cursor-not-allowed disabled:opacity-60"
           >
             <RefreshCw size={19} className={clsx(refreshing && "animate-spin")} />
           </button>

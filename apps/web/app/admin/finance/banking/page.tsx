@@ -1,6 +1,7 @@
 "use client";
 
 import { PageHeader } from "@/components/PageHeader";
+import { DateRangeFilter } from "@/components/DateRangeFilter";
 import { useAdminSession } from "@/components/AdminSessionContext";
 import { AdminApiError, adminApiRequest } from "@/lib/adminApiClient";
 import { hasPermission } from "@sri-narayana/shared";
@@ -91,9 +92,15 @@ export default function BankingPage() {
               <button className="btn-primary w-full">{txnForm.type === "deposit" ? <ArrowDownToLine size={16} /> : <ArrowUpFromLine size={16} />} Record</button>
             </form>
             <article className="card overflow-x-auto">
-              <div className="flex items-center justify-between gap-3 px-4 py-3">
+              <div className="px-4 py-3">
                 <h2 className="font-bold text-[#1f2136]">Transactions — {selectedAccount?.name}</h2>
-                <div className="flex items-center gap-2"><input type="date" className="field w-36" value={from} onChange={(e) => setFrom(e.target.value)} placeholder="From" /><input type="date" className="field w-36" value={to} onChange={(e) => setTo(e.target.value)} placeholder="To" /></div>
+                <DateRangeFilter
+                  from={from}
+                  to={to}
+                  onChange={({ from, to }) => { setFrom(from); setTo(to); }}
+                  onApply={({ from, to }) => { setFrom(from); setTo(to); }}
+                  className="mt-3 !border-0 !p-0 !shadow-none"
+                />
               </div>
               <table className="w-full min-w-[520px] text-left text-sm">
                 <thead className="bg-stone-50 text-xs uppercase text-stone-500"><tr><th className="px-4 py-3">Date</th><th className="px-4 py-3">Type</th><th className="px-4 py-3">Description</th><th className="px-4 py-3 text-right">Amount</th><th className="px-4 py-3 text-right">Balance</th></tr></thead>

@@ -4,8 +4,9 @@ import { auth, db, isFirebaseConfigured } from "@sri-narayana/shared/firebase/cl
 import { isValidRole, type UserRole } from "@sri-narayana/shared";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { refreshClaims } from "@/lib/authClaims";
+import { rolesForPath } from "@/lib/routeAccess";
 import { doc, getDoc } from "firebase/firestore";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { BrandLoader } from "./BrandLoader";
 
@@ -51,7 +52,14 @@ export function AuthGate({
   roles?: readonly UserRole[];
   children: React.ReactNode;
 }) {
-  const allowedRoles = useMemo(() => roles ?? (role ? [role] : []), [role, roles]);
+  const pathname = usePathname();
+  // Explicit role/roles props win; otherwise fall back to the central route
+  // table so a layout can simply render <AuthGate> and get per-path rules.
+  const allowedRoles = useMemo(() => {
+    if (roles) return roles;
+    if (role) return [role];
+    return rolesForPath(pathname) ?? [];
+  }, [role, roles, pathname]);
   const allowedRoleKey = allowedRoles.join("|");
   // Start false so server and first client render match (avoids hydration
   // mismatch); the optimistic hint is applied in the effect below, before

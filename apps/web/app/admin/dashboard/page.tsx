@@ -1,37 +1,75 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 import {
   BellRing,
   BookOpenCheck,
+  Bus,
+  CalendarDays,
   ClipboardCheck,
   CreditCard,
+  FileSpreadsheet,
+  GraduationCap,
+  Hotel,
+  IndianRupee,
+  Library,
   Megaphone,
-  Plus,
+  MoreHorizontal,
+  Package,
+  Send,
   Settings,
+  ShieldCheck,
+  UserCog,
   UserPlus,
-  UsersRound
+  UsersRound,
+  Wallet
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { adminDb } from "@/lib/firebaseAdmin";
 
 export const dynamic = "force-dynamic";
 
+const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
 const quickActions = [
-  { href: "/admin/attendance", label: "Take Attendance", helper: "Mark today's roll", icon: ClipboardCheck, tone: "bg-[#eef0ff] text-[#3033a0]" },
-  { href: "/admin/payments", label: "Record Payment", helper: "Collect a fee", icon: CreditCard, tone: "bg-[#e7f8ef] text-[#10a65d]" },
-  { href: "/admin/students", label: "Student Records", helper: "Browse & admit", icon: UserPlus, tone: "bg-[#fff4df] text-[#e29813]" },
-  { href: "/admin/notifications", label: "Post Notice", helper: "Notify parents", icon: Megaphone, tone: "bg-[#ffeaec] text-[#dd5369]" },
-  { href: "/admin/settings", label: "Settings", helper: "Configure school", icon: Settings, tone: "bg-[#f3f4fb] text-[#313581]" }
+  { href: "/admin/students", label: "Add Student", icon: UserPlus, tone: "bg-[#edf1ff] text-[#2e38a4]" },
+  { href: "/admin/attendance", label: "Mark Attendance", icon: ClipboardCheck, tone: "bg-[#fff4df] text-[#c67711]" },
+  { href: "/admin/payments", label: "Collect Fee", icon: CreditCard, tone: "bg-[#e9f8f0] text-[#0d8f5b]" },
+  { href: "/admin/teachers", label: "Add Staff", icon: GraduationCap, tone: "bg-[#eef6ff] text-[#1967b2]" },
+  { href: "/admin/notifications", label: "New Notice", icon: Megaphone, tone: "bg-[#fff0f2] text-[#d1485c]" },
+  { href: "/admin/exams", label: "Create Exam", icon: BookOpenCheck, tone: "bg-[#f4efff] text-[#7445bd]" },
+  { href: "/admin/reports", label: "Generate Report", icon: FileSpreadsheet, tone: "bg-[#eef7f8] text-[#17808a]" },
+  { href: "/admin/settings", label: "View All", icon: MoreHorizontal, tone: "bg-[#f2f4fa] text-[#5a6383]" }
 ];
 
-const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const moduleShortcuts = [
+  { href: "/admin/parents", label: "Parents", icon: UsersRound, tone: "bg-[#edf1ff] text-[#2e38a4]" },
+  { href: "/admin/exams", label: "Exams & Marks", icon: BookOpenCheck, tone: "bg-[#f4efff] text-[#7445bd]" },
+  { href: "/admin/notices", label: "Communication", icon: Megaphone, tone: "bg-[#fff4df] text-[#c67711]" },
+  { href: "/admin/messages", label: "Messages", icon: Send, tone: "bg-[#eef6ff] text-[#1967b2]" },
+  { href: "/admin/academic-years", label: "Academic Years", icon: CalendarDays, tone: "bg-[#f0f7ef] text-[#3d8b4d]" },
+  { href: "/admin/promotions", label: "Promotion", icon: GraduationCap, tone: "bg-[#f4efff] text-[#7445bd]" },
+  { href: "/admin/users", label: "Users & Roles", icon: UserCog, tone: "bg-[#edf1ff] text-[#2e38a4]" },
+  { href: "/admin/approvals", label: "Approvals", icon: ShieldCheck, tone: "bg-[#eef7f8] text-[#17808a]" },
+  { href: "/admin/calendar", label: "Timetable", icon: CalendarDays, tone: "bg-[#fff4df] text-[#c67711]" },
+  { href: "/admin/transport", label: "Transport", icon: Bus, tone: "bg-[#eef6ff] text-[#1967b2]" },
+  { href: "/admin/library", label: "Library", icon: Library, tone: "bg-[#f0f7ef] text-[#3d8b4d]" },
+  { href: "/admin/hostel", label: "Hostel", icon: Hotel, tone: "bg-[#fff0f2] text-[#d1485c]" },
+  { href: "/admin/inventory", label: "Inventory", icon: Package, tone: "bg-[#f4efff] text-[#7445bd]" }
+];
 
 function istDateKey(date: Date) {
   return new Date(date.getTime() + 330 * 60 * 1000).toISOString().slice(0, 10);
 }
 
 function formatINR(amount: number) {
-  if (amount >= 100000) return `₹${(amount / 100000).toFixed(1)}L`;
+  if (amount >= 100000) return `₹${(amount / 100000).toFixed(2)}L`;
   if (amount >= 1000) return `₹${(amount / 1000).toFixed(1)}K`;
   return `₹${amount.toLocaleString("en-IN")}`;
+}
+
+function clampPercent(value: number) {
+  if (!Number.isFinite(value)) return 0;
+  return Math.max(0, Math.min(100, Math.round(value)));
 }
 
 type DashboardData = {
@@ -62,48 +100,51 @@ async function loadDashboard(): Promise<DashboardData> {
 
   const students = studentsSnap.docs.map((d) => d.data());
   const totalTeachers = teachersSnap.size;
-
-  // "Fees Collected" reads from the `payments` transaction log — the single
-  // source of truth that Finance also uses — so the dashboard and Finance
-  // always agree. (Per-student `totalFeesPaid` is a cache and can drift.)
-  const feesCollected = paymentsSnap.docs.reduce((s, d) => s + (Number(d.data().amountPaid) || 0), 0);
-  const feesOutstanding = students.reduce((s, st) => s + Math.max(0, (st.totalFeesDue || 0) - (st.totalFeesPaid || 0)), 0);
-  const totalFeeAmount = students.reduce((s, st) => s + (st.totalFeeAmount || 0), 0);
-  const studentsPending = students.filter((st) => Math.max(0, (st.totalFeesDue || 0) - (st.totalFeesPaid || 0)) > 0).length;
+  const feesCollected = paymentsSnap.docs.reduce((sum, doc) => sum + (Number(doc.data().amountPaid) || 0), 0);
+  const feesOutstanding = students.reduce((sum, student) => sum + Math.max(0, (student.totalFeesDue || 0) - (student.totalFeesPaid || 0)), 0);
+  const totalFeeAmount = students.reduce((sum, student) => sum + (student.totalFeeAmount || 0), 0);
+  const studentsPending = students.filter((student) => Math.max(0, (student.totalFeesDue || 0) - (student.totalFeesPaid || 0)) > 0).length;
 
   const present = (status?: string) => status === "present" || status === "late";
   const byDay = new Map<string, { present: number }>();
   let presentToday = 0;
-  weekAttSnap.docs.forEach((d) => {
-    const a = d.data();
-    if (a.date === today && present(a.status)) presentToday++;
-    const entry = byDay.get(a.date) ?? { present: 0 };
-    if (present(a.status)) entry.present++;
-    byDay.set(a.date, entry);
+
+  weekAttSnap.docs.forEach((doc) => {
+    const attendance = doc.data();
+    if (attendance.date === today && present(attendance.status)) presentToday += 1;
+    const entry = byDay.get(attendance.date) ?? { present: 0 };
+    if (present(attendance.status)) entry.present += 1;
+    byDay.set(attendance.date, entry);
   });
 
-  const weekAttendance = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(Date.now() - (6 - i) * 24 * 60 * 60 * 1000);
-    const key = istDateKey(d);
+  const weekAttendance = Array.from({ length: 7 }, (_, index) => {
+    const date = new Date(Date.now() - (6 - index) * 24 * 60 * 60 * 1000);
+    const key = istDateKey(date);
     const presentCount = byDay.get(key)?.present ?? 0;
-    return { day: DAY_LABELS[d.getDay()], value: totalTeachers > 0 ? Math.round((presentCount / totalTeachers) * 100) : 0 };
+    return {
+      day: DAY_LABELS[date.getDay()],
+      value: totalTeachers > 0 ? Math.round((presentCount / totalTeachers) * 100) : 0
+    };
   });
 
   const recentStudents = students
     .sort((a, b) => String(b.createdAt ?? "").localeCompare(String(a.createdAt ?? "")))
     .slice(0, 3)
-    .map((st) => {
-      const name = st.studentName || "Unknown";
+    .map((student) => {
+      const name = student.studentName || "Unknown";
       return {
-        name: `${name}${st.class ? ` · Class ${st.class}${st.section || ""}` : ""}`,
-        cls: st.class || "",
-        initials: name.split(" ").map((p: string) => p[0]).join("").slice(0, 2).toUpperCase() || "?"
+        name: `${name}${student.class ? ` · Class ${student.class}${student.section || ""}` : ""}`,
+        cls: student.class || "",
+        initials: name.split(" ").map((part: string) => part[0]).join("").slice(0, 2).toUpperCase() || "?"
       };
     });
 
-  const notices = (noticesSnap?.docs ?? []).map((d) => {
-    const n = d.data();
-    return { title: n.title || n.message || "Notice", meta: n.createdAt ? new Date(n.createdAt).toLocaleDateString("en-IN") : "" };
+  const notices = (noticesSnap?.docs ?? []).map((doc) => {
+    const notice = doc.data();
+    return {
+      title: notice.title || notice.message || "Notice",
+      meta: notice.createdAt ? new Date(notice.createdAt).toLocaleDateString("en-IN") : "Recently"
+    };
   });
 
   return {
@@ -124,28 +165,128 @@ function MetricCard({
   label,
   value,
   helper,
-  helperTone = "text-[#13a961]",
   icon: Icon,
   tone,
-  delay = 0
+  helperTone = "text-[#5f6b8d]"
 }: {
   label: string;
   value: string;
   helper: string;
-  helperTone?: string;
-  icon: typeof UsersRound;
+  icon: LucideIcon;
   tone: string;
-  delay?: number;
+  helperTone?: string;
 }) {
   return (
-    <article className="dashboard-animate rounded-2xl border border-[#e3e6f0] bg-white p-5 shadow-[0_2px_4px_rgba(36,42,94,0.03)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_12px_26px_rgba(36,42,94,0.09)]" style={{ animationDelay: `${delay}ms` }}>
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-sm font-semibold text-[#7d86a8]">{label}</p>
-        <span className={`grid h-10 w-10 place-items-center rounded-xl ${tone}`}><Icon size={20} strokeWidth={2.25} /></span>
+    <article className="dashboard-animate rounded-lg border border-[#e1e7f4] bg-white p-4 shadow-[0_10px_26px_rgba(31,42,116,0.05)] transition hover:-translate-y-0.5 hover:shadow-[0_16px_32px_rgba(31,42,116,0.08)]">
+      <div className="flex items-start justify-between gap-3">
+        <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-lg ${tone}`}>
+          <Icon size={20} strokeWidth={2.3} />
+        </span>
+        <span className="rounded-full bg-[#f4f7ff] px-2 py-1 text-[11px] font-extrabold text-[#5f6b8d]">Live</span>
       </div>
-      <p className="mt-3 text-[34px] font-extrabold leading-none tracking-tight text-[#1b1d32]">{value}</p>
-      <p className={`mt-2 text-sm font-semibold ${helperTone}`}>{helper}</p>
+      <p className="mt-4 text-sm font-bold text-[#657092]">{label}</p>
+      <p className="mt-1 text-2xl font-extrabold tracking-tight text-[#141735] md:text-[28px]">{value}</p>
+      <p className={`mt-1 text-xs font-bold ${helperTone}`}>{helper}</p>
     </article>
+  );
+}
+
+function Panel({ children, className = "" }: { children: ReactNode; className?: string }) {
+  return (
+    <article className={`dashboard-animate rounded-lg border border-[#e1e7f4] bg-white shadow-[0_10px_26px_rgba(31,42,116,0.05)] ${className}`}>
+      {children}
+    </article>
+  );
+}
+
+function AttendanceTrend({ data }: { data: { day: string; value: number }[] }) {
+  const width = 680;
+  const height = 230;
+  const paddingX = 36;
+  const paddingTop = 22;
+  const paddingBottom = 36;
+  const chartHeight = height - paddingTop - paddingBottom;
+  const span = Math.max(1, data.length - 1);
+  const points = data.map((item, index) => {
+    const x = paddingX + (index / span) * (width - paddingX * 2);
+    const y = paddingTop + (1 - clampPercent(item.value) / 100) * chartHeight;
+    return { ...item, x, y };
+  });
+  const line = points.map((point) => `${point.x},${point.y}`).join(" ");
+  const area = `${paddingX},${height - paddingBottom} ${line} ${width - paddingX},${height - paddingBottom}`;
+
+  return (
+    <svg className="mt-4 h-[230px] w-full overflow-visible" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Staff attendance trend for the last seven days">
+      <defs>
+        <linearGradient id="attendanceArea" x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0%" stopColor="#3c46d1" stopOpacity="0.22" />
+          <stop offset="100%" stopColor="#3c46d1" stopOpacity="0.02" />
+        </linearGradient>
+      </defs>
+      {[0, 25, 50, 75, 100].map((tick) => {
+        const y = paddingTop + (1 - tick / 100) * chartHeight;
+        return (
+          <g key={tick}>
+            <line x1={paddingX} x2={width - paddingX} y1={y} y2={y} stroke="#e7ebf5" strokeWidth="1" />
+            <text x={8} y={y + 4} fill="#7d86a8" fontSize="12" fontWeight="700">{tick}%</text>
+          </g>
+        );
+      })}
+      <polygon points={area} fill="url(#attendanceArea)" />
+      <polyline points={line} fill="none" stroke="#3540c0" strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" />
+      {points.map((point) => (
+        <g key={`${point.day}-${point.x}`}>
+          <circle cx={point.x} cy={point.y} r="5" fill="#3540c0" stroke="#fff" strokeWidth="3" />
+          <text x={point.x} y={height - 8} textAnchor="middle" fill="#707a9e" fontSize="13" fontWeight="800">{point.day}</text>
+        </g>
+      ))}
+    </svg>
+  );
+}
+
+function ActivityItem({
+  icon: Icon,
+  title,
+  meta,
+  tone
+}: {
+  icon: LucideIcon;
+  title: string;
+  meta: string;
+  tone: string;
+}) {
+  return (
+    <div className="flex items-start gap-3 rounded-lg px-2 py-2.5 transition hover:bg-[#f8faff]">
+      <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg ${tone}`}>
+        <Icon size={17} strokeWidth={2.25} />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-sm font-extrabold text-[#20233f]">{title}</span>
+        <span className="block truncate text-xs font-semibold text-[#7d86a8]">{meta}</span>
+      </span>
+    </div>
+  );
+}
+
+function QuickAction({ href, label, icon: Icon, tone }: { href: string; label: string; icon: LucideIcon; tone: string }) {
+  return (
+    <Link href={href} className="group flex min-w-[92px] flex-col items-center gap-2 rounded-lg px-2 py-2 text-center transition hover:bg-[#f8faff]">
+      <span className={`grid h-11 w-11 place-items-center rounded-lg transition group-hover:scale-105 ${tone}`}>
+        <Icon size={21} strokeWidth={2.3} />
+      </span>
+      <span className="text-xs font-extrabold leading-4 text-[#242744]">{label}</span>
+    </Link>
+  );
+}
+
+function ModuleShortcut({ href, label, icon: Icon, tone }: { href: string; label: string; icon: LucideIcon; tone: string }) {
+  return (
+    <Link href={href} className="dashboard-animate group flex min-h-[96px] flex-col items-center justify-center gap-3 rounded-lg border border-[#e1e7f4] bg-white px-3 py-4 text-center shadow-[0_8px_18px_rgba(31,42,116,0.04)] transition hover:-translate-y-0.5 hover:border-[#c7d1ec] hover:shadow-[0_14px_28px_rgba(31,42,116,0.08)]">
+      <span className={`grid h-11 w-11 place-items-center rounded-lg transition group-hover:scale-105 ${tone}`}>
+        <Icon size={21} strokeWidth={2.25} />
+      </span>
+      <span className="text-xs font-extrabold leading-4 text-[#253052]">{label}</span>
+    </Link>
   );
 }
 
@@ -153,100 +294,217 @@ export default async function AdminDashboardPage() {
   const data = await loadDashboard().catch(() => null);
 
   const d: DashboardData = data ?? {
-    totalStudents: 0, totalTeachers: 0, presentToday: 0, feesCollected: 0, feesOutstanding: 0,
-    totalFeeAmount: 0, studentsPending: 0, weekAttendance: DAY_LABELS.slice(0, 7).map((day) => ({ day, value: 0 })),
-    recentStudents: [], notices: []
+    totalStudents: 0,
+    totalTeachers: 0,
+    presentToday: 0,
+    feesCollected: 0,
+    feesOutstanding: 0,
+    totalFeeAmount: 0,
+    studentsPending: 0,
+    weekAttendance: DAY_LABELS.map((day) => ({ day, value: 0 })),
+    recentStudents: [],
+    notices: []
   };
 
-  const collectedPct = d.totalFeeAmount > 0 ? Math.round((d.feesCollected / d.totalFeeAmount) * 100) : 0;
-  const attendancePct = d.totalTeachers > 0 ? Math.round((d.presentToday / d.totalTeachers) * 100) : 0;
-  const weekAvg = d.weekAttendance.length ? Math.round(d.weekAttendance.reduce((s, x) => s + x.value, 0) / d.weekAttendance.length) : 0;
-  const maxBar = Math.max(100, ...d.weekAttendance.map((x) => x.value));
+  const collectedPct = clampPercent(d.totalFeeAmount > 0 ? (d.feesCollected / d.totalFeeAmount) * 100 : 0);
+  const attendancePct = clampPercent(d.totalTeachers > 0 ? (d.presentToday / d.totalTeachers) * 100 : 0);
+  const weekAvg = d.weekAttendance.length ? clampPercent(d.weekAttendance.reduce((sum, item) => sum + item.value, 0) / d.weekAttendance.length) : 0;
+  const recentActivities = [
+    ...d.recentStudents.map((student) => ({
+      title: "New student admission",
+      meta: student.name,
+      icon: UserPlus,
+      tone: "bg-[#edf1ff] text-[#2e38a4]"
+    })),
+    ...d.notices.map((notice) => ({
+      title: notice.title,
+      meta: `Notice · ${notice.meta}`,
+      icon: Megaphone,
+      tone: "bg-[#fff4df] text-[#c67711]"
+    }))
+  ].slice(0, 5);
 
   return (
-    <section className="space-y-5 p-4 md:p-7">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl font-extrabold tracking-tight text-[#1b1d32]">Dashboard</h1>
-      </div>
-
+    <section className="space-y-5 p-4 md:p-6">
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <MetricCard label="Total Students" value={d.totalStudents.toLocaleString("en-IN")} helper={`${d.totalStudents === 0 ? "No students yet" : "Enrolled students"}`} helperTone="text-[#7d86a8]" icon={UsersRound} tone="bg-[#eeefff] text-[#3033a1]" delay={30} />
-        <MetricCard label="Present Today" value={`${d.presentToday}/${d.totalTeachers}`} helper={d.totalTeachers ? `${attendancePct}% staff attendance` : "No staff yet"} helperTone="text-[#7d86a8]" icon={ClipboardCheck} tone="bg-[#e6f8ef] text-[#14a762]" delay={70} />
-        <MetricCard label="Fees Collected" value={formatINR(d.feesCollected)} helper={d.totalFeeAmount ? `${collectedPct}% of ${formatINR(d.totalFeeAmount)}` : "No fees recorded"} icon={CreditCard} tone="bg-[#eeefff] text-[#3033a1]" delay={110} />
-        <MetricCard label="Pending Dues" value={formatINR(d.feesOutstanding)} helper={`${d.studentsPending} student${d.studentsPending === 1 ? "" : "s"} pending`} helperTone="text-[#ed515d]" icon={BellRing} tone="bg-[#ffebed] text-[#ed515d]" delay={150} />
+        <MetricCard
+          label="Total Students"
+          value={d.totalStudents.toLocaleString("en-IN")}
+          helper={d.totalStudents ? "Active student records" : "No students yet"}
+          icon={UsersRound}
+          tone="bg-[#edf1ff] text-[#2e38a4]"
+        />
+        <MetricCard
+          label="Staff Attendance"
+          value={`${attendancePct}%`}
+          helper={`${d.presentToday}/${d.totalTeachers} present today`}
+          icon={ClipboardCheck}
+          tone="bg-[#e9f8f0] text-[#0d8f5b]"
+        />
+        <MetricCard
+          label="Fee Collection"
+          value={formatINR(d.feesCollected)}
+          helper={`${collectedPct}% of ${formatINR(d.totalFeeAmount)}`}
+          icon={IndianRupee}
+          tone="bg-[#fff4df] text-[#c67711]"
+        />
+        <MetricCard
+          label="Outstanding Dues"
+          value={formatINR(d.feesOutstanding)}
+          helper={`${d.studentsPending} pending account${d.studentsPending === 1 ? "" : "s"}`}
+          helperTone="text-[#d1485c]"
+          icon={BellRing}
+          tone="bg-[#fff0f2] text-[#d1485c]"
+        />
       </div>
 
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1.55fr)_minmax(320px,0.95fr)]">
-        <article className="dashboard-animate rounded-2xl border border-[#e3e6f0] bg-white p-5 shadow-[0_2px_4px_rgba(36,42,94,0.03)] md:p-6" style={{ animationDelay: "190ms" }}>
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(280px,0.78fr)_minmax(270px,0.82fr)]">
+        <Panel className="p-5">
           <div className="flex items-center justify-between gap-4">
-            <h2 className="font-bold text-[#23253a]">Staff attendance — last 7 days</h2>
-            <span className="text-sm font-bold text-[#7c86a7]">Avg {weekAvg}%</span>
+            <div>
+              <h2 className="text-base font-extrabold text-[#20233f]">Staff Attendance · Last 7 Days</h2>
+              <p className="mt-1 text-xs font-semibold text-[#7d86a8]">Daily present and late staff count as attendance coverage.</p>
+            </div>
+            <span className="rounded-full bg-[#edf1ff] px-3 py-1.5 text-xs font-extrabold text-[#3540c0]">Average {weekAvg}%</span>
           </div>
-          <div className="mt-5 flex h-[172px] items-end justify-between gap-3 px-1 sm:gap-5">
-            {d.weekAttendance.map((item, index) => (
-              <div key={`${item.day}-${index}`} className="flex h-full min-w-7 flex-1 flex-col items-center justify-end gap-2">
-                <div className="flex h-[145px] w-full items-end justify-center">
-                  <span
-                    className={`dashboard-bar w-full max-w-[52px] rounded-t-[9px] ${item.value === 0 ? "bg-[#e5e8f4]" : "bg-[linear-gradient(180deg,#4548bd_0%,#2b2e91_100%)]"}`}
-                    style={{ height: `${Math.max(4, (item.value / maxBar) * 100)}%`, animationDelay: `${240 + index * 40}ms` }}
-                  />
-                </div>
-                <span className="text-xs font-bold text-[#8a93b1]">{item.day}</span>
-              </div>
-            ))}
-          </div>
-        </article>
+          <AttendanceTrend data={d.weekAttendance} />
+        </Panel>
 
-        <article className="dashboard-animate rounded-2xl border border-[#e3e6f0] bg-white p-5 shadow-[0_2px_4px_rgba(36,42,94,0.03)] md:p-6" style={{ animationDelay: "230ms" }}>
-          <h2 className="font-bold text-[#23253a]">Fee Collection</h2>
-          <div className="mt-5 flex items-center justify-center gap-6 sm:gap-8 xl:justify-start">
-            <div className="dashboard-pulse grid h-[140px] w-[140px] shrink-0 place-items-center rounded-full" style={{ background: `conic-gradient(#2d3094 0 ${collectedPct}%, #e6e9f5 ${collectedPct}% 100%)` }}>
-              <div className="grid h-[100px] w-[100px] place-items-center rounded-full bg-white text-center">
-                <span className="text-[27px] font-extrabold tracking-tight text-[#272a73]">{collectedPct}%</span>
-                <span className="-mt-5 text-xs font-semibold text-[#7f89a8]">collected</span>
+        <Panel className="p-5">
+          <h2 className="text-base font-extrabold text-[#20233f]">Fee Collection Overview</h2>
+          <div className="mt-6 flex flex-col items-center gap-5">
+            <div className="grid h-36 w-36 place-items-center rounded-full" style={{ background: `conic-gradient(#3137b7 0 ${collectedPct}%, #e7ebf6 ${collectedPct}% 100%)` }}>
+              <div className="grid h-[102px] w-[102px] place-items-center rounded-full bg-white text-center shadow-inner">
+                <span className="text-3xl font-extrabold text-[#252a87]">{collectedPct}%</span>
+                <span className="-mt-7 text-xs font-bold text-[#7d86a8]">Collected</span>
               </div>
             </div>
-            <div className="space-y-4 text-sm">
-              <p className="flex items-start gap-2"><span className="mt-1 h-3 w-3 rounded bg-[#2d3094]" /><span><span className="block font-semibold text-[#848cab]">Collected</span><strong className="text-lg text-[#22243a]">{formatINR(d.feesCollected)}</strong></span></p>
-              <p className="flex items-start gap-2"><span className="mt-1 h-3 w-3 rounded bg-[#e6e9f5]" /><span><span className="block font-semibold text-[#848cab]">Pending</span><strong className="text-lg text-[#22243a]">{formatINR(d.feesOutstanding)}</strong></span></p>
+            <div className="grid w-full gap-3 text-sm">
+              <div className="flex items-center justify-between rounded-lg bg-[#f8faff] px-3 py-2">
+                <span className="flex items-center gap-2 font-bold text-[#657092]"><span className="h-2.5 w-2.5 rounded-sm bg-[#3137b7]" />Collected</span>
+                <strong className="text-[#20233f]">{formatINR(d.feesCollected)}</strong>
+              </div>
+              <div className="flex items-center justify-between rounded-lg bg-[#f8faff] px-3 py-2">
+                <span className="flex items-center gap-2 font-bold text-[#657092]"><span className="h-2.5 w-2.5 rounded-sm bg-[#e7ebf6]" />Pending</span>
+                <strong className="text-[#20233f]">{formatINR(d.feesOutstanding)}</strong>
+              </div>
             </div>
           </div>
-        </article>
-      </div>
+        </Panel>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {quickActions.map(({ href, label, helper, icon: Icon, tone }, index) => (
-          <Link key={label} href={href} className="dashboard-animate group flex items-center gap-3 rounded-2xl border border-[#e3e6f0] bg-white p-4 shadow-[0_2px_4px_rgba(36,42,94,0.03)] transition hover:-translate-y-0.5 hover:border-[#c7caf0] hover:shadow-[0_10px_22px_rgba(36,42,94,0.08)]" style={{ animationDelay: `${280 + index * 38}ms` }}>
-            <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl ${tone} transition group-hover:scale-105`}><Icon size={21} /></span>
-            <span className="min-w-0"><span className="block font-bold leading-5 text-[#1f2136]">{label}</span><span className="block text-sm text-[#7d86a8]">{helper}</span></span>
-          </Link>
-        ))}
-      </div>
-
-      <div className="grid gap-5 xl:grid-cols-[1.3fr_0.95fr]">
-        <article className="dashboard-animate rounded-2xl border border-[#e3e6f0] bg-white p-5 shadow-[0_2px_4px_rgba(36,42,94,0.03)]" style={{ animationDelay: "400ms" }}>
-          <div className="flex items-center justify-between"><h2 className="font-bold text-[#23253a]">Recent Admissions</h2><Link href="/admin/students" className="text-sm font-bold text-[#3436a2] hover:underline">View all</Link></div>
-          <div className="mt-4 divide-y divide-[#edf0f7]">
-            {d.recentStudents.length === 0 ? (
-              <p className="py-6 text-center text-sm font-medium text-[#8790ae]">No admissions yet</p>
+        <Panel className="p-5">
+          <div className="flex items-center justify-between">
+            <h2 className="text-base font-extrabold text-[#20233f]">Recent Activity</h2>
+            <Link href="/admin/notifications" className="text-xs font-extrabold text-[#3540c0] hover:underline">View all</Link>
+          </div>
+          <div className="mt-4 space-y-1">
+            {recentActivities.length === 0 ? (
+              <div className="rounded-lg bg-[#f8faff] px-4 py-8 text-center text-sm font-semibold text-[#7d86a8]">No recent activity yet</div>
             ) : (
-              d.recentStudents.map((student, index) => (
-                <div key={`${student.name}-${index}`} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0"><span className="grid h-9 w-9 place-items-center rounded-full bg-[#eef0ff] text-xs font-extrabold text-[#3436a2]">{student.initials}</span><span className="flex-1 text-sm font-semibold text-[#303247]">{student.name}</span></div>
+              recentActivities.map((activity, index) => (
+                <ActivityItem key={`${activity.title}-${index}`} {...activity} />
               ))
             )}
           </div>
-        </article>
-        <article className="dashboard-animate rounded-2xl border border-[#e3e6f0] bg-white p-5 shadow-[0_2px_4px_rgba(36,42,94,0.03)]" style={{ animationDelay: "450ms" }}>
-          <div className="flex items-center justify-between"><h2 className="font-bold text-[#23253a]">Notice Board</h2><Link href="/admin/notifications" className="text-sm font-bold text-[#3436a2] hover:underline">All</Link></div>
-          {d.notices.length === 0 ? (
-            <p className="mt-4 rounded-xl bg-[#f5f6fd] p-4 text-center text-sm font-medium text-[#8790ae]">No notices posted yet</p>
-          ) : (
-            d.notices.map((notice, index) => (
-              <div key={`${notice.title}-${index}`} className="mt-4 flex gap-3 rounded-xl bg-[#f5f6fd] p-3"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[#fff1d9] text-[#d79418]"><BookOpenCheck size={18} /></span><span><span className="block text-sm font-bold text-[#303247]">{notice.title}</span><span className="text-xs font-medium text-[#7d86a8]">{notice.meta}</span></span></div>
-            ))
-          )}
-          <Link href="/admin/notifications" className="mt-4 inline-flex items-center gap-2 text-sm font-bold text-[#3436a2]"><Plus size={16} /> Create a notice</Link>
-        </article>
+        </Panel>
+      </div>
+
+      <Panel className="p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 px-1">
+          <div>
+            <h2 className="text-base font-extrabold text-[#20233f]">Quick Actions</h2>
+            <p className="mt-1 text-xs font-semibold text-[#7d86a8]">Common super-admin workflows in one tap.</p>
+          </div>
+        </div>
+        <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-8">
+          {quickActions.map((action) => (
+            <QuickAction key={action.label} {...action} />
+          ))}
+        </div>
+      </Panel>
+
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <Panel className="p-4">
+          <div className="flex items-center gap-3">
+            <span className="grid h-10 w-10 place-items-center rounded-lg bg-[#edf1ff] text-[#2e38a4]"><ClipboardCheck size={20} /></span>
+            <div>
+              <p className="text-xs font-bold text-[#7d86a8]">Today&apos;s Attendance</p>
+              <p className="mt-1 text-sm font-extrabold text-[#20233f]">Present: {d.presentToday}</p>
+              <p className="text-xs font-bold text-[#d1485c]">Pending: {Math.max(0, d.totalTeachers - d.presentToday)}</p>
+            </div>
+          </div>
+        </Panel>
+        <Panel className="p-4">
+          <div className="flex items-center gap-3">
+            <span className="grid h-10 w-10 place-items-center rounded-lg bg-[#e9f8f0] text-[#0d8f5b]"><Wallet size={20} /></span>
+            <div>
+              <p className="text-xs font-bold text-[#7d86a8]">Today&apos;s Collections</p>
+              <p className="mt-1 text-sm font-extrabold text-[#20233f]">{formatINR(d.feesCollected)}</p>
+              <p className="text-xs font-bold text-[#657092]">All recorded payments</p>
+            </div>
+          </div>
+        </Panel>
+        <Panel className="p-4">
+          <div className="flex items-center gap-3">
+            <span className="grid h-10 w-10 place-items-center rounded-lg bg-[#fff0f2] text-[#d1485c]"><ShieldCheck size={20} /></span>
+            <div>
+              <p className="text-xs font-bold text-[#7d86a8]">Pending Approvals</p>
+              <p className="mt-1 text-sm font-extrabold text-[#20233f]">{d.studentsPending}</p>
+              <p className="text-xs font-bold text-[#657092]">Review fee follow-ups</p>
+            </div>
+          </div>
+        </Panel>
+        <Panel className="p-4">
+          <div className="flex items-center gap-3">
+            <span className="grid h-10 w-10 place-items-center rounded-lg bg-[#fff4df] text-[#c67711]"><CalendarDays size={20} /></span>
+            <div>
+              <p className="text-xs font-bold text-[#7d86a8]">Upcoming Events</p>
+              <p className="mt-1 text-sm font-extrabold text-[#20233f]">{d.notices.length}</p>
+              <p className="text-xs font-bold text-[#657092]">Recent notices</p>
+            </div>
+          </div>
+        </Panel>
+      </div>
+
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1.5fr)_minmax(280px,0.8fr)]">
+        <section>
+          <div className="mb-3">
+            <h2 className="text-base font-extrabold text-[#20233f]">More Powerful Modules</h2>
+            <p className="mt-1 text-xs font-semibold text-[#7d86a8]">Everything the office team needs, organized by task.</p>
+          </div>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5">
+            {moduleShortcuts.map((module) => (
+              <ModuleShortcut key={module.label} {...module} />
+            ))}
+          </div>
+        </section>
+
+        <section>
+          <div className="mb-3">
+            <h2 className="text-base font-extrabold text-[#20233f]">System Management</h2>
+            <p className="mt-1 text-xs font-semibold text-[#7d86a8]">Safety checks and control settings.</p>
+          </div>
+          <div className="grid gap-3">
+            <Link href="/admin/settings" className="dashboard-animate rounded-lg border border-[#e1e7f4] bg-white p-4 shadow-[0_8px_18px_rgba(31,42,116,0.04)] transition hover:-translate-y-0.5 hover:border-[#c7d1ec]">
+              <span className="flex items-center gap-3">
+                <span className="grid h-10 w-10 place-items-center rounded-lg bg-[#edf1ff] text-[#2e38a4]"><Settings size={20} /></span>
+                <span>
+                  <span className="block text-sm font-extrabold text-[#20233f]">Settings</span>
+                  <span className="text-xs font-semibold text-[#7d86a8]">Role access, rules, and school setup</span>
+                </span>
+              </span>
+            </Link>
+            <Link href="/admin/backup" className="dashboard-animate rounded-lg border border-[#e1e7f4] bg-white p-4 shadow-[0_8px_18px_rgba(31,42,116,0.04)] transition hover:-translate-y-0.5 hover:border-[#c7d1ec]">
+              <span className="flex items-center gap-3">
+                <span className="grid h-10 w-10 place-items-center rounded-lg bg-[#e9f8f0] text-[#0d8f5b]"><ShieldCheck size={20} /></span>
+                <span>
+                  <span className="block text-sm font-extrabold text-[#20233f]">Backup & Restore</span>
+                  <span className="text-xs font-semibold text-[#7d86a8]">Keep critical records protected</span>
+                </span>
+              </span>
+            </Link>
+          </div>
+        </section>
       </div>
     </section>
   );

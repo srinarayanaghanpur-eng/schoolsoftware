@@ -1,6 +1,7 @@
 "use client";
 
 import { PageHeader } from "@/components/PageHeader";
+import { DateRangeFilter, formatDateForDisplay } from "@/components/DateRangeFilter";
 import { StatusBadge } from "@/components/StatusBadge";
 import { auth, isFirebaseConfigured } from "@sri-narayana/shared/firebase/client";
 import {
@@ -66,6 +67,8 @@ export default function AttendancePage() {
   const [audits, setAudits] = useState<AttendanceEditAudit[]>(isFirebaseConfigured ? [] : demoAttendanceEditAudits);
   const [statusFilter, setStatusFilter] = useState("all");
   const [teacherFilter, setTeacherFilter] = useState("all");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [editing, setEditing] = useState<EditForm | null>(null);
   const [loading, setLoading] = useState(false);
@@ -76,6 +79,7 @@ export default function AttendancePage() {
     return records.filter((record) => {
       const statusMatch = statusFilter === "all" || record.status === statusFilter;
       const teacherMatch = teacherFilter === "all" || record.teacherId === teacherFilter;
+      const dateMatch = (!fromDate || record.date >= fromDate) && (!toDate || record.date <= toDate);
       const teacher = teachers.find((t) => t.id === record.teacherId);
       const searchMatch =
         searchQuery === "" ||
@@ -84,9 +88,9 @@ export default function AttendancePage() {
         (teacher?.fullName?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false) ||
         (teacher?.subject?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false) ||
         record.status.toLowerCase().includes(searchQuery.toLowerCase());
-      return statusMatch && teacherMatch && searchMatch;
+      return statusMatch && teacherMatch && dateMatch && searchMatch;
     });
-  }, [records, teachers, statusFilter, teacherFilter, searchQuery]);
+  }, [records, teachers, statusFilter, teacherFilter, fromDate, toDate, searchQuery]);
 
   const apiRequest = async <T,>(path: string, init?: RequestInit): Promise<T> => {
     const token = await auth.currentUser?.getIdToken();
@@ -220,6 +224,14 @@ export default function AttendancePage() {
           </button>
         </div>
 
+        <DateRangeFilter
+          from={fromDate}
+          to={toDate}
+          onChange={({ from, to }) => { setFromDate(from); setToDate(to); }}
+          onApply={({ from, to }) => { setFromDate(from); setToDate(to); }}
+          loading={loading}
+        />
+
         {editing && (
           <form onSubmit={submitEdit} className="card p-4">
             <div className="mb-4 flex items-start justify-between gap-4">
@@ -269,7 +281,7 @@ export default function AttendancePage() {
                 const attendanceId = createAttendanceDocumentId(record.teacherId, record.date);
                 return (
                   <tr key={attendanceId} className="border-t border-stone-100">
-                    <td className="px-4 py-3">{record.date}</td>
+                    <td className="px-4 py-3">{formatDateForDisplay(record.date) || record.date}</td>
                     <td className="px-4 py-3 font-medium">{teacher?.fullName ?? record.teacherId}</td>
                     <td className="px-4 py-3">{teacher?.subject ?? "--"}</td>
                     <td className="px-4 py-3"><StatusBadge status={record.status} /></td>
@@ -296,7 +308,7 @@ export default function AttendancePage() {
             <tbody>
               {audits.map((audit) => (
                 <tr key={audit.id ?? `${audit.attendanceId}_${audit.editedAt}`} className="border-t border-stone-100">
-                  <td className="px-4 py-3">{audit.date}</td>
+                  <td className="px-4 py-3">{formatDateForDisplay(audit.date) || audit.date}</td>
                   <td className="px-4 py-3">{audit.teacherId}</td>
                   <td className="px-4 py-3">{audit.previousStatus ? `${audit.previousStatus} -> ${audit.newStatus}` : audit.newStatus}</td>
                   <td className="px-4 py-3">{audit.reason}</td>

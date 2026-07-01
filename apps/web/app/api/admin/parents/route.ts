@@ -19,15 +19,18 @@ export async function GET(req: Request) {
     const snapshot = await adminDb()
       .collection("users")
       .where("role", "==", "parent")
-      .orderBy("displayName")
       .limit(100)
       .get();
 
-    let parents = snapshot.docs.map((doc) => ({
-      uid: doc.id,
-      ...doc.data(),
-      id: doc.id
-    }));
+    let parents = snapshot.docs
+      .map((doc) => ({
+        uid: doc.id,
+        ...doc.data(),
+        id: doc.id
+      }))
+      .sort((a: Record<string, unknown>, b: Record<string, unknown>) =>
+        String(a.displayName ?? "").localeCompare(String(b.displayName ?? ""))
+      );
 
     if (search) {
       parents = parents.filter((p: Record<string, unknown>) =>

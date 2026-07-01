@@ -1,6 +1,7 @@
 "use client";
 
 import { useAdminSession } from "@/components/AdminSessionContext";
+import { DateRangeFilter } from "@/components/DateRangeFilter";
 import { PageHeader } from "@/components/PageHeader";
 import { SalaryAdvancesPanel } from "@/components/SalaryAdvancesPanel";
 import { auth, isFirebaseConfigured } from "@sri-narayana/shared/firebase/client";
@@ -19,6 +20,15 @@ import { payrollSessionHeaders } from "@/lib/payrollSessionClient";
 
 function currentMonth() {
   return new Date().toISOString().slice(0, 7);
+}
+
+function monthRange(month: string) {
+  const [year, monthNumber] = month.split("-").map(Number);
+  const end = new Date(year, monthNumber, 0).getDate();
+  return {
+    from: `${year}-${String(monthNumber).padStart(2, "0")}-01`,
+    to: `${year}-${String(monthNumber).padStart(2, "0")}-${String(end).padStart(2, "0")}`
+  };
 }
 
 function demoReportsForMonth(month: string) {
@@ -70,6 +80,7 @@ export default function SalaryPage() {
   const isAccountant = role === "accountant";
   const canReviewPayrollAccess = role === "super_admin" || role === "admin";
   const [month, setMonth] = useState(currentMonth());
+  const [dateRange, setDateRange] = useState(() => monthRange(currentMonth()));
   const [reports, setReports] = useState<SalaryReport[]>(() => (isFirebaseConfigured ? [] : demoReportsForMonth(currentMonth())));
   const [loading, setLoading] = useState(false);
   const [accessLoading, setAccessLoading] = useState(false);
@@ -129,17 +140,17 @@ export default function SalaryPage() {
     }
   };
 
-  const loadReports = async () => {
+  const loadReports = async (targetMonth = month) => {
     if (isAccountant && payrollAccess?.access !== "approved") return;
     setLoading(true);
     setError(null);
     try {
       if (!isFirebaseConfigured) {
-        setReports(demoReportsForMonth(month));
+        setReports(demoReportsForMonth(targetMonth));
         setMessage("Showing demo salary reports.");
         return;
       }
-      const result = await apiRequest<{ reports: SalaryReport[] }>(`/api/admin/salary?month=${encodeURIComponent(month)}`, undefined, isAccountant);
+      const result = await apiRequest<{ reports: SalaryReport[] }>(`/api/admin/salary?month=${encodeURIComponent(targetMonth)}`, undefined, isAccountant);
       setReports(result.reports);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to load salary");
@@ -160,7 +171,15 @@ export default function SalaryPage() {
     if (!role) return;
     if (isAccountant && payrollAccess?.access !== "approved") return;
     void loadReports();
+    setDateRange(monthRange(month));
   }, [month, payrollAccess?.access]);
+
+  function applyDateRange(next: { from: string; to: string }) {
+    setDateRange(next);
+    const nextMonth = next.from ? next.from.slice(0, 7) : month;
+    setMonth(nextMonth);
+    void loadReports(nextMonth);
+  }
 
   const generateSalary = async () => {
     if (isAccountant && payrollAccess?.access !== "approved") return;
@@ -396,12 +415,19 @@ export default function SalaryPage() {
             </div>
           </div>
         )}
+        <DateRangeFilter
+          from={dateRange.from}
+          to={dateRange.to}
+          onChange={(next) => setDateRange(next)}
+          onApply={applyDateRange}
+          loading={loading}
+          rightSlot={<span className="text-sm font-bold text-[#1f2136]">Payroll month: {month}</span>}
+        />
         <div className="card flex flex-col gap-3 p-4 md:flex-row md:items-center">
-          <input className="field max-w-xs" type="month" value={month} onChange={(event) => setMonth(event.target.value)} />
           <button className="btn-primary" onClick={generateSalary} disabled={loading}>
             <RotateCw size={16} /> {loading ? "Working..." : "Generate monthly salary"}
           </button>
-          <button className="btn-secondary" onClick={loadReports} disabled={loading}>Refresh</button>
+          <button className="btn-secondary" onClick={() => loadReports()} disabled={loading}>Refresh</button>
           <button className="btn-secondary md:ml-auto" onClick={exportToExcel} disabled={loading || !reports.length}>
             <Download size={16} /> Export Excel
           </button>
@@ -432,7 +458,7 @@ export default function SalaryPage() {
                   <td className="px-4 py-3 font-medium">{report.teacherName}</td>
                   <td className="px-4 py-3">{report.workingDays}</td>
                   <td className="px-4 py-3">{report.presentDays}</td>
-                  <td className="px-4 py-3">{report.lateEntries}</td>
+                  <td className="px-4 py-3">{report.lateEntries ?? 0}</td>
                   <td className="px-4 py-3">{report.absentDays}</td>
                   <td className="px-4 py-3" title={report.approvedLeaveInfo || "No approved leave"}>
                     {report.approvedLeaveCLDays ?? 0}
@@ -440,14 +466,14 @@ export default function SalaryPage() {
                   </td>
                   <td className="px-4 py-3">
                     <span className="text-xs">
-                      {report.clUsedFromAbsent}a + {report.clUsedFromLate}l = {report.totalClUsed}
+                      {report.clUsedFromAbsent ?? 0}a + {report.clUsedFromLate ?? 0}l = {report.totalClUsed ?? 0}
                     </span>
                   </td>
-                  <td className={`px-4 py-3 font-bold ${report.remainingCl === 0 ? "text-[#ed515d]" : "text-[#13a961]"}`}>
-                    {report.remainingCl}/3
+                  <td className={`px-4 py-3 font-bold ${(report.remainingCl ?? 0) === 0 ? "text-[#ed515d]" : "text-[#13a961]"}`}>
+                    {report.remainingCl ?? 0}/{report.clAllowanceThisMonth ?? 0}
                   </td>
-                  <td className={`px-4 py-3 font-bold ${report.excessLeave > 0 ? "text-[#ed515d]" : "text-[#13a961]"}`}>
-                    {report.excessLeave}
+                  <td className={`px-4 py-3 font-bold ${(report.excessLeave ?? 0) > 0 ? "text-[#ed515d]" : "text-[#13a961]"}`}>
+                    {report.excessLeave ?? 0}
                   </td>
                   <td className="px-4 py-3 text-xs">₹{(report.perDaySalary ?? 0).toLocaleString("en-IN")}</td>
                   <td className={`px-4 py-3 font-semibold ${(report.excessLeaveDeduction ?? 0) > 0 ? "text-red-600" : ""}`}>
