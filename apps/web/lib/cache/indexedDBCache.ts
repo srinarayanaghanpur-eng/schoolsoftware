@@ -22,6 +22,10 @@ class IndexedDBCache {
   }
 
   private initDB(): Promise<void> {
+    if (typeof window === 'undefined' || typeof indexedDB === 'undefined') {
+      return Promise.resolve();
+    }
+
     return new Promise((resolve, reject) => {
       const request = indexedDB.open(DB_NAME, DB_VERSION);
 

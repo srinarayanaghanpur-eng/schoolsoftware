@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { requirePermission } from "@/lib/apiUtils";
 import { BUS_FINANCE_COLLECTION, BUS_EMI_PAYMENTS_COLLECTION } from "@/lib/busFinanceService";
+import type { BusEmiPayment, BusFinance } from "@/types/busFinance.types";
 
 type ReportType =
   | "monthly"
@@ -34,9 +35,9 @@ export async function GET(req: NextRequest) {
       db.collection(BUS_EMI_PAYMENTS_COLLECTION).get(),
     ]);
 
-    const finances = financeSnap.docs.map((d) => ({ id: d.id, ...(d.data() as Record<string, any>) }));
+    const finances = financeSnap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<BusFinance, "id">) }) as BusFinance);
     const financeById = new Map(finances.map((f) => [f.id, f]));
-    const payments = paymentsSnap.docs.map((d) => ({ id: d.id, ...(d.data() as Record<string, any>) }));
+    const payments = paymentsSnap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<BusEmiPayment, "id">) }) as BusEmiPayment);
 
     const companyOf = (busFinanceId: string) => String(financeById.get(busFinanceId)?.financeCompany ?? "—");
 

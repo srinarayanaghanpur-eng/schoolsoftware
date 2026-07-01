@@ -49,6 +49,7 @@ export default function PaymentsPage() {
   const canCancelPayment = Boolean(role && hasPermission(role, "fees.create"));
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [cancelTarget, setCancelTarget] = useState<Payment | null>(null);
   const [cancelReason, setCancelReason] = useState("");
@@ -63,6 +64,7 @@ export default function PaymentsPage() {
 
   const fetchPayments = async () => {
     try {
+      setError(null);
       const data = await adminApiRequest<{ success?: boolean; data: Payment[] }>("/api/admin/payments");
       setPayments(data.data ?? []);
     } catch (error) {
@@ -149,6 +151,11 @@ export default function PaymentsPage() {
         )}
 
         <div className="space-y-3">
+          {error && (
+            <div className="rounded-xl border border-[#ffd5da] bg-[#ffebed] px-4 py-3 text-sm font-semibold text-[#c83f4d]">
+              {error}
+            </div>
+          )}
           {loading ? (
             <div className="card py-8 text-center text-sm font-medium text-[#7d86a8]">Loading...</div>
           ) : payments.length === 0 ? (

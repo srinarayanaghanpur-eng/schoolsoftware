@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from "@/lib/firebaseAdmin";
 import { requirePermission } from "@/lib/apiUtils";
 
+export const dynamic = "force-dynamic";
+
 /**
  * GET /api/admin/reports/dashboard-stats
  * Get dashboard statistics
