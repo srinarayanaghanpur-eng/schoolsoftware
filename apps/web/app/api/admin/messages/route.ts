@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { FieldValue } from "firebase-admin/firestore";
 import { parentMessageCreateSchema } from "@sri-narayana/shared";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { requireAdmin, requirePermission } from "@/lib/apiUtils";
+import { requireAdmin, requirePermission, serializeDoc } from "@/lib/apiUtils";
 import { writeAuditLog } from "@/lib/auditLog";
 
 const COLLECTION = "parent_messages";
@@ -22,12 +22,17 @@ export async function GET(req: Request) {
     if (status) query = query.where("status", "==", status);
     if (type) query = query.where("type", "==", type);
 
-    const snapshot = await query.orderBy("createdAt", "desc").limit(100).get();
-    const messages = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    // Sort after fetching so filtered tabs do not require a Firestore composite index.
+    const snapshot = await query.get();
+    const messages = snapshot.docs
+      .map((doc) => serializeDoc(doc))
+      .sort((a, b) => String(b.createdAt ?? "").localeCompare(String(a.createdAt ?? "")))
+      .slice(0, 100);
+
     return NextResponse.json({ ok: true, messages });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unable to load messages";
-    return NextResponse.json({ ok: false, error: message }, { status: 400 });
+    console.error("Error loading parent messages:", error);
+    return NextResponse.json({ ok: false, error: "Unable to load parent messages." }, { status: 500 });
   }
 }
 

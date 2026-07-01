@@ -439,22 +439,6 @@ html, body {
   }
 }
 
-/* Sri Narayana branded loader (BrandLoader.tsx) */
-.bl-wrap { display: flex; flex-direction: column; align-items: center; gap: 16px; }
-.bl-logo { display: block; animation: bl-pulse 2.6s ease-in-out infinite; filter: drop-shadow(0 0 24px rgba(91, 123, 216, 0.35)); }
-.bl-star { transform-origin: 200px 200px; animation: bl-spin 9s linear infinite; }
-.bl-arc { transform-origin: 200px 200px; animation: bl-spin 1.3s linear infinite; }
-.bl-title { color: #e6cd8b; font-family: Cinzel, Georgia, serif; font-weight: 600; letter-spacing: 0.22em; font-size: 12.5px; opacity: 0.92; }
-.bl-msg { color: #9fb0e6; font-size: 13px; font-weight: 500; }
-.bl-dots::after { content: ""; animation: bl-dots 1.5s steps(1, end) infinite; }
-@keyframes bl-spin { to { transform: rotate(360deg); } }
-@keyframes bl-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.045); } }
-@keyframes bl-dots { 0% { content: ""; } 25% { content: "."; } 50% { content: ".."; } 75% { content: "..."; } }
-@media (prefers-reduced-motion: reduce) {
-  .bl-logo, .bl-star, .bl-arc { animation-duration: 0s; }
-  .bl-arc { animation: bl-spin 1.3s linear infinite; }
-}
-
 /* ── Dark mode overrides ── */
 .dark html,
 .dark body {

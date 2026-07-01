@@ -41,6 +41,7 @@ export default function MessagesPage() {
   const [replyStatus, setReplyStatus] = useState<string>("resolved");
 
   async function load() {
+    setError("");
     try {
       const params = filter !== "all" ? `?status=${filter}` : "";
       const data = await adminApiRequest<{ messages: Message[] }>(`/api/admin/messages${params}`);

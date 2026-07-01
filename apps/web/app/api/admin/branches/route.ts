@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/apiUtils";
-import { getBranches, createBranch } from "@/lib/branchContext";
+import { getBranchById, getBranches, createBranch, updateBranch } from "@/lib/branchContext";
 import { writeAuditLog } from "@/lib/auditLog";
+
+function cleanString(value: unknown) {
+  return typeof value === "string" ? value.trim() : "";
+}
 
 export async function GET(req: Request) {
   try {
@@ -28,16 +32,24 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { name, code, address, phone, email, isActive } = body;
 
-    if (!name || !code) {
+    const cleanName = cleanString(name);
+    const cleanCode = cleanString(code);
+
+    if (!cleanName || !cleanCode) {
       return NextResponse.json({ ok: false, error: "Name and code are required" }, { status: 400 });
     }
 
+    const existing = await getBranches();
+    if (existing.some((branch) => branch.code.toLowerCase() === cleanCode.toLowerCase())) {
+      return NextResponse.json({ ok: false, error: "A branch with this code already exists" }, { status: 409 });
+    }
+
     const id = await createBranch({
-      name,
-      code,
-      address: address ?? "",
-      phone: phone ?? "",
-      email: email ?? "",
+      name: cleanName,
+      code: cleanCode,
+      address: cleanString(address),
+      phone: cleanString(phone),
+      email: cleanString(email),
       isActive: isActive ?? true
     });
 
@@ -47,12 +59,68 @@ export async function POST(req: Request) {
       entityId: id,
       actorId: decodedToken.uid,
       actorRole: decodedToken.role as string,
-      newValues: { name, code }
+      newValues: { name: cleanName, code: cleanCode }
     });
 
     return NextResponse.json({ ok: true, id, message: "Branch created." });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to create branch";
+    return NextResponse.json({ ok: false, error: message }, { status: 400 });
+  }
+}
+
+export async function PATCH(req: Request) {
+  try {
+    const decodedToken = await requireAdmin(req);
+    if (!decodedToken) {
+      return NextResponse.json({ ok: false, error: "Admin access required" }, { status: 403 });
+    }
+
+    const body = await req.json();
+    const id = cleanString(body.id);
+    if (!id) {
+      return NextResponse.json({ ok: false, error: "Branch id is required" }, { status: 400 });
+    }
+
+    const current = await getBranchById(id);
+    if (!current) {
+      return NextResponse.json({ ok: false, error: "Branch not found" }, { status: 404 });
+    }
+
+    const nextName = body.name === undefined ? current.name : cleanString(body.name);
+    const nextCode = body.code === undefined ? current.code : cleanString(body.code);
+    if (!nextName || !nextCode) {
+      return NextResponse.json({ ok: false, error: "Name and code are required" }, { status: 400 });
+    }
+
+    const existing = await getBranches();
+    if (existing.some((branch) => branch.id !== id && branch.code.toLowerCase() === nextCode.toLowerCase())) {
+      return NextResponse.json({ ok: false, error: "A branch with this code already exists" }, { status: 409 });
+    }
+
+    const updates = {
+      name: nextName,
+      code: nextCode,
+      address: body.address === undefined ? current.address ?? "" : cleanString(body.address),
+      phone: body.phone === undefined ? current.phone ?? "" : cleanString(body.phone),
+      email: body.email === undefined ? current.email ?? "" : cleanString(body.email),
+      isActive: body.isActive === undefined ? current.isActive : Boolean(body.isActive)
+    };
+
+    await updateBranch(id, updates);
+    await writeAuditLog({
+      action: "branch.updated",
+      entityType: "branch",
+      entityId: id,
+      actorId: decodedToken.uid,
+      actorRole: decodedToken.role as string,
+      oldValues: current,
+      newValues: updates
+    });
+
+    return NextResponse.json({ ok: true, message: "Branch updated." });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unable to update branch";
     return NextResponse.json({ ok: false, error: message }, { status: 400 });
   }
 }

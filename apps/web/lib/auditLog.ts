@@ -1,4 +1,5 @@
 import { adminDb } from "@/lib/firebaseAdmin";
+import { removeUndefinedFields } from "@/lib/firestoreSanitize";
 import type { AuditAction, AuditLogEntry } from "@sri-narayana/shared";
 
 type WriteAuditParams = {
@@ -19,22 +20,22 @@ type WriteAuditParams = {
 
 export async function writeAuditLog(params: WriteAuditParams): Promise<string> {
   const docRef = adminDb().collection("audit_logs").doc();
-  const entry: AuditLogEntry = {
+  const entry = removeUndefinedFields({
     action: params.action,
     entityType: params.entityType,
     entityId: params.entityId,
     actorId: params.actorId,
     actorRole: params.actorRole,
-    oldValues: params.oldValues ?? undefined,
-    newValues: params.newValues ?? undefined,
-    reason: params.reason ?? undefined,
-    branch: params.branch ?? undefined,
-    deviceInfo: params.deviceInfo ?? undefined,
-    ipAddress: params.ipAddress ?? undefined,
-    approvalId: params.approvalId ?? undefined,
-    academicYearId: params.academicYearId ?? undefined,
+    oldValues: params.oldValues,
+    newValues: params.newValues,
+    reason: params.reason,
+    branch: params.branch,
+    deviceInfo: params.deviceInfo,
+    ipAddress: params.ipAddress,
+    approvalId: params.approvalId,
+    academicYearId: params.academicYearId,
     createdAt: new Date().toISOString()
-  };
+  } satisfies AuditLogEntry);
   await docRef.set(entry);
   return docRef.id;
 }

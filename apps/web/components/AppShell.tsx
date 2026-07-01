@@ -2,8 +2,11 @@
 
 import clsx from "clsx";
 import {
+  Banknote,
   BarChart3,
+  Bell,
   BellRing,
+  BookOpen,
   BookOpenCheck,
   Building2,
   Bus,
@@ -15,19 +18,26 @@ import {
   CalendarRange,
   ChevronDown,
   ClipboardCheck,
+  FileStack,
+  FileText,
   GraduationCap,
   Grid2X2,
   IndianRupee,
   LayoutDashboard,
+  Layers,
   LogOut,
   Megaphone,
   Menu,
   MessageSquare,
+  ReceiptIndianRupee,
   RefreshCw,
   Search,
   Settings,
   ShieldAlert,
   ShieldCheck,
+  ScrollText,
+  Tag,
+  UserPlus,
   UserCircle,
   UserCog,
   Users,
@@ -61,24 +71,47 @@ import { isRoleAllowedForPath } from "@/lib/routeAccess";
 import { lazyLoad } from "@/lib/lazyLoad";
 
 type NavChild = { href: string; label: string; module?: Module };
-type NavItem = { href: string; label: string; module: Module; icon: LucideIcon; children?: NavChild[]; badge?: number };
+type NavItem = {
+  href: string;
+  label: string;
+  module: Module;
+  icon: LucideIcon;
+  children?: NavChild[];
+  badge?: number;
+  activePrefixes?: string[];
+};
+type ContextSubnavItem = { href: string; label: string; icon: LucideIcon; module?: Module; activePrefixes?: string[] };
+type ContextSubnav = {
+  title: string;
+  eyebrow: string;
+  matchPrefixes: string[];
+  items: ContextSubnavItem[];
+};
 
 const primaryNav: NavItem[] = [
-  { href: "/admin/dashboard", label: "Dashboard", module: "dashboard", icon: Grid2X2 },
-  { href: "/admin/students", label: "Students", module: "students", icon: Users },
-  { href: "/admin/parents", label: "Parents", module: "students", icon: Users },
-  { href: "/admin/teachers", label: "Staff", module: "staff", icon: GraduationCap },
-  { href: "/admin/attendance", label: "Attendance", module: "attendance", icon: ClipboardCheck },
-  { href: "/admin/finance", label: "Fees & Finance", module: "fees", icon: IndianRupee,
-    children: [{ href: "/admin/fee-reminders", label: "Fee Reminders", module: "fees" }] },
-  { href: "/admin/salary", label: "Salary & Payroll", module: "payroll", icon: Wallet },
-  { href: "/admin/exams", label: "Exams & Marks", module: "exams", icon: BookOpenCheck },
-  { href: "/admin/notices", label: "Communication", module: "communication", icon: Megaphone },
-  { href: "/admin/messages", label: "Messages", module: "communication", icon: MessageSquare },
-  { href: "/admin/academic-years", label: "Academic Years", module: "academic_years", icon: CalendarRange },
-  { href: "/admin/promotions", label: "Promotion", module: "promotions", icon: GraduationCap },
-  { href: "/admin/users", label: "Users & Roles", module: "users", icon: UserCog },
-  { href: "/admin/approvals", label: "Approvals", module: "settings", icon: ShieldCheck, badge: 0 }
+  { href: "/admin/dashboard", label: "Dashboard", module: "dashboard", icon: LayoutDashboard },
+  { href: "/admin/students", label: "Students", module: "students", icon: Users, activePrefixes: ["/admin/students", "/admin/admission-form"] },
+  { href: "/admin/parents", label: "Parents", module: "students", icon: UserCircle, activePrefixes: ["/admin/parents"] },
+  { href: "/admin/teachers", label: "Staff", module: "staff", icon: GraduationCap, activePrefixes: ["/admin/teachers"] },
+  { href: "/admin/attendance", label: "Attendance", module: "attendance", icon: ClipboardCheck, activePrefixes: ["/admin/attendance", "/admin/my-attendance"] },
+  {
+    href: "/admin/finance",
+    label: "Fees & Finance",
+    module: "fees",
+    icon: IndianRupee,
+    activePrefixes: ["/admin/finance", "/admin/payments", "/admin/fee-structures", "/admin/fee-concessions", "/admin/fee-reminders", "/admin/fee-reports"]
+  },
+  { href: "/admin/salary", label: "Salary & Payroll", module: "payroll", icon: Wallet, activePrefixes: ["/admin/salary"] },
+  {
+    href: "/admin/exams",
+    label: "Exams & Marks",
+    module: "exams",
+    icon: BookOpenCheck,
+    activePrefixes: ["/admin/exams", "/admin/calendar", "/admin/holidays", "/admin/academic-years", "/admin/promotions"]
+  },
+  { href: "/admin/notices", label: "Communication", module: "communication", icon: Megaphone, activePrefixes: ["/admin/notices", "/admin/messages", "/admin/notifications"] },
+  { href: "/admin/reports", label: "Reports", module: "reports", icon: BarChart3, activePrefixes: ["/admin/reports"] },
+  { href: "/admin/settings", label: "Settings", module: "settings", icon: Settings, activePrefixes: ["/admin/settings", "/admin/users", "/admin/approvals", "/admin/branches", "/admin/biometric", "/admin/backup"] }
 ];
 
 // Parent/student portal nav — shown only for portal roles. Admin roles have the
@@ -105,12 +138,95 @@ const secondaryNav: NavItem[] = [
 ];
 
 const desktopNavSections: Array<{ label: string; hrefs: string[] }> = [
-  { label: "Core", hrefs: ["/admin/dashboard", "/admin/students", "/admin/parents", "/admin/teachers"] },
-  { label: "Academics", hrefs: ["/admin/attendance", "/admin/exams", "/admin/calendar", "/admin/academic-years", "/admin/promotions"] },
-  { label: "Operations", hrefs: ["/admin/transport", "/admin/transport/bus-finance", "/admin/library", "/admin/hostel", "/admin/inventory"] },
-  { label: "Finance", hrefs: ["/admin/finance", "/admin/salary"] },
-  { label: "Communication", hrefs: ["/admin/notices", "/admin/messages"] },
-  { label: "System", hrefs: ["/admin/users", "/admin/approvals", "/admin/branches", "/admin/settings"] }
+  {
+    label: "Main Navigation",
+    hrefs: [
+      "/admin/dashboard",
+      "/admin/students",
+      "/admin/parents",
+      "/admin/teachers",
+      "/admin/attendance",
+      "/admin/finance",
+      "/admin/salary",
+      "/admin/exams",
+      "/admin/notices",
+      "/admin/reports",
+      "/admin/settings"
+    ]
+  }
+];
+
+const contextSubnavs: ContextSubnav[] = [
+  {
+    title: "Fees & Finance",
+    eyebrow: "Accounts",
+    matchPrefixes: ["/admin/finance", "/admin/payments", "/admin/fee-structures", "/admin/fee-concessions", "/admin/fee-reminders", "/admin/fee-reports"],
+    items: [
+      { href: "/admin/finance", label: "Overview", icon: BarChart3, module: "fees" },
+      { href: "/admin/payments", label: "Collect Fee", icon: ReceiptIndianRupee, module: "fees" },
+      { href: "/admin/fee-structures", label: "Fee Structures", icon: Layers, module: "fees" },
+      { href: "/admin/fee-concessions", label: "Concessions", icon: Tag, module: "fees" },
+      { href: "/admin/finance/expenses", label: "Expenses", icon: Wallet, module: "fees" },
+      { href: "/admin/finance/income", label: "Income", icon: Banknote, module: "fees" },
+      { href: "/admin/finance/dues", label: "Dues", icon: FileStack, module: "fees" },
+      { href: "/admin/payments", label: "Receipts", icon: ScrollText, module: "fees", activePrefixes: ["/admin/finance/receipt"] },
+      { href: "/admin/finance/invoices", label: "Invoices", icon: FileText, module: "fees" },
+      { href: "/admin/fee-reports", label: "Reports", icon: BarChart3, module: "fees" }
+    ]
+  },
+  {
+    title: "Communication",
+    eyebrow: "Messages",
+    matchPrefixes: ["/admin/notices", "/admin/messages", "/admin/notifications"],
+    items: [
+      { href: "/admin/notices", label: "Notices", icon: Megaphone, module: "communication" },
+      { href: "/admin/messages", label: "Parent Messages", icon: MessageSquare, module: "communication" },
+      { href: "/admin/notifications", label: "Requests & Logs", icon: Bell, module: "communication" }
+    ]
+  },
+  {
+    title: "Settings",
+    eyebrow: "System",
+    matchPrefixes: ["/admin/settings", "/admin/users", "/admin/approvals", "/admin/branches", "/admin/biometric", "/admin/backup"],
+    items: [
+      { href: "/admin/settings", label: "School Settings", icon: Settings, module: "settings" },
+      { href: "/admin/users", label: "Users & Roles", icon: UserCog, module: "users" },
+      { href: "/admin/approvals", label: "Approvals", icon: ShieldCheck, module: "settings" },
+      { href: "/admin/branches", label: "Branches", icon: Building2, module: "settings" },
+      { href: "/admin/biometric", label: "Biometric", icon: CalendarCheck, module: "settings" },
+      { href: "/admin/backup", label: "Backup", icon: FileStack, module: "settings" }
+    ]
+  },
+  {
+    title: "Exams & Marks",
+    eyebrow: "Academics",
+    matchPrefixes: ["/admin/exams", "/admin/calendar", "/admin/holidays", "/admin/academic-years", "/admin/promotions"],
+    items: [
+      { href: "/admin/exams", label: "Exams", icon: BookOpenCheck, module: "exams" },
+      { href: "/admin/calendar", label: "Timetable", icon: CalendarDays, module: "academics" },
+      { href: "/admin/holidays", label: "Holidays", icon: CalendarRange, module: "academics" },
+      { href: "/admin/academic-years", label: "Academic Years", icon: CalendarRange, module: "academic_years" },
+      { href: "/admin/promotions", label: "Promotions", icon: GraduationCap, module: "promotions" }
+    ]
+  },
+  {
+    title: "Students",
+    eyebrow: "Admissions",
+    matchPrefixes: ["/admin/students", "/admin/admission-form"],
+    items: [
+      { href: "/admin/students", label: "Student List", icon: Users, module: "students" },
+      { href: "/admin/admission-form", label: "Admission Form", icon: UserPlus, module: "students" }
+    ]
+  },
+  {
+    title: "Attendance",
+    eyebrow: "Daily Ops",
+    matchPrefixes: ["/admin/attendance", "/admin/my-attendance"],
+    items: [
+      { href: "/admin/attendance", label: "Records", icon: ClipboardCheck, module: "attendance" },
+      { href: "/admin/my-attendance", label: "My Attendance", icon: CalendarCheck, module: "attendance" }
+    ]
+  }
 ];
 
 // Curated mobile nav — a focused subset of the app for phones. Items are still
@@ -168,6 +284,7 @@ const pageTitles: Record<string, string> = {
 };
 
 const routeModules: Array<{ prefix: string; module: Module }> = [
+  { prefix: "/admin/finance", module: "fees" },
   { prefix: "/admin/fee-concessions", module: "fees" },
   { prefix: "/admin/fee-structures", module: "fees" },
   { prefix: "/admin/fee-reports", module: "fees" },
@@ -214,9 +331,13 @@ function navForRole(items: NavItem[], role?: Role): NavItem[] {
     }));
 }
 
+function isPathActive(pathname: string, href: string, prefixes: string[] = []) {
+  return pathname === href || pathname.startsWith(`${href}/`) || prefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+}
+
 function NavEntry({ item, pathname }: { item: NavItem; pathname: string }) {
-  const active = pathname === item.href;
-  const childActive = item.children?.some((child) => pathname === child.href) ?? false;
+  const active = isPathActive(pathname, item.href, item.activePrefixes);
+  const childActive = item.children?.some((child) => isPathActive(pathname, child.href)) ?? false;
   const [open, setOpen] = useState(active || childActive);
 
   return (
@@ -273,6 +394,44 @@ function NavEntry({ item, pathname }: { item: NavItem; pathname: string }) {
         </div>
       )}
     </div>
+  );
+}
+
+function ContextualSubnav({ subnav, pathname }: { subnav: ContextSubnav; pathname: string }) {
+  return (
+    <aside className="fixed inset-y-0 left-[248px] z-40 hidden w-[224px] flex-col border-r border-[#e3e8f6] bg-[#f8faff] shadow-[12px_0_30px_rgba(50,61,130,0.06)] md:flex print:hidden">
+      <div className="border-b border-[#e4e9f7] px-5 py-5">
+        <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-[#7a86ad]">{subnav.eyebrow}</p>
+        <h2 className="mt-1 text-lg font-extrabold tracking-tight text-[#1b1d32]">{subnav.title}</h2>
+      </div>
+      <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto px-3 py-4">
+        {subnav.items.map(({ href, label, icon: Icon, activePrefixes }) => {
+          const active = isPathActive(pathname, href, activePrefixes);
+          return (
+            <Link
+              key={`${href}-${label}`}
+              href={href}
+              className={clsx(
+                "group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] font-bold transition",
+                active
+                  ? "bg-white text-[#2628a0] shadow-[0_10px_22px_rgba(44,48,143,0.10)] ring-1 ring-[#e2e6ff]"
+                  : "text-[#65708f] hover:bg-white hover:text-[#2628a0] hover:shadow-sm"
+              )}
+            >
+              {active && <span className="absolute inset-y-2 -left-3 w-1 rounded-r-full bg-[#4b4fc4]" />}
+              <span className={clsx("grid h-8 w-8 shrink-0 place-items-center rounded-lg", active ? "bg-[#eef0ff] text-[#3033a1]" : "bg-[#edf1fb] text-[#7e88aa] group-hover:text-[#3033a1]")}>
+                <Icon size={16} strokeWidth={2.35} />
+              </span>
+              <span className="min-w-0 truncate">{label}</span>
+            </Link>
+          );
+        })}
+      </nav>
+      <div className="m-3 rounded-xl border border-[#e3e8f6] bg-white p-3 shadow-sm">
+        <p className="text-xs font-extrabold text-[#1f2136]">Sri Narayana</p>
+        <p className="mt-0.5 text-[11px] font-semibold text-[#7d86a8]">Selected module actions</p>
+      </div>
+    </aside>
   );
 }
 
@@ -470,6 +629,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     [role, isPortalRole, pendingApprovals]
   );
   const generalNav = useMemo(() => (isPortalRole ? [] : navForRole(secondaryNav, role)), [role, isPortalRole]);
+  const contextualSubnav = useMemo(() => {
+    if (isPortalRole) return null;
+    const section = contextSubnavs.find((candidate) =>
+      candidate.matchPrefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))
+    );
+    if (!section) return null;
+
+    const allowedItems = section.items.filter((item) => {
+      if (item.module && (!role || !canAccessModule(role, item.module))) return false;
+      return isRoleAllowedForPath(item.href, role);
+    });
+
+    return allowedItems.length > 0 ? { ...section, items: allowedItems } : null;
+  }, [pathname, role, isPortalRole]);
   const desktopNavGroups = useMemo(() => {
     if (isPortalRole) return mainNav.length ? [{ label: "Portal", items: mainNav }] : [];
     const itemMap = new Map([...mainNav, ...generalNav].map((item) => [item.href, item]));
@@ -641,14 +814,22 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             {profile ? initialsOf(profile.name) : "··"}
           </span>
           <span className="min-w-0 flex-1">
-            <span className="block truncate text-[13px] font-bold">{profile?.name ?? "Loading…"}</span>
+            <span className="block truncate text-[13px] font-bold">SNHS</span>
             <span className="block text-xs text-[#aeb9f2]">{roleLabel}</span>
           </span>
           <LogOut size={19} className="text-[#bdc8ff]" />
         </button>
       </aside>
 
-      <main key={pathname} className="flex min-w-0 flex-1 flex-col md:ml-[248px] print:ml-0 print:block">
+      {contextualSubnav && <ContextualSubnav subnav={contextualSubnav} pathname={pathname} />}
+
+      <main
+        key={pathname}
+        className={clsx(
+          "flex min-w-0 flex-1 flex-col print:ml-0 print:block",
+          contextualSubnav ? "md:ml-[472px]" : "md:ml-[248px]"
+        )}
+      >
         <header className="sticky top-0 z-20 flex min-h-[64px] shrink-0 items-center gap-3 border-b border-[#e5e9f4] bg-white/[0.92] px-3 py-2.5 shadow-[0_6px_18px_rgba(38,47,110,0.04)] backdrop-blur md:min-h-[72px] md:gap-4 md:px-6 md:py-3 print:hidden">
           <button
             type="button"
@@ -691,7 +872,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </button>
         </header>
         <div key={pathname} className="page-enter flex-1 overflow-y-auto pb-[76px] md:pb-0 print:overflow-visible print:pb-0 print:opacity-100">
-          {sessionLoading ? <BrandLoader message="Loading secure workspace…" /> : routeDenied ? <AccessDeniedState module={currentModule} /> : (<><SectionTabs />{children}</>)}
+          {sessionLoading ? <BrandLoader message="Loading secure workspace…" /> : routeDenied ? <AccessDeniedState module={currentModule} /> : (<>{!contextualSubnav && <SectionTabs />}{children}</>)}
         </div>
       </main>
 
