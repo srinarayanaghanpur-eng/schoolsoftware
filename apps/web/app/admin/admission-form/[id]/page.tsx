@@ -73,7 +73,7 @@ export default function AdmissionFormPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f4f5fb] print:bg-white">
+    <div className="admission-print-root min-h-screen bg-[#f4f5fb] print:bg-white">
       {/* Toolbar */}
       <div className="sticky top-0 z-10 flex items-center justify-between bg-white px-6 py-3 shadow-sm print:hidden">
         <Link href="/admin/students" className="flex items-center gap-2 text-sm font-semibold text-[#3033a1] hover:underline">
@@ -85,7 +85,7 @@ export default function AdmissionFormPage() {
       </div>
 
       {/* Admission Form */}
-      <div className="mx-auto max-w-3xl p-6 print:p-0">
+      <div className="admission-print-page mx-auto max-w-3xl p-6 print:p-0">
         <div className="rounded-2xl bg-white p-8 shadow-sm print:shadow-none print:p-0">
           {/* Header */}
           <div className="border-b-2 border-[#3033a1] pb-4 mb-6 text-center">

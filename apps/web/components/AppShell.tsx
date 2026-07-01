@@ -545,7 +545,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <AdminSessionProvider value={sessionValue}>
       <AcademicYearProvider>
-    <div className="min-h-screen bg-[#f6f8ff] text-[#181a31] md:flex">
+    <div className="min-h-screen bg-[#f6f8ff] text-[#181a31] md:flex print:block print:bg-white">
       {/* Mobile backdrop */}
       {mobileNavOpen && (
         <div
@@ -557,7 +557,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       <aside
         className={clsx(
-          "fixed inset-y-0 left-0 z-50 flex w-[264px] max-w-[85vw] flex-col overflow-hidden bg-[linear-gradient(180deg,#17217f_0%,#11195f_100%)] text-white shadow-2xl transition-transform duration-300 ease-out md:w-[248px] md:max-w-none md:shadow-[12px_0_28px_rgba(18,27,105,0.12)] md:translate-x-0",
+          "fixed inset-y-0 left-0 z-50 flex w-[264px] max-w-[85vw] flex-col overflow-hidden bg-[linear-gradient(180deg,#17217f_0%,#11195f_100%)] text-white shadow-2xl transition-transform duration-300 ease-out md:w-[248px] md:max-w-none md:shadow-[12px_0_28px_rgba(18,27,105,0.12)] md:translate-x-0 print:hidden",
           mobileNavOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
@@ -648,8 +648,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </button>
       </aside>
 
-      <main key={pathname} className="flex min-w-0 flex-1 flex-col md:ml-[248px]">
-        <header className="sticky top-0 z-20 flex min-h-[64px] shrink-0 items-center gap-3 border-b border-[#e5e9f4] bg-white/[0.92] px-3 py-2.5 shadow-[0_6px_18px_rgba(38,47,110,0.04)] backdrop-blur md:min-h-[72px] md:gap-4 md:px-6 md:py-3">
+      <main key={pathname} className="flex min-w-0 flex-1 flex-col md:ml-[248px] print:ml-0 print:block">
+        <header className="sticky top-0 z-20 flex min-h-[64px] shrink-0 items-center gap-3 border-b border-[#e5e9f4] bg-white/[0.92] px-3 py-2.5 shadow-[0_6px_18px_rgba(38,47,110,0.04)] backdrop-blur md:min-h-[72px] md:gap-4 md:px-6 md:py-3 print:hidden">
           <button
             type="button"
             onClick={() => setMobileNavOpen(true)}
@@ -690,13 +690,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <RefreshCw size={19} className={clsx(refreshing && "animate-spin")} />
           </button>
         </header>
-        <div key={pathname} className="page-enter flex-1 overflow-y-auto pb-[76px] md:pb-0">
+        <div key={pathname} className="page-enter flex-1 overflow-y-auto pb-[76px] md:pb-0 print:overflow-visible print:pb-0 print:opacity-100">
           {sessionLoading ? <BrandLoader message="Loading secure workspace…" /> : routeDenied ? <AccessDeniedState module={currentModule} /> : (<><SectionTabs />{children}</>)}
         </div>
       </main>
 
       {/* Mobile bottom tab bar — quick access to the essentials */}
-      <nav className="fixed inset-x-0 bottom-0 z-30 flex items-stretch border-t border-[#e4e6f0] bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-30 flex items-stretch border-t border-[#e4e6f0] bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden print:hidden">
         {bottomTabs.map((item) => {
           const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
           return (
