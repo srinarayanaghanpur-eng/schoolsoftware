@@ -451,13 +451,27 @@ export default function StudentsPage() {
     resetForm();
   };
 
-  const qrContent = (student: Student) =>
-    JSON.stringify({
-      sn: student.admissionNumber,
-      n: student.studentName,
-      c: student.class,
-      s: student.section
+  const encodeQrPayload = (student: Student) => {
+    const payload = {
+      name: student.studentName,
+      fatherName: student.fatherName || "",
+      motherName: student.motherName || "",
+      phone: student.phone || "",
+      address: student.address || ""
+    };
+    const json = JSON.stringify(payload);
+    const bytes = new TextEncoder().encode(json);
+    let binary = "";
+    bytes.forEach((byte) => {
+      binary += String.fromCharCode(byte);
     });
+    return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+  };
+
+  const qrContent = (student: Student) => {
+    const origin = typeof window === "undefined" ? "" : window.location.origin;
+    return `${origin}/student-qr?d=${encodeQrPayload(student)}`;
+  };
 
   const [qrCanvas, setQrCanvas] = useState<Record<string, string>>({});
 
@@ -822,7 +836,7 @@ export default function StudentsPage() {
                   </div>
                   <div className="flex shrink-0 items-center gap-1">
                     {qrCanvas[student.id] && (
-                      <button onClick={() => setShowQrModal(student.id)} className="grid h-9 w-9 place-items-center rounded-xl bg-[#eef6ff] text-[#3069a1]" aria-label="Show QR code">
+                      <button onClick={() => setShowQrModal(student.id)} className="grid h-9 w-9 place-items-center rounded-xl bg-[#eef6ff] text-[#3069a1]" aria-label="Show student details QR">
                         <QrCode size={16} />
                       </button>
                     )}
@@ -868,7 +882,7 @@ export default function StudentsPage() {
                     <td className="px-6 py-4 text-center">
                       <div className="flex items-center justify-center gap-1">
                         {qrCanvas[student.id] && (
-                          <button onClick={() => setShowQrModal(student.id)} className="grid h-9 w-9 place-items-center rounded-xl bg-[#eef6ff] text-[#3069a1] hover:bg-[#e0edff]" title="Show QR code">
+                          <button onClick={() => setShowQrModal(student.id)} className="grid h-9 w-9 place-items-center rounded-xl bg-[#eef6ff] text-[#3069a1] hover:bg-[#e0edff]" title="Show student details QR">
                             <QrCode size={16} />
                           </button>
                         )}
@@ -922,7 +936,7 @@ export default function StudentsPage() {
               })() && (
                 <div className="mt-3">
                   <p className="text-sm font-bold text-[#1f2136]">{students.find((s) => s.id === showQrModal)?.studentName}</p>
-                  <p className="text-xs font-medium text-[#7d86a8]">Adm# {students.find((s) => s.id === showQrModal)?.admissionNumber} · {students.find((s) => s.id === showQrModal)?.class}-{students.find((s) => s.id === showQrModal)?.section}</p>
+                  <p className="text-xs font-medium text-[#7d86a8]">Scan to open student details</p>
                 </div>
               )}
               <button onClick={() => setShowQrModal(null)} className="btn-primary mt-4 w-full">Close</button>
