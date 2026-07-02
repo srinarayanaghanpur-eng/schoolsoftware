@@ -1,0 +1,252 @@
+import { NextResponse } from "next/server";
+import { adminDb } from "@/lib/firebaseAdmin";
+import { requirePermission } from "@/lib/apiUtils";
+import { docDateKey, inRange } from "@/lib/financeUtils";
+
+export const dynamic = "force-dynamic";
+
+type MoneyEntry = {
+  date: string;
+  type: "Income" | "Expense";
+  description: string;
+  category: string;
+  amount: number;
+  status: string;
+};
+
+const COLORS = {
+  collected: "#4f63f6",
+  pending: "#9b7cff",
+  expense: "#f97373"
+};
+
+function toDateKey(date: Date) {
+  return new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 10);
+}
+
+function parseRange(url: string) {
+  const { searchParams } = new URL(url);
+  const now = new Date();
+  const defaultFrom = new Date(now.getFullYear(), now.getMonth(), 1);
+  const defaultTo = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  return {
+    from: searchParams.get("from") || toDateKey(defaultFrom),
+    to: searchParams.get("to") || toDateKey(defaultTo)
+  };
+}
+
+function amount(value: unknown) {
+  return Number(value) || 0;
+}
+
+function formatINR(value: number) {
+  if (value >= 100000) return `₹${(value / 100000).toFixed(2)}L`;
+  if (value >= 1000) return `₹${(value / 1000).toFixed(1)}K`;
+  return `₹${Math.round(value).toLocaleString("en-IN")}`;
+}
+
+function studentOutstanding(student: Record<string, unknown>) {
+  const totalFee = amount(student.totalFeeAmount);
+  const paid = amount(student.totalFeesPaid);
+  const storedDue = amount(student.totalFeesDue);
+
+  if (storedDue > 0 && totalFee > 0 && storedDue + paid <= totalFee + 1) {
+    return storedDue;
+  }
+
+  if (storedDue > 0) {
+    return Math.max(0, storedDue - paid);
+  }
+
+  return Math.max(0, totalFee - paid);
+}
+
+function weekLabel(dateKey: string) {
+  const day = Number(dateKey.slice(8, 10)) || 1;
+  const week = Math.floor((day - 1) / 7) + 1;
+  return `Week ${week}`;
+}
+
+function addWeek(
+  map: Map<string, { name: string; income: number; expense: number }>,
+  dateKey: string,
+  field: "income" | "expense",
+  value: number,
+  from: string,
+  to: string
+) {
+  if (!inRange(dateKey, from, to)) return;
+  const label = weekLabel(dateKey);
+  const row = map.get(label) ?? { name: label, income: 0, expense: 0 };
+  row[field] += value;
+  map.set(label, row);
+}
+
+function sortEntriesDesc(left: MoneyEntry, right: MoneyEntry) {
+  return right.date.localeCompare(left.date) || Math.abs(right.amount) - Math.abs(left.amount);
+}
+
+export async function GET(req: Request) {
+  const token = await requirePermission(req, "fees.view");
+  if (!token) {
+    return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
+  }
+
+  const { from, to } = parseRange(req.url);
+  const db = adminDb();
+
+  const [studentsSnap, paymentsSnap, incomesSnap, expensesSnap, salarySnap, advancesSnap] = await Promise.all([
+    db.collection("students").get(),
+    db.collection("payments").get(),
+    db.collection("incomes").get(),
+    db.collection("expenses").where("status", "==", "approved").get(),
+    db.collection("salary_reports").where("paid", "==", true).get(),
+    db.collection("salary_advances").get()
+  ]);
+
+  const students = studentsSnap.docs.map((doc) => doc.data());
+  const totalFeeAmount = students.reduce((sum, student) => sum + amount(student.totalFeeAmount), 0);
+  const outstandingDues = students.reduce((sum, student) => sum + studentOutstanding(student), 0);
+  const studentsPending = students.filter((student) => studentOutstanding(student) > 0).length;
+
+  let feeIncome = 0;
+  let otherIncome = 0;
+  let expenseTotal = 0;
+  let todayCollected = 0;
+  const today = toDateKey(new Date());
+  const byWeek = new Map<string, { name: string; income: number; expense: number }>();
+  const transactions: MoneyEntry[] = [];
+
+  paymentsSnap.docs.forEach((doc) => {
+    const data = doc.data();
+    if (String(data.status || "").toLowerCase() === "cancelled") return;
+    const date = docDateKey(data, "paymentDate");
+    const paid = amount(data.amountPaid);
+    if (date === today) todayCollected += paid;
+    if (!inRange(date, from, to)) return;
+    feeIncome += paid;
+    addWeek(byWeek, date, "income", paid, from, to);
+    transactions.push({
+      date,
+      type: "Income",
+      description: String(data.studentName || data.paymentType || "Fee payment"),
+      category: String(data.paymentMethod || "fee"),
+      amount: paid,
+      status: String(data.status || "completed")
+    });
+  });
+
+  incomesSnap.docs.forEach((doc) => {
+    const data = doc.data();
+    const date = docDateKey(data);
+    if (!inRange(date, from, to)) return;
+    const value = amount(data.amount);
+    otherIncome += value;
+    addWeek(byWeek, date, "income", value, from, to);
+    transactions.push({
+      date,
+      type: "Income",
+      description: String(data.description || "Other income"),
+      category: String(data.category || "income"),
+      amount: value,
+      status: "recorded"
+    });
+  });
+
+  expensesSnap.docs.forEach((doc) => {
+    const data = doc.data();
+    const date = docDateKey(data);
+    if (!inRange(date, from, to)) return;
+    const value = amount(data.amount);
+    expenseTotal += value;
+    addWeek(byWeek, date, "expense", value, from, to);
+    transactions.push({
+      date,
+      type: "Expense",
+      description: String(data.description || "Expense"),
+      category: String(data.category || "expense"),
+      amount: value,
+      status: String(data.status || "approved")
+    });
+  });
+
+  salarySnap.docs.forEach((doc) => {
+    const data = doc.data();
+    const date = docDateKey(data, "paidAt", "month");
+    if (!inRange(date, from, to)) return;
+    const value = amount(data.netPayable);
+    expenseTotal += value;
+    addWeek(byWeek, date, "expense", value, from, to);
+    transactions.push({
+      date,
+      type: "Expense",
+      description: `Salary · ${String(data.teacherName || data.teacherId || "")}`,
+      category: "salary",
+      amount: value,
+      status: "paid"
+    });
+  });
+
+  advancesSnap.docs.forEach((doc) => {
+    const data = doc.data();
+    const date = docDateKey(data);
+    if (!inRange(date, from, to)) return;
+    const value = amount(data.amount);
+    expenseTotal += value;
+    addWeek(byWeek, date, "expense", value, from, to);
+    transactions.push({
+      date,
+      type: "Expense",
+      description: `Advance · ${String(data.teacherName || data.teacherId || "")}`,
+      category: "salary advance",
+      amount: value,
+      status: data.recovered ? "recovered" : "open"
+    });
+  });
+
+  const incomeTotal = feeIncome + otherIncome;
+  const collectionTarget = Math.max(totalFeeAmount, feeIncome + outstandingDues);
+  const collectedPercent = collectionTarget > 0 ? Math.round((feeIncome / collectionTarget) * 100) : 0;
+  const pendingPercent = collectionTarget > 0 ? Math.max(0, 100 - collectedPercent) : 0;
+
+  const bars = Array.from(byWeek.values())
+    .sort((left, right) => Number(left.name.replace("Week ", "")) - Number(right.name.replace("Week ", "")))
+    .map((row) => ({
+      ...row,
+      incomeLakhs: Number((row.income / 100000).toFixed(2)),
+      expenseLakhs: Number((row.expense / 100000).toFixed(2))
+    }));
+
+  return NextResponse.json({
+    ok: true,
+    range: { from, to },
+    kpis: {
+      totalIncome: incomeTotal,
+      totalExpense: expenseTotal,
+      netBalance: incomeTotal - expenseTotal,
+      outstandingDues,
+      studentsPending,
+      todayCollected,
+      paymentCount: paymentsSnap.size
+    },
+    feeCollection: [
+      {
+        name: "Collected",
+        value: feeIncome,
+        percent: collectedPercent,
+        label: formatINR(feeIncome),
+        color: COLORS.collected
+      },
+      {
+        name: "Pending",
+        value: outstandingDues,
+        percent: pendingPercent,
+        label: formatINR(outstandingDues),
+        color: COLORS.pending
+      }
+    ],
+    collectionTarget,
+    bars,
+    transactions: transactions.sort(sortEntriesDesc).slice(0, 8)
+  });
+}

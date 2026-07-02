@@ -4,15 +4,8 @@ import { useAdminSession } from "@/components/AdminSessionContext";
 import { DateRangeFilter } from "@/components/DateRangeFilter";
 import { PageHeader } from "@/components/PageHeader";
 import { SalaryAdvancesPanel } from "@/components/SalaryAdvancesPanel";
-import { auth, isFirebaseConfigured } from "@sri-narayana/shared/firebase/client";
-import {
-  DEFAULT_SETTINGS,
-  calculateMonthlySalary,
-  demoAttendance,
-  demoHolidays,
-  demoTeachers,
-  type SalaryReport
-} from "@sri-narayana/shared";
+import { auth } from "@sri-narayana/shared/firebase/client";
+import type { SalaryReport } from "@sri-narayana/shared";
 import { AlertCircle, Check, CheckCircle2, Download, LockKeyhole, RotateCw, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import * as XLSX from "xlsx";
@@ -29,18 +22,6 @@ function monthRange(month: string) {
     from: `${year}-${String(monthNumber).padStart(2, "0")}-01`,
     to: `${year}-${String(monthNumber).padStart(2, "0")}-${String(end).padStart(2, "0")}`
   };
-}
-
-function demoReportsForMonth(month: string) {
-  return demoTeachers.map((teacher) =>
-    calculateMonthlySalary({
-      teacher,
-      records: demoAttendance.filter((record) => record.teacherId === teacher.id && record.month === month),
-      holidays: demoHolidays.filter((holiday) => holiday.date.startsWith(month)),
-      month,
-      settings: DEFAULT_SETTINGS
-    })
-  );
 }
 
 type PayrollAccessRequest = {
@@ -81,7 +62,7 @@ export default function SalaryPage() {
   const canReviewPayrollAccess = role === "super_admin" || role === "admin";
   const [month, setMonth] = useState(currentMonth());
   const [dateRange, setDateRange] = useState(() => monthRange(currentMonth()));
-  const [reports, setReports] = useState<SalaryReport[]>(() => (isFirebaseConfigured ? [] : demoReportsForMonth(currentMonth())));
+  const [reports, setReports] = useState<SalaryReport[]>([]);
   const [loading, setLoading] = useState(false);
   const [accessLoading, setAccessLoading] = useState(false);
   const [approvalLoading, setApprovalLoading] = useState(false);
@@ -109,7 +90,7 @@ export default function SalaryPage() {
   };
 
   const loadPayrollAccess = async () => {
-    if (!isFirebaseConfigured || !isAccountant) {
+    if (!isAccountant) {
       setPayrollAccess(isAccountant ? { access: "locked", status: "none" } : { access: "direct" });
       return;
     }
@@ -128,7 +109,7 @@ export default function SalaryPage() {
   };
 
   const loadApprovalRequests = async () => {
-    if (!isFirebaseConfigured || !canReviewPayrollAccess) return;
+    if (!canReviewPayrollAccess) return;
     setApprovalLoading(true);
     try {
       const result = await apiRequest<{ requests: PayrollAccessRequest[] }>("/api/admin/payroll-access?scope=requests");
@@ -145,11 +126,6 @@ export default function SalaryPage() {
     setLoading(true);
     setError(null);
     try {
-      if (!isFirebaseConfigured) {
-        setReports(demoReportsForMonth(targetMonth));
-        setMessage("Showing demo salary reports.");
-        return;
-      }
       const result = await apiRequest<{ reports: SalaryReport[] }>(`/api/admin/salary?month=${encodeURIComponent(targetMonth)}`, undefined, isAccountant);
       setReports(result.reports);
     } catch (err) {
@@ -187,11 +163,6 @@ export default function SalaryPage() {
     setError(null);
     setMessage(null);
     try {
-      if (!isFirebaseConfigured) {
-        setReports(demoReportsForMonth(month));
-        setMessage("Demo salary generated.");
-        return;
-      }
       const result = await apiRequest<{ reports: SalaryReport[]; message?: string }>("/api/admin/salary", {
         method: "POST",
         body: JSON.stringify({ month })
@@ -212,15 +183,6 @@ export default function SalaryPage() {
     setMessage(null);
     try {
       const nextPaid = !report.paid;
-      if (!isFirebaseConfigured) {
-        setReports((items) =>
-          items.map((item) =>
-            item.teacherId === report.teacherId ? { ...item, paid: nextPaid, paidAt: nextPaid ? new Date().toISOString() : "" } : item
-          )
-        );
-        setMessage(nextPaid ? "Demo salary marked as paid." : "Demo salary marked as unpaid.");
-        return;
-      }
       const result = await apiRequest<{ message?: string }>("/api/admin/salary", {
         method: "PATCH",
         body: JSON.stringify({ month: report.month, teacherId: report.teacherId, paid: nextPaid })

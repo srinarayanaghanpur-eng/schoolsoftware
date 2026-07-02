@@ -13,6 +13,7 @@ import {
   BellRing,
   CalendarDays,
   CheckCircle2,
+  Circle,
   CreditCard,
   ExternalLink,
   MessageSquare,
@@ -337,8 +338,8 @@ function PortalDashboard() {
                   <h2 className="font-extrabold text-[#1f2136]">Quick Actions</h2>
                 </div>
                 <div className="grid grid-cols-3 gap-3">
-                  {quickActions.map((action) => {
-                    const Icon = action.icon;
+                  {quickActions.filter(Boolean).map((action) => {
+                    const Icon = action.icon ?? Circle;
                     const inner = (
                       <>
                         <span className={`grid h-11 w-11 place-items-center rounded-xl ${action.accent}`}><Icon size={20} /></span>

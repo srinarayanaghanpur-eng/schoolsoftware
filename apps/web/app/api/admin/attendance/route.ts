@@ -3,6 +3,14 @@ import { attendanceEditSchema } from "@sri-narayana/shared";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { requireAdmin, serializeDoc, startTimer } from "@/lib/apiUtils";
 
+function chunk<T>(items: T[], size: number) {
+  const chunks: T[][] = [];
+  for (let index = 0; index < items.length; index += size) {
+    chunks.push(items.slice(index, index + size));
+  }
+  return chunks;
+}
+
 export async function GET(req: Request) {
   const totalTimer = startTimer();
   try {
@@ -29,20 +37,23 @@ export async function GET(req: Request) {
         .filter(Boolean)
     );
     
-    const teachersSnapshot = uniqueTeacherIds.size > 0
-      ? await db
-          .collection("teachers")
-          .where("__name__", "in", Array.from(uniqueTeacherIds))
-          .get()
-      : { docs: [] };
+    const teacherDocs = uniqueTeacherIds.size > 0
+      ? (
+          await Promise.all(
+            chunk(Array.from(uniqueTeacherIds), 30).map((teacherIds) =>
+              db.collection("teachers").where("__name__", "in", teacherIds).get()
+            )
+          )
+        ).flatMap((snapshot) => snapshot.docs)
+      : [];
 
     const totalMs = totalTimer();
-    console.log(`[API] /api/admin/attendance - DB: ${dbMs}ms, Total: ${totalMs}ms, Records: ${records.length}, Teachers: ${teachersSnapshot.docs.length}`);
+    console.log(`[API] /api/admin/attendance - DB: ${dbMs}ms, Total: ${totalMs}ms, Records: ${records.length}, Teachers: ${teacherDocs.length}`);
 
     return NextResponse.json({
       ok: true,
       records,
-      teachers: teachersSnapshot.docs.map((doc) => serializeDoc(doc)),
+      teachers: teacherDocs.map((doc) => serializeDoc(doc)),
       audits,
       _metrics: { dbMs, totalMs }
     });

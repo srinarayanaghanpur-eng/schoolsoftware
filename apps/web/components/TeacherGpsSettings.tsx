@@ -1,7 +1,7 @@
 "use client";
 
-import { auth, isFirebaseConfigured } from "@sri-narayana/shared/firebase/client";
-import { DEFAULT_SETTINGS, demoTeachers, type Teacher } from "@sri-narayana/shared";
+import { auth } from "@sri-narayana/shared/firebase/client";
+import { DEFAULT_SETTINGS, type Teacher } from "@sri-narayana/shared";
 import { LocateFixed, Power, Save, UsersRound } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
@@ -32,9 +32,9 @@ function getBrowserLocation() {
 }
 
 export function TeacherGpsSettings() {
-  const [teachers, setTeachers] = useState<Teacher[]>(isFirebaseConfigured ? [] : demoTeachers);
+  const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [selectedTeacherId, setSelectedTeacherId] = useState("");
-  const [form, setForm] = useState<TeacherGpsForm>(() => formFromTeacher(demoTeachers[0]));
+  const [form, setForm] = useState<TeacherGpsForm>(() => formFromTeacher());
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -70,7 +70,6 @@ export function TeacherGpsSettings() {
   };
 
   const loadTeachers = async () => {
-    if (!isFirebaseConfigured) return;
     setLoading(true);
     setError(null);
     try {
@@ -117,21 +116,6 @@ export function TeacherGpsSettings() {
     }
   };
 
-  const updateLocalTeachers = (mode: "teacher" | "all") => {
-    setTeachers((current) =>
-      current.map((teacher) => {
-        if (mode === "teacher" && teacher.id !== selectedTeacher?.id) return teacher;
-        return {
-          ...teacher,
-          gpsEnabled: form.gpsEnabled,
-          gpsLatitude: Number(form.gpsLatitude),
-          gpsLongitude: Number(form.gpsLongitude),
-          gpsRadiusMeters: Number(form.gpsRadiusMeters)
-        };
-      })
-    );
-  };
-
   const saveGps = async (mode: "teacher" | "all") => {
     if (mode === "teacher" && !selectedTeacher) {
       setError("Select a teacher before saving GPS settings.");
@@ -160,12 +144,6 @@ export function TeacherGpsSettings() {
       }
       if (!Number.isFinite(payload.gpsRadiusMeters)) {
         throw new Error("Allowed radius must be a valid number.");
-      }
-
-      if (!isFirebaseConfigured) {
-        updateLocalTeachers(mode);
-        setMessage(mode === "all" ? "Demo GPS settings applied to all teachers." : "Demo GPS settings updated for selected teacher.");
-        return;
       }
 
       const result = await apiRequest<{ message?: string; updatedCount?: number }>("/api/admin/gps-settings", {

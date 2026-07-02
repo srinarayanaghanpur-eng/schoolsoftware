@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from "@/lib/firebaseAdmin";
+import { requirePermission } from "@/lib/apiUtils";
 
 export const dynamic = "force-dynamic";
-
-const db = adminDb();
 
 const MONTH_NAMES = [
   "January", "February", "March", "April", "May", "June",
@@ -16,6 +15,10 @@ const MONTH_NAMES = [
  */
 export async function GET(request: NextRequest) {
   try {
+    const auth = await requirePermission(request, "reports.view");
+    if (!auth) return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+
+    const db = adminDb();
     const searchParams = request.nextUrl.searchParams;
     const year = parseInt(searchParams.get('year') || String(new Date().getFullYear()), 10);
 
@@ -24,9 +27,14 @@ export async function GET(request: NextRequest) {
 
     paymentsSnap.docs.forEach((d) => {
       const data = d.data();
-      const dateStr = data.paymentDate || data.createdAt;
-      if (!dateStr) return;
-      const dte = new Date(dateStr);
+      const rawDate = data.paymentDate || data.createdAt;
+      const dte =
+        typeof rawDate === "string"
+          ? new Date(rawDate)
+          : rawDate && typeof rawDate.toDate === "function"
+            ? rawDate.toDate()
+            : null;
+      if (!dte) return;
       if (isNaN(dte.getTime()) || dte.getFullYear() !== year) return;
       const month = dte.getMonth(); // 0-based
       const existing = byMonth.get(month) ?? { count: 0, total: 0 };

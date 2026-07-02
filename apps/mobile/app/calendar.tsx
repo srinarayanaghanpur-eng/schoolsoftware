@@ -1,12 +1,7 @@
 import { Card } from "@/components/Card";
 import { Screen } from "@/components/Screen";
-import {
-  demoAttendance,
-  demoHolidays,
-  demoTeachers,
-  type AttendanceRecord,
-  type AttendanceStatus
-} from "@sri-narayana/shared";
+import { useTeacherAttendanceData } from "@/lib/useTeacherAttendanceData";
+import type { AttendanceRecord, AttendanceStatus } from "@sri-narayana/shared";
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 
@@ -51,9 +46,28 @@ function dateLabel(value: string) {
 
 export default function Calendar() {
   const cellWidth = useCellWidth();
-  const teacher = demoTeachers[0];
-  const teacherRecords = demoAttendance.filter((record) => record.teacherId === teacher.id);
-  const [visibleMonth, setVisibleMonth] = useState(() => monthFromRecord(teacherRecords[0]));
+  const { teacher, records: teacherRecords, holidays, loading, error } = useTeacherAttendanceData();
+  const [visibleMonth, setVisibleMonth] = useState(() => monthFromRecord());
+
+  if (loading) {
+    return (
+      <Screen title="Calendar" subtitle="Monthly attendance">
+        <Card>
+          <Text style={styles.emptyText} allowFontScaling={false}>Loading attendance records...</Text>
+        </Card>
+      </Screen>
+    );
+  }
+
+  if (error || !teacher) {
+    return (
+      <Screen title="Calendar" subtitle="Monthly attendance">
+        <Card>
+          <Text style={styles.errorText} allowFontScaling={false}>{error ?? "Teacher profile not found."}</Text>
+        </Card>
+      </Screen>
+    );
+  }
 
   const year = visibleMonth.getFullYear();
   const monthIndex = visibleMonth.getMonth();
@@ -66,7 +80,7 @@ export default function Calendar() {
 
   const recordsForMonth = teacherRecords.filter((record) => record.month === currentMonthKey);
   const recordsByDate = new Map(recordsForMonth.map((record) => [record.date, record]));
-  const holidaysByDate = new Map(demoHolidays.filter((holiday) => holiday.date.startsWith(currentMonthKey)).map((holiday) => [holiday.date, holiday]));
+  const holidaysByDate = new Map(holidays.filter((holiday) => holiday.date.startsWith(currentMonthKey)).map((holiday) => [holiday.date, holiday]));
   const detailEntries = [
     ...recordsForMonth.map((record) => ({ key: `record-${record.date}`, date: record.date, kind: "record" as const, record })),
     ...[...holidaysByDate.values()]
@@ -285,6 +299,7 @@ const styles = StyleSheet.create({
   legendText: { color: "#5c6687", fontSize: 11, fontWeight: "800" },
   sectionTitle: { color: "#1b1d32", fontSize: 17, fontWeight: "900", marginBottom: 12 },
   emptyText: { color: "#7d86a8", fontSize: 13, lineHeight: 19, fontWeight: "700" },
+  errorText: { color: "#c9435e", fontSize: 13, lineHeight: 19, fontWeight: "700" },
   detailRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12, paddingVertical: 12, borderTopWidth: 1, borderTopColor: "#eef1f8" },
   detailCopy: { flex: 1 },
   detailDate: { color: "#1b1d32", fontSize: 14, fontWeight: "900" },

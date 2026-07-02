@@ -5,6 +5,44 @@ import { requirePermission } from "@/lib/apiUtils";
 
 export const dynamic = "force-dynamic";
 
+function num(value: unknown) {
+  return Number(value) || 0;
+}
+
+function totalFeeForStudent(student: Record<string, unknown>) {
+  const totalFeeAmount = num(student.totalFeeAmount);
+  if (totalFeeAmount > 0) return totalFeeAmount;
+  return num(student.annualEnrollmentFee) + num(student.commitmentFee) + num(student.transportFee) + num(student.feeBalanceCarriedForward);
+}
+
+function paidForStudent(student: Record<string, unknown>, payments: Array<Record<string, unknown>>) {
+  const paymentTotal = payments
+    .filter((p) => String(p.status || "completed").toLowerCase() === "completed")
+    .reduce((sum, p) => sum + num(p.amountPaid), 0);
+  return Math.max(num(student.totalFeesPaid), paymentTotal);
+}
+
+function outstandingForStudent(student: Record<string, unknown>, paid: number) {
+  const totalFee = totalFeeForStudent(student);
+  const storedDue = num(student.totalFeesDue);
+
+  if (storedDue > 0 && totalFee > 0 && storedDue + paid <= totalFee + 1) {
+    return storedDue;
+  }
+  if (storedDue > 0) {
+    return Math.max(0, storedDue - paid);
+  }
+  return Math.max(0, totalFee - paid);
+}
+
+function dateString(value: unknown) {
+  if (typeof value === "string") return value.slice(0, 10);
+  if (value && typeof (value as { toDate?: () => Date }).toDate === "function") {
+    return (value as { toDate: () => Date }).toDate().toISOString().slice(0, 10);
+  }
+  return null;
+}
+
 /**
  * GET /api/admin/reports/student-wise
  * Generate student-wise fee report
@@ -44,9 +82,17 @@ export async function GET(request: NextRequest) {
 
     const report = students.map((student: any) => {
       const payments = paymentsByStudent[student.id] || [];
-      const totalPaid = payments
-        .filter((p) => p.status === 'completed')
-        .reduce((sum, p) => sum + p.amountPaid, 0);
+      const totalPaid = paidForStudent(student, payments);
+      const totalFee = totalFeeForStudent(student);
+      const remainingAmount = outstandingForStudent(student, totalPaid);
+      const lastPaymentDate =
+        dateString(student.lastPaymentDate) ??
+        payments
+          .map((payment) => dateString(payment.paymentDate ?? payment.createdAt))
+          .filter(Boolean)
+          .sort()
+          .at(-1) ??
+        null;
 
       return {
         admissionNumber: student.admissionNumber,
@@ -56,12 +102,12 @@ export async function GET(request: NextRequest) {
         annualEnrollmentFee: student.annualEnrollmentFee || 0,
         commitmentFee: student.commitmentFee || 0,
         previousYearDues: student.feeBalanceCarriedForward || 0,
-        totalFeeAmount: student.totalFeeAmount || 0,
-        totalFeeDue: student.totalFeesDue || 0,
+        totalFeeAmount: totalFee,
+        totalFeeDue: totalFee,
         totalPaid,
-        remainingAmount: Math.max(0, (student.totalFeesDue || 0) - totalPaid),
-        feeStatus: student.feeStatus || 'pending',
-        lastPaymentDate: student.lastPaymentDate || null
+        remainingAmount,
+        feeStatus: remainingAmount === 0 ? "paid" : totalPaid > 0 ? "partial" : student.feeStatus || "pending",
+        lastPaymentDate
       };
     });
 

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Banknote, BarChart3, Bell, BookOpen, Building2, CalendarCheck, DollarSign, FileStack, FileText, Landmark, Layers, ReceiptIndianRupee, ScrollText, Tag, TrendingDown, TrendingUp, Users, Wallet } from "lucide-react";
+import { Banknote, BarChart3, Bell, BookOpen, Building2, CalendarCheck, Circle, DollarSign, FileStack, FileText, Landmark, Layers, ReceiptIndianRupee, ScrollText, Tag, TrendingDown, TrendingUp, Users, Wallet } from "lucide-react";
 
 const TABS = [
   { href: "/admin/finance", label: "Dashboard", icon: BarChart3 },
@@ -37,8 +37,9 @@ export function FinanceSubnav() {
   const pathname = usePathname();
   return (
     <nav className="flex flex-wrap gap-2 px-4 pt-4 md:px-7">
-      {TABS.map(({ href, label, icon: Icon }) => {
+      {TABS.filter(Boolean).map(({ href, label, icon }) => {
         const active = pathname === href;
+        const Icon = icon ?? Circle;
         return (
           <Link
             key={href}

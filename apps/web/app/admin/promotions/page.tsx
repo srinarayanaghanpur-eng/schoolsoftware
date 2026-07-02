@@ -7,7 +7,7 @@ import { adminApiRequest } from "@/lib/adminApiClient";
 import { hasPermission, type AcademicYear } from "@sri-narayana/shared";
 import {
   AlertCircle, ArrowRight, ArrowUpDown, Ban, CheckCircle2, ChevronDown,
-  Clock, GraduationCap, History, ListRestart, Loader2, Plus, RotateCcw,
+  Circle, Clock, GraduationCap, History, ListRestart, Loader2, Plus, RotateCcw,
   Search, SlidersHorizontal, Users, X
 } from "lucide-react";
 import { useMemo, useState, useEffect, type FormEvent } from "react";
@@ -317,8 +317,9 @@ export default function PromotionsPage() {
       />
 
       <div className="flex flex-wrap gap-2 px-4 pt-4 md:px-7">
-        {tabs.map((t) => {
+        {tabs.filter(Boolean).map((t) => {
           const active = tab === t.key;
+          const Icon = t.icon ?? Circle;
           return (
             <button
               key={t.key}
@@ -330,7 +331,7 @@ export default function PromotionsPage() {
                   : "bg-white text-[#475067] ring-1 ring-[#e3e6f0] hover:bg-[#f3f4fb]"
               }`}
             >
-              <t.icon size={16} />
+              <Icon size={16} />
               {t.label}
             </button>
           );

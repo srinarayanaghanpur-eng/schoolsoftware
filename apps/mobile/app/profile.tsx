@@ -1,13 +1,13 @@
 import { Card } from "@/components/Card";
 import { Screen } from "@/components/Screen";
 import { auth } from "@/lib/firebase";
-import { demoTeachers } from "@sri-narayana/shared";
+import { useTeacherAttendanceData } from "@/lib/useTeacherAttendanceData";
 import { useRouter } from "expo-router";
 import { signOut } from "@firebase/auth";
 import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 
 export default function Profile() {
-  const teacher = demoTeachers[0];
+  const { teacher, loading, error } = useTeacherAttendanceData();
   const router = useRouter();
 
   const logout = async () => {
@@ -18,6 +18,34 @@ export default function Profile() {
       Alert.alert("Logout failed", error instanceof Error ? error.message : "Please try again.");
     }
   };
+
+  if (loading) {
+    return (
+      <Screen title="Profile" subtitle="Loading your details">
+        <Card>
+          <Text style={styles.emptyText} allowFontScaling={false}>Loading profile...</Text>
+        </Card>
+      </Screen>
+    );
+  }
+
+  if (error || !teacher) {
+    return (
+      <Screen title="Profile" subtitle="Your details">
+        <Card>
+          <Text style={styles.errorText} allowFontScaling={false}>{error ?? "Teacher profile not found."}</Text>
+        </Card>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Logout from the teacher app"
+          style={({ pressed }) => [styles.button, pressed && styles.pressed]}
+          onPress={logout}
+        >
+          <Text style={styles.buttonText} allowFontScaling={false}>Logout from this device</Text>
+        </Pressable>
+      </Screen>
+    );
+  }
 
   return (
     <Screen title="Profile" subtitle={teacher.employeeId}>
@@ -42,11 +70,11 @@ export default function Profile() {
         </View>
         <View style={styles.detailRow}>
           <Text style={styles.detailLabel} allowFontScaling={false}>Phone</Text>
-          <Text style={styles.detailValue} allowFontScaling={false}>{teacher.phone}</Text>
+          <Text style={styles.detailValue} allowFontScaling={false}>{teacher.phone || "--"}</Text>
         </View>
         <View style={styles.detailRow}>
           <Text style={styles.detailLabel} allowFontScaling={false}>Biometric ID</Text>
-          <Text style={styles.detailValue} allowFontScaling={false}>{teacher.biometricUserId}</Text>
+          <Text style={styles.detailValue} allowFontScaling={false}>{teacher.biometricUserId || "--"}</Text>
         </View>
       </Card>
       <Pressable
@@ -71,6 +99,8 @@ const styles = StyleSheet.create({
   detailRow: { alignSelf: "stretch", flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: "#eef1f8" },
   detailLabel: { color: "#7d86a8", fontSize: 13, fontWeight: "800", flex: 1 },
   detailValue: { fontSize: 14, fontWeight: "900", color: "#1b1d32", textAlign: "right", marginLeft: 8, maxWidth: "60%" },
+  emptyText: { color: "#7d86a8", fontSize: 13, lineHeight: 19, fontWeight: "700", textAlign: "center" },
+  errorText: { color: "#c9435e", fontSize: 13, lineHeight: 19, fontWeight: "700", textAlign: "center" },
   button: { backgroundColor: "#3033a1", padding: 16, borderRadius: 16, marginTop: 2, minHeight: 54, justifyContent: "center" },
   buttonText: { color: "white", textAlign: "center", fontWeight: "900", fontSize: 16 },
   pressed: { opacity: 0.82, transform: [{ scale: 0.99 }] }

@@ -5,6 +5,34 @@ import { requirePermission } from "@/lib/apiUtils";
 
 export const dynamic = "force-dynamic";
 
+function num(value: unknown) {
+  return Number(value) || 0;
+}
+
+function totalFeeForStudent(student: Record<string, unknown>) {
+  const totalFeeAmount = num(student.totalFeeAmount);
+  if (totalFeeAmount > 0) return totalFeeAmount;
+  return num(student.annualEnrollmentFee) + num(student.commitmentFee) + num(student.transportFee) + num(student.feeBalanceCarriedForward);
+}
+
+function paidForStudent(student: Record<string, unknown>) {
+  return num(student.totalFeesPaid);
+}
+
+function outstandingForStudent(student: Record<string, unknown>) {
+  const totalFee = totalFeeForStudent(student);
+  const paid = paidForStudent(student);
+  const storedDue = num(student.totalFeesDue);
+
+  if (storedDue > 0 && totalFee > 0 && storedDue + paid <= totalFee + 1) {
+    return storedDue;
+  }
+  if (storedDue > 0) {
+    return Math.max(0, storedDue - paid);
+  }
+  return Math.max(0, totalFee - paid);
+}
+
 /**
  * GET /api/admin/reports/class-wise
  * Generate class-wise fee report
@@ -46,10 +74,10 @@ export async function GET(request: NextRequest) {
       }
 
       byClass[key].totalStudents++;
-      byClass[key].totalFeeAmount += student.totalFeeAmount || 0;
-      byClass[key].totalFeeDue += student.totalFeesDue || 0;
-      byClass[key].totalFeePaid += student.totalFeesPaid || 0;
-      byClass[key].totalFeeOutstanding += Math.max(0, (student.totalFeesDue || 0) - (student.totalFeesPaid || 0));
+      byClass[key].totalFeeAmount += totalFeeForStudent(student);
+      byClass[key].totalFeeDue += totalFeeForStudent(student);
+      byClass[key].totalFeePaid += paidForStudent(student);
+      byClass[key].totalFeeOutstanding += outstandingForStudent(student);
       byClass[key].students.push(student);
     });
 

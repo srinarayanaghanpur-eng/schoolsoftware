@@ -3,12 +3,9 @@
 import { PageHeader } from "@/components/PageHeader";
 import { DateRangeFilter, formatDateForDisplay } from "@/components/DateRangeFilter";
 import { StatusBadge } from "@/components/StatusBadge";
-import { auth, isFirebaseConfigured } from "@sri-narayana/shared/firebase/client";
+import { auth } from "@sri-narayana/shared/firebase/client";
 import {
   createAttendanceDocumentId,
-  demoAttendance,
-  demoAttendanceEditAudits,
-  demoTeachers,
   type AttendanceEditAudit,
   type AttendanceRecord,
   type AttendanceStatus,
@@ -62,9 +59,9 @@ function createEditForm(record: AttendanceRecord): EditForm {
 }
 
 export default function AttendancePage() {
-  const [records, setRecords] = useState<AttendanceRecord[]>(isFirebaseConfigured ? [] : demoAttendance);
-  const [teachers, setTeachers] = useState<Teacher[]>(isFirebaseConfigured ? [] : demoTeachers);
-  const [audits, setAudits] = useState<AttendanceEditAudit[]>(isFirebaseConfigured ? [] : demoAttendanceEditAudits);
+  const [records, setRecords] = useState<AttendanceRecord[]>([]);
+  const [teachers, setTeachers] = useState<Teacher[]>([]);
+  const [audits, setAudits] = useState<AttendanceEditAudit[]>([]);
   const [statusFilter, setStatusFilter] = useState("all");
   const [teacherFilter, setTeacherFilter] = useState("all");
   const [fromDate, setFromDate] = useState("");
@@ -109,7 +106,6 @@ export default function AttendancePage() {
   };
 
   const loadAttendance = async () => {
-    if (!isFirebaseConfigured) return;
     setLoading(true);
     setError(null);
     try {
@@ -142,44 +138,6 @@ export default function AttendancePage() {
     };
 
     try {
-      if (!isFirebaseConfigured) {
-        setRecords((items) =>
-          items.map((record) =>
-            createAttendanceDocumentId(record.teacherId, record.date) === editing.attendanceId
-              ? {
-                  ...record,
-                  status: editing.status,
-                  checkInTime: payload.checkInTime || undefined,
-                  checkOutTime: payload.checkOutTime || undefined,
-                  lateMinutes: payload.lateMinutes,
-                  isLate: editing.status === "late" || payload.lateMinutes > 0,
-                  remarks: editing.remarks,
-                  adminEdited: true,
-                  editReason: editing.reason,
-                  editedBy: "admin_demo",
-                  updatedAt: new Date().toISOString()
-                }
-              : record
-          )
-        );
-        setAudits((items) => [
-          {
-            id: `demo_audit_${Date.now()}`,
-            attendanceId: editing.attendanceId,
-            teacherId: editing.teacherId,
-            date: editing.date,
-            newStatus: editing.status,
-            reason: editing.reason,
-            editedBy: "admin_demo",
-            editedAt: new Date().toISOString()
-          },
-          ...items
-        ]);
-        setEditing(null);
-        setMessage("Demo attendance edit saved with audit reason.");
-        return;
-      }
-
       const result = await apiRequest<{ message?: string }>("/api/admin/attendance", {
         method: "PATCH",
         body: JSON.stringify(payload)

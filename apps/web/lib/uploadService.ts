@@ -1,5 +1,5 @@
 import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from "firebase/storage";
-import { storage } from "@sri-narayana/shared";
+import { storage } from "@sri-narayana/shared/firebase/client";
 
 export async function uploadFile(
   file: File,

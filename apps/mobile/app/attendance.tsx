@@ -1,12 +1,13 @@
 import { Card } from "@/components/Card";
 import { Screen } from "@/components/Screen";
 import { postAttendance } from "@/lib/api";
-import { auth, db } from "@/lib/firebase";
+import { db } from "@/lib/firebase";
+import { useTeacherAttendanceData } from "@/lib/useTeacherAttendanceData";
 import { DEFAULT_SETTINGS, getDistanceFromCampus, isInsideCampus, type SchoolSettings } from "@sri-narayana/shared";
 import * as Device from "expo-device";
 import * as Location from "expo-location";
 import { doc, getDoc } from "firebase/firestore";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 
 function DistanceBar({ distance, radius }: { distance: number | null; radius: number }) {
@@ -37,10 +38,19 @@ function DistanceBar({ distance, radius }: { distance: number | null; radius: nu
 }
 
 export default function Attendance() {
+  const { teacher, loading: teacherLoading, error: teacherError } = useTeacherAttendanceData();
   const [settings, setSettings] = useState<SchoolSettings>(DEFAULT_SETTINGS);
   const [distance, setDistance] = useState<number | null>(null);
   const [currentGps, setCurrentGps] = useState<{ latitude: number; longitude: number } | null>(null);
   const [loading, setLoading] = useState<"checkin" | "checkout" | null>(null);
+
+  const effectiveSettings = useMemo<SchoolSettings>(() => ({
+    ...settings,
+    campusLatitude: teacher?.gpsLatitude ?? settings.campusLatitude,
+    campusLongitude: teacher?.gpsLongitude ?? settings.campusLongitude,
+    geofenceRadiusMeters: teacher?.gpsRadiusMeters ?? settings.geofenceRadiusMeters
+  }), [settings, teacher]);
+  const gpsRequired = teacher?.gpsEnabled !== false;
 
   useEffect(() => {
     getDoc(doc(db, "settings", "school"))
@@ -57,35 +67,43 @@ export default function Attendance() {
   const mark = async (eventType: "checkin" | "checkout") => {
     setLoading(eventType);
     try {
-      const permission = await Location.requestForegroundPermissionsAsync();
-      if (permission.status !== "granted") {
-        throw new Error("Location permission is required for attendance.");
+      if (!teacher) {
+        throw new Error("Teacher profile is still loading. Please try again in a moment.");
       }
 
-      const location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
-      const point = {
-        latitude: location.coords.latitude,
-        longitude: location.coords.longitude,
-        accuracyMeters: location.coords.accuracy ?? undefined
-      };
-      setCurrentGps({ latitude: point.latitude, longitude: point.longitude });
-      const currentDistance = getDistanceFromCampus(point, settings);
-      setDistance(currentDistance);
+      let point: { latitude: number; longitude: number; accuracyMeters?: number } | undefined;
 
-      if (!isInsideCampus(point, settings)) {
-        throw new Error("You are outside campus. Attendance not allowed.");
+      if (gpsRequired) {
+        const permission = await Location.requestForegroundPermissionsAsync();
+        if (permission.status !== "granted") {
+          throw new Error("Location permission is required for attendance.");
+        }
+
+        const location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+        point = {
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude,
+          accuracyMeters: location.coords.accuracy ?? undefined
+        };
+        setCurrentGps({ latitude: point.latitude, longitude: point.longitude });
+        const currentDistance = getDistanceFromCampus(point, effectiveSettings);
+        setDistance(currentDistance);
+
+        if (!isInsideCampus(point, effectiveSettings)) {
+          throw new Error("You are outside campus. Attendance not allowed.");
+        }
+      } else {
+        setCurrentGps(null);
+        setDistance(null);
       }
-
-      const token = await auth.currentUser?.getIdTokenResult();
-      const teacherId = typeof token?.claims.teacherId === "string" ? token.claims.teacherId : (() => { throw new Error("Missing teacherId in auth claims. Cannot mark attendance."); })();
 
       await postAttendance({
-        teacherId,
+        teacherId: teacher.id,
         eventType,
         timestamp: new Date().toISOString(),
-        latitude: point.latitude,
-        longitude: point.longitude,
-        accuracyMeters: point.accuracyMeters,
+        latitude: point?.latitude,
+        longitude: point?.longitude,
+        accuracyMeters: point?.accuracyMeters,
         deviceInfo: `${Device.manufacturer ?? "Unknown"} ${Device.modelName ?? "Device"}`
       });
       Alert.alert("Attendance saved", eventType === "checkin" ? "Your check-in was recorded." : "Your check-out was recorded.");
@@ -96,7 +114,7 @@ export default function Attendance() {
     }
   };
 
-  const inside = distance !== null && distance <= settings.geofenceRadiusMeters;
+  const inside = distance !== null && distance <= effectiveSettings.geofenceRadiusMeters;
   const locationKnown = currentGps !== null;
 
   return (
@@ -116,34 +134,37 @@ export default function Attendance() {
 
         <Text style={styles.label} allowFontScaling={false}>Campus location</Text>
         <Text style={styles.value} allowFontScaling={false}>
-          {settings.campusLatitude.toFixed(4)}, {settings.campusLongitude.toFixed(4)}
+          {effectiveSettings.campusLatitude.toFixed(4)}, {effectiveSettings.campusLongitude.toFixed(4)}
         </Text>
 
         <Text style={styles.label} allowFontScaling={false}>Allowed radius</Text>
-        <Text style={styles.value} allowFontScaling={false}>{settings.geofenceRadiusMeters} meters</Text>
+        <Text style={styles.value} allowFontScaling={false}>
+          {gpsRequired ? `${effectiveSettings.geofenceRadiusMeters} meters` : "GPS not required for your profile"}
+        </Text>
 
         <View style={styles.divider} />
 
         <Text style={styles.label} allowFontScaling={false}>Distance from campus</Text>
-        <DistanceBar distance={distance} radius={settings.geofenceRadiusMeters} />
+        <DistanceBar distance={distance} radius={effectiveSettings.geofenceRadiusMeters} />
+        {teacherError ? <Text style={styles.errorText} allowFontScaling={false}>{teacherError}</Text> : null}
       </Card>
 
       <View style={styles.row}>
         <Pressable
           accessibilityRole="button"
-          style={({ pressed }) => [styles.primary, pressed && styles.pressed, Boolean(loading) && styles.disabled]}
-          disabled={Boolean(loading)}
+          style={({ pressed }) => [styles.primary, pressed && styles.pressed, (Boolean(loading) || teacherLoading || !teacher) && styles.disabled]}
+          disabled={Boolean(loading) || teacherLoading || !teacher}
           onPress={() => mark("checkin")}
         >
-          <Text style={styles.primaryText} allowFontScaling={false}>{loading === "checkin" ? "Checking..." : "Check in"}</Text>
+          <Text style={styles.primaryText} allowFontScaling={false}>{teacherLoading ? "Loading..." : loading === "checkin" ? "Checking..." : "Check in"}</Text>
         </Pressable>
         <Pressable
           accessibilityRole="button"
-          style={({ pressed }) => [styles.secondary, pressed && styles.pressed, Boolean(loading) && styles.disabled]}
-          disabled={Boolean(loading)}
+          style={({ pressed }) => [styles.secondary, pressed && styles.pressed, (Boolean(loading) || teacherLoading || !teacher) && styles.disabled]}
+          disabled={Boolean(loading) || teacherLoading || !teacher}
           onPress={() => mark("checkout")}
         >
-          <Text style={styles.secondaryText} allowFontScaling={false}>{loading === "checkout" ? "Checking..." : "Check out"}</Text>
+          <Text style={styles.secondaryText} allowFontScaling={false}>{teacherLoading ? "Loading..." : loading === "checkout" ? "Checking..." : "Check out"}</Text>
         </Pressable>
       </View>
     </Screen>
@@ -163,6 +184,7 @@ const styles = StyleSheet.create({
   barTrack: { height: 8, borderRadius: 4, backgroundColor: "#edf0f7", overflow: "hidden", marginBottom: 6 },
   barFill: { height: "100%", borderRadius: 4 },
   barLabel: { fontSize: 12, fontWeight: "800", marginBottom: 14 },
+  errorText: { color: "#c9435e", fontSize: 12, lineHeight: 18, fontWeight: "700", marginTop: 8 },
   row: { flexDirection: "row", gap: 12 },
   primary: { flex: 1, minHeight: 56, backgroundColor: "#3033a1", padding: 16, borderRadius: 16, justifyContent: "center", alignItems: "center" },
   primaryText: { color: "white", textAlign: "center", fontWeight: "900", fontSize: 16 },

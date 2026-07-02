@@ -1,7 +1,8 @@
 import { Card } from "@/components/Card";
 import { Screen } from "@/components/Screen";
 import { StatusPill } from "@/components/StatusPill";
-import { demoAttendance, type AttendanceStatus } from "@sri-narayana/shared";
+import { useTeacherAttendanceData } from "@/lib/useTeacherAttendanceData";
+import type { AttendanceStatus } from "@sri-narayana/shared";
 import { useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 
@@ -24,11 +25,12 @@ function formatMonth(monthKey: string) {
 }
 
 export default function History() {
+  const { records, loading, error } = useTeacherAttendanceData();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<AttendanceStatus | "all">("all");
 
   const filtered = useMemo(() => {
-    let result = [...demoAttendance];
+    let result = [...records];
     if (statusFilter !== "all") {
       result = result.filter((r) => r.status === statusFilter);
     }
@@ -38,7 +40,7 @@ export default function History() {
     }
     result.sort((a, b) => b.date.localeCompare(a.date));
     return result;
-  }, [statusFilter, search]);
+  }, [records, statusFilter, search]);
 
   const grouped = useMemo(() => {
     const map = new Map<string, typeof filtered>();
@@ -83,7 +85,16 @@ export default function History() {
         ))}
       </ScrollView>
 
-      {grouped.length === 0 ? (
+      {loading ? (
+        <Card>
+          <Text style={styles.emptyTitle} allowFontScaling={false}>Loading records...</Text>
+          <Text style={styles.emptySub} allowFontScaling={false}>Your attendance history is syncing.</Text>
+        </Card>
+      ) : error ? (
+        <Card>
+          <Text style={styles.errorText} allowFontScaling={false}>{error}</Text>
+        </Card>
+      ) : grouped.length === 0 ? (
         <Card>
           <Text style={styles.emptyTitle} allowFontScaling={false}>No records found</Text>
           <Text style={styles.emptySub} allowFontScaling={false}>Try adjusting your search or filter.</Text>
@@ -153,6 +164,7 @@ const styles = StyleSheet.create({
   copy: { flex: 1 },
   date: { fontWeight: "900", color: "#1b1d32", fontSize: 15 },
   muted: { marginTop: 5, color: "#7d86a8", fontSize: 13, fontWeight: "700" },
+  errorText: { color: "#c9435e", fontSize: 13, lineHeight: 19, fontWeight: "700", textAlign: "center" },
   emptyTitle: { color: "#1b1d32", fontSize: 16, fontWeight: "900", textAlign: "center" },
   emptySub: { marginTop: 6, color: "#7d86a8", fontSize: 13, fontWeight: "600", textAlign: "center" }
 });

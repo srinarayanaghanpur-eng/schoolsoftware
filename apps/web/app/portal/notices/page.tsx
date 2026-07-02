@@ -6,7 +6,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { usePortalChild } from "@/components/PortalChildContext";
 import { adminApiRequest } from "@/lib/adminApiClient";
 import { ROLES } from "@sri-narayana/shared";
-import { BellRing, Megaphone, School, CalendarDays, BookOpenCheck, AlertTriangle, DollarSign, Filter } from "lucide-react";
+import { BellRing, Megaphone, School, CalendarDays, BookOpenCheck, AlertTriangle, DollarSign, Circle } from "lucide-react";
 import { useEffect, useState } from "react";
 
 const CATEGORIES = [
@@ -88,8 +88,9 @@ function Notices() {
         {error && <div className="rounded-2xl border border-[#ffd5da] bg-[#ffebed] px-4 py-3 text-sm font-semibold text-[#c83f4d]">{error}</div>}
 
         <div className="flex flex-wrap gap-2">
-          {CATEGORIES.map((cat) => {
+          {CATEGORIES.filter(Boolean).map((cat) => {
             const active = category === cat.value;
+            const Icon = cat.icon ?? Circle;
             return (
               <button
                 key={cat.value}
@@ -98,7 +99,7 @@ function Notices() {
                   active ? "bg-[#2d3094] text-white shadow-sm" : "bg-white text-[#475067] ring-1 ring-[#e3e6f0] hover:bg-[#f3f4fb]"
                 }`}
               >
-                <cat.icon size={14} />
+                <Icon size={14} />
                 {cat.label}
               </button>
             );

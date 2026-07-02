@@ -5,6 +5,36 @@ import { requirePermission } from "@/lib/apiUtils";
 
 export const dynamic = "force-dynamic";
 
+function num(value: unknown) {
+  return Number(value) || 0;
+}
+
+function totalFeeForStudent(student: Record<string, unknown>) {
+  const totalFeeAmount = num(student.totalFeeAmount);
+  if (totalFeeAmount > 0) return totalFeeAmount;
+  return num(student.annualEnrollmentFee) + num(student.commitmentFee) + num(student.transportFee) + num(student.feeBalanceCarriedForward);
+}
+
+function paidForStudent(student: Record<string, unknown>, payments: Array<Record<string, unknown>>) {
+  const paymentTotal = payments
+    .filter((p) => String(p.status || "completed").toLowerCase() === "completed")
+    .reduce((sum, p) => sum + num(p.amountPaid), 0);
+  return Math.max(num(student.totalFeesPaid), paymentTotal);
+}
+
+function outstandingForStudent(student: Record<string, unknown>, paid: number) {
+  const totalFee = totalFeeForStudent(student);
+  const storedDue = num(student.totalFeesDue);
+
+  if (storedDue > 0 && totalFee > 0 && storedDue + paid <= totalFee + 1) {
+    return storedDue;
+  }
+  if (storedDue > 0) {
+    return Math.max(0, storedDue - paid);
+  }
+  return Math.max(0, totalFee - paid);
+}
+
 /**
  * GET /api/admin/reports/attendance-fee
  * Generate attendance vs fee report
@@ -44,12 +74,11 @@ export async function GET(request: NextRequest) {
 
     let report = students.map((student: any) => {
       const payments = paymentsByStudent[student.id] || [];
-      const totalPaid = payments
-        .filter((p: any) => p.status === 'completed')
-        .reduce((sum: number, p: any) => sum + p.amountPaid, 0);
+      const totalPaid = paidForStudent(student, payments);
 
       const attendance = student.attendancePercentage || 0;
-      const feeDue = student.totalFeesDue || 0;
+      const totalFee = totalFeeForStudent(student);
+      const remainingAmount = outstandingForStudent(student, totalPaid);
 
       return {
         admissionNumber: student.admissionNumber,
@@ -59,11 +88,12 @@ export async function GET(request: NextRequest) {
         attendancePercentage: attendance,
         annualEnrollmentFee: student.annualEnrollmentFee || 0,
         commitmentFee: student.commitmentFee || 0,
-        totalFeeAmount: student.totalFeeAmount || 0,
-        totalFeeDue: feeDue,
+        totalFeeAmount: totalFee,
+        totalFeeDue: totalFee,
         totalPaid,
-        feePaidPercentage: feeDue > 0 ? ((totalPaid / feeDue) * 100).toFixed(2) : '0.00',
-        feeStatus: student.feeStatus || 'pending',
+        remainingAmount,
+        feePaidPercentage: totalFee > 0 ? ((totalPaid / totalFee) * 100).toFixed(2) : '0.00',
+        feeStatus: remainingAmount === 0 ? "paid" : totalPaid > 0 ? "partial" : student.feeStatus || "pending",
         attendanceEligibility: attendance >= 75 ? 'Eligible' : 'Ineligible'
       };
     });

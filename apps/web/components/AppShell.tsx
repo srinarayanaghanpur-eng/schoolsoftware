@@ -17,6 +17,9 @@ import {
   CalendarDays,
   CalendarRange,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Circle,
   ClipboardCheck,
   FileStack,
   FileText,
@@ -31,7 +34,6 @@ import {
   MessageSquare,
   ReceiptIndianRupee,
   RefreshCw,
-  Search,
   Settings,
   ShieldAlert,
   ShieldCheck,
@@ -64,6 +66,7 @@ import { AdminSessionProvider } from "@/components/AdminSessionContext";
 import { BrandLoader } from "@/components/BrandLoader";
 import { LiveClock } from "@/components/LiveClock";
 import { DarkModeToggle } from "@/components/DarkModeToggle";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { SectionTabs } from "@/components/SectionTabs";
 import { clearPayrollSessionId } from "@/lib/payrollSessionClient";
 import { refreshClaims } from "@/lib/authClaims";
@@ -87,6 +90,9 @@ type ContextSubnav = {
   matchPrefixes: string[];
   items: ContextSubnavItem[];
 };
+
+const CONTEXT_SUBNAV_COLLAPSED_KEY = "snhs-context-subnav-collapsed";
+const FallbackIcon = Circle;
 
 const primaryNav: NavItem[] = [
   { href: "/admin/dashboard", label: "Dashboard", module: "dashboard", icon: LayoutDashboard },
@@ -316,17 +322,22 @@ function moduleForPath(pathname: string): Module | undefined {
   return routeModules.find((entry) => pathname === entry.prefix || pathname.startsWith(`${entry.prefix}/`))?.module;
 }
 
-function navForRole(items: NavItem[], role?: Role): NavItem[] {
+function navForRole(items: Array<NavItem | null | undefined>, role?: Role): NavItem[] {
   const allowed = new Set(modulesForRole(role));
   return items
+    .filter((item): item is NavItem => Boolean(item?.href && item.label && item.module))
     // Must pass BOTH the module RBAC matrix and the route table, so we never
     // show a link the route guard would deny (e.g. Fees & Finance to principal,
     // Settings to admin). Keeps the sidebar consistent with actual access.
     .filter((item) => allowed.has(item.module) && isRoleAllowedForPath(item.href, role))
     .map((item) => ({
       ...item,
+      icon: item.icon ?? FallbackIcon,
       children: item.children?.filter(
-        (child) => (!child.module || allowed.has(child.module)) && isRoleAllowedForPath(child.href, role)
+        (child) =>
+          Boolean(child?.href && child.label) &&
+          (!child.module || allowed.has(child.module)) &&
+          isRoleAllowedForPath(child.href, role)
       )
     }));
 }
@@ -339,6 +350,7 @@ function NavEntry({ item, pathname }: { item: NavItem; pathname: string }) {
   const active = isPathActive(pathname, item.href, item.activePrefixes);
   const childActive = item.children?.some((child) => isPathActive(pathname, child.href)) ?? false;
   const [open, setOpen] = useState(active || childActive);
+  const Icon = item.icon ?? FallbackIcon;
 
   return (
     <div>
@@ -353,7 +365,7 @@ function NavEntry({ item, pathname }: { item: NavItem; pathname: string }) {
           )}
         >
           {active && <span className="absolute inset-y-2 -left-2 w-1 rounded-r-full bg-[#f7c948]" />}
-          <item.icon size={18} strokeWidth={2.35} className={active ? "text-white" : "text-[#bbc6ff] group-hover:text-white"} />
+          <Icon size={18} strokeWidth={2.35} className={active ? "text-white" : "text-[#bbc6ff] group-hover:text-white"} />
           <span className="flex-1">{item.label}</span>
           {item.badge !== undefined && item.badge > 0 && (
             <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-[#ffd23f] px-1.5 text-[10px] font-extrabold text-[#20226f]">
@@ -397,41 +409,112 @@ function NavEntry({ item, pathname }: { item: NavItem; pathname: string }) {
   );
 }
 
-function ContextualSubnav({ subnav, pathname }: { subnav: ContextSubnav; pathname: string }) {
-  return (
-    <aside className="fixed inset-y-0 left-[248px] z-40 hidden w-[224px] flex-col border-r border-[#e3e8f6] bg-[#f8faff] shadow-[12px_0_30px_rgba(50,61,130,0.06)] md:flex print:hidden">
-      <div className="border-b border-[#e4e9f7] px-5 py-5">
+function ContextualSubnav({
+  subnav,
+  pathname,
+  collapsed,
+  drawerOpen,
+  onCollapse,
+  onCloseDrawer
+}: {
+  subnav: ContextSubnav;
+  pathname: string;
+  collapsed: boolean;
+  drawerOpen: boolean;
+  onCollapse: () => void;
+  onCloseDrawer: () => void;
+}) {
+  const items = (subnav.items ?? []).filter((item): item is ContextSubnavItem => Boolean(item?.href && item.label));
+
+  const renderLinks = (onNavigate?: () => void, interactive = true) => (
+    <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto px-3 py-4">
+      {items.map(({ href, label, icon, activePrefixes }) => {
+        const active = isPathActive(pathname, href, activePrefixes);
+        const Icon = icon ?? FallbackIcon;
+        return (
+          <Link
+            key={`${href}-${label}`}
+            href={href}
+            onClick={onNavigate}
+            tabIndex={interactive ? undefined : -1}
+            className={clsx(
+              "group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] font-bold transition",
+              active
+                ? "bg-white text-[#2628a0] shadow-[0_10px_22px_rgba(44,48,143,0.10)] ring-1 ring-[#e2e6ff]"
+                : "text-[#65708f] hover:bg-white hover:text-[#2628a0] hover:shadow-sm"
+            )}
+          >
+            {active && <span className="absolute inset-y-2 -left-3 w-1 rounded-r-full bg-[#4b4fc4]" />}
+            <span className={clsx("grid h-8 w-8 shrink-0 place-items-center rounded-lg", active ? "bg-[#eef0ff] text-[#3033a1]" : "bg-[#edf1fb] text-[#7e88aa] group-hover:text-[#3033a1]")}>
+              <Icon size={16} strokeWidth={2.35} />
+            </span>
+            <span className="min-w-0 truncate">{label}</span>
+          </Link>
+        );
+      })}
+    </nav>
+  );
+
+  const footer = (
+    <div className="m-3 rounded-xl border border-[#e3e8f6] bg-white p-3 shadow-sm">
+      <p className="text-xs font-extrabold text-[#1f2136]">Sri Narayana</p>
+      <p className="mt-0.5 text-[11px] font-semibold text-[#7d86a8]">Selected module actions</p>
+    </div>
+  );
+
+  const header = (expanded: boolean, interactive = true) => (
+    <div className="flex items-start gap-3 border-b border-[#e4e9f7] px-5 py-5">
+      <div className="min-w-0 flex-1">
         <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-[#7a86ad]">{subnav.eyebrow}</p>
-        <h2 className="mt-1 text-lg font-extrabold tracking-tight text-[#1b1d32]">{subnav.title}</h2>
+        <h2 className="mt-1 truncate text-lg font-extrabold tracking-tight text-[#1b1d32]">{subnav.title}</h2>
       </div>
-      <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto px-3 py-4">
-        {subnav.items.map(({ href, label, icon: Icon, activePrefixes }) => {
-          const active = isPathActive(pathname, href, activePrefixes);
-          return (
-            <Link
-              key={`${href}-${label}`}
-              href={href}
-              className={clsx(
-                "group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] font-bold transition",
-                active
-                  ? "bg-white text-[#2628a0] shadow-[0_10px_22px_rgba(44,48,143,0.10)] ring-1 ring-[#e2e6ff]"
-                  : "text-[#65708f] hover:bg-white hover:text-[#2628a0] hover:shadow-sm"
-              )}
-            >
-              {active && <span className="absolute inset-y-2 -left-3 w-1 rounded-r-full bg-[#4b4fc4]" />}
-              <span className={clsx("grid h-8 w-8 shrink-0 place-items-center rounded-lg", active ? "bg-[#eef0ff] text-[#3033a1]" : "bg-[#edf1fb] text-[#7e88aa] group-hover:text-[#3033a1]")}>
-                <Icon size={16} strokeWidth={2.35} />
-              </span>
-              <span className="min-w-0 truncate">{label}</span>
-            </Link>
-          );
-        })}
-      </nav>
-      <div className="m-3 rounded-xl border border-[#e3e8f6] bg-white p-3 shadow-sm">
-        <p className="text-xs font-extrabold text-[#1f2136]">Sri Narayana</p>
-        <p className="mt-0.5 text-[11px] font-semibold text-[#7d86a8]">Selected module actions</p>
-      </div>
-    </aside>
+      <button
+        type="button"
+        aria-label="Hide module navigation"
+        aria-expanded={expanded}
+        onClick={onCollapse}
+        tabIndex={interactive ? undefined : -1}
+        className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[#eef2ff] text-[#27318d] shadow-sm ring-1 ring-[#dfe5ff] transition hover:bg-[#e3e8ff] focus:outline-none focus:ring-2 focus:ring-[#4b4fc4]/30"
+      >
+        <ChevronLeft size={17} strokeWidth={2.4} />
+      </button>
+    </div>
+  );
+
+  return (
+    <>
+      <aside
+        aria-hidden={collapsed}
+        className={clsx(
+          "fixed inset-y-0 left-[248px] z-40 hidden w-[224px] flex-col border-r border-[#e3e8f6] bg-[#f8faff] shadow-[12px_0_30px_rgba(50,61,130,0.06)] transition-[transform,opacity] duration-300 ease-out lg:flex print:hidden",
+          collapsed ? "pointer-events-none -translate-x-full opacity-0" : "translate-x-0 opacity-100"
+        )}
+      >
+        {header(!collapsed, !collapsed)}
+        {renderLinks(undefined, !collapsed)}
+        {footer}
+      </aside>
+
+      {drawerOpen && (
+        <div
+          aria-hidden="true"
+          onClick={onCloseDrawer}
+          className="fixed inset-0 z-30 bg-[#0a103a]/35 backdrop-blur-[2px] lg:hidden print:hidden"
+        />
+      )}
+
+      <aside
+        aria-hidden={!drawerOpen}
+        className={clsx(
+          "fixed inset-y-0 left-0 z-40 flex w-[280px] max-w-[86vw] flex-col border-r border-[#e3e8f6] bg-[#f8faff] shadow-[18px_0_34px_rgba(28,36,102,0.16)] transition-transform duration-300 ease-out md:left-[248px] lg:hidden print:hidden",
+          drawerOpen ? "translate-x-0" : "pointer-events-none -translate-x-full md:-translate-x-[calc(100%+248px)]"
+        )}
+      >
+        {header(drawerOpen, drawerOpen)}
+        {renderLinks(onCloseDrawer, drawerOpen)}
+        {footer}
+      </aside>
+    </>
   );
 }
 
@@ -590,16 +673,28 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   // Pending approval count badge
   const [pendingApprovals, setPendingApprovals] = useState(0);
   useEffect(() => {
-    if (!isFirebaseConfigured || !role) return;
+    if (!isFirebaseConfigured || !role || !canAccessModule(role, "settings") || !isRoleAllowedForPath("/admin/approvals", role)) {
+      setPendingApprovals(0);
+      return;
+    }
     const fetchCount = async () => {
       try {
+        const token = await auth.currentUser?.getIdToken();
+        if (!token) {
+          setPendingApprovals(0);
+          return;
+        }
         const res = await fetch("/api/admin/approvals?status=pending", {
-          headers: { authorization: `Bearer ${(await auth.currentUser?.getIdToken()) ?? ""}` }
+          headers: { authorization: `Bearer ${token}` }
         });
+        if (!res.ok) {
+          setPendingApprovals(0);
+          return;
+        }
         const data = await res.json();
-        if (data.ok) setPendingApprovals(data.requests?.length ?? 0);
+        setPendingApprovals(data?.ok ? data.requests?.length ?? 0 : 0);
       } catch {
-        // Silently fail — badge is cosmetic
+        setPendingApprovals(0);
       }
     };
     void fetchCount();
@@ -610,6 +705,28 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   // Mobile slide-in nav drawer. Closes automatically on navigation.
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   useEffect(() => setMobileNavOpen(false), [pathname]);
+
+  const [contextSubnavCollapsed, setContextSubnavCollapsed] = useState(false);
+  const [contextSubnavPreferenceLoaded, setContextSubnavPreferenceLoaded] = useState(false);
+  const [contextSubnavDrawerOpen, setContextSubnavDrawerOpen] = useState(false);
+  useEffect(() => {
+    try {
+      setContextSubnavCollapsed(window.localStorage.getItem(CONTEXT_SUBNAV_COLLAPSED_KEY) === "true");
+    } catch {
+      // Local storage can be blocked; the UI still works for this session.
+    } finally {
+      setContextSubnavPreferenceLoaded(true);
+    }
+  }, []);
+  useEffect(() => {
+    if (!contextSubnavPreferenceLoaded) return;
+    try {
+      window.localStorage.setItem(CONTEXT_SUBNAV_COLLAPSED_KEY, contextSubnavCollapsed ? "true" : "false");
+    } catch {
+      // ignore
+    }
+  }, [contextSubnavCollapsed, contextSubnavPreferenceLoaded]);
+  useEffect(() => setContextSubnavDrawerOpen(false), [pathname]);
 
   // The accountant has no use for the admin dashboard — send them straight to
   // Finance as their home so they don't land on (or see the URL of) /admin/dashboard.
@@ -643,6 +760,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
     return allowedItems.length > 0 ? { ...section, items: allowedItems } : null;
   }, [pathname, role, isPortalRole]);
+  useEffect(() => {
+    if (!contextualSubnav) setContextSubnavDrawerOpen(false);
+  }, [contextualSubnav]);
   const desktopNavGroups = useMemo(() => {
     if (isPortalRole) return mainNav.length ? [{ label: "Portal", items: mainNav }] : [];
     const itemMap = new Map([...mainNav, ...generalNav].map((item) => [item.href, item]));
@@ -655,6 +775,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, [mainNav, generalNav, isPortalRole]);
   const bottomTabs = useMemo(
     () => mobileNav.filter((item) => {
+      if (!item?.href || !item.label || !item.short) return false;
       if (!item.module) return true;
       if (!role || !canAccessModule(role, item.module)) return false;
       // Keep portal tabs for portal roles and admin tabs for everyone else, so
@@ -672,6 +793,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     ((Boolean(currentModule) && (!role || !canAccessModule(role, currentModule!))) ||
       !isRoleAllowedForPath(pathname, role));
   const roleLabel = role ? ROLE_LABELS[role] : "Loading...";
+
+  const hideContextualSubnav = () => {
+    setContextSubnavCollapsed(true);
+    setContextSubnavDrawerOpen(false);
+  };
+
+  const showContextualSubnav = () => {
+    setMobileNavOpen(false);
+    setContextSubnavCollapsed(false);
+    setContextSubnavDrawerOpen(true);
+  };
 
   const handleSignOut = () => {
     clearPayrollSessionId();
@@ -756,6 +888,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <nav className="nav-scroll min-h-0 flex-1 space-y-1 overflow-y-auto px-3 py-5 md:hidden">
           {bottomTabs.map((item) => {
             const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+            const Icon = item.icon ?? FallbackIcon;
             return (
               <Link
                 key={item.href}
@@ -766,7 +899,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 )}
               >
                 {active && <span className="absolute inset-y-3 -left-2 w-1 rounded-r-full bg-[#ffd23f]" />}
-                <item.icon size={20} strokeWidth={2.4} className={active ? "text-white" : "text-[#c5ceff] group-hover:text-white"} />
+                <Icon size={20} strokeWidth={2.4} className={active ? "text-white" : "text-[#c5ceff] group-hover:text-white"} />
                 {item.label}
               </Link>
             );
@@ -821,19 +954,49 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </button>
       </aside>
 
-      {contextualSubnav && <ContextualSubnav subnav={contextualSubnav} pathname={pathname} />}
+      {contextualSubnav && (
+        <ContextualSubnav
+          subnav={contextualSubnav}
+          pathname={pathname}
+          collapsed={contextSubnavCollapsed}
+          drawerOpen={contextSubnavDrawerOpen}
+          onCollapse={hideContextualSubnav}
+          onCloseDrawer={() => setContextSubnavDrawerOpen(false)}
+        />
+      )}
+
+      {contextualSubnav && !contextSubnavDrawerOpen && (
+        <button
+          type="button"
+          aria-label={`Show ${contextualSubnav.title} navigation`}
+          aria-expanded={false}
+          onClick={showContextualSubnav}
+          className={clsx(
+            "fixed left-0 top-[92px] z-30 items-center gap-1 rounded-r-xl border border-l-0 border-[#dfe5ff] bg-white/95 px-1.5 py-3 text-[#27318d] shadow-[8px_10px_24px_rgba(42,48,132,0.12)] backdrop-blur transition hover:bg-[#eef2ff] focus:outline-none focus:ring-2 focus:ring-[#4b4fc4]/30 md:left-[248px] print:hidden",
+            contextSubnavCollapsed ? "flex" : "flex lg:hidden"
+          )}
+        >
+          <ChevronRight size={16} strokeWidth={2.5} />
+          <span className="text-[10px] font-extrabold uppercase tracking-[0.14em]" style={{ writingMode: "vertical-rl" }}>
+            Menu
+          </span>
+        </button>
+      )}
 
       <main
         key={pathname}
         className={clsx(
-          "flex min-w-0 flex-1 flex-col print:ml-0 print:block",
-          contextualSubnav ? "md:ml-[472px]" : "md:ml-[248px]"
+          "flex min-w-0 flex-1 flex-col transition-[margin] duration-300 ease-out print:ml-0 print:block",
+          contextualSubnav && !contextSubnavCollapsed ? "md:ml-[248px] lg:ml-[472px]" : "md:ml-[248px]"
         )}
       >
         <header className="sticky top-0 z-20 flex min-h-[64px] shrink-0 items-center gap-3 border-b border-[#e5e9f4] bg-white/[0.92] px-3 py-2.5 shadow-[0_6px_18px_rgba(38,47,110,0.04)] backdrop-blur md:min-h-[72px] md:gap-4 md:px-6 md:py-3 print:hidden">
           <button
             type="button"
-            onClick={() => setMobileNavOpen(true)}
+            onClick={() => {
+              setContextSubnavDrawerOpen(false);
+              setMobileNavOpen(true);
+            }}
             aria-label="Open menu"
             className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-[#eef2ff] text-[#27318d] transition hover:bg-[#e3e8ff] md:hidden"
           >
@@ -843,14 +1006,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <h1 className="truncate text-lg font-extrabold tracking-tight text-[#15172d] md:text-xl">{title}</h1>
             <p className="truncate text-xs font-medium text-[#7b85a8]"><HeaderDateLabel now={now} /></p>
           </div>
-          <label className="relative ml-auto hidden max-w-[420px] flex-1 xl:block">
-            <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#8490b9]" />
-            <input
-              aria-label="Search school records"
-              placeholder="Search students, staff, invoices..."
-              className="h-11 w-full rounded-lg border border-[#e0e5f2] bg-[#f8faff] pl-11 pr-4 text-sm font-semibold text-[#242744] outline-none placeholder:text-[#9aa4c4] focus:border-[#4a4bb1] focus:bg-white focus:ring-4 focus:ring-[#4a4bb1]/10"
-            />
-          </label>
           <AcademicYearSwitcher />
           <LiveClock className="hidden sm:inline-flex" />
           <DarkModeToggle />
@@ -872,7 +1027,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </button>
         </header>
         <div key={pathname} className="page-enter flex-1 overflow-y-auto pb-[76px] md:pb-0 print:overflow-visible print:pb-0 print:opacity-100">
-          {sessionLoading ? <BrandLoader message="Loading secure workspace…" /> : routeDenied ? <AccessDeniedState module={currentModule} /> : (<>{!contextualSubnav && <SectionTabs />}{children}</>)}
+          <ErrorBoundary resetKey={pathname}>
+            {sessionLoading ? <BrandLoader message="Loading secure workspace…" /> : routeDenied ? <AccessDeniedState module={currentModule} /> : (<>{!contextualSubnav && <SectionTabs />}{children}</>)}
+          </ErrorBoundary>
         </div>
       </main>
 
@@ -880,6 +1037,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <nav className="fixed inset-x-0 bottom-0 z-30 flex items-stretch border-t border-[#e4e6f0] bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden print:hidden">
         {bottomTabs.map((item) => {
           const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+          const Icon = item.icon ?? FallbackIcon;
           return (
             <Link
               key={item.href}
@@ -889,7 +1047,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 active ? "text-[#3033a1]" : "text-[#8a93b1]"
               )}
             >
-              <item.icon size={21} strokeWidth={active ? 2.6 : 2.1} />
+              <Icon size={21} strokeWidth={active ? 2.6 : 2.1} />
               <span className="leading-none">{item.short}</span>
             </Link>
           );

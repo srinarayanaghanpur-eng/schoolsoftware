@@ -11,4 +11,3 @@ export * from "./services/salaryService";
 export * from "./services/biometricDeviceService";
 export * from "./services/reportExportService";
 export * from "./seed/demoData";
-export { storage } from "./firebase/client";

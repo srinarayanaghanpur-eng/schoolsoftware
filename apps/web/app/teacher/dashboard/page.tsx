@@ -8,7 +8,7 @@ import { BrandLoader } from "@/components/BrandLoader";
 import { auth } from "@sri-narayana/shared/firebase/client";
 import { getAttendancePercentage, type AttendanceRecord, type Teacher } from "@sri-narayana/shared";
 import { signOut } from "firebase/auth";
-import { CalendarDays, CheckCircle2, Clock3, LogOut, MapPin, Sparkles, UserRound } from "lucide-react";
+import { CalendarDays, CheckCircle2, Circle, Clock3, LogOut, MapPin, Sparkles, UserRound } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
@@ -47,10 +47,11 @@ function TeacherMetric({
   label: string;
   value: string | React.ReactNode;
   helper: string;
-  icon: typeof CalendarDays;
+  icon?: typeof CalendarDays;
   tone: string;
   delay: number;
 }) {
+  const SafeIcon = Icon ?? Circle;
   return (
     <article
       className="dashboard-animate rounded-2xl border border-[#e3e6f0] bg-white p-5 shadow-[0_2px_4px_rgba(36,42,94,0.03)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_12px_26px_rgba(36,42,94,0.09)]"
@@ -58,7 +59,7 @@ function TeacherMetric({
     >
       <div className="flex items-center justify-between gap-3">
         <p className="text-sm font-semibold text-[#7d86a8]">{label}</p>
-        <span className={`grid h-10 w-10 place-items-center rounded-xl ${tone}`}><Icon size={20} strokeWidth={2.25} /></span>
+        <span className={`grid h-10 w-10 place-items-center rounded-xl ${tone}`}><SafeIcon size={20} strokeWidth={2.25} /></span>
       </div>
       <div className="mt-3 min-h-8 text-[28px] font-extrabold leading-none tracking-tight text-[#1b1d32]">{value}</div>
       <p className="mt-2 text-sm font-semibold text-[#7d86a8]">{helper}</p>

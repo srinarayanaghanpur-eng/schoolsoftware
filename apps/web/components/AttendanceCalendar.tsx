@@ -2,7 +2,8 @@
 
 import clsx from "clsx";
 import { memo, useEffect, useMemo, useState } from "react";
-import { Clock, LogIn, LogOut, MapPin, Smartphone, Timer, X } from "lucide-react";
+import { Circle, Clock, LogIn, LogOut, MapPin, Smartphone, Timer, X } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import type { AttendanceRecord, AttendanceStatus } from "@sri-narayana/shared";
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
@@ -40,11 +41,12 @@ function workedDuration(inIso?: string, outIso?: string) {
   return `${hours}h ${minutes}m`;
 }
 
-function DetailTile({ icon: Icon, label, value, tone }: { icon: typeof Clock; label: string; value: string; tone: string }) {
+function DetailTile({ icon: Icon, label, value, tone }: { icon?: LucideIcon; label: string; value: string; tone: string }) {
+  const SafeIcon = Icon ?? Circle;
   return (
     <div className="flex items-center gap-3 rounded-xl border border-[#edf0f7] bg-[#fafbff] px-3.5 py-3">
       <span className={clsx("grid h-9 w-9 shrink-0 place-items-center rounded-lg", tone)}>
-        <Icon size={17} strokeWidth={2.25} />
+        <SafeIcon size={17} strokeWidth={2.25} />
       </span>
       <span className="min-w-0">
         <span className="block text-[11px] font-semibold uppercase tracking-wide text-[#9098b6]">{label}</span>

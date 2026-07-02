@@ -13,6 +13,7 @@ import {
   BarChart3,
   CalendarCheck,
   Check,
+  Circle,
   Clock3,
   Eye,
   EyeOff,
@@ -32,7 +33,7 @@ type LoginIdCheckStatus = "empty" | "checking" | "matched" | "unknown";
 type Feature = {
   title: string;
   description: string;
-  icon: LucideIcon;
+  icon?: LucideIcon;
 };
 
 const featureCards: Feature[] = [
@@ -231,7 +232,7 @@ function DesktopIllustration() {
 }
 
 function DesktopFeatureCard({ feature }: { feature: Feature }) {
-  const Icon = feature.icon;
+  const Icon = feature.icon ?? Circle;
 
   return (
     <div className="group h-[112px] overflow-hidden rounded-[14px] border border-white/35 bg-white/[0.92] px-2.5 py-2.5 text-center text-stone-900 shadow-[0_12px_24px_rgba(8,20,70,0.13)] backdrop-blur-xl transition duration-300 hover:-translate-y-0.5 hover:bg-white">
@@ -304,7 +305,7 @@ function DesktopInput({
   valid,
   right
 }: {
-  icon: LucideIcon;
+  icon?: LucideIcon;
   value: string;
   onChange: (value: string) => void;
   placeholder: string;
@@ -314,9 +315,10 @@ function DesktopInput({
   valid?: boolean;
   right?: React.ReactNode;
 }) {
+  const SafeIcon = Icon ?? Circle;
   return (
     <label className="group relative block">
-      <Icon className="pointer-events-none absolute left-5 top-1/2 h-5 w-5 -translate-y-1/2 text-stone-500 transition group-focus-within:text-[#3033a1]" />
+      <SafeIcon className="pointer-events-none absolute left-5 top-1/2 h-5 w-5 -translate-y-1/2 text-stone-500 transition group-focus-within:text-[#3033a1]" />
       <input
         className={`h-[52px] w-full rounded-[14px] border bg-white/85 pl-[54px] pr-[52px] text-[16px] font-semibold text-stone-950 shadow-[0_10px_24px_rgba(15,23,42,0.04)] outline-none transition duration-300 placeholder:text-stone-400 focus:border-[#3033a1] focus:bg-white focus:shadow-[0_16px_32px_rgba(48,51,161,0.12)] focus:ring-4 focus:ring-[#3033a1]/10 ${
           valid ? "border-[#6f78c4]" : "border-stone-300"
@@ -589,7 +591,7 @@ function MobileLoginInput({
   valid,
   right
 }: {
-  icon: LucideIcon;
+  icon?: LucideIcon;
   label: string;
   value: string;
   onChange: (value: string) => void;
@@ -600,6 +602,7 @@ function MobileLoginInput({
   valid?: boolean;
   right?: React.ReactNode;
 }) {
+  const SafeIcon = Icon ?? Circle;
   return (
     <label className="block">
       <span className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">{label}</span>
@@ -608,7 +611,7 @@ function MobileLoginInput({
           valid ? "border-[#6f78c4]" : "border-stone-200"
         }`}
       >
-        <Icon className="h-5 w-5 shrink-0 text-slate-500" />
+        <SafeIcon className="h-5 w-5 shrink-0 text-slate-500" />
         <input
           className="h-full min-w-0 flex-1 bg-transparent pl-3 pr-2 text-base font-semibold text-slate-950 outline-none placeholder:text-slate-400"
           type={type}

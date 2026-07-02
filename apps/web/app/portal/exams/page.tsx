@@ -80,7 +80,7 @@ function Examinations() {
                   <TrendingUp size={20} className="text-[#3033a1]" />
                   <h2 className="font-extrabold text-[#1f2136]">Overall Performance</h2>
                 </div>
-                <div className="h-64">
+                <div className="h-72 min-h-[280px] w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={data.subjectPerformance} margin={{ top: 10, right: 30, left: 0, bottom: 5 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#eef0f7" />

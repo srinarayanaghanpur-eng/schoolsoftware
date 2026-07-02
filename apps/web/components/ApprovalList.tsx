@@ -24,9 +24,10 @@ export function ApprovalList({ requestType }: { requestType?: string }) {
       const data = await adminApiRequest<{ requests: ApprovalRequest[] }>(
         `/api/admin/approvals?${params.toString()}`
       );
-      setRequests(data.requests);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load approvals");
+      setRequests(Array.isArray(data.requests) ? data.requests : []);
+    } catch {
+      setRequests([]);
+      setError("Unable to load approvals. Please refresh or check permissions.");
     } finally {
       setLoading(false);
     }
@@ -86,6 +87,10 @@ export function ApprovalList({ requestType }: { requestType?: string }) {
         <div className="flex items-center justify-center py-12 text-sm font-medium text-[#7d86a8]">
           <Clock size={18} className="mr-2 animate-spin" />
           Loading approvals...
+        </div>
+      ) : error ? (
+        <div className="rounded-xl border border-[#e4e6f0] bg-white p-8 text-center text-sm font-medium text-[#7d86a8]">
+          Approval requests could not be displayed right now.
         </div>
       ) : requests.length === 0 ? (
         <div className="rounded-xl border border-[#e4e6f0] bg-white p-8 text-center text-sm font-medium text-[#7d86a8]">

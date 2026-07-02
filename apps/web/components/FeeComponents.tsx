@@ -3,6 +3,7 @@
 import clsx from "clsx";
 import {
   CheckCircle2,
+  Circle,
   XCircle,
   Clock,
   IndianRupee,
@@ -50,8 +51,8 @@ export function FeeStatusBadge({
     }
   };
 
-  const config = configs[status];
-  const Icon = config.icon;
+  const config = configs[status] ?? configs.pending;
+  const Icon = config.icon ?? Circle;
 
   const sizeClasses = {
     sm: "px-2 py-1 text-xs gap-1",
@@ -86,10 +87,11 @@ export function FeeSummaryCard({
 }: {
   title: string;
   amount: number | string;
-  icon: any;
+  icon?: any;
   trend?: { value: number; direction: "up" | "down" };
   color?: "blue" | "green" | "red" | "amber" | "purple";
 }) {
+  const SafeIcon = Icon ?? Circle;
   const colorClasses = {
     blue: "bg-[#eeefff] text-[#3033a1]",
     green: "bg-[#e6f8ef] text-[#13a961]",
@@ -120,7 +122,7 @@ export function FeeSummaryCard({
           )}
         </div>
         <div className={clsx("grid h-11 w-11 place-items-center rounded-xl", colorClasses[color])}>
-          <Icon size={24} />
+          <SafeIcon size={24} />
         </div>
       </div>
     </div>

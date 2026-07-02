@@ -1,11 +1,9 @@
-import { useEffect, useState } from "react";
 import { AnimatedEntrance } from "@/components/AnimatedEntrance";
 import { Card } from "@/components/Card";
 import { Screen } from "@/components/Screen";
 import { StatusPill } from "@/components/StatusPill";
-import { auth, db } from "@/lib/firebase";
+import { useTeacherAttendanceData } from "@/lib/useTeacherAttendanceData";
 import { getAttendancePercentage } from "@sri-narayana/shared";
-import { doc, getDoc, collection, query, where, getDocs, orderBy } from "firebase/firestore";
 import { Link } from "expo-router";
 import { Pressable, StyleSheet, Text, View, ActivityIndicator } from "react-native";
 
@@ -20,118 +18,12 @@ function initials(name: string) {
   return name.split(" ").filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
 }
 
-interface TeacherData {
-  id: string;
-  fullName: string;
-  employeeId: string;
-  subject: string;
-}
-
-interface AttendanceRecord {
-  teacherId: string;
-  date: string;
-  status: string;
-  checkInTime?: string;
+function localDateKey(date = new Date()) {
+  return new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 10);
 }
 
 export default function Home() {
-  const [teacher, setTeacher] = useState<TeacherData | null>(null);
-  const [records, setRecords] = useState<AttendanceRecord[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadData() {
-      try {
-        const user = auth.currentUser;
-        if (!user) {
-          setError("Please sign in to continue");
-          setLoading(false);
-          return;
-        }
-
-        let teacherData: TeacherData | null = null;
-        const userDoc = await getDoc(doc(db, "users", user.uid));
-        if (userDoc.exists()) {
-          const userData = userDoc.data();
-          const teacherId = userData.teacherId || user.uid;
-          const teacherDoc = await getDoc(doc(db, "teachers", teacherId));
-          if (teacherDoc.exists()) {
-            const tData = teacherDoc.data();
-            teacherData = {
-              id: teacherDoc.id,
-              fullName: tData.fullName || "Unknown",
-              employeeId: tData.employeeId || "",
-              subject: tData.subject || "",
-            };
-          }
-        }
-
-        if (!teacherData) {
-          const teachersQuery = query(
-            collection(db, "teachers"),
-            where("employeeId", "==", user.uid),
-            orderBy("fullName")
-          );
-          try {
-            const teachersSnap = await getDocs(teachersQuery);
-            if (!teachersSnap.empty) {
-              const tDoc = teachersSnap.docs[0];
-              const tData = tDoc.data();
-              teacherData = {
-                id: tDoc.id,
-                fullName: tData.fullName || "Unknown",
-                employeeId: tData.employeeId || "",
-                subject: tData.subject || "",
-              };
-            }
-          } catch {
-            // Compound index may not exist; skip fallback
-          }
-        }
-
-        if (!teacherData) {
-          setError("Teacher profile not found");
-          setLoading(false);
-          return;
-        }
-
-        const currentMonth = new Date().toISOString().slice(0, 7);
-        const recordsQuery = query(
-          collection(db, "attendance"),
-          where("teacherId", "==", teacherData.id),
-          where("month", "==", currentMonth),
-          orderBy("date", "desc")
-        );
-        const recordsSnap = await getDocs(recordsQuery);
-        const attendanceRecords = recordsSnap.docs.map((d) => {
-          const data = d.data();
-          return {
-            teacherId: data.teacherId,
-            date: data.date,
-            status: data.status,
-            checkInTime: data.checkInTime?.toDate?.()?.toISOString() || data.checkInTime,
-          } as AttendanceRecord;
-        });
-
-        if (!cancelled) {
-          setTeacher(teacherData);
-          setRecords(attendanceRecords);
-          setLoading(false);
-        }
-      } catch (err) {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Failed to load data");
-          setLoading(false);
-        }
-      }
-    }
-
-    loadData();
-    return () => { cancelled = true; };
-  }, []);
+  const { teacher, records, loading, error } = useTeacherAttendanceData();
 
   if (loading) {
     return (
@@ -158,9 +50,9 @@ export default function Home() {
     );
   }
 
-  const today = records[0];
-  const percentage = getAttendancePercentage(records as any);
-  const presentCount = records.filter((record) => record.status === "present").length;
+  const today = records.find((record) => record.date === localDateKey());
+  const percentage = getAttendancePercentage(records);
+  const presentCount = records.filter((record) => record.status === "present" || record.status === "late").length;
   const lateCount = records.filter((record) => record.status === "late").length;
 
   return (

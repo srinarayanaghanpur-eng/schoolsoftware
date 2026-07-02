@@ -161,36 +161,44 @@ const AttendanceTrendChartInner: React.FC<{
       <h2 className="text-lg font-semibold text-gray-900 mb-4">
         Attendance Trend (Last 7 Days)
       </h2>
-      <ResponsiveContainerAny width="100%" height={300}>
-        <LineChartAny data={data}>
-          <CartesianGridAny strokeDasharray="3 3" />
-          <XAxisAny dataKey="date" />
-          <YAxisAny />
-          <TooltipAny />
-          <LegendAny />
-          <LineAny
-            type="monotone"
-            dataKey="present"
-            stroke="#10b981"
-            name="Present"
-            strokeWidth={2}
-          />
-          <LineAny
-            type="monotone"
-            dataKey="late"
-            stroke="#f59e0b"
-            name="Late"
-            strokeWidth={2}
-          />
-          <LineAny
-            type="monotone"
-            dataKey="absent"
-            stroke="#ef4444"
-            name="Absent"
-            strokeWidth={2}
-          />
-        </LineChartAny>
-      </ResponsiveContainerAny>
+      <div className="h-72 min-h-[280px] w-full">
+        {data.length > 0 ? (
+          <ResponsiveContainerAny width="100%" height="100%">
+            <LineChartAny data={data}>
+              <CartesianGridAny strokeDasharray="3 3" />
+              <XAxisAny dataKey="date" />
+              <YAxisAny />
+              <TooltipAny />
+              <LegendAny />
+              <LineAny
+                type="monotone"
+                dataKey="present"
+                stroke="#10b981"
+                name="Present"
+                strokeWidth={2}
+              />
+              <LineAny
+                type="monotone"
+                dataKey="late"
+                stroke="#f59e0b"
+                name="Late"
+                strokeWidth={2}
+              />
+              <LineAny
+                type="monotone"
+                dataKey="absent"
+                stroke="#ef4444"
+                name="Absent"
+                strokeWidth={2}
+              />
+            </LineChartAny>
+          </ResponsiveContainerAny>
+        ) : (
+          <div className="grid h-full place-items-center rounded-lg bg-gray-50 text-sm font-semibold text-gray-500">
+            No data available yet
+          </div>
+        )}
+      </div>
     </div>
   );
 };
@@ -371,6 +379,7 @@ const SalarySummaryInner: React.FC<{ records: SalaryRecord[] }> = ({
   const totalDeduction = records.reduce((sum, r) => sum + r.totalDeduction, 0);
   const totalNetSalary = records.reduce((sum, r) => sum + r.netSalary, 0);
   const paidCount = records.filter((r) => r.isPaid).length;
+  const hasSalaryData = totalNetSalary > 0 || totalDeduction > 0;
 
   const statusBadges = {
     calculated: 'bg-blue-100 text-blue-800',
@@ -425,29 +434,37 @@ const SalarySummaryInner: React.FC<{ records: SalaryRecord[] }> = ({
         <h3 className="text-lg font-semibold text-gray-900 mb-4">
           Salary Distribution
         </h3>
-        <ResponsiveContainerAny width="100%" height={200}>
-          <PieChartAny>
-            <PieAny
-              data={[
-                { name: 'Net Salary', value: totalNetSalary },
-                { name: 'Deductions', value: totalDeduction },
-              ]}
-              cx="50%"
-              cy="50%"
-              labelLine={false}
-              label={({ name, value, percent }: any) =>
-                `${name}: ${(percent * 100).toFixed(0)}%`
-              }
-              outerRadius={80}
-              fill="#8884d8"
-              dataKey="value"
-            >
-                <CellAny fill="#10b981" />
-                <CellAny fill="#ef4444" />
-            </PieAny>
-              <TooltipAny formatter={(value: any) => `₹${value}`} />
-          </PieChartAny>
-        </ResponsiveContainerAny>
+        <div className="h-64 min-h-[240px] w-full">
+          {hasSalaryData ? (
+            <ResponsiveContainerAny width="100%" height="100%">
+              <PieChartAny>
+                <PieAny
+                  data={[
+                    { name: 'Net Salary', value: totalNetSalary },
+                    { name: 'Deductions', value: totalDeduction },
+                  ]}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={({ name, percent }: any) =>
+                    `${name}: ${(percent * 100).toFixed(0)}%`
+                  }
+                  outerRadius={80}
+                  fill="#8884d8"
+                  dataKey="value"
+                >
+                    <CellAny fill="#10b981" />
+                    <CellAny fill="#ef4444" />
+                </PieAny>
+                  <TooltipAny formatter={(value: any) => `₹${value}`} />
+              </PieChartAny>
+            </ResponsiveContainerAny>
+          ) : (
+            <div className="grid h-full place-items-center rounded-lg bg-gray-50 text-sm font-semibold text-gray-500">
+              No data available yet
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Salary Table */}

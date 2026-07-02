@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, IndianRupee, BookOpenCheck, Megaphone, MessageSquare, UserCircle } from "lucide-react";
+import { LayoutDashboard, IndianRupee, BookOpenCheck, Circle, Megaphone, MessageSquare, UserCircle } from "lucide-react";
 
 const TABS = [
   { href: "/portal", label: "Dashboard", icon: LayoutDashboard },
@@ -17,8 +17,9 @@ export function PortalSubnav() {
   const pathname = usePathname();
   return (
     <nav className="flex flex-wrap gap-2 px-4 pt-4 md:px-7">
-      {TABS.map(({ href, label, icon: Icon }) => {
+      {TABS.filter(Boolean).map(({ href, label, icon }) => {
         const isActive = pathname === href || (href !== "/portal" && pathname.startsWith(`${href}/`));
+        const Icon = icon ?? Circle;
         return (
           <Link
             key={href}
