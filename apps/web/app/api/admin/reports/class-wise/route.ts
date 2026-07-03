@@ -1,37 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from "@/lib/firebaseAdmin";
-import { QueryDocumentSnapshot } from "firebase-admin/firestore";
 import { requirePermission } from "@/lib/apiUtils";
+import { logFirestoreRead, readLimit } from "@/lib/firestoreReadLogger";
 
 export const dynamic = "force-dynamic";
-
-function num(value: unknown) {
-  return Number(value) || 0;
-}
-
-function totalFeeForStudent(student: Record<string, unknown>) {
-  const totalFeeAmount = num(student.totalFeeAmount);
-  if (totalFeeAmount > 0) return totalFeeAmount;
-  return num(student.annualEnrollmentFee) + num(student.commitmentFee) + num(student.transportFee) + num(student.feeBalanceCarriedForward);
-}
-
-function paidForStudent(student: Record<string, unknown>) {
-  return num(student.totalFeesPaid);
-}
-
-function outstandingForStudent(student: Record<string, unknown>) {
-  const totalFee = totalFeeForStudent(student);
-  const paid = paidForStudent(student);
-  const storedDue = num(student.totalFeesDue);
-
-  if (storedDue > 0 && totalFee > 0 && storedDue + paid <= totalFee + 1) {
-    return storedDue;
-  }
-  if (storedDue > 0) {
-    return Math.max(0, storedDue - paid);
-  }
-  return Math.max(0, totalFee - paid);
-}
 
 /**
  * GET /api/admin/reports/class-wise
@@ -44,26 +16,28 @@ export async function GET(request: NextRequest) {
 
     const db = adminDb();
     const searchParams = request.nextUrl.searchParams;
-    const classFilter = searchParams.get('class');
+    const classFilter = searchParams.get('classId') || searchParams.get('class') || "";
+    const sectionFilter = searchParams.get('sectionId') || searchParams.get('section') || "";
+    const academicYearId = searchParams.get("academicYearId") || "";
+    const pageSize = readLimit(searchParams.get("pageSize") ?? searchParams.get("limit"), 1000, 5000);
 
-    let query: any = db.collection('students');
-    if (classFilter) {
-      query = query.where('class', '==', classFilter);
-    }
+    let query: FirebaseFirestore.Query = db.collection('studentFeeSummaries');
+    if (academicYearId) query = query.where("academicYearId", "==", academicYearId);
+    if (classFilter) query = query.where('classId', '==', classFilter);
+    if (sectionFilter) query = query.where("sectionId", "==", sectionFilter);
+    query = query.limit(pageSize);
 
-    const studentsSnapshot = await query.get();
-    const students = studentsSnapshot.docs.map((d: QueryDocumentSnapshot) => ({
-      id: d.id,
-      ...d.data()
-    }));
+    const summariesSnapshot = await query.get();
+    logFirestoreRead("ClassWiseReportAPI", "studentFeeSummaries", summariesSnapshot, { academicYearId, classFilter, sectionFilter, pageSize });
 
     const byClass: Record<string, any> = {};
 
-    students.forEach((student: any) => {
-      const key = student.class;
+    summariesSnapshot.docs.forEach((doc) => {
+      const student = doc.data();
+      const key = String(student.className || student.classId || "—");
       if (!byClass[key]) {
         byClass[key] = {
-          class: student.class,
+          class: key,
           totalStudents: 0,
           totalFeeAmount: 0,
           totalFeeDue: 0,
@@ -74,10 +48,10 @@ export async function GET(request: NextRequest) {
       }
 
       byClass[key].totalStudents++;
-      byClass[key].totalFeeAmount += totalFeeForStudent(student);
-      byClass[key].totalFeeDue += totalFeeForStudent(student);
-      byClass[key].totalFeePaid += paidForStudent(student);
-      byClass[key].totalFeeOutstanding += outstandingForStudent(student);
+      byClass[key].totalFeeAmount += Number(student.totalFee) || 0;
+      byClass[key].totalFeeDue += Number(student.totalFee) || 0;
+      byClass[key].totalFeePaid += Number(student.totalPaid) || 0;
+      byClass[key].totalFeeOutstanding += Number(student.dueAmount) || 0;
       byClass[key].students.push(student);
     });
 

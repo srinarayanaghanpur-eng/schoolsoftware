@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
+import { AggregateField } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { requirePermission } from "@/lib/apiUtils";
 import { docDateKey, inRange } from "@/lib/financeUtils";
+import { logFirestoreAggregateRead, logFirestoreRead } from "@/lib/firestoreReadLogger";
 
 export const dynamic = "force-dynamic";
 
@@ -45,22 +47,6 @@ function formatINR(value: number) {
   return `₹${Math.round(value).toLocaleString("en-IN")}`;
 }
 
-function studentOutstanding(student: Record<string, unknown>) {
-  const totalFee = amount(student.totalFeeAmount);
-  const paid = amount(student.totalFeesPaid);
-  const storedDue = amount(student.totalFeesDue);
-
-  if (storedDue > 0 && totalFee > 0 && storedDue + paid <= totalFee + 1) {
-    return storedDue;
-  }
-
-  if (storedDue > 0) {
-    return Math.max(0, storedDue - paid);
-  }
-
-  return Math.max(0, totalFee - paid);
-}
-
 function weekLabel(dateKey: string) {
   const day = Number(dateKey.slice(8, 10)) || 1;
   const week = Math.floor((day - 1) / 7) + 1;
@@ -94,26 +80,49 @@ export async function GET(req: Request) {
 
   const { from, to } = parseRange(req.url);
   const db = adminDb();
+  const fromDate = new Date(`${from}T00:00:00`);
+  const toDate = new Date(`${to}T23:59:59.999`);
+  const today = toDateKey(new Date());
+  const todayStart = new Date(`${today}T00:00:00`);
+  const todayEnd = new Date(`${today}T23:59:59.999`);
 
-  const [studentsSnap, paymentsSnap, incomesSnap, expensesSnap, salarySnap, advancesSnap] = await Promise.all([
-    db.collection("students").get(),
-    db.collection("payments").get(),
-    db.collection("incomes").get(),
-    db.collection("expenses").where("status", "==", "approved").get(),
-    db.collection("salary_reports").where("paid", "==", true).get(),
-    db.collection("salary_advances").get()
+  const [feeTotalsSnap, studentsPendingSnap, todayCollectedSnap, paymentsSnap, incomesSnap, expensesSnap, salarySnap, advancesSnap] = await Promise.all([
+    db.collection("studentFeeSummaries").aggregate({
+      totalFeeAmount: AggregateField.sum("totalFee"),
+      outstandingDues: AggregateField.sum("dueAmount")
+    }).get().catch(() => null),
+    db.collection("studentFeeSummaries").where("dueAmount", ">", 0).count().get().catch(() => null),
+    db.collection("payments")
+      .where("status", "==", "completed")
+      .where("createdAt", ">=", todayStart)
+      .where("createdAt", "<=", todayEnd)
+      .aggregate({ todayCollected: AggregateField.sum("amountPaid") })
+      .get()
+      .catch(() => null),
+    db.collection("payments").where("createdAt", ">=", fromDate).where("createdAt", "<=", toDate).orderBy("createdAt", "desc").limit(300).get(),
+    db.collection("incomes").where("createdAt", ">=", fromDate).where("createdAt", "<=", toDate).orderBy("createdAt", "desc").limit(300).get(),
+    db.collection("expenses").where("status", "==", "approved").where("createdAt", ">=", fromDate).where("createdAt", "<=", toDate).orderBy("createdAt", "desc").limit(300).get(),
+    db.collection("salary_reports").where("paid", "==", true).where("paidAt", ">=", fromDate).where("paidAt", "<=", toDate).orderBy("paidAt", "desc").limit(300).get(),
+    db.collection("salary_advances").where("createdAt", ">=", fromDate).where("createdAt", "<=", toDate).orderBy("createdAt", "desc").limit(300).get()
   ]);
 
-  const students = studentsSnap.docs.map((doc) => doc.data());
-  const totalFeeAmount = students.reduce((sum, student) => sum + amount(student.totalFeeAmount), 0);
-  const outstandingDues = students.reduce((sum, student) => sum + studentOutstanding(student), 0);
-  const studentsPending = students.filter((student) => studentOutstanding(student) > 0).length;
+  logFirestoreAggregateRead("FinanceDashboardAPI", "studentFeeSummaries", { operation: "sum-total-and-due" });
+  logFirestoreAggregateRead("FinanceDashboardAPI", "payments", { operation: "today-sum" });
+  logFirestoreRead("FinanceDashboardAPI", "payments", paymentsSnap, { from, to, limit: 300 });
+  logFirestoreRead("FinanceDashboardAPI", "incomes", incomesSnap, { from, to, limit: 300 });
+  logFirestoreRead("FinanceDashboardAPI", "expenses", expensesSnap, { from, to, status: "approved", limit: 300 });
+  logFirestoreRead("FinanceDashboardAPI", "salary_reports", salarySnap, { from, to, paid: true, limit: 300 });
+  logFirestoreRead("FinanceDashboardAPI", "salary_advances", advancesSnap, { from, to, limit: 300 });
+
+  const feeTotals = (feeTotalsSnap?.data() ?? {}) as Record<string, unknown>;
+  const totalFeeAmount = amount(feeTotals.totalFeeAmount);
+  const outstandingDues = amount(feeTotals.outstandingDues);
+  const studentsPending = Number(studentsPendingSnap?.data().count || 0);
 
   let feeIncome = 0;
   let otherIncome = 0;
   let expenseTotal = 0;
-  let todayCollected = 0;
-  const today = toDateKey(new Date());
+  const todayCollected = amount(todayCollectedSnap?.data().todayCollected);
   const byWeek = new Map<string, { name: string; income: number; expense: number }>();
   const transactions: MoneyEntry[] = [];
 
@@ -122,7 +131,6 @@ export async function GET(req: Request) {
     if (String(data.status || "").toLowerCase() === "cancelled") return;
     const date = docDateKey(data, "paymentDate");
     const paid = amount(data.amountPaid);
-    if (date === today) todayCollected += paid;
     if (!inRange(date, from, to)) return;
     feeIncome += paid;
     addWeek(byWeek, date, "income", paid, from, to);

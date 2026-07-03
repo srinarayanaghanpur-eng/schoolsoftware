@@ -40,7 +40,7 @@ export function buildTeacherAuthProfile(input: TeacherProfileInput) {
     status: input.status,
     role: "teacher" as const,
     employmentType: input.employmentType ?? "full_time",
-    allowedCLPerMonth: input.allowedCLPerMonth ?? 2,
+    allowedCLPerMonth: input.allowedCLPerMonth ?? 3,
     lateDeductionRule: input.lateDeductionRule ?? "after_3_lates_one_day"
   };
 }

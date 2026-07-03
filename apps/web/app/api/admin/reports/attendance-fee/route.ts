@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from "@/lib/firebaseAdmin";
 import { QueryDocumentSnapshot } from "firebase-admin/firestore";
 import { requirePermission } from "@/lib/apiUtils";
+import { logFirestoreRead, readLimit } from "@/lib/firestoreReadLogger";
 
 export const dynamic = "force-dynamic";
 
@@ -15,11 +16,8 @@ function totalFeeForStudent(student: Record<string, unknown>) {
   return num(student.annualEnrollmentFee) + num(student.commitmentFee) + num(student.transportFee) + num(student.feeBalanceCarriedForward);
 }
 
-function paidForStudent(student: Record<string, unknown>, payments: Array<Record<string, unknown>>) {
-  const paymentTotal = payments
-    .filter((p) => String(p.status || "completed").toLowerCase() === "completed")
-    .reduce((sum, p) => sum + num(p.amountPaid), 0);
-  return Math.max(num(student.totalFeesPaid), paymentTotal);
+function paidForStudent(student: Record<string, unknown>) {
+  return num(student.totalFeesPaid);
 }
 
 function outstandingForStudent(student: Record<string, unknown>, paid: number) {
@@ -47,34 +45,27 @@ export async function GET(request: NextRequest) {
     const db = adminDb();
     const searchParams = request.nextUrl.searchParams;
     const classFilter = searchParams.get('class');
+    const sectionFilter = searchParams.get('section');
     const minAttendance = searchParams.get('minAttendance');
     const maxAttendance = searchParams.get('maxAttendance');
+    const pageSize = readLimit(searchParams.get("pageSize") ?? searchParams.get("limit"), 100, 500);
 
     let query: any = db.collection('students');
     if (classFilter) {
       query = query.where('class', '==', classFilter);
     }
+    if (sectionFilter) query = query.where("section", "==", sectionFilter);
+    query = query.orderBy("studentName", "asc").limit(pageSize);
 
     const studentsSnapshot = await query.get();
+    logFirestoreRead("AttendanceFeeReportAPI", "students", studentsSnapshot, { classFilter, sectionFilter, pageSize });
     let students = studentsSnapshot.docs.map((d: QueryDocumentSnapshot) => ({
       id: d.id,
       ...d.data()
     }));
 
-    const paymentsSnapshot = await db.collection('payments').get();
-    const paymentsByStudent: Record<string, any[]> = {};
-
-    paymentsSnapshot.forEach((doc: QueryDocumentSnapshot) => {
-      const payment = doc.data();
-      if (!paymentsByStudent[payment.studentId]) {
-        paymentsByStudent[payment.studentId] = [];
-      }
-      paymentsByStudent[payment.studentId].push(payment);
-    });
-
     let report = students.map((student: any) => {
-      const payments = paymentsByStudent[student.id] || [];
-      const totalPaid = paidForStudent(student, payments);
+      const totalPaid = paidForStudent(student);
 
       const attendance = student.attendancePercentage || 0;
       const totalFee = totalFeeForStudent(student);

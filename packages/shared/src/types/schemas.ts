@@ -42,7 +42,7 @@ const teacherBaseSchema = z.object({
   joiningDate: z.string().trim().optional().default(""),
   status: z.enum(["active", "inactive"]),
   employmentType: z.enum(["full_time", "part_time_morning", "part_time_afternoon"]).optional().default("full_time"),
-  allowedCLPerMonth: z.coerce.number().int().min(0).optional().default(2),
+  allowedCLPerMonth: z.coerce.number().int().min(0).optional().default(3),
   lateDeductionRule: z.enum(["none", "half_day", "fixed", "after_3_lates_one_day"]).optional().default("after_3_lates_one_day")
 });
 

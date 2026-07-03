@@ -56,6 +56,22 @@ function formatDateTime(value?: string) {
   });
 }
 
+function roundMoney(value?: number) {
+  return Math.round((value ?? 0) * 100) / 100;
+}
+
+function money(value?: number) {
+  return (value ?? 0).toLocaleString("en-IN", { maximumFractionDigits: 2 });
+}
+
+function approvedPaidCLDays(report: SalaryReport) {
+  return report.approvedPaidCLDays ?? report.paidCLDays ?? report.paidLeaveDays ?? report.clDays ?? 0;
+}
+
+function unpaidAbsentDays(report: SalaryReport) {
+  return report.unpaidAbsentDays ?? report.unpaidDeductionDays ?? report.absentDays ?? 0;
+}
+
 export default function SalaryPage() {
   const { role } = useAdminSession();
   const isAccountant = role === "accountant";
@@ -204,35 +220,27 @@ export default function SalaryPage() {
     const rows = reports.map((report) => ({
       "Teacher Name": report.teacherName,
       "Employee ID": report.employeeId,
-      "Working Days Elapsed": report.workingDaysElapsed ?? report.workingDays,
+      Month: report.month,
+      "Base Salary": roundMoney(report.baseSalary),
       "Total Working Days": report.totalWorkingDaysInMonth ?? report.workingDays,
-      Present: report.presentDays,
-      Late: report.lateEntries,
-      Absent: report.absentDays,
-      "Leave / CL": report.approvedLeaveCLDays ?? 0,
-      "Paid Leave": report.paidLeaveDays ?? report.clDays,
-      "CL Used": report.totalClUsed ?? 0,
-      "CL Balance": report.remainingCl ?? 0,
-      Excess: report.excessCLDays ?? report.excessLeave ?? 0,
-      "Daily Rate": Math.round(report.perDaySalary ?? 0),
-      "Attendance Deduction": Math.round(report.salaryDeduction ?? 0),
-      "Manual Deduction": Math.round(report.manualDeduction ?? 0),
-      Bonus: Math.round(report.bonus ?? 0),
-      "Base Salary": report.baseSalary,
-      "Total Deduction": Math.round(report.totalDeduction ?? 0),
-      "Net Payable": Math.round(report.netPayable ?? 0),
+      "Working Days Elapsed": report.workingDaysElapsed ?? report.workingDays,
+      "Present Days": report.presentDays,
+      "Approved Paid CL Days": approvedPaidCLDays(report),
+      "Unpaid Absent Days": unpaidAbsentDays(report),
+      "Daily Rate": roundMoney(report.perDaySalary),
+      Deduction: roundMoney(report.salaryDeduction),
+      Bonus: roundMoney(report.bonus),
+      "Net Payable": roundMoney(report.netPayable),
       "Absent Dates": report.absentDates?.join(", ") ?? "",
       "Present Dates": report.presentDates?.join(", ") ?? "",
-      "Late Dates": report.lateDates?.join(", ") ?? "",
       "Leave Requests": report.approvedLeaveInfo || "-",
       Status: report.paid ? "Paid" : "Unpaid"
     }));
     const worksheet = XLSX.utils.json_to_sheet(rows);
     worksheet["!cols"] = [
-      { wch: 22 }, { wch: 14 }, { wch: 18 }, { wch: 18 }, { wch: 9 }, { wch: 8 },
-      { wch: 9 }, { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 11 }, { wch: 10 },
-      { wch: 12 }, { wch: 18 }, { wch: 18 }, { wch: 10 }, { wch: 12 }, { wch: 16 },
-      { wch: 16 }, { wch: 30 }, { wch: 30 }, { wch: 30 }, { wch: 30 }, { wch: 10 }
+      { wch: 22 }, { wch: 14 }, { wch: 10 }, { wch: 14 }, { wch: 18 }, { wch: 20 },
+      { wch: 12 }, { wch: 22 }, { wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 10 },
+      { wch: 14 }, { wch: 30 }, { wch: 30 }, { wch: 30 }, { wch: 10 }
     ];
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, `Salary ${month}`);
@@ -408,21 +416,19 @@ export default function SalaryPage() {
           </button>
         </div>
         <div className="card overflow-x-auto">
-          <table className="w-full min-w-[1400px] text-left text-sm">
+          <table className="w-full min-w-[1220px] text-left text-sm">
             <thead className="bg-stone-50 text-xs uppercase text-stone-500">
               <tr>
                 <th className="px-4 py-3">Teacher</th>
-                <th className="px-4 py-3">Working</th>
-                <th className="px-4 py-3">Present</th>
-                <th className="px-4 py-3">Late</th>
-                <th className="px-4 py-3">Absent</th>
-                <th className="px-4 py-3">Leave (CL)</th>
-                <th className="px-4 py-3">CL Used</th>
-                <th className="px-4 py-3">CL Balance</th>
-                <th className="px-4 py-3">Excess</th>
+                <th className="px-4 py-3">Base Salary</th>
+                <th className="px-4 py-3">Total Working Days</th>
+                <th className="px-4 py-3">Working Days Elapsed</th>
+                <th className="px-4 py-3">Present Days</th>
+                <th className="px-4 py-3">Approved Paid CL Days</th>
+                <th className="px-4 py-3">Unpaid Absent Days</th>
                 <th className="px-4 py-3">Daily Rate</th>
                 <th className="px-4 py-3">Deduction</th>
-                <th className="px-4 py-3">Base</th>
+                <th className="px-4 py-3">Bonus</th>
                 <th className="px-4 py-3">Net Payable</th>
                 <th className="px-4 py-3">Status</th>
               </tr>
@@ -431,33 +437,23 @@ export default function SalaryPage() {
               {reports.map((report) => (
                 <tr key={report.teacherId} className="border-t border-stone-100">
                   <td className="px-4 py-3 font-medium">{report.teacherName}</td>
-                  <td className="px-4 py-3" title={`Total working days in month: ${report.totalWorkingDaysInMonth ?? report.workingDays}`}>
-                    {report.workingDaysElapsed ?? report.workingDays}/{report.totalWorkingDaysInMonth ?? report.workingDays}
-                  </td>
+                  <td className="px-4 py-3">₹{money(report.baseSalary)}</td>
+                  <td className="px-4 py-3">{report.totalWorkingDaysInMonth ?? report.workingDays}</td>
+                  <td className="px-4 py-3">{report.workingDaysElapsed ?? report.workingDays}</td>
                   <td className="px-4 py-3">{report.presentDays}</td>
-                  <td className="px-4 py-3">{report.lateEntries ?? 0}</td>
-                  <td className="px-4 py-3">{report.absentDays}</td>
                   <td className="px-4 py-3" title={report.approvedLeaveInfo || "No approved leave"}>
-                    {report.paidLeaveDays ?? report.clDays ?? 0}/{report.approvedLeaveCLDays ?? 0}
+                    {approvedPaidCLDays(report)}
                     {report.attendedApprovedLeaveDays ? <span className="ml-1 text-xs text-[#7d86a8]">(+{report.attendedApprovedLeaveDays} worked)</span> : null}
                   </td>
-                  <td className="px-4 py-3">
-                    <span className="text-xs">
-                      {report.clUsedFromAbsent ?? 0}a + {report.clUsedFromLate ?? 0}l = {report.totalClUsed ?? 0}
-                    </span>
+                  <td className={`px-4 py-3 font-bold ${unpaidAbsentDays(report) > 0 ? "text-[#ed515d]" : "text-[#13a961]"}`}>
+                    {unpaidAbsentDays(report)}
                   </td>
-                  <td className={`px-4 py-3 font-bold ${(report.remainingCl ?? 0) === 0 ? "text-[#ed515d]" : "text-[#13a961]"}`}>
-                    {report.remainingCl ?? 0}/{report.clAllowanceThisMonth ?? 0}
+                  <td className="px-4 py-3 text-xs">₹{money(report.perDaySalary)}</td>
+                  <td className={`px-4 py-3 font-semibold ${(report.salaryDeduction ?? 0) > 0 ? "text-red-600" : ""}`} title={`Plain absent: ${report.plainAbsentDays ?? 0} · Excess leave: ${report.excessCLDays ?? report.excessLeave ?? 0}`}>
+                    ₹{money(report.salaryDeduction)}
                   </td>
-                  <td className={`px-4 py-3 font-bold ${(report.excessLeave ?? 0) > 0 ? "text-[#ed515d]" : "text-[#13a961]"}`}>
-                    {report.excessLeave ?? 0}
-                  </td>
-                  <td className="px-4 py-3 text-xs">₹{(report.perDaySalary ?? 0).toLocaleString("en-IN")}</td>
-                  <td className={`px-4 py-3 font-semibold ${(report.salaryDeduction ?? 0) > 0 ? "text-red-600" : ""}`} title={`Absent: ₹${(report.absentDeduction ?? 0).toLocaleString("en-IN")} · Excess CL: ₹${(report.excessLeaveDeduction ?? 0).toLocaleString("en-IN")} · Manual: ₹${(report.manualDeduction ?? 0).toLocaleString("en-IN")}`}>
-                    ₹{(report.salaryDeduction ?? 0).toLocaleString("en-IN")}
-                  </td>
-                  <td className="px-4 py-3">₹{(report.baseSalary ?? 0).toLocaleString("en-IN")}</td>
-                  <td className="px-4 py-3 font-semibold">₹{(report.netPayable ?? 0).toLocaleString("en-IN")}</td>
+                  <td className="px-4 py-3">₹{money(report.bonus)}</td>
+                  <td className="px-4 py-3 font-semibold">₹{money(report.netPayable)}</td>
                   <td className="px-4 py-3">
                     <button className="btn-secondary" disabled={loading} onClick={() => togglePaid(report)}>
                       <CheckCircle2 size={15} /> {report.paid ? "Paid" : "Mark paid"}
@@ -467,7 +463,7 @@ export default function SalaryPage() {
               ))}
               {!loading && reports.length === 0 && (
                 <tr>
-                  <td className="px-4 py-6 text-center text-sm font-medium text-[#7d86a8]" colSpan={14}>No salary reports yet. Click Generate monthly salary.</td>
+                  <td className="px-4 py-6 text-center text-sm font-medium text-[#7d86a8]" colSpan={12}>No salary reports yet. Click Generate monthly salary.</td>
                 </tr>
               )}
             </tbody>

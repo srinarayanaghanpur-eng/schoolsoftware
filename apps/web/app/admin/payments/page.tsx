@@ -34,6 +34,9 @@ const PAYMENT_METHODS: { value: PaymentMethod; label: string }[] = [
   { value: "card", label: "Card" },
 ];
 
+const CLASS_OPTIONS = ["Nur", "LKG", "UKG", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"];
+const SECTION_OPTIONS = ["A", "B", "C", "D", "E"];
+
 function formatPaymentDate(value: unknown) {
   if (!value) return "--";
   if (typeof value === "string") return new Date(value).toLocaleDateString("en-IN");
@@ -49,6 +52,8 @@ export default function PaymentsPage() {
   const canCancelPayment = Boolean(role && hasPermission(role, "fees.create"));
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [cancelTarget, setCancelTarget] = useState<Payment | null>(null);
@@ -62,11 +67,15 @@ export default function PaymentsPage() {
   }, []);
   useRefreshOnFocus(() => fetchPayments());
 
-  const fetchPayments = async () => {
+  const fetchPayments = async (options: { append?: boolean; cursor?: string | null } = {}) => {
     try {
       setError(null);
-      const data = await adminApiRequest<{ success?: boolean; data: Payment[] }>("/api/admin/payments");
-      setPayments(data.data ?? []);
+      const params = new URLSearchParams({ pageSize: "25" });
+      if (options.cursor) params.set("cursor", options.cursor);
+      const data = await adminApiRequest<{ success?: boolean; data: Payment[]; nextCursor?: string | null; hasMore?: boolean }>(`/api/admin/payments?${params}`);
+      setPayments((prev) => options.append ? [...prev, ...(data.data ?? [])] : data.data ?? []);
+      setNextCursor(data.nextCursor ?? null);
+      setHasMore(Boolean(data.hasMore));
     } catch (error) {
       console.error("Failed to fetch payments:", error);
       setError(error instanceof Error ? error.message : "Failed to load payments.");
@@ -122,15 +131,15 @@ export default function PaymentsPage() {
       <section className="space-y-5 p-4 md:p-7">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <div className="card p-5">
-            <p className="text-sm font-semibold text-[#7d86a8]">Total Payments</p>
+            <p className="text-sm font-semibold text-[#7d86a8]">Loaded Payments</p>
             <p className="mt-3 text-[32px] font-extrabold leading-none text-[#1b1d32]">{payments.length}</p>
           </div>
           <div className="card p-5">
-            <p className="text-sm font-semibold text-[#7d86a8]">Total Collected</p>
+            <p className="text-sm font-semibold text-[#7d86a8]">Loaded Collected</p>
             <p className="mt-3 text-[32px] font-extrabold leading-none text-[#1b1d32]">₹{totalCollected.toLocaleString("en-IN")}</p>
           </div>
           <div className="card p-5">
-            <p className="text-sm font-semibold text-[#7d86a8]">Average Payment</p>
+            <p className="text-sm font-semibold text-[#7d86a8]">Average Loaded Payment</p>
             <p className="mt-3 text-[32px] font-extrabold leading-none text-[#1b1d32]">
               ₹{payments.length > 0 ? Math.round(totalCollected / payments.length).toLocaleString("en-IN") : "0"}
             </p>
@@ -210,6 +219,13 @@ export default function PaymentsPage() {
               </div>
             ))
           )}
+          {hasMore && (
+            <div className="pt-2 text-center">
+              <button type="button" className="btn-secondary" onClick={() => fetchPayments({ append: true, cursor: nextCursor })} disabled={loading || !nextCursor}>
+                Load more
+              </button>
+            </div>
+          )}
         </div>
       </section>
 
@@ -265,6 +281,10 @@ function PaymentForm({
 }) {
   const [students, setStudents] = useState<StudentOption[]>([]);
   const [studentId, setStudentId] = useState("");
+  const [studentClass, setStudentClass] = useState("1");
+  const [studentSection, setStudentSection] = useState("A");
+  const [studentSearch, setStudentSearch] = useState("");
+  const [studentsLoading, setStudentsLoading] = useState(false);
   const [amount, setAmount] = useState("");
   const [paymentType, setPaymentType] = useState("tuition");
   const [method, setMethod] = useState<PaymentMethod>("cash");
@@ -299,12 +319,25 @@ function PaymentForm({
       .catch(() => undefined);
   }, []);
 
-  useEffect(() => {
-    adminApiRequest<{ success?: boolean; data?: StudentOption[] }>("/api/admin/students")
+  const loadStudents = async () => {
+    setStudentsLoading(true);
+    setError(null);
+    const params = new URLSearchParams({
+      pageSize: "25",
+      class: studentClass,
+      section: studentSection
+    });
+    if (studentSearch.trim()) params.set("q", studentSearch.trim());
+    adminApiRequest<{ success?: boolean; data?: StudentOption[] }>(`/api/admin/students?${params}`)
       .then((result) => {
         setStudents(result.data ?? []);
       })
-      .catch(() => setError("Unable to load students."));
+      .catch(() => setError("Unable to load students."))
+      .finally(() => setStudentsLoading(false));
+  };
+
+  useEffect(() => {
+    loadStudents();
   }, []);
 
   const selectedStudent = students.find((student) => student.id === studentId);
@@ -401,10 +434,48 @@ function PaymentForm({
       )}
 
       <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-3 md:col-span-2 md:grid-cols-[1fr_1fr_2fr_auto]">
+          <label className="text-sm font-semibold text-[#303247]">
+            Class
+            <select className="field mt-1" value={studentClass} onChange={(event) => setStudentClass(event.target.value)}>
+              {CLASS_OPTIONS.map((cls) => (
+                <option key={cls} value={cls}>{cls}</option>
+              ))}
+            </select>
+          </label>
+          <label className="text-sm font-semibold text-[#303247]">
+            Section
+            <select className="field mt-1" value={studentSection} onChange={(event) => setStudentSection(event.target.value)}>
+              {SECTION_OPTIONS.map((section) => (
+                <option key={section} value={section}>{section}</option>
+              ))}
+            </select>
+          </label>
+          <label className="text-sm font-semibold text-[#303247]">
+            Search
+            <input
+              className="field mt-1"
+              value={studentSearch}
+              onChange={(event) => setStudentSearch(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  loadStudents();
+                }
+              }}
+              placeholder="Name or admission number"
+            />
+          </label>
+          <div className="flex items-end">
+            <button type="button" className="btn-secondary w-full" onClick={loadStudents} disabled={studentsLoading}>
+              {studentsLoading ? "Loading..." : "Load"}
+            </button>
+          </div>
+        </div>
         <label className="text-sm font-semibold text-[#303247] md:col-span-2">
           Student
           <select className="field mt-1" value={studentId} onChange={(event) => setStudentId(event.target.value)} required>
-            <option value="">Select student</option>
+            <option value="">{studentsLoading ? "Loading students..." : "Select student"}</option>
             {students.map((student) => (
               <option key={student.id} value={student.id}>
                 {student.studentName} ({student.admissionNumber || student.id}) · Class {student.class || "--"}{student.section || ""} · Due ₹{Number(student.totalFeesDue ?? 0).toLocaleString("en-IN")}

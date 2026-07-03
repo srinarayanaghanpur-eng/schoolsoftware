@@ -12,7 +12,7 @@ import {
   type AttendanceRecord,
   DEFAULT_SETTINGS
 } from "@sri-narayana/shared";
-import { ArrowLeft, TrendingDown, TrendingUp, Wallet } from "lucide-react";
+import { ArrowLeft, TrendingUp, Wallet } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -23,6 +23,14 @@ type SalaryMonthData = {
 
 function currentMonth() {
   return new Date().toISOString().slice(0, 7);
+}
+
+function approvedPaidCLDays(report: SalaryReport) {
+  return report.approvedPaidCLDays ?? report.paidCLDays ?? report.paidLeaveDays ?? report.clDays ?? 0;
+}
+
+function unpaidAbsentDays(report: SalaryReport) {
+  return report.unpaidAbsentDays ?? report.unpaidDeductionDays ?? report.absentDays ?? 0;
 }
 
 export default function TeacherSalaryPage() {
@@ -130,8 +138,12 @@ export default function TeacherSalaryPage() {
   }
 
   const { report } = salary;
-  const attendancePercentage = Math.round((report.presentDays / report.workingDays) * 100);
-  const money = (value?: number) => (value ?? 0).toLocaleString("en-IN");
+  const totalWorkingDays = report.totalWorkingDaysInMonth ?? report.workingDays;
+  const workingDaysElapsed = report.workingDaysElapsed ?? report.workingDays;
+  const paidCLDays = approvedPaidCLDays(report);
+  const unpaidDays = unpaidAbsentDays(report);
+  const attendancePercentage = workingDaysElapsed > 0 ? Math.round((report.presentDays / workingDaysElapsed) * 100) : 0;
+  const money = (value?: number) => (value ?? 0).toLocaleString("en-IN", { maximumFractionDigits: 2 });
 
   return (
     <>
@@ -144,14 +156,14 @@ export default function TeacherSalaryPage() {
 
         {/* Salary Summary Cards */}
         <div className="grid gap-4 md:grid-cols-3">
-          {/* Monthly Salary */}
+          {/* Base Salary */}
           <div className="card space-y-2 p-4">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-stone-600">Monthly Salary</span>
+              <span className="text-sm font-medium text-stone-600">Base Salary</span>
               <Wallet size={18} className="text-blue-600" />
             </div>
             <div className="text-3xl font-bold text-blue-600">₹{money(report.baseSalary)}</div>
-            <div className="text-xs text-stone-500">{report.workingDays} working days</div>
+            <div className="text-xs text-stone-500">{totalWorkingDays} total working days</div>
           </div>
 
           {/* Daily Rate */}
@@ -164,40 +176,42 @@ export default function TeacherSalaryPage() {
             <div className="text-xs text-stone-500">Per working day</div>
           </div>
 
-          {/* Net Salary */}
+          {/* Net Payable */}
           <div className="card space-y-2 p-4">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-stone-600">Net Salary</span>
-              <Wallet size={18} className={report.netPayable === report.baseSalary ? "text-green-600" : "text-red-600"} />
+              <span className="text-sm font-medium text-stone-600">Net Payable</span>
+              <Wallet size={18} className={report.netPayable > 0 ? "text-green-600" : "text-red-600"} />
             </div>
-            <div className={`text-3xl font-bold ${report.netPayable === report.baseSalary ? "text-green-600" : "text-red-600"}`}>
+            <div className={`text-3xl font-bold ${report.netPayable > 0 ? "text-green-600" : "text-red-600"}`}>
               ₹{money(report.netPayable)}
             </div>
-            <div className="text-xs text-stone-500">{report.netPayable === report.baseSalary ? "No deductions" : "With deductions"}</div>
+            <div className="text-xs text-stone-500">{report.earnedPaidDays ?? report.presentDays + paidCLDays} earned paid days</div>
           </div>
         </div>
 
         {/* Attendance Summary */}
         <div className="card space-y-4 p-4">
           <h3 className="font-semibold">Attendance Summary</h3>
-          <div className="grid gap-4 md:grid-cols-4">
+          <div className="grid gap-4 md:grid-cols-5">
             <div className="space-y-2 rounded-md bg-stone-50 p-3">
-              <span className="text-xs font-medium text-stone-600">Working Days</span>
-              <div className="text-2xl font-bold">{report.workingDays}</div>
+              <span className="text-xs font-medium text-stone-600">Total Working Days</span>
+              <div className="text-2xl font-bold">{totalWorkingDays}</div>
+            </div>
+            <div className="space-y-2 rounded-md bg-stone-50 p-3">
+              <span className="text-xs font-medium text-stone-600">Working Days Elapsed</span>
+              <div className="text-2xl font-bold">{workingDaysElapsed}</div>
             </div>
             <div className="space-y-2 rounded-md bg-green-50 p-3">
-              <span className="text-xs font-medium text-green-600">Present</span>
+              <span className="text-xs font-medium text-green-600">Present Days</span>
               <div className="text-2xl font-bold text-green-600">{report.presentDays} ({attendancePercentage}%)</div>
             </div>
-            <div className="space-y-2 rounded-md bg-yellow-50 p-3">
-              <span className="text-xs font-medium text-yellow-600">Late</span>
-              <div className="text-2xl font-bold text-yellow-600">{report.lateEntries}</div>
-              <span className="text-xs text-stone-500">{report.clUsedFromLate} CL used</span>
+            <div className="space-y-2 rounded-md bg-blue-50 p-3">
+              <span className="text-xs font-medium text-blue-600">Approved Paid CL Days</span>
+              <div className="text-2xl font-bold text-blue-600">{paidCLDays}</div>
             </div>
             <div className="space-y-2 rounded-md bg-red-50 p-3">
-              <span className="text-xs font-medium text-red-600">Absent</span>
-              <div className="text-2xl font-bold text-red-600">{report.absentDays}</div>
-              <span className="text-xs text-stone-500">{report.clUsedFromAbsent} CL used</span>
+              <span className="text-xs font-medium text-red-600">Unpaid Absent Days</span>
+              <div className="text-2xl font-bold text-red-600">{unpaidDays}</div>
             </div>
           </div>
         </div>
@@ -212,9 +226,9 @@ export default function TeacherSalaryPage() {
               <span className="text-xs text-stone-500">Per month</span>
             </div>
             <div className="space-y-2 rounded-md bg-orange-50 p-3">
-              <span className="text-xs font-medium text-orange-600">CL Used</span>
-              <div className="text-2xl font-bold text-orange-600">{report.totalClUsed}</div>
-              <span className="text-xs text-stone-500">{report.clUsedFromAbsent}a + {report.clUsedFromLate}l</span>
+              <span className="text-xs font-medium text-orange-600">Approved Paid CL</span>
+              <div className="text-2xl font-bold text-orange-600">{paidCLDays}</div>
+              <span className="text-xs text-stone-500">{report.approvedLeaveCLDays ?? paidCLDays} approved</span>
             </div>
             <div className={`space-y-2 rounded-md p-3 ${report.remainingCl > 0 ? "bg-green-50" : "bg-gray-50"}`}>
               <span className={`text-xs font-medium ${report.remainingCl > 0 ? "text-green-600" : "text-gray-600"}`}>CL Remaining</span>
@@ -230,13 +244,13 @@ export default function TeacherSalaryPage() {
         </div>
 
         {/* Salary Deductions */}
-        {report.excessLeaveDeduction > 0 && (
+        {(report.salaryDeduction > 0 || report.manualDeduction > 0) && (
           <div className="card space-y-4 border-l-4 border-red-500 p-4">
             <h3 className="font-semibold text-red-600">Salary Deductions</h3>
             <div className="space-y-3">
               <div className="flex items-center justify-between rounded-md bg-red-50 p-3">
-                <span className="text-sm">Excess Leave Deduction ({report.excessLeave} days × ₹{report.perDaySalary})</span>
-                <span className="font-semibold text-red-600">- ₹{money(report.excessLeaveDeduction)}</span>
+                <span className="text-sm">Deduction ({unpaidDays} days × ₹{money(report.perDaySalary)})</span>
+                <span className="font-semibold text-red-600">₹{money(report.salaryDeduction)}</span>
               </div>
               {report.manualDeduction > 0 && (
                 <div className="flex items-center justify-between rounded-md bg-red-50 p-3">
@@ -260,9 +274,33 @@ export default function TeacherSalaryPage() {
               <span>Base Salary</span>
               <span className="font-semibold">₹{money(report.baseSalary)}</span>
             </div>
-            <div className={`flex items-center justify-between ${report.totalDeduction > 0 ? "text-red-600" : ""}`}>
-              <span>Deductions</span>
-              <span className="font-semibold">- ₹{money(report.totalDeduction)}</span>
+            <div className="flex items-center justify-between">
+              <span>Total Working Days</span>
+              <span className="font-semibold">{totalWorkingDays}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span>Working Days Elapsed</span>
+              <span className="font-semibold">{workingDaysElapsed}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span>Present Days</span>
+              <span className="font-semibold">{report.presentDays}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span>Approved Paid CL Days</span>
+              <span className="font-semibold">{paidCLDays}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span>Unpaid Absent Days</span>
+              <span className="font-semibold">{unpaidDays}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span>Daily Rate</span>
+              <span className="font-semibold">₹{money(report.perDaySalary)}</span>
+            </div>
+            <div className={`flex items-center justify-between ${report.salaryDeduction > 0 ? "text-red-600" : ""}`}>
+              <span>Deduction</span>
+              <span className="font-semibold">₹{money(report.salaryDeduction)}</span>
             </div>
             {report.bonus > 0 && (
               <div className="flex items-center justify-between text-green-600">
@@ -272,7 +310,7 @@ export default function TeacherSalaryPage() {
             )}
             <div className="border-t-2 border-stone-200 pt-2">
               <div className="flex items-center justify-between">
-                <span className="text-lg font-semibold">Net Payable Salary</span>
+                <span className="text-lg font-semibold">Net Payable</span>
                 <span className="text-2xl font-bold text-green-600">₹{money(report.netPayable)}</span>
               </div>
             </div>

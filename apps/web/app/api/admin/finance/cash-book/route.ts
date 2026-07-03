@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { requirePermission } from "@/lib/apiUtils";
 import { docDateKey, inRange } from "@/lib/financeUtils";
+import { logFirestoreRead } from "@/lib/firestoreReadLogger";
 
 type CashEntry = { date: string; type: "income" | "expense"; category: string; description: string; amount: number; balance: number; source: string; refId?: string };
 
@@ -10,15 +11,23 @@ export async function GET(req: Request) {
   if (!token) return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
 
   const { searchParams } = new URL(req.url);
-  const from = searchParams.get("from");
-  const to = searchParams.get("to");
+  const now = new Date();
+  const defaultFrom = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+  const defaultTo = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10);
+  const from = searchParams.get("from") || defaultFrom;
+  const to = searchParams.get("to") || defaultTo;
+  const fromDate = new Date(`${from}T00:00:00`);
+  const toDate = new Date(`${to}T23:59:59.999`);
   const db = adminDb();
 
   const [paymentsSnap, incomesSnap, expensesSnap] = await Promise.all([
-    db.collection("payments").where("paymentMethod", "==", "cash").get(),
-    db.collection("incomes").where("paymentMethod", "==", "cash").get(),
-    db.collection("expenses").where("status", "==", "approved").where("paymentMethod", "==", "cash").get()
+    db.collection("payments").where("paymentMethod", "==", "cash").where("createdAt", ">=", fromDate).where("createdAt", "<=", toDate).orderBy("createdAt", "desc").limit(500).get(),
+    db.collection("incomes").where("paymentMethod", "==", "cash").where("createdAt", ">=", fromDate).where("createdAt", "<=", toDate).orderBy("createdAt", "desc").limit(500).get(),
+    db.collection("expenses").where("status", "==", "approved").where("paymentMethod", "==", "cash").where("createdAt", ">=", fromDate).where("createdAt", "<=", toDate).orderBy("createdAt", "desc").limit(500).get()
   ]);
+  logFirestoreRead("FinanceCashBookAPI", "payments", paymentsSnap, { from, to, paymentMethod: "cash", limit: 500 });
+  logFirestoreRead("FinanceCashBookAPI", "incomes", incomesSnap, { from, to, paymentMethod: "cash", limit: 500 });
+  logFirestoreRead("FinanceCashBookAPI", "expenses", expensesSnap, { from, to, status: "approved", paymentMethod: "cash", limit: 500 });
 
   const entries: CashEntry[] = [];
   const push = (snap: FirebaseFirestore.QuerySnapshot, map: (d: Record<string, unknown>, id: string) => CashEntry | null) => {

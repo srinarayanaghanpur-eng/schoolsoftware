@@ -138,20 +138,84 @@ function runTest(name: string, test: () => void) {
   console.log(`PASS ${name}`);
 }
 
+runTest("earned salary uses paid CL only for approved leave within monthly balance", () => {
+  const dates = workingDates();
+  const report = calculate({
+    teacher: createTeacher({ baseSalary: 20000 }),
+    records: dates.slice(0, 20).map((date) => attendance(date)),
+    leaveRequests: [leave(dates[20], dates[26])],
+    payrollFinalized: true,
+  });
+
+  assert.equal(report.baseSalary, 20000);
+  assert.equal(report.totalWorkingDaysInMonth, 27);
+  assert.equal(report.presentDays, 20);
+  assert.equal(report.approvedLeaveCLDays, 7);
+  assert.equal(report.approvedPaidCLDays, 3);
+  assert.equal(report.paidCLDays, 3);
+  assert.equal(report.excessCLDays, 4);
+  assert.equal(report.unpaidAbsentDays, 4);
+  assert.equal(report.earnedPaidDays, 23);
+  assertMoney(report.perDaySalary, 740.74, "daily rate");
+  assertMoney(report.salaryDeduction, 2962.96, "deduction");
+  assertMoney(report.netPayable, 17037.04, "net payable");
+});
+
+runTest("plain absent days are unpaid when leave is not approved", () => {
+  const dates = workingDates();
+  const report = calculate({
+    teacher: createTeacher({ baseSalary: 20000 }),
+    records: dates.slice(0, 20).map((date) => attendance(date)),
+    payrollFinalized: true,
+  });
+
+  assert.equal(report.baseSalary, 20000);
+  assert.equal(report.totalWorkingDaysInMonth, 27);
+  assert.equal(report.presentDays, 20);
+  assert.equal(report.approvedPaidCLDays, 0);
+  assert.equal(report.paidCLDays, 0);
+  assert.equal(report.unpaidAbsentDays, 7);
+  assert.equal(report.earnedPaidDays, 20);
+  assertMoney(report.perDaySalary, 740.74, "daily rate");
+  assertMoney(report.salaryDeduction, 5185.19, "deduction");
+  assertMoney(report.netPayable, 14814.81, "net payable");
+});
+
+runTest("current month pays only earned elapsed days and never future unworked days", () => {
+  const report = calculate({
+    teacher: createTeacher({ baseSalary: 32500 }),
+    payrollFinalized: false,
+    calculationDate: "2026-07-03T12:00:00+05:30",
+  });
+
+  assert.equal(report.totalWorkingDaysInMonth, 27);
+  assert.equal(report.workingDaysElapsed, 3);
+  assert.equal(report.presentDays, 0);
+  assert.equal(report.approvedPaidCLDays, 0);
+  assert.equal(report.unpaidAbsentDays, 3);
+  assert.equal(report.earnedPaidDays, 0);
+  assertMoney(report.perDaySalary, 1203.7, "daily rate");
+  assertMoney(report.salaryDeduction, 3611.11, "deduction for reporting");
+  assert.equal(report.netPayable, 0);
+  assert.ok(Math.abs(report.netPayable - 28888.89) > 0.01, "net payable must not include future unworked days");
+});
+
 runTest("missing attendance becomes absent", () => {
   const report = calculate({ payrollFinalized: false, calculationDate: "2026-07-02T12:00:00+05:30" });
   const expectedDailyRate = 32500 / workingDates().length;
   assert.equal(report.workingDaysElapsed, 2);
   assert.equal(report.presentDays, 0);
   assert.equal(report.absentDays, 2);
+  assert.equal(report.unpaidAbsentDays, 2);
   assertMoney(report.salaryDeduction, 2 * expectedDailyRate, "deduction");
-  assert.ok(report.netPayable < report.baseSalary);
+  assert.equal(report.netPayable, 0);
 });
 
 runTest("present zero does not get full salary in finalized month", () => {
   const report = calculate({});
   assert.equal(report.presentDays, 0);
   assert.equal(report.absentDays, workingDates().length);
+  assert.equal(report.unpaidAbsentDays, workingDates().length);
   assertMoney(report.salaryDeduction, report.baseSalary, "deduction");
   assert.equal(report.netPayable, 0);
 });
@@ -162,6 +226,7 @@ runTest("approved leave is paid only within CL balance", () => {
     leaveRequests: [leave(dates[0], dates[3])],
   });
   assert.equal(report.approvedLeaveCLDays, 4);
+  assert.equal(report.approvedPaidCLDays, 3);
   assert.equal(report.paidLeaveDays, 3);
   assert.equal(report.excessCLDays, 1);
   assertMoney(report.excessLeaveDeduction, report.perDaySalary, "excess leave deduction");
@@ -176,6 +241,7 @@ runTest("approved leave with attendance counts as present", () => {
   assert.equal(report.presentDays, 1);
   assert.equal(report.attendedApprovedLeaveDays, 1);
   assert.equal(report.approvedLeaveCLDays, 0);
+  assert.equal(report.approvedPaidCLDays, 0);
   assert.equal(report.paidLeaveDays, 0);
 });
 
@@ -186,6 +252,8 @@ runTest("current month does not count future dates as absent", () => {
   });
   assert.equal(report.workingDaysElapsed, 1);
   assert.equal(report.absentDays, 1);
+  assert.equal(report.unpaidAbsentDays, 1);
+  assert.equal(report.netPayable, 0);
   assert.ok(report.absentDays < workingDates().length);
 });
 
@@ -204,23 +272,27 @@ runTest("net payable reduces when absent days exist", () => {
   const records = dates.slice(0, dates.length - 4).map((date) => attendance(date));
   const report = calculate({ records });
   assert.equal(report.absentDays, 4);
+  assert.equal(report.unpaidAbsentDays, 4);
+  assert.equal(report.earnedPaidDays, dates.length - 4);
   assert.ok(report.netPayable < report.baseSalary);
 });
 
-runTest("late-derived CL reduces CL balance and can create excess", () => {
+runTest("late check-ins count as present and do not consume salary CL", () => {
   const dates = workingDates();
   const report = calculate({
     records: dates.slice(0, 6).map((date) => lateAttendance(date)),
     leaveRequests: [leave(dates[6], dates[7])],
   });
   assert.equal(report.lateEntries, 6);
-  assert.equal(report.lateDerivedCLDays, 2);
+  assert.equal(report.presentDays, 6);
+  assert.equal(report.lateDerivedCLDays, 0);
   assert.equal(report.approvedLeaveCLDays, 2);
-  assert.equal(report.paidLeaveDays, 1);
-  assert.equal(report.excessCLDays, 1);
+  assert.equal(report.approvedPaidCLDays, 2);
+  assert.equal(report.paidLeaveDays, 2);
+  assert.equal(report.excessCLDays, 0);
 });
 
-runTest("deduction is never negative and net never exceeds base", () => {
+runTest("negative manual deduction is ignored and bonus is separate pay", () => {
   const date = workingDates()[0];
   const report = calculate({
     records: workingDates().map((workingDate) => attendance(workingDate)),
@@ -230,7 +302,7 @@ runTest("deduction is never negative and net never exceeds base", () => {
   });
   assert.ok(report.salaryDeduction >= 0);
   assert.ok(report.totalDeduction >= 0);
-  assert.equal(report.netPayable, report.baseSalary);
+  assert.equal(report.netPayable, report.baseSalary + 10000);
 });
 
 runTest("holidays and Sundays are not counted as absences", () => {
@@ -241,6 +313,7 @@ runTest("holidays and Sundays are not counted as absences", () => {
   });
   assert.equal(report.totalWorkingDaysInMonth, workingDates(TEST_MONTH, [schoolHoliday]).length);
   assert.equal(report.absentDays, workingDates(TEST_MONTH, [schoolHoliday]).length);
+  assert.equal(report.unpaidAbsentDays, workingDates(TEST_MONTH, [schoolHoliday]).length);
   assert.equal(report.absentDates?.includes(schoolHoliday.date), false);
 });
 

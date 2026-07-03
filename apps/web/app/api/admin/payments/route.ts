@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { FieldValue } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { requirePermission } from "@/lib/apiUtils";
+import { docCursor, logFirestoreRead, readLimit } from "@/lib/firestoreReadLogger";
 
 /**
  * GET /api/admin/payments
- * Get all payments
+ * Get payments/receipts with Firestore filters and cursor pagination.
  */
 export async function GET(request: NextRequest) {
   try {
@@ -15,25 +17,51 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const studentId = searchParams.get('studentId');
     const status = searchParams.get('status');
+    const branchId = searchParams.get("branchId") || "";
+    const academicYearId = searchParams.get("academicYearId") || "";
+    const classId = searchParams.get("classId") || searchParams.get("class") || "";
+    const sectionId = searchParams.get("sectionId") || searchParams.get("section") || "";
+    const paymentMethod = searchParams.get("paymentMode") || searchParams.get("paymentMethod") || "";
+    const receiptNo = searchParams.get("receiptNo") || searchParams.get("receiptNumber") || "";
+    const createdBy = searchParams.get("createdBy") || "";
+    const dateFrom = searchParams.get("dateFrom") || "";
+    const dateTo = searchParams.get("dateTo") || "";
+    const pageSize = readLimit(searchParams.get("pageSize") ?? searchParams.get("limit"), 25, 100);
+    const cursor = docCursor(searchParams.get("cursor"));
 
     let query: any = db.collection('payments');
 
+    if (branchId) query = query.where("branchId", "==", branchId);
+    if (academicYearId) query = query.where("academicYearId", "==", academicYearId);
+    if (classId) query = query.where("classId", "==", classId);
+    if (sectionId) query = query.where("sectionId", "==", sectionId);
     if (studentId) {
       query = query.where('studentId', '==', studentId);
     }
     if (status) {
       query = query.where('status', '==', status);
     }
+    if (paymentMethod) query = query.where("paymentMethod", "==", paymentMethod);
+    if (receiptNo) query = query.where("receiptNumber", "==", receiptNo);
+    if (createdBy) query = query.where("recordedBy", "==", createdBy);
+    if (dateFrom) query = query.where("createdAt", ">=", new Date(dateFrom));
+    if (dateTo) query = query.where("createdAt", "<=", new Date(`${dateTo}T23:59:59.999`));
 
-    query = query.orderBy('createdAt', 'desc');
+    query = query.orderBy('createdAt', 'desc').limit(pageSize);
+    if (cursor) {
+      const cursorDoc = await db.collection("payments").doc(cursor).get();
+      if (cursorDoc.exists) query = query.startAfter(cursorDoc);
+    }
 
     const snapshot = await query.get();
+    logFirestoreRead("PaymentsAPI", "payments", snapshot, { branchId, academicYearId, classId, sectionId, studentId, status, paymentMethod, receiptNo, pageSize });
     const payments = snapshot.docs.map((doc: { id: string; data: () => any }) => ({
       id: doc.id,
       ...doc.data()
     }));
+    const nextCursor = snapshot.docs.length === pageSize ? snapshot.docs[snapshot.docs.length - 1].id : null;
 
-    return NextResponse.json({ success: true, data: payments });
+    return NextResponse.json({ success: true, data: payments, pageSize, nextCursor, hasMore: Boolean(nextCursor) });
   } catch (error) {
     console.error('Error fetching payments:', error);
     return NextResponse.json(
@@ -73,110 +101,129 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get student data
-    const studentSnap = await db.collection('students').doc(studentId).get();
-    if (!studentSnap.exists) {
-      return NextResponse.json(
-        { success: false, error: 'Student not found' },
-        { status: 404 }
-      );
-    }
-
-    const student = studentSnap.data();
-    if (!student) {
-      return NextResponse.json(
-        { success: false, error: 'Student data unavailable' },
-        { status: 500 }
-      );
-    }
-
-    // Generate receipt number
     const now = new Date();
     const month = String(now.getMonth() + 1).padStart(2, '0');
     const year = now.getFullYear();
+    const monthKey = `${year}-${month}`;
+    const studentRef = db.collection("students").doc(studentId);
+    const paymentRef = db.collection("payments").doc();
+    const receiptRef = db.collection("receipts").doc();
+    const counterRef = db.collection("receipt_counters").doc(monthKey);
 
-    const monthStart = new Date(year, now.getMonth(), 1);
-    const monthEnd = new Date(year, now.getMonth() + 1, 0);
+    let paymentData: Record<string, unknown> = {};
+    let receiptData: Record<string, unknown> = {};
+    let receiptNumber = "";
 
-    const countSnapshot = await db
-      .collection('payments')
-      .where('createdAt', '>=', monthStart)
-      .where('createdAt', '<=', monthEnd)
-      .get();
+    await db.runTransaction(async (transaction) => {
+      const [studentSnap, counterSnap] = await Promise.all([
+        transaction.get(studentRef),
+        transaction.get(counterRef)
+      ]);
+      if (!studentSnap.exists) throw new Error("Student not found");
+      const student = studentSnap.data();
+      if (!student) throw new Error("Student data unavailable");
 
-    const count = String(countSnapshot.size + 1).padStart(4, '0');
-    const receiptNumber = `RCP-${year}-${month}-${count}`;
+      const nextNumber = Number(counterSnap.data()?.nextNumber ?? 1);
+      receiptNumber = `RCP-${year}-${month}-${String(nextNumber).padStart(4, "0")}`;
+      const amountDue = Number(student.totalFeesDue || 0);
+      const remainingAmount = Math.max(0, amountDue - Number(amountPaid));
+      const feeStatus = remainingAmount === 0 ? 'paid' : Number(amountPaid) > 0 ? 'partial' : 'pending';
+      const branchId = student.branchId || "default-branch";
+      const academicYearId = student.academicYearId || "";
+      const classId = student.classId || student.class || "";
+      const sectionId = student.sectionId || student.section || "";
 
-    // Calculate remaining amount
-    const amountDue = student.totalFeesDue || 0;
-    const remainingAmount = Math.max(0, amountDue - amountPaid);
+      paymentData = {
+        studentId,
+        admissionNumber: student.admissionNumber,
+        studentName: student.studentName,
+        branchId,
+        academicYearId,
+        classId,
+        sectionId,
+        class: student.class,
+        section: student.section,
+        amountDue,
+        amountPaid: Number(amountPaid),
+        remainingAmount,
+        paymentType,
+        concessionApplied: !!concessionId,
+        concessionId: concessionId || null,
+        paymentDate: now,
+        paymentMethod,
+        transactionId: transactionId || null,
+        receiptNumber,
+        remarks: remarks || null,
+        recordedBy: userId || auth.uid,
+        status: 'completed',
+        createdAt: now,
+        updatedAt: now
+      };
 
-    // Create payment record
-    const feeStatus = remainingAmount === 0 ? 'paid' : amountPaid > 0 ? 'partial' : 'pending';
+      receiptData = {
+        receiptNumber,
+        paymentId: paymentRef.id,
+        studentId,
+        admissionNumber: student.admissionNumber,
+        studentName: student.studentName,
+        branchId,
+        academicYearId,
+        classId,
+        sectionId,
+        class: student.class,
+        section: student.section,
+        amountPaid: Number(amountPaid),
+        paymentDate: now,
+        receiptDate: now,
+        issuedBy: userId || auth.uid,
+        status: 'issued',
+        createdAt: now
+      };
 
-    const paymentData = {
-      studentId,
-      admissionNumber: student.admissionNumber,
-      studentName: student.studentName,
-      amountDue,
-      amountPaid,
-      remainingAmount,
-      paymentType,
-      concessionApplied: !!concessionId,
-      concessionId: concessionId || null,
-      paymentDate: new Date(),
-      paymentMethod,
-      transactionId: transactionId || null,
-      receiptNumber,
-      remarks: remarks || null,
-      recordedBy: userId,
-      status: 'completed',
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
-
-    const paymentRef = await db.collection('payments').add(paymentData);
-
-    // Update student fee status
-    await db.collection('students').doc(studentId).update({
-      totalFeesPaid: (student.totalFeesPaid || 0) + amountPaid,
-      totalFeesDue: remainingAmount,
-      feeStatus,
-      lastPaymentDate: new Date(),
-      feeLastUpdated: new Date()
-    });
-
-    // Create receipt
-    const receiptData = {
-      receiptNumber,
-      paymentId: paymentRef.id,
-      studentId,
-      admissionNumber: student.admissionNumber,
-      studentName: student.studentName,
-      class: student.class,
-      section: student.section,
-      amountPaid,
-      paymentDate: new Date(),
-      receiptDate: new Date(),
-      issuedBy: userId,
-      status: 'issued',
-      createdAt: new Date()
-    };
-
-    await db.collection('receipts').add(receiptData);
-
-    // Log audit
-    await db.collection('feeAuditLogs').add({
-      action: 'payment_recorded',
-      entityType: 'payment',
-      entityId: paymentRef.id,
-      studentId,
-      changes: {
-        oldData: {},
-        newData: paymentData
-      },
-      userId,
-      timestamp: new Date()
+      transaction.set(counterRef, { nextNumber: nextNumber + 1, updatedAt: now }, { merge: true });
+      transaction.set(paymentRef, paymentData);
+      transaction.set(receiptRef, receiptData);
+      transaction.update(studentRef, {
+        totalFeesPaid: Number(student.totalFeesPaid || 0) + Number(amountPaid),
+        totalFeesDue: remainingAmount,
+        feeStatus,
+        lastPaymentDate: now,
+        feeLastUpdated: now
+      });
+      transaction.set(db.collection("studentFeeSummaries").doc(`${studentId}_${academicYearId || "default"}`), {
+        studentId,
+        branchId,
+        academicYearId,
+        classId,
+        sectionId,
+        studentName: student.studentName || "",
+        admissionNumber: student.admissionNumber || "",
+        className: student.class || classId,
+        sectionName: student.section || sectionId,
+        totalFee: Number(student.totalFeeAmount || 0),
+        totalPaid: Number(student.totalFeesPaid || 0) + Number(amountPaid),
+        totalConcession: Number(student.totalConcessionAmount || 0),
+        dueAmount: remainingAmount,
+        lastPaymentDate: now,
+        updatedAt: now
+      }, { merge: true });
+      transaction.set(db.collection("financeSummaries").doc(`${branchId}_${academicYearId || "default"}_${monthKey}`), {
+        branchId,
+        academicYearId,
+        month: monthKey,
+        totalIncome: FieldValue.increment(Number(amountPaid)),
+        totalReceipts: FieldValue.increment(1),
+        updatedAt: now
+      }, { merge: true });
+      transaction.set(db.collection("feeAuditLogs").doc(), {
+        action: 'payment_recorded',
+        entityType: 'payment',
+        entityId: paymentRef.id,
+        studentId,
+        changes: { oldData: {}, newData: paymentData },
+        userId: userId || auth.uid,
+        timestamp: now
+      });
     });
 
     return NextResponse.json(
@@ -185,7 +232,7 @@ export async function POST(request: NextRequest) {
         data: {
           id: paymentRef.id,
           ...paymentData,
-          receipt: { ...receiptData }
+          receipt: { ...receiptData, id: receiptRef.id }
         }
       },
       { status: 201 }

@@ -4,6 +4,15 @@ import { requirePermission } from "@/lib/apiUtils";
 
 const db = adminDb();
 
+function normalizeText(value: unknown) {
+  return String(value ?? "").trim().toLowerCase();
+}
+
+function searchKeywords(name: string, admissionNumber: string, phone: string) {
+  const words = name.toLowerCase().split(/\s+/).filter(Boolean);
+  return Array.from(new Set([admissionNumber.toLowerCase(), phone, ...words].filter(Boolean)));
+}
+
 /**
  * GET /api/admin/students/[id]
  * Fetch a single student by ID.
@@ -83,8 +92,15 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 
     const updateData: Record<string, unknown> = {
       studentName,
+      studentNameLower: normalizeText(studentName),
       class: classStr,
+      classId: body.classId || classStr,
       section,
+      sectionId: body.sectionId || section,
+      branchId: body.branchId || existing.branchId || "default-branch",
+      academicYearId: body.academicYearId ?? existing.academicYearId ?? "",
+      status: body.status || existing.status || "active",
+      rollNo: Number(body.rollNo ?? existing.rollNo ?? String(existing.admissionNumber ?? "").replace(/\D/g, "") ?? 0),
       gender: gender ?? existing.gender ?? '',
       fatherName: fatherName || '',
       fatherPhone: body.fatherPhone ?? existing.fatherPhone ?? '',
@@ -108,6 +124,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       totalFeeAmount,
       totalFeesDue,
       feeStatus,
+      searchKeywords: searchKeywords(studentName, String(existing.admissionNumber ?? ""), phone || existing.phone || ""),
       feeLastUpdated: new Date(),
       updatedAt: new Date()
     };

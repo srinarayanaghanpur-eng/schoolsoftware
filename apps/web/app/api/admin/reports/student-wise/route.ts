@@ -1,39 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from "@/lib/firebaseAdmin";
-import { QueryDocumentSnapshot } from "firebase-admin/firestore";
 import { requirePermission } from "@/lib/apiUtils";
+import { logFirestoreRead, readLimit } from "@/lib/firestoreReadLogger";
 
 export const dynamic = "force-dynamic";
-
-function num(value: unknown) {
-  return Number(value) || 0;
-}
-
-function totalFeeForStudent(student: Record<string, unknown>) {
-  const totalFeeAmount = num(student.totalFeeAmount);
-  if (totalFeeAmount > 0) return totalFeeAmount;
-  return num(student.annualEnrollmentFee) + num(student.commitmentFee) + num(student.transportFee) + num(student.feeBalanceCarriedForward);
-}
-
-function paidForStudent(student: Record<string, unknown>, payments: Array<Record<string, unknown>>) {
-  const paymentTotal = payments
-    .filter((p) => String(p.status || "completed").toLowerCase() === "completed")
-    .reduce((sum, p) => sum + num(p.amountPaid), 0);
-  return Math.max(num(student.totalFeesPaid), paymentTotal);
-}
-
-function outstandingForStudent(student: Record<string, unknown>, paid: number) {
-  const totalFee = totalFeeForStudent(student);
-  const storedDue = num(student.totalFeesDue);
-
-  if (storedDue > 0 && totalFee > 0 && storedDue + paid <= totalFee + 1) {
-    return storedDue;
-  }
-  if (storedDue > 0) {
-    return Math.max(0, storedDue - paid);
-  }
-  return Math.max(0, totalFee - paid);
-}
 
 function dateString(value: unknown) {
   if (typeof value === "string") return value.slice(0, 10);
@@ -54,54 +24,38 @@ export async function GET(request: NextRequest) {
 
     const db = adminDb();
     const searchParams = request.nextUrl.searchParams;
-    const classFilter = searchParams.get('class');
+    const classFilter = searchParams.get('classId') || searchParams.get('class') || "";
+    const sectionFilter = searchParams.get('sectionId') || searchParams.get('section') || "";
+    const academicYearId = searchParams.get("academicYearId") || "";
+    const pageSize = readLimit(searchParams.get("pageSize") ?? searchParams.get("limit"), 100, 500);
 
-    let query: any = db.collection('students');
-    if (classFilter) {
-      query = query.where('class', '==', classFilter);
-    }
-
-    query = query.orderBy('studentName');
+    let query: FirebaseFirestore.Query = db.collection('studentFeeSummaries');
+    if (academicYearId) query = query.where("academicYearId", "==", academicYearId);
+    if (classFilter) query = query.where('classId', '==', classFilter);
+    if (sectionFilter) query = query.where("sectionId", "==", sectionFilter);
+    query = query.orderBy("studentName", "asc").limit(pageSize);
 
     const snapshot = await query.get();
-    const students = snapshot.docs.map((d: QueryDocumentSnapshot) => ({
+    logFirestoreRead("StudentWiseReportAPI", "studentFeeSummaries", snapshot, { academicYearId, classFilter, sectionFilter, pageSize });
+    const students = snapshot.docs.map((d) => ({
       id: d.id,
       ...d.data()
     }));
 
-    const paymentsSnapshot = await db.collection('payments').get();
-    const paymentsByStudent: Record<string, any[]> = {};
-
-    paymentsSnapshot.forEach((doc) => {
-      const payment = doc.data();
-      if (!paymentsByStudent[payment.studentId]) {
-        paymentsByStudent[payment.studentId] = [];
-      }
-      paymentsByStudent[payment.studentId].push(payment);
-    });
-
     const report = students.map((student: any) => {
-      const payments = paymentsByStudent[student.id] || [];
-      const totalPaid = paidForStudent(student, payments);
-      const totalFee = totalFeeForStudent(student);
-      const remainingAmount = outstandingForStudent(student, totalPaid);
-      const lastPaymentDate =
-        dateString(student.lastPaymentDate) ??
-        payments
-          .map((payment) => dateString(payment.paymentDate ?? payment.createdAt))
-          .filter(Boolean)
-          .sort()
-          .at(-1) ??
-        null;
+      const totalPaid = Number(student.totalPaid) || 0;
+      const totalFee = Number(student.totalFee) || 0;
+      const remainingAmount = Math.max(0, Number(student.dueAmount) || 0);
+      const lastPaymentDate = dateString(student.lastPaymentDate);
 
       return {
         admissionNumber: student.admissionNumber,
         studentName: student.studentName,
-        class: student.class,
-        section: student.section,
-        annualEnrollmentFee: student.annualEnrollmentFee || 0,
-        commitmentFee: student.commitmentFee || 0,
-        previousYearDues: student.feeBalanceCarriedForward || 0,
+        class: student.className || student.classId,
+        section: student.sectionName || student.sectionId,
+        annualEnrollmentFee: 0,
+        commitmentFee: 0,
+        previousYearDues: 0,
         totalFeeAmount: totalFee,
         totalFeeDue: totalFee,
         totalPaid,

@@ -261,7 +261,7 @@ export type SalaryReport = {
   workingDays: number;
   presentDays: number;
   lateDays: number;
-  lateEntries: number; // For CL calculation: floor(lateEntries / 3)
+  lateEntries: number; // Late check-ins are still present days; retained for reporting.
   clDays: number;
   absentDays: number;
   holidays: number;
@@ -271,19 +271,23 @@ export type SalaryReport = {
   // CL Tracking
   clAllowanceThisMonth: number; // Usually 3
   clUsedFromAbsent: number; // approved leave CL days (no check-in)
-  clUsedFromLate: number; // floor(lateEntries / 3)
-  totalClUsed: number; // approvedLeaveCLDays + lateDerivedCLDays
+  clUsedFromLate: number; // Always 0 for earned-days payroll.
+  totalClUsed: number; // approved paid CL days consumed this month
   remainingCl: number; // max(0, allowance - totalClUsed)
   excessLeave: number; // max(0, totalClUsed - allowance)
   // New CL/leave breakdown
   approvedLeaveCLDays: number; // approved leave days with no check-in (CL consumed)
   attendedApprovedLeaveDays: number; // approved leave days where check-in exists
-  lateDerivedCLDays: number; // floor(lateEntries / 3)
-  paidCLDays: number; // min(totalClUsed, allowance) across approved leave + late-derived CL
+  lateDerivedCLDays: number; // Always 0 for earned-days payroll.
+  paidCLDays: number; // approved leave days paid from monthly CL allowance
+  approvedPaidCLDays: number; // approved leave days without check-in paid from CL
   paidLeaveDays?: number; // approved leave days paid from remaining CL balance
   excessCLDays: number; // max(totalClUsed - allowance, 0)
   plainAbsentDays: number; // working days with no check-in and no approved leave
-  unpaidDeductionDays: number; // plain missing-attendance absences; excess CL is tracked separately
+  unpaidAbsentDays: number; // plain absences + approved leave beyond CL balance
+  unpaidDeductionDays: number; // alias for unpaidAbsentDays used by older consumers
+  earnedPaidDays: number; // presentDays + approvedPaidCLDays
+  grossEarnedSalary: number; // earnedPaidDays × perDaySalary
   approvedLeaveRequests: LeaveRequest[]; // approved leave requests for this month
   approvedLeaveInfo: string; // formatted leave info for Excel
   salaryDeduction: number; // (plain absent days + excess CL days) × perDaySalary
@@ -295,7 +299,7 @@ export type SalaryReport = {
   bonus: number;
   totalDeduction: number; // Sum of all deductions
   // Final Salary
-  netPayable: number; // baseSalary - totalDeduction + bonus
+  netPayable: number; // grossEarnedSalary + bonus - manualDeduction
   // Payment Status
   paid: boolean;
   paidAt?: string;
@@ -321,8 +325,11 @@ export type PayrollCalculationDebug = {
   attendedApprovedLeaveDates: string[];
   lateDates: string[];
   paidLeaveDays: number;
+  approvedPaidCLDays: number;
   unpaidAbsentDays: number;
   excessCLDays: number;
+  earnedPaidDays: number;
+  grossEarnedSalary: number;
   dailyRate: number;
   deduction: number;
   netPayable: number;

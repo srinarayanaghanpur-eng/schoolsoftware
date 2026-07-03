@@ -18,6 +18,8 @@ export type SalaryCalculationInput = {
   calculationDate?: Date | string;
 };
 
+export const MONTHLY_CL_ALLOWANCE = 3;
+
 function normalizeDate(dateStr: string): string {
   return dateStr.slice(0, 10);
 }
@@ -146,35 +148,40 @@ export function calculateMonthlySalary(input: SalaryCalculationInput): SalaryRep
   const attendedApprovedLeaveDates = approvedLeaveDates.filter((date) => presentDateSet.has(date));
 
   const lateEntries = lateDates.length;
-  const lateDerivedCLDays = Math.floor(lateEntries / 3);
+  const lateDerivedCLDays = 0;
   const approvedLeaveCLDays = approvedLeaveCLDates.length;
-  const clAllowanceThisMonth = Math.max(0, input.teacher.allowedCLPerMonth ?? 3);
-  const totalCLUsed = approvedLeaveCLDays + lateDerivedCLDays;
-  const paidLeaveDays = Math.min(approvedLeaveCLDays, Math.max(0, clAllowanceThisMonth - lateDerivedCLDays));
-  const paidLeaveDates = new Set(approvedLeaveCLDates.slice(0, paidLeaveDays));
+  const clAllowanceThisMonth = MONTHLY_CL_ALLOWANCE;
+  const availableCLBalance = clAllowanceThisMonth;
+  const approvedPaidCLDays = Math.min(approvedLeaveCLDays, availableCLBalance);
+  const paidLeaveDates = new Set(approvedLeaveCLDates.slice(0, approvedPaidCLDays));
   const unpaidApprovedLeaveDates = approvedLeaveCLDates.filter((date) => !paidLeaveDates.has(date));
-  const paidCLDays = Math.min(totalCLUsed, clAllowanceThisMonth);
-  const excessCLDays = Math.max(totalCLUsed - clAllowanceThisMonth, 0);
+  const paidCLDays = approvedPaidCLDays;
+  const paidLeaveDays = approvedPaidCLDays;
+  const excessCLDays = unpaidApprovedLeaveDates.length;
+  const totalCLUsed = approvedPaidCLDays;
+  const remainingCl = Math.max(0, clAllowanceThisMonth - approvedPaidCLDays);
 
   const approvedLeaveCLDateSet = new Set(approvedLeaveCLDates);
   const plainAbsentDates = workingDatesElapsed.filter((date) => !presentDateSet.has(date) && !approvedLeaveCLDateSet.has(date));
   const absentDates = sortDates([...plainAbsentDates, ...unpaidApprovedLeaveDates]);
-  const absentDays = Math.max(0, workingDatesElapsed.length - presentDates.length - paidLeaveDays);
+  const unpaidAbsentDays = plainAbsentDates.length + excessCLDays;
+  const absentDays = unpaidAbsentDays;
+  const earnedPaidDays = presentDates.length + approvedPaidCLDays;
 
-  const denominatorWorkingDays = Math.max(1, totalWorkingDates.length);
-  const perDaySalary = input.teacher.baseSalary / denominatorWorkingDays;
-  const absentDeduction = plainAbsentDates.length * perDaySalary;
-  const excessLeaveDeduction = excessCLDays * perDaySalary;
-  const salaryDeduction = Math.max(0, absentDeduction + excessLeaveDeduction);
+  const dailyRate = totalWorkingDates.length > 0 ? input.teacher.baseSalary / totalWorkingDates.length : 0;
+  const absentDeduction = plainAbsentDates.length * dailyRate;
+  const excessLeaveDeduction = excessCLDays * dailyRate;
+  const salaryDeduction = unpaidAbsentDays * dailyRate;
   const manualDeduction = Math.max(0, input.manualDeduction ?? settings.salaryRules.manualDeductionDefault);
   const bonus = Math.max(0, input.bonus ?? settings.salaryRules.bonusDefault);
   const totalDeduction = salaryDeduction + manualDeduction;
-  const netPayable = Math.min(input.teacher.baseSalary, Math.max(0, input.teacher.baseSalary - totalDeduction + bonus));
-  const lateExcessCLDays = Math.max(0, lateDerivedCLDays - clAllowanceThisMonth);
+  const grossEarnedSalary = earnedPaidDays * dailyRate;
+  const netPayable = Math.max(0, grossEarnedSalary + bonus - manualDeduction);
 
   const timestamp = nowIso();
-  const roundedPerDaySalary = roundMoney(perDaySalary);
+  const roundedPerDaySalary = roundMoney(dailyRate);
   const roundedSalaryDeduction = roundMoney(salaryDeduction);
+  const roundedGrossEarnedSalary = roundMoney(grossEarnedSalary);
   const roundedNetPayable = roundMoney(netPayable);
 
   return {
@@ -202,26 +209,30 @@ export function calculateMonthlySalary(input: SalaryCalculationInput): SalaryRep
     perDaySalary: roundedPerDaySalary,
 
     clAllowanceThisMonth,
-    clUsedFromAbsent: approvedLeaveCLDays,
+    clUsedFromAbsent: approvedPaidCLDays,
     clUsedFromLate: lateDerivedCLDays,
     totalClUsed: totalCLUsed,
-    remainingCl: Math.max(0, clAllowanceThisMonth - totalCLUsed),
+    remainingCl,
     excessLeave: excessCLDays,
 
     approvedLeaveCLDays,
     attendedApprovedLeaveDays: attendedApprovedLeaveDates.length,
     lateDerivedCLDays,
     paidCLDays,
+    approvedPaidCLDays,
     paidLeaveDays,
     excessCLDays,
     plainAbsentDays: plainAbsentDates.length,
-    unpaidDeductionDays: plainAbsentDates.length,
+    unpaidAbsentDays,
+    unpaidDeductionDays: unpaidAbsentDays,
+    earnedPaidDays,
+    grossEarnedSalary: roundedGrossEarnedSalary,
     approvedLeaveRequests: (input.leaveRequests ?? []).filter((leave) => leave.teacherId === input.teacher.id && leave.status === "approved"),
     approvedLeaveInfo: buildApprovedLeaveInfo(approvedLeaveCLDates, attendedApprovedLeaveDates),
     salaryDeduction: roundedSalaryDeduction,
 
     absentDeduction: roundMoney(absentDeduction),
-    lateDeduction: roundMoney(lateExcessCLDays * perDaySalary),
+    lateDeduction: 0,
     excessLeaveDeduction: roundMoney(excessLeaveDeduction),
     manualDeduction: Math.round(manualDeduction),
     bonus: Math.round(bonus),
@@ -248,8 +259,11 @@ export function calculateMonthlySalary(input: SalaryCalculationInput): SalaryRep
       attendedApprovedLeaveDates,
       lateDates,
       paidLeaveDays,
-      unpaidAbsentDays: plainAbsentDates.length,
+      approvedPaidCLDays,
+      unpaidAbsentDays,
       excessCLDays,
+      earnedPaidDays,
+      grossEarnedSalary: roundedGrossEarnedSalary,
       dailyRate: roundedPerDaySalary,
       deduction: roundedSalaryDeduction,
       netPayable: roundedNetPayable

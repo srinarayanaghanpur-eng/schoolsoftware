@@ -78,17 +78,6 @@ const FALLBACK_FEE_BY_CLASS: Record<string, number> = {
   "7": 28000, "8": 29000, "9": 30000, "10": 33000
 };
 
-// Next sequential admission number — highest existing numeric value + 1,
-// starting from 1 when there are no students yet.
-function nextAdmissionNumber(students: Student[]) {
-  let max = 0;
-  for (const student of students) {
-    const value = parseInt(String(student.admissionNumber).replace(/\D/g, ""), 10);
-    if (Number.isFinite(value) && value > max) max = value;
-  }
-  return String(max + 1);
-}
-
 function SectionDivider({ label }: { label: string }) {
   return (
     <div className="col-span-full border-t border-[#edf0f7] pt-4 pb-2">
@@ -104,11 +93,13 @@ export default function StudentsPage() {
   const canEditStudent = Boolean(role && hasPermission(role, "students.edit"));
   const canDeleteStudent = Boolean(role && hasPermission(role, "students.delete"));
   const [students, setStudents] = useState<Student[]>([]);
-  const [filteredStudents, setFilteredStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [classFilter, setClassFilter] = useState("");
+  const [classFilter, setClassFilter] = useState("1");
+  const [sectionFilter, setSectionFilter] = useState("A");
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -157,7 +148,7 @@ export default function StudentsPage() {
   useEffect(() => {
     fetchStudents();
     fetchTransportRoutes();
-  }, []);
+  }, [activeYear?.id]);
   useRefreshOnFocus(() => fetchStudents());
 
   useEffect(() => {
@@ -186,28 +177,26 @@ export default function StudentsPage() {
     } catch { /* silently ignore */ }
   };
 
-  useEffect(() => {
-    let filtered = students;
+  const buildStudentQuery = (cursor?: string | null) => {
+    const params = new URLSearchParams();
+    params.set("pageSize", "25");
+    if (activeYear?.id) params.set("academicYearId", activeYear.id);
+    if (classFilter) params.set("class", classFilter);
+    if (sectionFilter) params.set("section", sectionFilter);
+    if (searchTerm.trim()) params.set("q", searchTerm.trim());
+    if (cursor) params.set("cursor", cursor);
+    return params.toString();
+  };
 
-    if (classFilter) {
-      filtered = filtered.filter((s) => s.class === classFilter);
-    }
-
-    if (searchTerm) {
-      filtered = filtered.filter((s) =>
-        s.studentName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        s.admissionNumber.includes(searchTerm)
-      );
-    }
-
-    setFilteredStudents(filtered);
-  }, [students, classFilter, searchTerm]);
-
-  const fetchStudents = async () => {
+  const fetchStudents = async (options: { append?: boolean; cursor?: string | null } = {}) => {
     try {
       setLoading(true);
-      const data = await adminApiRequest<{ success?: boolean; data: Student[] }>("/api/admin/students");
-      setStudents(data.data ?? []);
+      const data = await adminApiRequest<{ success?: boolean; data: Student[]; nextCursor?: string | null; hasMore?: boolean }>(
+        `/api/admin/students?${buildStudentQuery(options.cursor)}`
+      );
+      setStudents((prev) => options.append ? [...prev, ...(data.data ?? [])] : data.data ?? []);
+      setNextCursor(data.nextCursor ?? null);
+      setHasMore(Boolean(data.hasMore));
     } catch (err) {
       console.error("Failed to fetch students:", err);
       setError(err instanceof AdminApiError ? err.message : "Failed to fetch students");
@@ -232,7 +221,10 @@ export default function StudentsPage() {
         admissionNumber: formData.admissionNumber,
         studentName: formData.studentName,
         class: formData.class,
+        classId: formData.class,
         section: formData.section,
+        sectionId: formData.section,
+        academicYearId: activeYear?.id || "",
         gender: formData.gender,
         fatherName: formData.fatherName,
         fatherPhone: formData.fatherPhone,
@@ -389,7 +381,6 @@ export default function StudentsPage() {
     setError("");
     setSuccess("");
     resetForm();
-    setFormData((prev) => ({ ...prev, admissionNumber: nextAdmissionNumber(students) }));
     setShowForm(true);
   };
 
@@ -479,7 +470,7 @@ export default function StudentsPage() {
     const generateQrs = async () => {
       const QRCode = (await import("qrcode")).default;
       const results: Record<string, string> = {};
-      for (const student of filteredStudents.slice(0, 50)) {
+      for (const student of students.slice(0, 50)) {
         try {
           results[student.id] = await QRCode.toDataURL(qrContent(student), {
             width: 160,
@@ -491,7 +482,7 @@ export default function StudentsPage() {
       setQrCanvas(results);
     };
     generateQrs();
-  }, [filteredStudents]);
+  }, [students]);
 
   const [printStudent, setPrintStudent] = useState<Student | null>(null);
 
@@ -535,11 +526,12 @@ export default function StudentsPage() {
                     type="text"
                     name="admissionNumber"
                     value={formData.admissionNumber}
-                    readOnly
+                    readOnly={Boolean(editingId)}
+                    onChange={handleChange}
                     required
-                    className="field mt-1 cursor-not-allowed bg-[#f4f5fb] text-[#5a6488]"
+                    className={`field mt-1 ${editingId ? "cursor-not-allowed bg-[#f4f5fb] text-[#5a6488]" : ""}`}
                   />
-                  <p className="mt-1 text-xs font-medium text-[#7d86a8]">{editingId ? "Admission number cannot be changed." : "Auto-generated sequentially."}</p>
+                  <p className="mt-1 text-xs font-medium text-[#7d86a8]">{editingId ? "Admission number cannot be changed." : "Enter a unique admission number."}</p>
                 </div>
 
                 <div>
@@ -796,6 +788,9 @@ export default function StudentsPage() {
               placeholder="Search by name or admission number..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") fetchStudents();
+              }}
                 className="field pl-10"
             />
           </div>
@@ -805,25 +800,38 @@ export default function StudentsPage() {
           onChange={(e) => setClassFilter(e.target.value)}
             className="field md:max-w-[190px]"
         >
-          <option value="">All Classes</option>
           {CLASS_OPTIONS.map((cls) => (
             <option key={cls} value={cls}>
               {CLASS_LABELS[cls] ?? `Class ${cls}`}
             </option>
           ))}
         </select>
+        <select
+          value={sectionFilter}
+          onChange={(e) => setSectionFilter(e.target.value)}
+          className="field md:max-w-[150px]"
+        >
+          {SECTION_OPTIONS.map((section) => (
+            <option key={section} value={section}>
+              Section {section}
+            </option>
+          ))}
+        </select>
+        <button type="button" onClick={() => fetchStudents()} className="btn-secondary">
+          Apply
+        </button>
         </div>
 
         <div className="card overflow-hidden">
         {loading ? (
             <div className="p-6 text-center text-sm font-medium text-[#7d86a8]">Loading students...</div>
-        ) : filteredStudents.length === 0 ? (
+        ) : students.length === 0 ? (
             <div className="p-6 text-center text-sm font-medium text-[#7d86a8]">No students found</div>
         ) : (
           <>
             {/* Mobile: card list */}
             <ul className="divide-y divide-[#edf0f7] md:hidden">
-              {filteredStudents.map((student) => (
+              {students.map((student) => (
                 <li key={student.id} className="flex items-start gap-3 p-4">
                   <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#eef0ff] text-xs font-extrabold text-[#3033a1]">
                     {student.class}{student.section}
@@ -872,7 +880,7 @@ export default function StudentsPage() {
                 </tr>
               </thead>
               <tbody>
-                {filteredStudents.map((student) => (
+                {students.map((student) => (
                     <tr key={student.id} className="border-b border-[#edf0f7] transition last:border-b-0 hover:bg-[#fafbff]">
                       <td className="px-6 py-4 text-sm font-bold text-[#303247]">{student.admissionNumber}</td>
                       <td className="px-6 py-4 text-sm font-semibold text-[#303247]">{student.studentName}</td>
@@ -908,19 +916,26 @@ export default function StudentsPage() {
           </div>
           </>
         )}
+        {hasMore && (
+          <div className="border-t border-[#edf0f7] p-4 text-center">
+            <button type="button" onClick={() => fetchStudents({ append: true, cursor: nextCursor })} className="btn-secondary" disabled={loading || !nextCursor}>
+              Load more
+            </button>
+          </div>
+        )}
       </div>
 
         <div className="grid gap-4 sm:grid-cols-3">
           <div className="card p-5">
-            <p className="text-sm font-semibold text-[#7d86a8]">Total Students</p>
+            <p className="text-sm font-semibold text-[#7d86a8]">Loaded Students</p>
             <p className="mt-3 text-[32px] font-extrabold leading-none text-[#1b1d32]">{students.length}</p>
         </div>
           <div className="card p-5">
-            <p className="text-sm font-semibold text-[#7d86a8]">Showing</p>
-            <p className="mt-3 text-[32px] font-extrabold leading-none text-[#1b1d32]">{filteredStudents.length}</p>
+            <p className="text-sm font-semibold text-[#7d86a8]">Class / Section</p>
+            <p className="mt-3 text-[32px] font-extrabold leading-none text-[#1b1d32]">{classFilter}{sectionFilter}</p>
         </div>
           <div className="card p-5">
-            <p className="text-sm font-semibold text-[#7d86a8]">Classes</p>
+            <p className="text-sm font-semibold text-[#7d86a8]">Classes In Page</p>
             <p className="mt-3 text-[32px] font-extrabold leading-none text-[#1b1d32]">{[...new Set(students.map((s) => s.class))].length}</p>
           </div>
         </div>

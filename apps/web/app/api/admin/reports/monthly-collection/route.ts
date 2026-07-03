@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from "@/lib/firebaseAdmin";
 import { requirePermission } from "@/lib/apiUtils";
+import { logFirestoreRead } from "@/lib/firestoreReadLogger";
 
 export const dynamic = "force-dynamic";
 
@@ -21,8 +22,16 @@ export async function GET(request: NextRequest) {
     const db = adminDb();
     const searchParams = request.nextUrl.searchParams;
     const year = parseInt(searchParams.get('year') || String(new Date().getFullYear()), 10);
+    const yearStart = new Date(year, 0, 1);
+    const yearEnd = new Date(year, 11, 31, 23, 59, 59, 999);
 
-    const paymentsSnap = await db.collection('payments').get();
+    const paymentsSnap = await db.collection('payments')
+      .where("createdAt", ">=", yearStart)
+      .where("createdAt", "<=", yearEnd)
+      .orderBy("createdAt", "asc")
+      .limit(5000)
+      .get();
+    logFirestoreRead("MonthlyCollectionReportAPI", "payments", paymentsSnap, { year, limit: 5000 });
     const byMonth = new Map<number, { count: number; total: number }>();
 
     paymentsSnap.docs.forEach((d) => {

@@ -32,34 +32,11 @@ export async function GET(req: Request) {
 
     const month = new URL(req.url).searchParams.get("month") ?? new Date().toISOString().slice(0, 7);
     const dbTimer = startTimer();
-    // Load stored reports plus the live teacher docs so the CL allowance always
-    // reflects each teacher's current `allowedCLPerMonth` config (rather than a
-    // value baked into a possibly-stale report, or a hardcoded number).
-    const [snapshot, teachersSnapshot] = await Promise.all([
-      adminDb().collection("salary_reports").where("month", "==", month).get(),
-      adminDb().collection("teachers").get()
-    ]);
+    const snapshot = await adminDb().collection("salary_reports").where("month", "==", month).get();
     const dbMs = dbTimer();
 
-    const allowanceByTeacher = new Map<string, number>();
-    teachersSnapshot.docs.forEach((doc) => {
-      const value = (doc.data() as { allowedCLPerMonth?: unknown }).allowedCLPerMonth;
-      if (typeof value === "number") allowanceByTeacher.set(doc.id, value);
-    });
-
     const reports = snapshot.docs
-      .map((doc) => {
-        const report = serializeDoc<SalaryReport>(doc);
-        const liveAllowance = allowanceByTeacher.get(report.teacherId);
-        // Sync allowance to the live teacher config; keep stored value as fallback.
-        if (liveAllowance != null) report.clAllowanceThisMonth = liveAllowance;
-        // Keep remaining CL consistent with the synced allowance when we have usage data.
-        if (liveAllowance != null && typeof report.totalClUsed === "number") {
-          report.remainingCl = Math.max(0, liveAllowance - report.totalClUsed);
-          report.excessLeave = Math.max(0, report.totalClUsed - liveAllowance);
-        }
-        return report;
-      })
+      .map((doc) => serializeDoc<SalaryReport>(doc))
       .sort((a, b) => a.teacherName.localeCompare(b.teacherName));
 
     const totalMs = totalTimer();

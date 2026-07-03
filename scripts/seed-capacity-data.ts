@@ -280,7 +280,7 @@ async function main() {
       status: "active",
       role: "teacher",
       employmentType: "full_time",
-      allowedCLPerMonth: 2,
+      allowedCLPerMonth: 3,
       lateDeductionRule: "after_3_lates_one_day",
       profilePhotoUrl: "",
       createdAt: dateDaysAgo(120 + index),

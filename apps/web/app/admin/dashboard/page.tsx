@@ -25,7 +25,9 @@ import {
   Wallet
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { AggregateField } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebaseAdmin";
+import { logFirestoreAggregateRead, logFirestoreRead } from "@/lib/firestoreReadLogger";
 
 export const dynamic = "force-dynamic";
 
@@ -73,29 +75,6 @@ function clampPercent(value: number) {
   return Math.max(0, Math.min(100, Math.round(value)));
 }
 
-function paymentDateKey(data: Record<string, unknown>) {
-  const value = data.paymentDate ?? data.createdAt ?? data.date;
-  if (typeof value === "string") return value.slice(0, 10);
-  if (value && typeof (value as { toDate?: () => Date }).toDate === "function") {
-    return (value as { toDate: () => Date }).toDate().toISOString().slice(0, 10);
-  }
-  return "";
-}
-
-function outstandingForStudent(student: Record<string, unknown>) {
-  const totalFee = Number(student.totalFeeAmount) || 0;
-  const paid = Number(student.totalFeesPaid) || 0;
-  const storedDue = Number(student.totalFeesDue) || 0;
-
-  if (storedDue > 0 && totalFee > 0 && storedDue + paid <= totalFee + 1) {
-    return storedDue;
-  }
-  if (storedDue > 0) {
-    return Math.max(0, storedDue - paid);
-  }
-  return Math.max(0, totalFee - paid);
-}
-
 type DashboardData = {
   totalStudents: number;
   totalTeachers: number;
@@ -112,30 +91,69 @@ type DashboardData = {
 
 async function loadDashboard(): Promise<DashboardData> {
   const db = adminDb();
-  const today = istDateKey(new Date());
+  const now = new Date();
+  const today = istDateKey(now);
   const weekAgo = istDateKey(new Date(Date.now() - 6 * 24 * 60 * 60 * 1000));
+  const startOfToday = new Date(now);
+  startOfToday.setHours(0, 0, 0, 0);
+  const endOfToday = new Date(now);
+  endOfToday.setHours(23, 59, 59, 999);
 
-  const [studentsSnap, teachersSnap, weekAttSnap, noticesSnap, paymentsSnap] = await Promise.all([
-    db.collection("students").get(),
-    db.collection("teachers").where("status", "==", "active").get(),
-    db.collection("attendance").where("date", ">=", weekAgo).get(),
+  const studentsCountQuery = db.collection("students").count();
+  const activeTeachersCountQuery = db.collection("teachers").where("status", "==", "active").count();
+  const feeTotalsQuery = db.collection("studentFeeSummaries").aggregate({
+    totalFeeAmount: AggregateField.sum("totalFee"),
+    feesOutstanding: AggregateField.sum("dueAmount")
+  });
+  const studentsPendingQuery = db.collection("studentFeeSummaries").where("dueAmount", ">", 0).count();
+  const feesCollectedQuery = db.collection("financeSummaries").aggregate({
+    feesCollected: AggregateField.sum("totalIncome")
+  });
+  const feesCollectedTodayQuery = db.collection("payments")
+    .where("status", "==", "completed")
+    .where("createdAt", ">=", startOfToday)
+    .where("createdAt", "<=", endOfToday)
+    .aggregate({ feesCollectedToday: AggregateField.sum("amountPaid") });
+
+  const [
+    studentsCountSnap,
+    activeTeachersCountSnap,
+    feeTotalsSnap,
+    studentsPendingSnap,
+    feesCollectedSnap,
+    feesCollectedTodaySnap,
+    weekAttSnap,
+    noticesSnap,
+    recentStudentsSnap
+  ] = await Promise.all([
+    studentsCountQuery.get(),
+    activeTeachersCountQuery.get(),
+    feeTotalsQuery.get().catch(() => null),
+    studentsPendingQuery.get().catch(() => null),
+    feesCollectedQuery.get().catch(() => null),
+    feesCollectedTodayQuery.get().catch(() => null),
+    db.collection("attendance").where("date", ">=", weekAgo).where("date", "<=", today).get(),
     db.collection("notifications").orderBy("createdAt", "desc").limit(3).get().catch(() => null),
-    db.collection("payments").get()
+    db.collection("students").orderBy("createdAt", "desc").limit(3).get().catch(() => null)
   ]);
 
-  const students = studentsSnap.docs.map((d) => d.data());
-  const totalTeachers = teachersSnap.size;
-  const activePayments = paymentsSnap.docs
-    .map((doc) => doc.data())
-    .filter((payment) => String(payment.status || "").toLowerCase() !== "cancelled");
-  const feesCollected = activePayments.reduce((sum, payment) => sum + (Number(payment.amountPaid) || 0), 0);
-  const feesCollectedToday = activePayments.reduce(
-    (sum, payment) => sum + (paymentDateKey(payment) === today ? Number(payment.amountPaid) || 0 : 0),
-    0
-  );
-  const feesOutstanding = students.reduce((sum, student) => sum + outstandingForStudent(student), 0);
-  const totalFeeAmount = students.reduce((sum, student) => sum + (student.totalFeeAmount || 0), 0);
-  const studentsPending = students.filter((student) => outstandingForStudent(student) > 0).length;
+  logFirestoreAggregateRead("AdminDashboard", "students", { operation: "count" });
+  logFirestoreAggregateRead("AdminDashboard", "teachers", { operation: "active-count" });
+  logFirestoreAggregateRead("AdminDashboard", "studentFeeSummaries", { operation: "sum-total-and-due" });
+  logFirestoreAggregateRead("AdminDashboard", "financeSummaries", { operation: "sum-income" });
+  logFirestoreAggregateRead("AdminDashboard", "payments", { operation: "today-sum" });
+  logFirestoreRead("AdminDashboard", "attendance", weekAttSnap, { from: weekAgo, to: today });
+  if (noticesSnap) logFirestoreRead("AdminDashboard", "notifications", noticesSnap, { limit: 3 });
+  if (recentStudentsSnap) logFirestoreRead("AdminDashboard", "students", recentStudentsSnap, { limit: 3, purpose: "recent" });
+
+  const totalStudents = Number(studentsCountSnap.data().count || 0);
+  const totalTeachers = Number(activeTeachersCountSnap.data().count || 0);
+  const feeTotals = feeTotalsSnap?.data() ?? {};
+  const totalFeeAmount = Number(feeTotals.totalFeeAmount || 0);
+  const feesOutstanding = Number(feeTotals.feesOutstanding || 0);
+  const studentsPending = Number(studentsPendingSnap?.data().count || 0);
+  const feesCollected = Number(feesCollectedSnap?.data().feesCollected || 0);
+  const feesCollectedToday = Number(feesCollectedTodaySnap?.data().feesCollectedToday || 0);
 
   const present = (status?: string) => status === "present" || status === "late";
   const byDay = new Map<string, { present: number }>();
@@ -159,9 +177,8 @@ async function loadDashboard(): Promise<DashboardData> {
     };
   });
 
-  const recentStudents = students
-    .sort((a, b) => String(b.createdAt ?? "").localeCompare(String(a.createdAt ?? "")))
-    .slice(0, 3)
+  const recentStudents = (recentStudentsSnap?.docs ?? [])
+    .map((doc) => doc.data())
     .map((student) => {
       const name = student.studentName || "Unknown";
       return {
@@ -180,7 +197,7 @@ async function loadDashboard(): Promise<DashboardData> {
   });
 
   return {
-    totalStudents: students.length,
+    totalStudents,
     totalTeachers,
     presentToday,
     feesCollected,

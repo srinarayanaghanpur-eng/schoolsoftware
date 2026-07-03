@@ -1,7 +1,10 @@
 import { adminDb } from '@/lib/firebaseAdmin';
+import { logFirestoreRead } from "@/lib/firestoreReadLogger";
 import { Payment } from '@/types/fee.types';
 
 const db = adminDb();
+const DEFAULT_REPORT_LIMIT = 500;
+const DEFAULT_PAYMENT_REPORT_LIMIT = 1000;
 
 export const reportService = {
   async generateClassWiseFeeReport(filters?: {
@@ -13,7 +16,9 @@ export const reportService = {
       queryRef = queryRef.where('class', '==', filters.class);
     }
 
+    queryRef = queryRef.limit(DEFAULT_REPORT_LIMIT);
     const studentsSnapshot = await queryRef.get();
+    logFirestoreRead("LegacyReportService", "students", studentsSnapshot, { report: "class-wise", limit: DEFAULT_REPORT_LIMIT });
     const students = studentsSnapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data()
@@ -65,15 +70,17 @@ export const reportService = {
       queryRef = queryRef.where('class', '==', filters.class);
     }
 
-    queryRef = queryRef.orderBy('studentName');
+    queryRef = queryRef.orderBy('studentName').limit(DEFAULT_REPORT_LIMIT);
 
     const snapshot = await queryRef.get();
+    logFirestoreRead("LegacyReportService", "students", snapshot, { report: "student-wise", limit: DEFAULT_REPORT_LIMIT });
     const students = snapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data()
     }));
 
-    const paymentsSnapshot = await db.collection('payments').get();
+    const paymentsSnapshot = await db.collection('payments').orderBy("createdAt", "desc").limit(DEFAULT_PAYMENT_REPORT_LIMIT).get();
+    logFirestoreRead("LegacyReportService", "payments", paymentsSnapshot, { report: "student-wise", limit: DEFAULT_PAYMENT_REPORT_LIMIT });
     const paymentsByStudent: Record<string, Payment[]> = {};
 
     paymentsSnapshot.forEach((doc) => {
@@ -113,17 +120,20 @@ export const reportService = {
     minAttendance?: number;
     maxAttendance?: number;
   }): Promise<any[]> {
-    const studentsSnapshot = await db.collection('students').get();
+    let studentsQuery: FirebaseFirestore.Query = db.collection('students');
+    if (filters?.class) {
+      studentsQuery = studentsQuery.where('class', '==', filters.class);
+    }
+    studentsQuery = studentsQuery.limit(DEFAULT_REPORT_LIMIT);
+    const studentsSnapshot = await studentsQuery.get();
+    logFirestoreRead("LegacyReportService", "students", studentsSnapshot, { report: "attendance-fee", class: filters?.class || "", limit: DEFAULT_REPORT_LIMIT });
     let students = studentsSnapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data()
     }));
 
-    if (filters?.class) {
-      students = students.filter((s: any) => s.class === filters.class);
-    }
-
-    const paymentsSnapshot = await db.collection('payments').get();
+    const paymentsSnapshot = await db.collection('payments').orderBy("createdAt", "desc").limit(DEFAULT_PAYMENT_REPORT_LIMIT).get();
+    logFirestoreRead("LegacyReportService", "payments", paymentsSnapshot, { report: "attendance-fee", limit: DEFAULT_PAYMENT_REPORT_LIMIT });
     const paymentsByStudent: Record<string, Payment[]> = {};
 
     paymentsSnapshot.forEach((doc) => {
@@ -175,7 +185,14 @@ export const reportService = {
     const startDate = new Date(year, month - 1, 1);
     const endDate = new Date(year, month, 0);
 
-    const snapshot = await db.collection('payments').where('status', '==', 'completed').get();
+    const snapshot = await db.collection('payments')
+      .where('status', '==', 'completed')
+      .where("createdAt", ">=", startDate)
+      .where("createdAt", "<=", endDate)
+      .orderBy("createdAt", "desc")
+      .limit(DEFAULT_PAYMENT_REPORT_LIMIT)
+      .get();
+    logFirestoreRead("LegacyReportService", "payments", snapshot, { report: "monthly-collection", month, year, limit: DEFAULT_PAYMENT_REPORT_LIMIT });
     let payments = snapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data()
@@ -214,7 +231,8 @@ export const reportService = {
   },
 
   async generateClassWiseFeeStatusReport(): Promise<any[]> {
-    const studentsSnapshot = await db.collection('students').get();
+    const studentsSnapshot = await db.collection('students').limit(DEFAULT_REPORT_LIMIT).get();
+    logFirestoreRead("LegacyReportService", "students", studentsSnapshot, { report: "class-fee-status", limit: DEFAULT_REPORT_LIMIT });
     const students = studentsSnapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data()
