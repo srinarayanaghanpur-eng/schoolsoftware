@@ -148,7 +148,7 @@ async function loadDashboard(): Promise<DashboardData> {
 
   const totalStudents = Number(studentsCountSnap.data().count || 0);
   const totalTeachers = Number(activeTeachersCountSnap.data().count || 0);
-  const feeTotals = feeTotalsSnap?.data() ?? {};
+  const feeTotals = (feeTotalsSnap?.data() ?? {}) as Record<string, unknown>;
   const totalFeeAmount = Number(feeTotals.totalFeeAmount || 0);
   const feesOutstanding = Number(feeTotals.feesOutstanding || 0);
   const studentsPending = Number(studentsPendingSnap?.data().count || 0);

@@ -455,13 +455,6 @@ function ContextualSubnav({
     </nav>
   );
 
-  const footer = (
-    <div className="m-3 rounded-xl border border-border bg-card p-3 shadow-sm">
-      <p className="text-xs font-extrabold text-foreground">Sri Narayana</p>
-      <p className="mt-0.5 text-[11px] font-semibold text-muted-foreground">Selected module actions</p>
-    </div>
-  );
-
   const header = (expanded: boolean, interactive = true) => (
     <div className="flex items-start gap-3 border-b border-border px-5 py-5">
       <div className="min-w-0 flex-1">
@@ -492,7 +485,6 @@ function ContextualSubnav({
       >
         {header(!collapsed, !collapsed)}
         {renderLinks(undefined, !collapsed)}
-        {footer}
       </aside>
 
       {drawerOpen && (
@@ -512,7 +504,6 @@ function ContextualSubnav({
       >
         {header(drawerOpen, drawerOpen)}
         {renderLinks(onCloseDrawer, drawerOpen)}
-        {footer}
       </aside>
     </>
   );
