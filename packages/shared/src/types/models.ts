@@ -270,13 +270,13 @@ export type SalaryReport = {
   perDaySalary: number;
   // CL Tracking
   clAllowanceThisMonth: number; // Usually 3
-  clUsedFromAbsent: number; // approved leave CL days (no check-in)
+  clUsedFromAbsent: number; // approved paid CL days with no check-in
   clUsedFromLate: number; // Always 0 for earned-days payroll.
   totalClUsed: number; // approved paid CL days consumed this month
   remainingCl: number; // max(0, allowance - totalClUsed)
-  excessLeave: number; // max(0, totalClUsed - allowance)
+  excessLeave: number; // approved leave days beyond the paid CL allowance
   // New CL/leave breakdown
-  approvedLeaveCLDays: number; // approved leave days with no check-in (CL consumed)
+  approvedLeaveCLDays: number; // approved leave days with no check-in
   attendedApprovedLeaveDays: number; // approved leave days where check-in exists
   lateDerivedCLDays: number; // Always 0 for earned-days payroll.
   paidCLDays: number; // approved leave days paid from monthly CL allowance
@@ -297,7 +297,7 @@ export type SalaryReport = {
   excessLeaveDeduction: number; // excessCLDays × perDaySalary
   manualDeduction: number;
   bonus: number;
-  totalDeduction: number; // Sum of all deductions
+  totalDeduction: number; // salaryDeduction + manualDeduction for reporting
   // Final Salary
   netPayable: number; // grossEarnedSalary + bonus - manualDeduction
   // Payment Status

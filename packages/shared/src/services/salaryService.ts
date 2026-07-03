@@ -168,6 +168,7 @@ export function calculateMonthlySalary(input: SalaryCalculationInput): SalaryRep
   const absentDays = unpaidAbsentDays;
   const earnedPaidDays = presentDates.length + approvedPaidCLDays;
 
+  // Payroll is earned-days based; do not pay future or otherwise unpaid working days.
   const dailyRate = totalWorkingDates.length > 0 ? input.teacher.baseSalary / totalWorkingDates.length : 0;
   const absentDeduction = plainAbsentDates.length * dailyRate;
   const excessLeaveDeduction = excessCLDays * dailyRate;

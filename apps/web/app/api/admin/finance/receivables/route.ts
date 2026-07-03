@@ -1,34 +1,42 @@
 import { NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { requirePermission } from "@/lib/apiUtils";
+import { logFirestoreRead, readLimit } from "@/lib/firestoreReadLogger";
 
 export async function GET(req: Request) {
   const token = await requirePermission(req, "fees.view");
   if (!token) return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
 
   const { searchParams } = new URL(req.url);
-  const classFilter = searchParams.get("class");
+  const classFilter = searchParams.get("classId") || searchParams.get("class") || "";
+  const sectionFilter = searchParams.get("sectionId") || searchParams.get("section") || "";
+  const academicYearId = searchParams.get("academicYearId") || "";
+  const pageSize = readLimit(searchParams.get("pageSize") ?? searchParams.get("limit"), 500, 1000);
   const db = adminDb();
 
-  let query: FirebaseFirestore.Query = db.collection("students");
-  if (classFilter) query = query.where("className", "==", classFilter);
+  let query: FirebaseFirestore.Query = db.collection("studentFeeSummaries").where("dueAmount", ">", 0);
+  if (academicYearId) query = query.where("academicYearId", "==", academicYearId);
+  if (classFilter) query = query.where("classId", "==", classFilter);
+  if (sectionFilter) query = query.where("sectionId", "==", sectionFilter);
+  query = query.orderBy("dueAmount", "desc").limit(pageSize);
 
-  const studentSnap = await query.get();
-  const students = studentSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  const summarySnap = await query.get();
+  logFirestoreRead("FinanceReceivablesAPI", "studentFeeSummaries", summarySnap, { academicYearId, classFilter, sectionFilter, pageSize });
+  const students = summarySnap.docs.map((d) => ({ id: d.id, ...d.data() }));
 
   const receivables = students
     .map((s: Record<string, unknown>) => {
-      const due = Math.max(0, (Number(s.totalFeesDue) || 0) - (Number(s.totalFeesPaid) || 0));
+      const due = Math.max(0, Number(s.dueAmount) || 0);
       return {
-        id: s.id,
+        id: s.studentId || s.id,
         studentName: String(s.studentName || s.name || ""),
-        className: String(s.className || s.class || ""),
+        className: String(s.className || s.classId || ""),
         admissionNumber: String(s.admissionNumber || ""),
-        totalFees: Number(s.totalFeeAmount || s.totalFeesDue || 0),
-        paid: Number(s.totalFeesPaid || 0),
+        totalFees: Number(s.totalFee || 0),
+        paid: Number(s.totalPaid || 0),
         due,
         lastPaymentDate: s.lastPaymentDate ? String(s.lastPaymentDate) : null,
-        feeStatus: String(s.feeStatus || s.status || "")
+        feeStatus: due > 0 ? "pending" : "paid"
       };
     })
     .filter((r) => r.due > 0)

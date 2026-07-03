@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from "@/lib/firebaseAdmin";
 import { QueryDocumentSnapshot } from "firebase-admin/firestore";
 import { requirePermission } from "@/lib/apiUtils";
+import { logFirestoreRead } from "@/lib/firestoreReadLogger";
 
 export const dynamic = "force-dynamic";
 
@@ -15,10 +16,24 @@ export async function GET(request: NextRequest) {
     if (!auth) return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
 
     const db = adminDb();
+    const searchParams = request.nextUrl.searchParams;
+    const now = new Date();
+    const from = searchParams.get("from") || new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+    const to = searchParams.get("to") || new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10);
+    const fromDate = new Date(`${from}T00:00:00`);
+    const toDate = new Date(`${to}T23:59:59.999`);
     const [paymentsSnap, usersSnap] = await Promise.all([
-      db.collection("payments").where("status", "==", "completed").get(),
+      db.collection("payments")
+        .where("status", "==", "completed")
+        .where("createdAt", ">=", fromDate)
+        .where("createdAt", "<=", toDate)
+        .orderBy("createdAt", "desc")
+        .limit(1000)
+        .get(),
       db.collection("users").get()
     ]);
+    logFirestoreRead("UserWiseReportAPI", "payments", paymentsSnap, { from, to, status: "completed", limit: 1000 });
+    logFirestoreRead("UserWiseReportAPI", "users", usersSnap, { purpose: "display-names" });
 
     // Map uid -> display name for readable rows.
     const nameByUid: Record<string, string> = {};

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { requirePermission } from "@/lib/apiUtils";
 import { docDateKey, inRange } from "@/lib/financeUtils";
+import { logFirestoreRead } from "@/lib/firestoreReadLogger";
 
 type TBEntry = { account: string; type: "debit" | "credit"; amount: number; nature: string };
 
@@ -10,18 +11,29 @@ export async function GET(req: Request) {
   if (!token) return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
 
   const { searchParams } = new URL(req.url);
-  const from = searchParams.get("from");
-  const to = searchParams.get("to");
+  const now = new Date();
+  const defaultFrom = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+  const defaultTo = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10);
+  const from = searchParams.get("from") || defaultFrom;
+  const to = searchParams.get("to") || defaultTo;
+  const fromDate = new Date(`${from}T00:00:00`);
+  const toDate = new Date(`${to}T23:59:59.999`);
   const db = adminDb();
 
   const [paymentsSnap, incomesSnap, expensesSnap, salarySnap, advancesSnap, purchasesSnap] = await Promise.all([
-    db.collection("payments").get(),
-    db.collection("incomes").get(),
-    db.collection("expenses").where("status", "==", "approved").get(),
-    db.collection("salary_reports").where("paid", "==", true).get(),
-    db.collection("salary_advances").get(),
-    db.collection("purchases").get()
+    db.collection("payments").where("createdAt", ">=", fromDate).where("createdAt", "<=", toDate).orderBy("createdAt", "desc").limit(1000).get(),
+    db.collection("incomes").where("createdAt", ">=", fromDate).where("createdAt", "<=", toDate).orderBy("createdAt", "desc").limit(1000).get(),
+    db.collection("expenses").where("status", "==", "approved").where("createdAt", ">=", fromDate).where("createdAt", "<=", toDate).orderBy("createdAt", "desc").limit(1000).get(),
+    db.collection("salary_reports").where("paid", "==", true).where("paidAt", ">=", fromDate).where("paidAt", "<=", toDate).orderBy("paidAt", "desc").limit(1000).get(),
+    db.collection("salary_advances").where("createdAt", ">=", fromDate).where("createdAt", "<=", toDate).orderBy("createdAt", "desc").limit(1000).get(),
+    db.collection("purchases").where("createdAt", ">=", fromDate).where("createdAt", "<=", toDate).orderBy("createdAt", "desc").limit(1000).get()
   ]);
+  logFirestoreRead("FinanceTrialBalanceAPI", "payments", paymentsSnap, { from, to, limit: 1000 });
+  logFirestoreRead("FinanceTrialBalanceAPI", "incomes", incomesSnap, { from, to, limit: 1000 });
+  logFirestoreRead("FinanceTrialBalanceAPI", "expenses", expensesSnap, { from, to, status: "approved", limit: 1000 });
+  logFirestoreRead("FinanceTrialBalanceAPI", "salary_reports", salarySnap, { from, to, paid: true, limit: 1000 });
+  logFirestoreRead("FinanceTrialBalanceAPI", "salary_advances", advancesSnap, { from, to, limit: 1000 });
+  logFirestoreRead("FinanceTrialBalanceAPI", "purchases", purchasesSnap, { from, to, limit: 1000 });
 
   const filterDocs = (snap: FirebaseFirestore.QuerySnapshot, prefer: string[] = []) =>
     snap.docs.filter((d) => inRange(docDateKey(d.data(), ...prefer), from, to));

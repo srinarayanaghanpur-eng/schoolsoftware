@@ -116,6 +116,7 @@ export async function POST(req: Request) {
         sectionId,
         studentName: student.studentName || "",
         admissionNumber: student.admissionNumber || "",
+        phone: student.phone || student.fatherPhone || "",
         className: student.class || classId,
         sectionName: student.section || sectionId,
         totalFee: Number(student.totalFeeAmount || 0),

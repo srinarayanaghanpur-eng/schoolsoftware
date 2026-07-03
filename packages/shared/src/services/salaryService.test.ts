@@ -149,7 +149,9 @@ runTest("earned salary uses paid CL only for approved leave within monthly balan
 
   assert.equal(report.baseSalary, 20000);
   assert.equal(report.totalWorkingDaysInMonth, 27);
+  assert.equal(report.workingDaysElapsed, 27);
   assert.equal(report.presentDays, 20);
+  assert.equal(report.clAllowanceThisMonth, 3);
   assert.equal(report.approvedLeaveCLDays, 7);
   assert.equal(report.approvedPaidCLDays, 3);
   assert.equal(report.paidCLDays, 3);
@@ -171,7 +173,9 @@ runTest("plain absent days are unpaid when leave is not approved", () => {
 
   assert.equal(report.baseSalary, 20000);
   assert.equal(report.totalWorkingDaysInMonth, 27);
+  assert.equal(report.workingDaysElapsed, 27);
   assert.equal(report.presentDays, 20);
+  assert.equal(report.clAllowanceThisMonth, 3);
   assert.equal(report.approvedPaidCLDays, 0);
   assert.equal(report.paidCLDays, 0);
   assert.equal(report.unpaidAbsentDays, 7);
@@ -191,6 +195,7 @@ runTest("current month pays only earned elapsed days and never future unworked d
   assert.equal(report.totalWorkingDaysInMonth, 27);
   assert.equal(report.workingDaysElapsed, 3);
   assert.equal(report.presentDays, 0);
+  assert.equal(report.clAllowanceThisMonth, 3);
   assert.equal(report.approvedPaidCLDays, 0);
   assert.equal(report.unpaidAbsentDays, 3);
   assert.equal(report.earnedPaidDays, 0);
