@@ -1,6 +1,7 @@
 "use client";
 
 import { PageHeader } from "@/components/PageHeader";
+import { PasswordInput } from "@/components/PasswordInput";
 import { useAdminSession } from "@/components/AdminSessionContext";
 import { AdminApiError, adminApiRequest } from "@/lib/adminApiClient";
 import { hasPermission } from "@sri-narayana/shared";
@@ -140,8 +141,8 @@ export default function ParentsPage() {
             <label className="text-sm font-semibold text-[#303247]">Phone<input className="field mt-1" required value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></label>
             <label className="text-sm font-semibold text-[#303247]">Login ID<input className="field mt-1" required value={form.loginId} onChange={(e) => setForm({ ...form, loginId: e.target.value })} placeholder="e.g. PARENT001" /></label>
             <label className="text-sm font-semibold text-[#303247]">Email (optional)<input className="field mt-1" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></label>
-            <label className="text-sm font-semibold text-[#303247]">Password<input className="field mt-1" type="password" required value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} /></label>
-            <label className="text-sm font-semibold text-[#303247]">Confirm password<input className="field mt-1" type="password" required value={form.confirmPassword} onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })} /></label>
+            <label className="text-sm font-semibold text-[#303247]">Password<PasswordInput className="field mt-1" required value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} /></label>
+            <label className="text-sm font-semibold text-[#303247]">Confirm password<PasswordInput className="field mt-1" required value={form.confirmPassword} onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })} /></label>
             <div className="sm:col-span-2"><button className="btn-primary"><Plus size={16} /> Create parent login</button></div>
           </form>
         )}
@@ -184,8 +185,8 @@ export default function ParentsPage() {
                   {resetPass === p.uid && (
                     <div className="mt-3 rounded-xl border border-[#fff4df] bg-[#fffcf5] p-4">
                       <div className="flex flex-wrap gap-3 items-end">
-                        <label className="text-xs font-bold text-[#5d6690]">New password<input className="field mt-1" type="password" value={passForm.password} onChange={(e) => setPassForm({ ...passForm, password: e.target.value })} /></label>
-                        <label className="text-xs font-bold text-[#5d6690]">Confirm<input className="field mt-1" type="password" value={passForm.confirmPassword} onChange={(e) => setPassForm({ ...passForm, confirmPassword: e.target.value })} /></label>
+                        <label className="text-xs font-bold text-[#5d6690]">New password<PasswordInput className="field mt-1" value={passForm.password} onChange={(e) => setPassForm({ ...passForm, password: e.target.value })} /></label>
+                        <label className="text-xs font-bold text-[#5d6690]">Confirm<PasswordInput className="field mt-1" value={passForm.confirmPassword} onChange={(e) => setPassForm({ ...passForm, confirmPassword: e.target.value })} /></label>
                         <button className="btn-primary text-xs" onClick={() => submitReset(p.uid)} disabled={!passForm.password || passForm.password !== passForm.confirmPassword}>Reset</button>
                         <button className="rounded-lg border border-[#e0e3f0] px-3 py-1.5 text-xs font-bold" onClick={() => setResetPass(null)}>Cancel</button>
                       </div>

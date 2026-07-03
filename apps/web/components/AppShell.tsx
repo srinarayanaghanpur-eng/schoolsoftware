@@ -440,12 +440,12 @@ function ContextualSubnav({
             className={clsx(
               "group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] font-bold transition",
               active
-                ? "bg-white text-[#2628a0] shadow-[0_10px_22px_rgba(44,48,143,0.10)] ring-1 ring-[#e2e6ff]"
-                : "text-[#65708f] hover:bg-white hover:text-[#2628a0] hover:shadow-sm"
+                ? "bg-accent text-accent-foreground shadow-sm ring-1 ring-border"
+                : "text-muted-foreground hover:bg-muted hover:text-accent-foreground"
             )}
           >
-            {active && <span className="absolute inset-y-2 -left-3 w-1 rounded-r-full bg-[#4b4fc4]" />}
-            <span className={clsx("grid h-8 w-8 shrink-0 place-items-center rounded-lg", active ? "bg-[#eef0ff] text-[#3033a1]" : "bg-[#edf1fb] text-[#7e88aa] group-hover:text-[#3033a1]")}>
+            {active && <span className="absolute inset-y-2 -left-3 w-1 rounded-r-full bg-primary" />}
+            <span className={clsx("grid h-8 w-8 shrink-0 place-items-center rounded-lg", active ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground group-hover:text-primary")}>
               <Icon size={16} strokeWidth={2.35} />
             </span>
             <span className="min-w-0 truncate">{label}</span>
@@ -456,17 +456,17 @@ function ContextualSubnav({
   );
 
   const footer = (
-    <div className="m-3 rounded-xl border border-[#e3e8f6] bg-white p-3 shadow-sm">
-      <p className="text-xs font-extrabold text-[#1f2136]">Sri Narayana</p>
-      <p className="mt-0.5 text-[11px] font-semibold text-[#7d86a8]">Selected module actions</p>
+    <div className="m-3 rounded-xl border border-border bg-card p-3 shadow-sm">
+      <p className="text-xs font-extrabold text-foreground">Sri Narayana</p>
+      <p className="mt-0.5 text-[11px] font-semibold text-muted-foreground">Selected module actions</p>
     </div>
   );
 
   const header = (expanded: boolean, interactive = true) => (
-    <div className="flex items-start gap-3 border-b border-[#e4e9f7] px-5 py-5">
+    <div className="flex items-start gap-3 border-b border-border px-5 py-5">
       <div className="min-w-0 flex-1">
-        <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-[#7a86ad]">{subnav.eyebrow}</p>
-        <h2 className="mt-1 truncate text-lg font-extrabold tracking-tight text-[#1b1d32]">{subnav.title}</h2>
+        <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-muted-foreground">{subnav.eyebrow}</p>
+        <h2 className="mt-1 truncate text-lg font-extrabold tracking-tight text-foreground">{subnav.title}</h2>
       </div>
       <button
         type="button"
@@ -474,7 +474,7 @@ function ContextualSubnav({
         aria-expanded={expanded}
         onClick={onCollapse}
         tabIndex={interactive ? undefined : -1}
-        className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[#eef2ff] text-[#27318d] shadow-sm ring-1 ring-[#dfe5ff] transition hover:bg-[#e3e8ff] focus:outline-none focus:ring-2 focus:ring-[#4b4fc4]/30"
+        className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-accent text-accent-foreground shadow-sm ring-1 ring-border transition hover:bg-muted focus:outline-none focus:ring-2 focus:ring-ring/30"
       >
         <ChevronLeft size={17} strokeWidth={2.4} />
       </button>
@@ -486,7 +486,7 @@ function ContextualSubnav({
       <aside
         aria-hidden={collapsed}
         className={clsx(
-          "fixed inset-y-0 left-[248px] z-40 hidden w-[224px] flex-col border-r border-[#e3e8f6] bg-[#f8faff] shadow-[12px_0_30px_rgba(50,61,130,0.06)] transition-[transform,opacity] duration-300 ease-out lg:flex print:hidden",
+          "fixed inset-y-0 left-[248px] z-40 hidden w-[224px] flex-col border-r border-border bg-card shadow-xl transition-[transform,opacity] duration-300 ease-out lg:flex print:hidden",
           collapsed ? "pointer-events-none -translate-x-full opacity-0" : "translate-x-0 opacity-100"
         )}
       >
@@ -506,7 +506,7 @@ function ContextualSubnav({
       <aside
         aria-hidden={!drawerOpen}
         className={clsx(
-          "fixed inset-y-0 left-0 z-40 flex w-[280px] max-w-[86vw] flex-col border-r border-[#e3e8f6] bg-[#f8faff] shadow-[18px_0_34px_rgba(28,36,102,0.16)] transition-transform duration-300 ease-out md:left-[248px] lg:hidden print:hidden",
+          "fixed inset-y-0 left-0 z-40 flex w-[280px] max-w-[86vw] flex-col border-r border-border bg-card shadow-2xl transition-transform duration-300 ease-out md:left-[248px] lg:hidden print:hidden",
           drawerOpen ? "translate-x-0" : "pointer-events-none -translate-x-full md:-translate-x-[calc(100%+248px)]"
         )}
       >
@@ -571,7 +571,7 @@ function AcademicYearSwitcher() {
       <CalendarRange size={17} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[#8490b9]" />
       <select
         aria-label="Academic year"
-        className="h-11 w-full appearance-none rounded-lg border border-[#e0e5f2] bg-[#f8faff] pl-10 pr-4 text-sm font-bold text-[#20223a] outline-none transition focus:border-[#4a4bb1] focus:ring-4 focus:ring-[#4a4bb1]/10 disabled:cursor-not-allowed disabled:text-[#8b94b2]"
+        className="h-11 w-full appearance-none rounded-lg border border-border bg-input pl-10 pr-4 text-sm font-bold text-foreground outline-none transition focus:border-ring focus:ring-4 focus:ring-ring/10 disabled:cursor-not-allowed disabled:text-muted-foreground"
         value={value}
         disabled={disabled}
         onChange={(event) => void handleChange(event.target.value)}
@@ -601,8 +601,8 @@ function AccessDeniedState({ module }: { module?: Module }) {
           <ShieldAlert size={22} />
         </span>
         <div>
-          <h2 className="text-lg font-extrabold text-[#1f2136]">Access denied</h2>
-          <p className="mt-1 text-sm font-medium text-[#7d86a8]">
+          <h2 className="text-lg font-extrabold text-foreground">Access denied</h2>
+          <p className="mt-1 text-sm font-medium text-muted-foreground">
             Your role does not have permission to open {module ? module.replace("_", " ") : "this page"}.
           </p>
         </div>
@@ -656,7 +656,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         if (snapshot.exists()) {
           const data = snapshot.data() as { displayName?: string; role?: unknown };
           if (data.displayName) name = data.displayName;
-          if (!role && isValidRole(data.role)) role = data.role;
+          if (isValidRole(data.role)) role = data.role;
         }
       } catch {
         // Keep the auth-based fallback if the profile read fails.
@@ -850,7 +850,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <AdminSessionProvider value={sessionValue}>
       <AcademicYearProvider>
-    <div className="min-h-screen bg-[#f6f8ff] text-[#181a31] md:flex print:block print:bg-white">
+    <div className="erp-app min-h-screen bg-background text-foreground md:flex print:block print:bg-white">
       {/* Mobile backdrop */}
       {mobileNavOpen && (
         <div
@@ -867,7 +867,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         )}
       >
         <div className="flex items-center gap-3 border-b border-white/10 px-4 py-5">
-          <div className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-lg bg-white p-1 shadow-lg shadow-black/10">
+          <div className="theme-preserve-light grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-lg bg-white p-1 shadow-lg shadow-black/10">
             <img src="/sri-narayana-high-school-logo.jpg" alt="Sri Narayana High School" className="h-full w-full object-cover" />
           </div>
           <div className="min-w-0 flex-1">
@@ -947,7 +947,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             {profile ? initialsOf(profile.name) : "··"}
           </span>
           <span className="min-w-0 flex-1">
-            <span className="block truncate text-[13px] font-bold">SNHS</span>
+            <span className="block truncate text-[13px] font-bold">{profile?.name ?? "User"}</span>
             <span className="block text-xs text-[#aeb9f2]">{roleLabel}</span>
           </span>
           <LogOut size={19} className="text-[#bdc8ff]" />
@@ -972,7 +972,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           aria-expanded={false}
           onClick={showContextualSubnav}
           className={clsx(
-            "fixed left-0 top-[92px] z-30 items-center gap-1 rounded-r-xl border border-l-0 border-[#dfe5ff] bg-white/95 px-1.5 py-3 text-[#27318d] shadow-[8px_10px_24px_rgba(42,48,132,0.12)] backdrop-blur transition hover:bg-[#eef2ff] focus:outline-none focus:ring-2 focus:ring-[#4b4fc4]/30 md:left-[248px] print:hidden",
+            "fixed left-0 top-[92px] z-30 items-center gap-1 rounded-r-xl border border-l-0 border-border bg-card/95 px-1.5 py-3 text-primary shadow-lg backdrop-blur transition hover:bg-accent focus:outline-none focus:ring-2 focus:ring-ring/30 md:left-[248px] print:hidden",
             contextSubnavCollapsed ? "flex" : "flex lg:hidden"
           )}
         >
@@ -990,7 +990,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           contextualSubnav && !contextSubnavCollapsed ? "md:ml-[248px] lg:ml-[472px]" : "md:ml-[248px]"
         )}
       >
-        <header className="sticky top-0 z-20 flex min-h-[64px] shrink-0 items-center gap-3 border-b border-[#e5e9f4] bg-white/[0.92] px-3 py-2.5 shadow-[0_6px_18px_rgba(38,47,110,0.04)] backdrop-blur md:min-h-[72px] md:gap-4 md:px-6 md:py-3 print:hidden">
+        <header className="sticky top-0 z-20 flex min-h-[64px] shrink-0 items-center gap-3 border-b border-border bg-card/90 px-3 py-2.5 shadow-sm backdrop-blur md:min-h-[72px] md:gap-4 md:px-6 md:py-3 print:hidden">
           <button
             type="button"
             onClick={() => {
@@ -998,21 +998,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               setMobileNavOpen(true);
             }}
             aria-label="Open menu"
-            className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-[#eef2ff] text-[#27318d] transition hover:bg-[#e3e8ff] md:hidden"
+            className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-accent text-accent-foreground transition hover:bg-muted md:hidden"
           >
             <Menu size={20} />
           </button>
           <div className="min-w-0 flex-1 md:min-w-[170px]">
-            <h1 className="truncate text-lg font-extrabold tracking-tight text-[#15172d] md:text-xl">{title}</h1>
-            <p className="truncate text-xs font-medium text-[#7b85a8]"><HeaderDateLabel now={now} /></p>
+            <h1 className="truncate text-lg font-extrabold tracking-tight text-foreground md:text-xl">{title}</h1>
+            <p className="truncate text-xs font-medium text-muted-foreground"><HeaderDateLabel now={now} /></p>
           </div>
           <AcademicYearSwitcher />
           <LiveClock className="hidden sm:inline-flex" />
           <DarkModeToggle />
           {role && canAccessModule(role, "communication") && (
-            <Link href="/admin/notifications" aria-label="Communication & notifications" className="relative grid h-11 w-11 place-items-center rounded-lg bg-[#f1f4ff] text-[#27318d] transition hover:bg-[#e7ecff]">
+            <Link href="/admin/notifications" aria-label="Communication & notifications" className="relative grid h-11 w-11 place-items-center rounded-lg bg-accent text-accent-foreground transition hover:bg-muted">
               <BellRing size={19} />
-              <span className="absolute right-3 top-3 h-1.5 w-1.5 rounded-full bg-[#f05b62] ring-2 ring-[#f3f4fb]" />
+              <span className="absolute right-3 top-3 h-1.5 w-1.5 rounded-full bg-destructive ring-2 ring-card" />
             </Link>
           )}
           <button
@@ -1021,7 +1021,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             disabled={refreshing}
             aria-label="Hard refresh app data"
             title="Hard refresh (clears cache & reloads the whole app)"
-            className="ml-1 grid h-11 w-11 place-items-center rounded-lg bg-[#f1f4ff] text-[#27318d] transition hover:bg-[#e7ecff] disabled:cursor-not-allowed disabled:opacity-60"
+            className="ml-1 grid h-11 w-11 place-items-center rounded-lg bg-accent text-accent-foreground transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
           >
             <RefreshCw size={19} className={clsx(refreshing && "animate-spin")} />
           </button>
@@ -1034,7 +1034,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </main>
 
       {/* Mobile bottom tab bar — quick access to the essentials */}
-      <nav className="fixed inset-x-0 bottom-0 z-30 flex items-stretch border-t border-[#e4e6f0] bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden print:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-30 flex items-stretch border-t border-border bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden print:hidden">
         {bottomTabs.map((item) => {
           const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
           const Icon = item.icon ?? FallbackIcon;
@@ -1044,7 +1044,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               href={item.href}
               className={clsx(
                 "flex flex-1 flex-col items-center justify-center gap-1 py-2 text-[10px] font-bold transition",
-                active ? "text-[#3033a1]" : "text-[#8a93b1]"
+                active ? "text-primary" : "text-muted-foreground"
               )}
             >
               <Icon size={21} strokeWidth={active ? 2.6 : 2.1} />

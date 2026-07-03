@@ -45,7 +45,7 @@ export function FinanceSubnav() {
             key={href}
             href={href}
             className={`inline-flex items-center gap-2 rounded-full px-3.5 py-2 text-sm font-semibold transition ${
-              active ? "bg-[#2d3094] text-white shadow-sm" : "bg-white text-[#475067] ring-1 ring-[#e3e6f0] hover:bg-[#f3f4fb]"
+              active ? "bg-primary text-primary-foreground shadow-sm" : "bg-card text-muted-foreground ring-1 ring-border hover:bg-muted hover:text-foreground"
             }`}
           >
             <Icon size={15} />

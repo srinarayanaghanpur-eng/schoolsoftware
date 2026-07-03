@@ -5,16 +5,16 @@ import { hasPermission, isValidRole, type Permission, type Role } from "@sri-nar
 import { adminDb, verifyBearerToken } from "./firebaseAdmin";
 
 /**
- * Effective role for a request. Prefers the token's custom claim, but falls
- * back to the Firestore `users/{uid}` doc when the claim is missing/invalid —
- * mirroring how the frontend resolves the role. This keeps API access in sync
- * with the role the admin manages in the database, even if a user's custom
- * claim is stale or was never set. The resolved role is patched back onto the
- * token so existing `decodedToken.role` reads keep working.
+ * Effective role for a request. Prefers the Firestore `users/{uid}` assignment
+ * and falls back to the token's custom claim when the document role is missing
+ * or temporarily unavailable. This keeps API access in sync with the role the
+ * admin manages in the database, even if a user's custom claim is stale. The
+ * resolved role is patched back onto the token so existing `decodedToken.role`
+ * reads keep working.
  */
 export async function resolveRole(decodedToken: DecodedIdToken): Promise<Role | undefined> {
   const claimRole = decodedToken.role;
-  if (isValidRole(claimRole)) return claimRole;
+  const fallbackRole = isValidRole(claimRole) ? claimRole : undefined;
   try {
     const snapshot = await adminDb().collection("users").doc(decodedToken.uid).get();
     const docRole = snapshot.exists ? (snapshot.data() as { role?: unknown })?.role : undefined;
@@ -23,7 +23,11 @@ export async function resolveRole(decodedToken: DecodedIdToken): Promise<Role | 
       return docRole;
     }
   } catch {
-    // Firestore unavailable — fall through with no role.
+    // Firestore unavailable — fall back to the refreshed token claim.
+  }
+  if (fallbackRole) {
+    (decodedToken as { role?: string }).role = fallbackRole;
+    return fallbackRole;
   }
   return undefined;
 }
@@ -42,7 +46,9 @@ export async function requireSignedIn(req: Request): Promise<DecodedIdToken | nu
 
 export async function requireTeacher(req: Request): Promise<DecodedIdToken | null> {
   const decodedToken = await verifyBearerToken(req);
-  if (!decodedToken || decodedToken.role !== "teacher") {
+  if (!decodedToken) return null;
+  const role = await resolveRole(decodedToken);
+  if (role !== "teacher") {
     return null;
   }
   return decodedToken;

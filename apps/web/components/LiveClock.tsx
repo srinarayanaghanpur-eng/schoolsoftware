@@ -26,9 +26,9 @@ export function LiveClock({ className = "", tone = "light" }: { className?: stri
   const wrap =
     tone === "dark"
       ? "border-white/15 bg-white/10 text-white"
-      : "border-[#e3e6f0] bg-white text-[#1b1d32]";
-  const iconTone = tone === "dark" ? "bg-[#f7c548] text-[#282a79]" : "bg-[#eeefff] text-[#3033a1]";
-  const sub = tone === "dark" ? "text-[#d7dcff]" : "text-[#7d86a8]";
+      : "border-border bg-card text-foreground";
+  const iconTone = tone === "dark" ? "bg-[#f7c548] text-[#282a79]" : "bg-accent text-accent-foreground";
+  const sub = tone === "dark" ? "text-[#d7dcff]" : "text-muted-foreground";
 
   return (
     <div className={`inline-flex items-center gap-3 rounded-2xl border px-4 py-2.5 ${wrap} ${className}`}>

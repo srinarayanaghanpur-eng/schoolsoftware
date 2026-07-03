@@ -254,6 +254,10 @@ export type SalaryReport = {
   year: number;
   // Attendance Data
   totalCalendarDays: number;
+  totalWorkingDaysInMonth?: number;
+  workingDaysElapsed?: number;
+  payrollFinalized?: boolean;
+  calculationAsOfDate?: string;
   workingDays: number;
   presentDays: number;
   lateDays: number;
@@ -275,17 +279,18 @@ export type SalaryReport = {
   approvedLeaveCLDays: number; // approved leave days with no check-in (CL consumed)
   attendedApprovedLeaveDays: number; // approved leave days where check-in exists
   lateDerivedCLDays: number; // floor(lateEntries / 3)
-  paidCLDays: number; // min(totalClUsed, allowance) - CL days actually paid
+  paidCLDays: number; // min(totalClUsed, allowance) across approved leave + late-derived CL
+  paidLeaveDays?: number; // approved leave days paid from remaining CL balance
   excessCLDays: number; // max(totalClUsed - allowance, 0)
   plainAbsentDays: number; // working days with no check-in and no approved leave
-  unpaidDeductionDays: number; // plainAbsentDays + excessCLDays
+  unpaidDeductionDays: number; // plain missing-attendance absences; excess CL is tracked separately
   approvedLeaveRequests: LeaveRequest[]; // approved leave requests for this month
   approvedLeaveInfo: string; // formatted leave info for Excel
-  salaryDeduction: number; // unpaidDeductionDays × perDaySalary
+  salaryDeduction: number; // (plain absent days + excess CL days) × perDaySalary
   // Deductions (detailed breakdown)
   absentDeduction: number;
   lateDeduction: number;
-  excessLeaveDeduction: number; // alias for salaryDeduction (backward compat)
+  excessLeaveDeduction: number; // excessCLDays × perDaySalary
   manualDeduction: number;
   bonus: number;
   totalDeduction: number; // Sum of all deductions
@@ -295,8 +300,32 @@ export type SalaryReport = {
   paid: boolean;
   paidAt?: string;
   paymentNotes?: string;
+  presentDates?: string[];
+  absentDates?: string[];
+  approvedLeaveDates?: string[];
+  lateDates?: string[];
+  calculationDebug?: PayrollCalculationDebug;
   generatedAt: FirestoreDate;
   updatedAt: FirestoreDate;
+};
+
+export type PayrollCalculationDebug = {
+  staffId: string;
+  staffName: string;
+  month: string;
+  totalWorkingDaysInMonth: number;
+  workingDaysElapsed: number;
+  presentDates: string[];
+  absentDates: string[];
+  approvedLeaveDates: string[];
+  attendedApprovedLeaveDates: string[];
+  lateDates: string[];
+  paidLeaveDays: number;
+  unpaidAbsentDays: number;
+  excessCLDays: number;
+  dailyRate: number;
+  deduction: number;
+  netPayable: number;
 };
 
 export type DashboardSummary = {

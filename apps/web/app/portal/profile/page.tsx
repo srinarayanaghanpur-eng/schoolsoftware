@@ -3,11 +3,12 @@
 import { AppShell } from "@/components/AppShell";
 import { AuthGate } from "@/components/AuthGate";
 import { PageHeader } from "@/components/PageHeader";
+import { PasswordInput } from "@/components/PasswordInput";
 import { usePortalChild } from "@/components/PortalChildContext";
 import { adminApiRequest } from "@/lib/adminApiClient";
 import { ROLES } from "@sri-narayana/shared";
 import { auth } from "@sri-narayana/shared/firebase/client";
-import { Camera, Check, Eye, EyeOff, Key, Mail, MapPin, Phone, Send, User, Users } from "lucide-react";
+import { Camera, Check, Key, Mail, MapPin, Phone, Send, User, Users } from "lucide-react";
 import { EmailAuthProvider, reauthenticateWithCredential, updatePassword } from "firebase/auth";
 import { useEffect, useState } from "react";
 
@@ -30,7 +31,6 @@ function ParentProfile() {
   const [pwConfirm, setPwConfirm] = useState("");
   const [pwError, setPwError] = useState<string | null>(null);
   const [pwSuccess, setPwSuccess] = useState(false);
-  const [showPw, setShowPw] = useState(false);
   const [changingPw, setChangingPw] = useState(false);
 
   useEffect(() => {
@@ -201,18 +201,15 @@ function ParentProfile() {
                   {pwError && <div className="rounded-2xl border border-[#ffd5da] bg-[#ffebed] px-4 py-3 text-sm font-semibold text-[#c83f4d]">{pwError}</div>}
                   <div>
                     <label className="mb-1.5 block text-sm font-bold text-[#303247]">Current Password</label>
-                    <input className="field" type="password" value={pwCurrent} onChange={(e) => setPwCurrent(e.target.value)} required />
+                    <PasswordInput value={pwCurrent} onChange={(e) => setPwCurrent(e.target.value)} required />
                   </div>
-                  <div className="relative">
+                  <div>
                     <label className="mb-1.5 block text-sm font-bold text-[#303247]">New Password</label>
-                    <input className="field pr-10" type={showPw ? "text" : "password"} value={pwNew} onChange={(e) => setPwNew(e.target.value)} required />
-                    <button type="button" className="absolute right-3 top-9 text-[#7d86a8]" onClick={() => setShowPw(!showPw)}>
-                      {showPw ? <EyeOff size={18} /> : <Eye size={18} />}
-                    </button>
+                    <PasswordInput value={pwNew} onChange={(e) => setPwNew(e.target.value)} required />
                   </div>
                   <div>
                     <label className="mb-1.5 block text-sm font-bold text-[#303247]">Confirm New Password</label>
-                    <input className="field" type="password" value={pwConfirm} onChange={(e) => setPwConfirm(e.target.value)} required />
+                    <PasswordInput value={pwConfirm} onChange={(e) => setPwConfirm(e.target.value)} required />
                   </div>
                   <div className="flex gap-3">
                     <button type="submit" className="btn-primary" disabled={changingPw}>

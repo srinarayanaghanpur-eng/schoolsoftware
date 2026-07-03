@@ -2,10 +2,70 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  color-scheme: light;
+  --background: 225 100% 98%;
+  --foreground: 235 31% 12%;
+  --card: 0 0% 100%;
+  --card-foreground: 235 31% 12%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 235 31% 12%;
+  --muted: 228 52% 97%;
+  --muted-foreground: 227 18% 52%;
+  --border: 225 33% 90%;
+  --input: 228 64% 99%;
+  --ring: 239 45% 48%;
+  --primary: 239 54% 41%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 228 52% 97%;
+  --secondary-foreground: 235 31% 12%;
+  --accent: 235 72% 95%;
+  --accent-foreground: 239 54% 41%;
+  --destructive: 354 82% 60%;
+  --destructive-foreground: 0 0% 100%;
+  --success: 151 78% 36%;
+  --success-foreground: 0 0% 100%;
+  --warning: 38 84% 47%;
+  --warning-foreground: 35 92% 17%;
+  --shadow-rgb: 36 42 94;
+}
+
+.dark {
+  color-scheme: dark;
+  --background: 222 19% 7%;
+  --foreground: 226 25% 90%;
+  --card: 226 19% 13%;
+  --card-foreground: 226 25% 90%;
+  --popover: 226 19% 13%;
+  --popover-foreground: 226 25% 90%;
+  --muted: 228 16% 16%;
+  --muted-foreground: 228 19% 68%;
+  --border: 227 16% 22%;
+  --input: 228 16% 16%;
+  --ring: 238 43% 57%;
+  --primary: 238 43% 57%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 228 16% 16%;
+  --secondary-foreground: 226 25% 90%;
+  --accent: 236 29% 23%;
+  --accent-foreground: 235 76% 86%;
+  --destructive: 354 74% 58%;
+  --destructive-foreground: 0 0% 100%;
+  --success: 151 69% 42%;
+  --success-foreground: 151 90% 8%;
+  --warning: 40 88% 58%;
+  --warning-foreground: 35 92% 12%;
+  --shadow-rgb: 0 0 0;
+}
+
+* {
+  border-color: hsl(var(--border));
+}
+
 html, body {
   height: 100%;
-  background: #ffffff;
-  color: #0f172a;
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
   font-family: "Poppins", "Inter", "Segoe UI", sans-serif;
   font-size: 18px;
 }
@@ -286,23 +346,24 @@ html, body {
 }
 
 .card {
-  border: 1px solid #e3e6f0;
+  border: 1px solid hsl(var(--border));
   border-radius: 1rem;
-  background: #fff;
-  box-shadow: 0 2px 4px rgba(36, 42, 94, 0.03);
+  background: hsl(var(--card));
+  color: hsl(var(--card-foreground));
+  box-shadow: 0 2px 4px rgb(var(--shadow-rgb) / 0.04);
 }
 
 .card:hover {
-  box-shadow: 0 10px 22px rgba(36, 42, 94, 0.06);
+  box-shadow: 0 10px 22px rgb(var(--shadow-rgb) / 0.08);
 }
 
 .field {
   width: 100%;
   border-radius: 0.75rem;
-  border: 1px solid #dfe3f1;
-  background: #f8f9ff;
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--input));
   padding: 0.625rem 0.875rem;
-  color: #242744;
+  color: hsl(var(--foreground));
   font-size: 0.875rem;
   font-weight: 500;
   line-height: 1.25rem;
@@ -311,20 +372,20 @@ html, body {
 }
 
 .field::placeholder {
-  color: #9aa4c4;
+  color: hsl(var(--muted-foreground));
 }
 
 .field:focus {
-  border-color: #4a4bb1;
-  background: #fff;
-  box-shadow: 0 0 0 4px rgba(74, 75, 177, 0.1);
+  border-color: hsl(var(--ring));
+  background: hsl(var(--card));
+  box-shadow: 0 0 0 4px hsl(var(--ring) / 0.14);
 }
 
 .field:disabled,
 .field[readonly] {
   cursor: not-allowed;
-  background: #eef0f7;
-  color: #7d86a8;
+  background: hsl(var(--muted));
+  color: hsl(var(--muted-foreground));
 }
 
 .field.pl-10 {
@@ -337,19 +398,19 @@ html, body {
   justify-content: center;
   gap: 0.5rem;
   border-radius: 0.75rem;
-  background: #3033a1;
+  background: hsl(var(--primary));
   padding: 0.625rem 1rem;
-  color: #fff;
+  color: hsl(var(--primary-foreground));
   font-size: 0.875rem;
   font-weight: 700;
   line-height: 1.25rem;
-  box-shadow: 0 8px 18px rgba(48, 51, 161, 0.18);
+  box-shadow: 0 8px 18px hsl(var(--primary) / 0.2);
   transition: transform 160ms ease, background-color 160ms ease, box-shadow 160ms ease, opacity 160ms ease;
 }
 
 .btn-primary:hover {
-  background: #272a86;
-  box-shadow: 0 10px 22px rgba(48, 51, 161, 0.24);
+  background: hsl(var(--primary) / 0.92);
+  box-shadow: 0 10px 22px hsl(var(--primary) / 0.28);
 }
 
 .btn-primary:active {
@@ -362,10 +423,10 @@ html, body {
   justify-content: center;
   gap: 0.5rem;
   border-radius: 0.75rem;
-  border: 1px solid #dfe3f1;
-  background: #fff;
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--card));
   padding: 0.625rem 1rem;
-  color: #303247;
+  color: hsl(var(--foreground));
   font-size: 0.875rem;
   font-weight: 700;
   line-height: 1.25rem;
@@ -373,9 +434,9 @@ html, body {
 }
 
 .btn-secondary:hover {
-  border-color: #c7caf0;
-  background: #f4f5fb;
-  color: #272a86;
+  border-color: hsl(var(--ring) / 0.55);
+  background: hsl(var(--accent));
+  color: hsl(var(--accent-foreground));
 }
 
 .btn-primary:disabled,
@@ -386,26 +447,26 @@ html, body {
 }
 
 .card table thead {
-  background: #f7f8fd;
-  color: #7d86a8;
+  background: hsl(var(--muted));
+  color: hsl(var(--muted-foreground));
 }
 
 .card table th {
-  color: #6f7898;
+  color: hsl(var(--muted-foreground));
   font-weight: 800;
   letter-spacing: 0.02em;
 }
 
 .card table tbody tr {
-  border-color: #edf0f7;
+  border-color: hsl(var(--border));
 }
 
 .card table tbody tr:hover {
-  background: #fafbff;
+  background: hsl(var(--muted) / 0.72);
 }
 
 .card table td {
-  color: #303247;
+  color: hsl(var(--foreground));
 }
 
 @media print {
@@ -439,81 +500,143 @@ html, body {
   }
 }
 
-/* ── Dark mode overrides ── */
-.dark html,
-.dark body {
-  background: #0f1117;
-  color: #e2e4ec;
+/* Theme compatibility for existing utility-heavy pages. */
+.erp-app {
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
 }
 
-.dark .card {
-  background: #1a1c26;
-  border-color: #2a2d3a;
+.erp-app :where(table) {
+  border-color: hsl(var(--border));
+  color: hsl(var(--foreground));
 }
 
-.dark .card:hover {
-  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.25);
+.erp-app :where(thead) {
+  background: hsl(var(--muted));
+  color: hsl(var(--muted-foreground));
 }
 
-.dark .field {
-  background: #20222e;
-  border-color: #2f3242;
-  color: #e2e4ec;
+.erp-app :where(th) {
+  color: hsl(var(--muted-foreground));
 }
 
-.dark .field::placeholder {
-  color: #5c6485;
+.erp-app :where(td) {
+  color: hsl(var(--foreground));
 }
 
-.dark .field:focus {
-  border-color: #5b5fc7;
-  background: #1a1c26;
-  box-shadow: 0 0 0 4px rgba(91, 95, 199, 0.15);
+.erp-app :where(tbody tr) {
+  border-color: hsl(var(--border));
 }
 
-.dark .field:disabled,
-.dark .field[readonly] {
-  background: #161822;
-  color: #5c6485;
+.erp-app :where(tbody tr:hover) {
+  background: hsl(var(--muted) / 0.72);
 }
 
-.dark .btn-primary {
-  background: #3d40a6;
+.erp-app :where(input:not([type="checkbox"]):not([type="radio"]), select, textarea) {
+  border-color: hsl(var(--border));
+  background-color: hsl(var(--input));
+  color: hsl(var(--foreground));
 }
 
-.dark .btn-primary:hover {
-  background: #4a4db8;
+.erp-app :where(input:not([type="checkbox"]):not([type="radio"]), select, textarea)::placeholder {
+  color: hsl(var(--muted-foreground));
 }
 
-.dark .btn-secondary {
-  background: #1a1c26;
-  border-color: #2f3242;
-  color: #e2e4ec;
+.erp-app :where(input:not([type="checkbox"]):not([type="radio"]), select, textarea):focus {
+  border-color: hsl(var(--ring));
+  box-shadow: 0 0 0 4px hsl(var(--ring) / 0.14);
 }
 
-.dark .btn-secondary:hover {
-  border-color: #5b5fc7;
-  background: #20222e;
-  color: #b6baf2;
+.erp-app :where(input:disabled, input[readonly], select:disabled, textarea:disabled, textarea[readonly]) {
+  background-color: hsl(var(--muted));
+  color: hsl(var(--muted-foreground));
 }
 
-.dark .card table thead {
-  background: #20222e;
-  color: #8b94b8;
+.erp-app :where(select option) {
+  background: hsl(var(--popover));
+  color: hsl(var(--popover-foreground));
 }
 
-.dark .card table th {
-  color: #8b94b8;
+.erp-app :where(.bg-white, .bg-gray-50, .bg-gray-100, .bg-stone-50, .bg-slate-50, .bg-slate-100, .bg-slate-200, .bg-\[\#f7f8fd\], .bg-\[\#f8f8fc\], .bg-\[\#f8f9ff\], .bg-\[\#f8faff\], .bg-\[\#f9faff\], .bg-\[\#f9fbff\], .bg-\[\#fafbff\], .bg-\[\#fbfcff\], .bg-\[\#f6f8ff\], .bg-\[\#f5f6fd\], .bg-\[\#f5f7fd\], .bg-\[\#f4f5fb\], .bg-\[\#e6e9f5\]) {
+  background-color: hsl(var(--card));
 }
 
-.dark .card table tbody tr {
-  border-color: #2a2d3a;
+.erp-app :where(.bg-gray-50, .bg-gray-100, .bg-stone-50, .bg-slate-50, .bg-slate-100, .bg-slate-200, .bg-\[\#f7f8fd\], .bg-\[\#f8f8fc\], .bg-\[\#f8f9ff\], .bg-\[\#f8faff\], .bg-\[\#f9faff\], .bg-\[\#f9fbff\], .bg-\[\#fafbff\], .bg-\[\#fbfcff\], .bg-\[\#f4f5fb\], .bg-\[\#e6e9f5\]) {
+  background-color: hsl(var(--muted));
 }
 
-.dark .card table tbody tr:hover {
-  background: #20222e;
+.erp-app :where(.bg-\[\#eef0ff\], .bg-\[\#eef2ff\], .bg-\[\#eeefff\], .bg-\[\#edf1fb\], .bg-\[\#f1f4ff\], .bg-\[\#f0edff\], .bg-blue-50) {
+  background-color: hsl(var(--accent));
+  color: hsl(var(--accent-foreground));
 }
 
-.dark .card table td {
-  color: #e2e4ec;
+.erp-app :where(.bg-\[\#e6f8ef\], .bg-green-50, .bg-emerald-50) {
+  background-color: hsl(var(--success) / 0.16);
+}
+
+.erp-app :where(.bg-\[\#f6faf6\]) {
+  background-color: hsl(var(--success) / 0.1);
+}
+
+.erp-app :where(.bg-\[\#fff4df\], .bg-\[\#fff8ea\], .bg-\[\#fffcf0\], .bg-\[\#fffcf5\], .bg-yellow-50, .bg-amber-50) {
+  background-color: hsl(var(--warning) / 0.16);
+}
+
+.erp-app :where(.bg-\[\#ffebed\], .bg-\[\#fff7f7\], .bg-red-50, .bg-rose-50) {
+  background-color: hsl(var(--destructive) / 0.14);
+}
+
+.erp-app :where(.text-black, .text-gray-900, .text-stone-900, .text-stone-950, .text-slate-700, .text-slate-900, .text-slate-950, .text-\[\#15172d\], .text-\[\#17192e\], .text-\[\#181a31\], .text-\[\#1b1d32\], .text-\[\#1d1f35\], .text-\[\#1f2136\], .text-\[\#20223a\], .text-\[\#23253a\], .text-\[\#242640\], .text-\[\#242744\], .text-\[\#2a2e45\], .text-\[\#303247\], .text-\[\#353864\]) {
+  color: hsl(var(--foreground));
+}
+
+.erp-app :where(.text-gray-400, .text-gray-500, .text-gray-600, .text-gray-700, .text-stone-400, .text-stone-500, .text-stone-600, .text-slate-400, .text-slate-500, .text-\[\#475067\], .text-\[\#5d6690\], .text-\[\#65708f\], .text-\[\#6f7898\], .text-\[\#7a86ad\], .text-\[\#7b85a8\], .text-\[\#7d86a8\], .text-\[\#8490b9\], .text-\[\#8a93b1\], .text-\[\#9aa4c4\]) {
+  color: hsl(var(--muted-foreground));
+}
+
+.erp-app :where(.text-\[\#2628a0\], .text-\[\#272a86\], .text-\[\#27318d\], .text-\[\#3033a1\], .text-\[\#313581\], .text-\[\#3436a2\], .text-\[\#4d5096\], .text-\[\#5751b8\]) {
+  color: hsl(var(--accent-foreground));
+}
+
+.erp-app :where(.border-gray-200, .border-stone-100, .border-stone-200, .border-slate-200, .border-\[\#dce1f0\], .border-\[\#dfe3f1\], .border-\[\#e0e3f0\], .border-\[\#e1e7f4\], .border-\[\#e2e6f4\], .border-\[\#e3e6f0\], .border-\[\#e3e8f6\], .border-\[\#e4e6f0\], .border-\[\#e4e9f7\], .border-\[\#e5e9f4\], .border-\[\#e5e9f7\], .border-\[\#edf0f7\]) {
+  border-color: hsl(var(--border));
+}
+
+.erp-app :where(.ring-\[\#e3e6f0\], .ring-\[\#e2e6ff\], .ring-\[\#dfe5ff\]) {
+  --tw-ring-color: hsl(var(--border));
+}
+
+.erp-app :where(.hover\:bg-gray-50:hover, .hover\:bg-gray-100:hover, .hover\:bg-stone-50:hover, .hover\:bg-\[\#fafbff\]:hover, .hover\:bg-\[\#f5f6fd\]:hover, .hover\:bg-\[\#f4f5fb\]:hover, .hover\:bg-\[\#f3f4fb\]:hover, .hover\:bg-\[\#eef2ff\]:hover, .hover\:bg-\[\#e7ecff\]:hover, .hover\:bg-\[\#e3e8ff\]:hover, .hover\:bg-\[\#e3e5ff\]:hover, .hover\:bg-\[\#e0e3ff\]:hover) {
+  background-color: hsl(var(--muted));
+}
+
+.erp-app :where(.hover\:bg-\[\#d7f3e5\]:hover, .hover\:bg-\[\#d2f2e1\]:hover) {
+  background-color: hsl(var(--success) / 0.22);
+}
+
+.erp-app :where(.hover\:bg-\[\#ffe9bd\]:hover, .hover\:bg-\[\#ffedc5\]:hover) {
+  background-color: hsl(var(--warning) / 0.22);
+}
+
+.erp-app :where(.hover\:bg-\[\#ffd9dd\]:hover) {
+  background-color: hsl(var(--destructive) / 0.22);
+}
+
+.erp-app :where(.hover\:text-\[\#3033a1\]:hover, .hover\:text-\[\#272a86\]:hover, .hover\:text-\[\#2628a0\]:hover) {
+  color: hsl(var(--accent-foreground));
+}
+
+.erp-app :where(.divide-stone-100 > :not([hidden]) ~ :not([hidden])) {
+  border-color: hsl(var(--border));
+}
+
+.erp-app :where(.shadow, .shadow-sm, .shadow-lg, .shadow-xl, .shadow-2xl) {
+  --tw-shadow-color: rgb(var(--shadow-rgb) / 0.24);
+  --tw-shadow: var(--tw-shadow-colored);
+}
+
+.erp-app .theme-preserve-light,
+.erp-app .school-logo-badge :where(.bg-white) {
+  background-color: #fff;
+  color: #0f172a;
 }

@@ -91,10 +91,12 @@ export function AuthGate({
       let actualRole = isValidRole(claimRole) ? claimRole : undefined;
       let userData: { role?: unknown; status?: string } | undefined;
 
-      if (!actualRole || actualRole === "teacher") {
+      try {
         const userSnapshot = await getDoc(doc(db, "users", user.uid));
         userData = userSnapshot.exists() ? (userSnapshot.data() as { role?: unknown; status?: string }) : undefined;
-        if (!actualRole && isValidRole(userData?.role)) actualRole = userData.role;
+        if (isValidRole(userData?.role)) actualRole = userData.role;
+      } catch {
+        // Keep the refreshed token role if the profile lookup is temporarily unavailable.
       }
 
       if (!actualRole || !allowedRoles.includes(actualRole)) {

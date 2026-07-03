@@ -11,7 +11,7 @@ function AttendanceTrendChartInner({ data }: { data: Array<Record<string, number
   const max = Math.max(1, ...data.flatMap((item) => [numericValue(item, "present"), numericValue(item, "late"), numericValue(item, "absent")]));
 
   return (
-    <div className="flex h-[260px] items-end gap-3 overflow-x-auto rounded-xl bg-stone-50 p-4">
+    <div className="flex h-[260px] items-end gap-3 overflow-x-auto rounded-xl bg-muted p-4">
       {data.map((item) => {
         const day = String(item.day ?? "");
         const present = numericValue(item, "present");
@@ -25,7 +25,7 @@ function AttendanceTrendChartInner({ data }: { data: Array<Record<string, number
               <span className="w-3 rounded-t bg-amber-500" style={{ height: `${Math.max(6, (late / max) * 190)}px` }} title={`Late: ${late}`} />
               <span className="w-3 rounded-t bg-slate-500" style={{ height: `${Math.max(6, (absent / max) * 190)}px` }} title={`Absent: ${absent}`} />
             </div>
-            <span className="text-xs font-semibold text-stone-500">{day}</span>
+            <span className="text-xs font-semibold text-muted-foreground">{day}</span>
           </div>
         );
       })}
@@ -48,14 +48,14 @@ function SalaryTrendChartInner({ data }: { data: Array<Record<string, number | s
   const path = points.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`).join(" ");
 
   return (
-    <div className="h-[260px] rounded-xl bg-stone-50 p-4">
+    <div className="h-[260px] rounded-xl bg-muted p-4">
       <svg className="h-[220px] w-full overflow-visible" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" role="img" aria-label="Salary payable trend">
         <path d={path} fill="none" stroke="#047857" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
         {points.map((point) => (
           <circle key={`${point.label}-${point.value}`} cx={point.x} cy={point.y} r="5" fill="#233128" />
         ))}
       </svg>
-      <div className="grid grid-flow-col justify-between gap-3 text-xs font-semibold text-stone-500">
+      <div className="grid grid-flow-col justify-between gap-3 text-xs font-semibold text-muted-foreground">
         {points.map((point) => (
           <span key={point.label}>{point.label}</span>
         ))}
@@ -74,12 +74,12 @@ function TeacherPieChartInner({ present, late, absent }: { present: number; late
   return (
     <div className="grid h-[220px] place-items-center">
       <div className="relative grid h-40 w-40 place-items-center rounded-full" style={{ background: `conic-gradient(#047857 0 ${presentPct}%, #f59e0b ${presentPct}% ${presentPct + latePct}%, #64748b ${presentPct + latePct}% 100%)` }}>
-        <div className="grid h-24 w-24 place-items-center rounded-full bg-white text-center shadow-inner">
-          <span className="text-2xl font-extrabold text-stone-900">{presentPct}%</span>
-          <span className="-mt-4 text-xs font-semibold text-stone-500">Present</span>
+        <div className="grid h-24 w-24 place-items-center rounded-full bg-card text-center shadow-inner">
+          <span className="text-2xl font-extrabold text-foreground">{presentPct}%</span>
+          <span className="-mt-4 text-xs font-semibold text-muted-foreground">Present</span>
         </div>
       </div>
-      <div className="mt-4 flex flex-wrap justify-center gap-3 text-xs font-semibold text-stone-600">
+      <div className="mt-4 flex flex-wrap justify-center gap-3 text-xs font-semibold text-muted-foreground">
         <span><span className="mr-1 inline-block h-2.5 w-2.5 rounded-full bg-emerald-700" />Present {present}</span>
         <span><span className="mr-1 inline-block h-2.5 w-2.5 rounded-full bg-amber-500" />Late {late}</span>
         <span><span className="mr-1 inline-block h-2.5 w-2.5 rounded-full bg-slate-500" />Absent {absent}</span>

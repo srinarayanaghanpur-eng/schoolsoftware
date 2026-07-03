@@ -163,7 +163,7 @@ export function DateRangeFilter({ from, to, onChange, onApply, loading, classNam
           <button
             key={value}
             type="button"
-            className="rounded-lg border border-[#dfe3f1] bg-white px-3 py-1.5 text-xs font-bold text-[#303247] transition hover:border-[#c7caf0] hover:bg-[#f4f5fb] hover:text-[#272a86] disabled:cursor-not-allowed disabled:opacity-50"
+            className="rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-bold text-foreground transition hover:border-ring/50 hover:bg-muted hover:text-primary disabled:cursor-not-allowed disabled:opacity-50"
             onClick={() => setPreset(value)}
             disabled={value === "academicYear" && !activeYear}
           >
@@ -183,7 +183,7 @@ export function DateRangeFilter({ from, to, onChange, onApply, loading, classNam
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-semibold">
-        <span className="text-[#7d86a8]">Selected: <span className="text-[#303247]">{selectedLabel}</span></span>
+        <span className="text-muted-foreground">Selected: <span className="text-foreground">{selectedLabel}</span></span>
         {error && <span className="text-[#ed515d]">{error}</span>}
       </div>
     </div>
@@ -202,7 +202,7 @@ function DateTextField({
   onIsoChange: (value: string) => void;
 }) {
   return (
-    <label className="min-w-0 flex-1 text-sm font-semibold text-[#303247]">
+    <label className="min-w-0 flex-1 text-sm font-semibold text-foreground">
       {label}
       <span className="relative mt-1 block">
         <input
@@ -216,7 +216,7 @@ function DateTextField({
             if (parsed) onTextChange(displayFromIso(parsed));
           }}
         />
-        <span className="absolute right-1.5 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-lg text-[#7d86a8] hover:bg-[#eef0ff] hover:text-[#3033a1]">
+        <span className="absolute right-1.5 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-lg text-muted-foreground hover:bg-accent hover:text-accent-foreground">
           <CalendarDays size={16} />
           <input
             aria-label={`${label} calendar`}

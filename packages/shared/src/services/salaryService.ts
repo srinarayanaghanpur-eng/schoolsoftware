@@ -1,6 +1,6 @@
 import type { AttendanceRecord, Holiday, LeaveRequest, SalaryReport, SchoolSettings, Teacher } from "../types/models";
 import { DEFAULT_SETTINGS } from "../constants";
-import { daysInMonth, nowIso } from "../utils/date";
+import { daysInMonth, nowIso, toDateKey } from "../utils/date";
 
 export type SalaryCalculationInput = {
   teacher: Teacher;
@@ -14,6 +14,8 @@ export type SalaryCalculationInput = {
   paid?: boolean;
   paidAt?: string;
   paymentNotes?: string;
+  payrollFinalized?: boolean;
+  calculationDate?: Date | string;
 };
 
 function normalizeDate(dateStr: string): string {
@@ -21,7 +23,28 @@ function normalizeDate(dateStr: string): string {
 }
 
 function isInMonth(dateStr: string, month: string): boolean {
-  return dateStr.slice(0, 7) === month;
+  return normalizeDate(dateStr).slice(0, 7) === month;
+}
+
+function roundMoney(value: number): number {
+  return Math.round(value * 100) / 100;
+}
+
+function sortDates(dates: Iterable<string>): string[] {
+  return [...new Set(dates)].sort();
+}
+
+function isSunday(date: string): boolean {
+  const [year, month, day] = date.split("-").map(Number);
+  return new Date(Date.UTC(year, month - 1, day)).getUTCDay() === 0;
+}
+
+function monthDate(year: number, monthNumber: number, day: number): string {
+  return `${year}-${String(monthNumber).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+function monthEndDate(year: number, monthNumber: number): string {
+  return monthDate(year, monthNumber, daysInMonth(year, monthNumber));
 }
 
 function expandLeaveDates(startDate: string, endDate: string, month: string): string[] {
@@ -31,64 +54,65 @@ function expandLeaveDates(startDate: string, endDate: string, month: string): st
   const start = new Date(Date.UTC(sy, sm - 1, sd));
   const end = new Date(Date.UTC(ey, em - 1, ed));
   const current = new Date(start);
+
   while (current <= end) {
     const dateStr = current.toISOString().slice(0, 10);
-    if (isInMonth(dateStr, month)) {
-      dates.push(dateStr);
-    }
+    if (isInMonth(dateStr, month)) dates.push(dateStr);
     current.setUTCDate(current.getUTCDate() + 1);
   }
+
   return dates;
 }
 
-function buildLeaveDayInfo(
-  leaveRequests: LeaveRequest[],
-  records: AttendanceRecord[],
-  month: string
-): {
-  approvedLeaveCLDates: string[];
-  attendedApprovedLeaveDates: string[];
-  approvedLeaveInfo: string;
-} {
-  const approved = leaveRequests.filter((l) => l.status === "approved");
+function buildWorkingDates(year: number, monthNumber: number, holidays: Holiday[]) {
+  const month = `${year}-${String(monthNumber).padStart(2, "0")}`;
+  const holidayDates = new Set(
+    holidays
+      .map((holiday) => normalizeDate(holiday.date))
+      .filter((date) => isInMonth(date, month) && !isSunday(date))
+  );
 
-  const checkInByDate = new Set<string>();
-  for (const record of records) {
-    if (record.checkInTime) {
-      checkInByDate.add(normalizeDate(record.date));
-    }
+  const dates: string[] = [];
+  const totalCalendarDays = daysInMonth(year, monthNumber);
+  for (let day = 1; day <= totalCalendarDays; day += 1) {
+    const date = monthDate(year, monthNumber, day);
+    if (!isSunday(date) && !holidayDates.has(date)) dates.push(date);
   }
 
-  const leaveDates: string[] = [];
-  for (const leave of approved) {
-    const expanded = expandLeaveDates(leave.startDate, leave.endDate, month);
-    leaveDates.push(...expanded);
-  }
+  return { dates, holidayDates };
+}
 
-  const uniqueLeaveDates = [...new Set(leaveDates)];
+function elapsedCutoffDate(input: SalaryCalculationInput, settings: SchoolSettings, year: number, monthNumber: number) {
+  const monthStart = monthDate(year, monthNumber, 1);
+  const monthEnd = monthEndDate(year, monthNumber);
+  if (input.payrollFinalized) return monthEnd;
 
-  const approvedLeaveCLDates: string[] = [];
-  const attendedApprovedLeaveDates: string[] = [];
+  const today = toDateKey(input.calculationDate ?? new Date(), settings.timezone);
+  const todayMonth = today.slice(0, 7);
+  if (todayMonth < input.month) return "";
+  if (todayMonth > input.month) return monthEnd;
+  if (today < monthStart) return "";
+  return today > monthEnd ? monthEnd : today;
+}
 
-  for (const date of uniqueLeaveDates) {
-    if (checkInByDate.has(date)) {
-      attendedApprovedLeaveDates.push(date);
-    } else {
-      approvedLeaveCLDates.push(date);
-    }
-  }
+function hasValidCheckIn(record: AttendanceRecord): boolean {
+  return Boolean(record.checkInTime);
+}
 
+function isLateRecord(record: AttendanceRecord): boolean {
+  return record.status === "late" || Boolean(record.isLate) || Number(record.lateMinutes ?? 0) > 0;
+}
+
+function buildApprovedLeaveInfo(approvedLeaveCLDates: string[], attendedApprovedLeaveDates: string[]) {
   const totalDays = approvedLeaveCLDates.length + attendedApprovedLeaveDates.length;
   const parts: string[] = [`Approved: ${totalDays} day${totalDays !== 1 ? "s" : ""}`];
   if (approvedLeaveCLDates.length > 0) {
-    parts.push(`CL used: ${approvedLeaveCLDates.length} day${approvedLeaveCLDates.length !== 1 ? "s" : ""} | Dates: ${approvedLeaveCLDates.join(", ")}`);
+    parts.push(`CL requested: ${approvedLeaveCLDates.length} day${approvedLeaveCLDates.length !== 1 ? "s" : ""} | Dates: ${approvedLeaveCLDates.join(", ")}`);
   }
   if (attendedApprovedLeaveDates.length > 0) {
     parts.push(`Attended: ${attendedApprovedLeaveDates.length} day${attendedApprovedLeaveDates.length !== 1 ? "s" : ""} | Dates: ${attendedApprovedLeaveDates.join(", ")}`);
   }
-  const approvedLeaveInfo = parts.join(" | ");
-
-  return { approvedLeaveCLDates, attendedApprovedLeaveDates, approvedLeaveInfo };
+  return parts.join(" | ");
 }
 
 export function calculateMonthlySalary(input: SalaryCalculationInput): SalaryReport {
@@ -98,52 +122,60 @@ export function calculateMonthlySalary(input: SalaryCalculationInput): SalaryRep
   const monthNumber = Number(monthText);
 
   const totalCalendarDays = daysInMonth(year, monthNumber);
-  const holidays = input.holidays.length;
-  const workingDays = Math.max(1, totalCalendarDays - holidays);
+  const { dates: totalWorkingDates, holidayDates } = buildWorkingDates(year, monthNumber, input.holidays);
+  const cutoffDate = elapsedCutoffDate(input, settings, year, monthNumber);
+  const workingDatesElapsed = cutoffDate
+    ? totalWorkingDates.filter((date) => date <= cutoffDate)
+    : [];
+  const workingDateSet = new Set(workingDatesElapsed);
 
-  const presentDays = input.records.filter((item) => item.status === "present").length;
-  const lateEntries = input.records.filter((item) => item.status === "late").length;
+  const attendanceRecords = input.records.filter((record) => record.teacherId === input.teacher.id && isInMonth(record.date, input.month));
+  const checkInRecords = attendanceRecords.filter((record) => workingDateSet.has(normalizeDate(record.date)) && hasValidCheckIn(record));
+  const presentDates = sortDates(checkInRecords.map((record) => normalizeDate(record.date)));
+  const presentDateSet = new Set(presentDates);
+  const lateDates = sortDates(checkInRecords.filter(isLateRecord).map((record) => normalizeDate(record.date)));
 
-  const perDaySalary = input.teacher.baseSalary / workingDays;
-
-  const approvedLeaveInfo = buildLeaveDayInfo(
-    input.leaveRequests ?? [],
-    input.records,
-    input.month
+  const approvedLeaveDates = sortDates(
+    (input.leaveRequests ?? [])
+      .filter((leave) => leave.teacherId === input.teacher.id && leave.status === "approved")
+      .flatMap((leave) => expandLeaveDates(leave.startDate, leave.endDate, input.month))
+      .filter((date) => workingDateSet.has(date))
   );
-  const approvedLeaveCLDates = approvedLeaveInfo.approvedLeaveCLDates;
-  const attendedApprovedLeaveDates = approvedLeaveInfo.attendedApprovedLeaveDates;
 
-  const allApprovedLeaveDates = new Set([
-    ...approvedLeaveCLDates,
-    ...attendedApprovedLeaveDates,
-  ]);
+  const approvedLeaveCLDates = approvedLeaveDates.filter((date) => !presentDateSet.has(date));
+  const attendedApprovedLeaveDates = approvedLeaveDates.filter((date) => presentDateSet.has(date));
 
-  const plainAbsentDays = input.records.filter((record) => {
-    if (record.status !== "absent" && record.status !== "not_marked") return false;
-    if (record.checkInTime) return false;
-    return !allApprovedLeaveDates.has(normalizeDate(record.date));
-  }).length;
-
-  const approvedLeaveCLDays = approvedLeaveCLDates.length;
-  const attendedApprovedLeaveDays = attendedApprovedLeaveDates.length;
+  const lateEntries = lateDates.length;
   const lateDerivedCLDays = Math.floor(lateEntries / 3);
+  const approvedLeaveCLDays = approvedLeaveCLDates.length;
+  const clAllowanceThisMonth = Math.max(0, input.teacher.allowedCLPerMonth ?? 3);
   const totalCLUsed = approvedLeaveCLDays + lateDerivedCLDays;
-  const clAllowanceThisMonth = input.teacher.allowedCLPerMonth ?? 3;
+  const paidLeaveDays = Math.min(approvedLeaveCLDays, Math.max(0, clAllowanceThisMonth - lateDerivedCLDays));
+  const paidLeaveDates = new Set(approvedLeaveCLDates.slice(0, paidLeaveDays));
+  const unpaidApprovedLeaveDates = approvedLeaveCLDates.filter((date) => !paidLeaveDates.has(date));
   const paidCLDays = Math.min(totalCLUsed, clAllowanceThisMonth);
   const excessCLDays = Math.max(totalCLUsed - clAllowanceThisMonth, 0);
-  const unpaidDeductionDays = plainAbsentDays + excessCLDays;
-  const salaryDeduction = unpaidDeductionDays * perDaySalary;
 
-  const remainingCl = Math.max(0, clAllowanceThisMonth - totalCLUsed);
+  const approvedLeaveCLDateSet = new Set(approvedLeaveCLDates);
+  const plainAbsentDates = workingDatesElapsed.filter((date) => !presentDateSet.has(date) && !approvedLeaveCLDateSet.has(date));
+  const absentDates = sortDates([...plainAbsentDates, ...unpaidApprovedLeaveDates]);
+  const absentDays = Math.max(0, workingDatesElapsed.length - presentDates.length - paidLeaveDays);
 
-  const manualDeduction = input.manualDeduction ?? settings.salaryRules.manualDeductionDefault;
-  const bonus = input.bonus ?? settings.salaryRules.bonusDefault;
-
+  const denominatorWorkingDays = Math.max(1, totalWorkingDates.length);
+  const perDaySalary = input.teacher.baseSalary / denominatorWorkingDays;
+  const absentDeduction = plainAbsentDates.length * perDaySalary;
+  const excessLeaveDeduction = excessCLDays * perDaySalary;
+  const salaryDeduction = Math.max(0, absentDeduction + excessLeaveDeduction);
+  const manualDeduction = Math.max(0, input.manualDeduction ?? settings.salaryRules.manualDeductionDefault);
+  const bonus = Math.max(0, input.bonus ?? settings.salaryRules.bonusDefault);
   const totalDeduction = salaryDeduction + manualDeduction;
-  const netPayable = Math.max(0, input.teacher.baseSalary - totalDeduction + bonus);
+  const netPayable = Math.min(input.teacher.baseSalary, Math.max(0, input.teacher.baseSalary - totalDeduction + bonus));
+  const lateExcessCLDays = Math.max(0, lateDerivedCLDays - clAllowanceThisMonth);
 
   const timestamp = nowIso();
+  const roundedPerDaySalary = roundMoney(perDaySalary);
+  const roundedSalaryDeduction = roundMoney(salaryDeduction);
+  const roundedNetPayable = roundMoney(netPayable);
 
   return {
     teacherId: input.teacher.id,
@@ -154,47 +186,74 @@ export function calculateMonthlySalary(input: SalaryCalculationInput): SalaryRep
     year,
 
     totalCalendarDays,
-    workingDays,
-    presentDays,
+    totalWorkingDaysInMonth: totalWorkingDates.length,
+    workingDaysElapsed: workingDatesElapsed.length,
+    payrollFinalized: Boolean(input.payrollFinalized),
+    calculationAsOfDate: cutoffDate || undefined,
+    workingDays: workingDatesElapsed.length,
+    presentDays: presentDates.length,
     lateDays: lateEntries,
     lateEntries,
-    clDays: paidCLDays,
-    absentDays: plainAbsentDays,
-    holidays,
+    clDays: paidLeaveDays,
+    absentDays,
+    holidays: holidayDates.size,
 
     baseSalary: Math.round(input.teacher.baseSalary),
-    perDaySalary: Math.round(perDaySalary * 100) / 100,
+    perDaySalary: roundedPerDaySalary,
 
     clAllowanceThisMonth,
     clUsedFromAbsent: approvedLeaveCLDays,
     clUsedFromLate: lateDerivedCLDays,
     totalClUsed: totalCLUsed,
-    remainingCl,
+    remainingCl: Math.max(0, clAllowanceThisMonth - totalCLUsed),
     excessLeave: excessCLDays,
 
     approvedLeaveCLDays,
-    attendedApprovedLeaveDays,
+    attendedApprovedLeaveDays: attendedApprovedLeaveDates.length,
     lateDerivedCLDays,
     paidCLDays,
+    paidLeaveDays,
     excessCLDays,
-    plainAbsentDays,
-    unpaidDeductionDays,
-    approvedLeaveRequests: (input.leaveRequests ?? []).filter((l) => l.status === "approved"),
-    approvedLeaveInfo: approvedLeaveInfo.approvedLeaveInfo,
-    salaryDeduction: Math.round(salaryDeduction * 100) / 100,
+    plainAbsentDays: plainAbsentDates.length,
+    unpaidDeductionDays: plainAbsentDates.length,
+    approvedLeaveRequests: (input.leaveRequests ?? []).filter((leave) => leave.teacherId === input.teacher.id && leave.status === "approved"),
+    approvedLeaveInfo: buildApprovedLeaveInfo(approvedLeaveCLDates, attendedApprovedLeaveDates),
+    salaryDeduction: roundedSalaryDeduction,
 
-    absentDeduction: Math.round(plainAbsentDays * perDaySalary * 100) / 100,
-    lateDeduction: Math.round(lateDerivedCLDays * perDaySalary * 100) / 100,
-    excessLeaveDeduction: Math.round(salaryDeduction * 100) / 100,
+    absentDeduction: roundMoney(absentDeduction),
+    lateDeduction: roundMoney(lateExcessCLDays * perDaySalary),
+    excessLeaveDeduction: roundMoney(excessLeaveDeduction),
     manualDeduction: Math.round(manualDeduction),
     bonus: Math.round(bonus),
-    totalDeduction: Math.round(totalDeduction * 100) / 100,
+    totalDeduction: roundMoney(totalDeduction),
 
-    netPayable: Math.max(0, Math.round(netPayable * 100) / 100),
+    netPayable: roundedNetPayable,
 
     paid: input.paid ?? false,
     paidAt: input.paidAt,
     paymentNotes: input.paymentNotes,
+    presentDates,
+    absentDates,
+    approvedLeaveDates,
+    lateDates,
+    calculationDebug: {
+      staffId: input.teacher.id,
+      staffName: input.teacher.fullName,
+      month: input.month,
+      totalWorkingDaysInMonth: totalWorkingDates.length,
+      workingDaysElapsed: workingDatesElapsed.length,
+      presentDates,
+      absentDates,
+      approvedLeaveDates,
+      attendedApprovedLeaveDates,
+      lateDates,
+      paidLeaveDays,
+      unpaidAbsentDays: plainAbsentDates.length,
+      excessCLDays,
+      dailyRate: roundedPerDaySalary,
+      deduction: roundedSalaryDeduction,
+      netPayable: roundedNetPayable
+    },
     generatedAt: timestamp,
     updatedAt: timestamp,
   };

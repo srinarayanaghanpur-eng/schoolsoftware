@@ -6,7 +6,6 @@ import { DarkModeToggle } from "@/components/DarkModeToggle";
 import { isValidRole } from "@sri-narayana/shared";
 import { refreshClaims } from "@/lib/authClaims";
 import { employeeIdToInternalEmail, normalizeEmployeeId } from "@sri-narayana/shared/utils/employeeAuth";
-import type { UserRole } from "@sri-narayana/shared/types/models";
 import { useRouter } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -78,10 +77,10 @@ async function signInAndResolveRole(loginId: string, password: string, rememberM
   // Force a token refresh so a recently-changed role (updated custom claims)
   // is picked up immediately instead of using a stale cached token.
   const claims = await refreshClaims(auth.currentUser);
-  const tokenRole = claims?.role as UserRole | undefined;
+  const tokenRole = claims?.role;
   const userSnapshot = await getDoc(doc(db, "users", uid));
-  const userData = userSnapshot.exists() ? (userSnapshot.data() as { role?: UserRole; status?: string }) : undefined;
-  const role = tokenRole ?? userData?.role;
+  const userData = userSnapshot.exists() ? (userSnapshot.data() as { role?: unknown; status?: string }) : undefined;
+  const role = isValidRole(userData?.role) ? userData.role : isValidRole(tokenRole) ? tokenRole : undefined;
 
   if (!isValidRole(role)) {
     await signOut(auth);

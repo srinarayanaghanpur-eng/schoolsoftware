@@ -1,6 +1,7 @@
 "use client";
 
 import { PageHeader } from "@/components/PageHeader";
+import { PasswordInput } from "@/components/PasswordInput";
 import { useAdminSession } from "@/components/AdminSessionContext";
 import { auth, isFirebaseConfigured } from "@sri-narayana/shared/firebase/client";
 import { demoTeachers, type Teacher } from "@sri-narayana/shared";
@@ -323,11 +324,11 @@ export default function TeachersPage() {
                 <>
                   <label className="space-y-1 text-sm font-medium">
                     <span>Password</span>
-                    <input className="field" type="password" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} required />
+                    <PasswordInput value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} required />
                   </label>
                   <label className="space-y-1 text-sm font-medium">
                     <span>Confirm password</span>
-                    <input className="field" type="password" value={form.confirmPassword} onChange={(event) => setForm({ ...form, confirmPassword: event.target.value })} required />
+                    <PasswordInput value={form.confirmPassword} onChange={(event) => setForm({ ...form, confirmPassword: event.target.value })} required />
                   </label>
                 </>
               )}
@@ -356,8 +357,8 @@ export default function TeachersPage() {
               </button>
             </div>
             <div className="grid gap-3 md:grid-cols-2">
-              <input className="field" type="password" placeholder="New password" value={resetPassword.password} onChange={(event) => setResetPassword({ ...resetPassword, password: event.target.value })} required />
-              <input className="field" type="password" placeholder="Confirm new password" value={resetPassword.confirmPassword} onChange={(event) => setResetPassword({ ...resetPassword, confirmPassword: event.target.value })} required />
+              <PasswordInput placeholder="New password" value={resetPassword.password} onChange={(event) => setResetPassword({ ...resetPassword, password: event.target.value })} required />
+              <PasswordInput placeholder="Confirm new password" value={resetPassword.confirmPassword} onChange={(event) => setResetPassword({ ...resetPassword, confirmPassword: event.target.value })} required />
             </div>
             <button className="btn-primary mt-4" disabled={loading}>
               <KeyRound size={16} /> {loading ? "Resetting..." : "Reset password"}

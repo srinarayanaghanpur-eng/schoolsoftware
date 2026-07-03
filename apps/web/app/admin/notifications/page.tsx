@@ -1,6 +1,7 @@
 "use client";
 
 import { PageHeader } from "@/components/PageHeader";
+import { PasswordInput } from "@/components/PasswordInput";
 import { auth, isFirebaseConfigured } from "@sri-narayana/shared/firebase/client";
 import {
   demoAttendanceEditAudits,
@@ -240,8 +241,8 @@ export default function NotificationsPage() {
               </button>
             </div>
             <div className="mt-4 grid gap-3 md:grid-cols-3">
-              <input className="field" type="password" placeholder="New password" value={resetForm.password} onChange={(event) => setResetForm({ ...resetForm, password: event.target.value })} required />
-              <input className="field" type="password" placeholder="Confirm password" value={resetForm.confirmPassword} onChange={(event) => setResetForm({ ...resetForm, confirmPassword: event.target.value })} required />
+              <PasswordInput placeholder="New password" value={resetForm.password} onChange={(event) => setResetForm({ ...resetForm, password: event.target.value })} required />
+              <PasswordInput placeholder="Confirm password" value={resetForm.confirmPassword} onChange={(event) => setResetForm({ ...resetForm, confirmPassword: event.target.value })} required />
               <input className="field" placeholder="Admin note" value={resetForm.adminNote} onChange={(event) => setResetForm({ ...resetForm, adminNote: event.target.value })} />
             </div>
             <button className="btn-primary mt-4" disabled={loading}>

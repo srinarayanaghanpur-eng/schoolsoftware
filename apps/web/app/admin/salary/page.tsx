@@ -204,22 +204,35 @@ export default function SalaryPage() {
     const rows = reports.map((report) => ({
       "Teacher Name": report.teacherName,
       "Employee ID": report.employeeId,
-      "Base Salary": report.baseSalary,
-      "Working Days": report.workingDays,
+      "Working Days Elapsed": report.workingDaysElapsed ?? report.workingDays,
+      "Total Working Days": report.totalWorkingDaysInMonth ?? report.workingDays,
       Present: report.presentDays,
-      Absent: report.absentDays,
       Late: report.lateEntries,
-      "Leave / CL Days": report.clDays,
-      "Leave Requests": report.approvedLeaveInfo || "-",
-      "Per-Day Salary": Math.round(report.perDaySalary ?? 0),
+      Absent: report.absentDays,
+      "Leave / CL": report.approvedLeaveCLDays ?? 0,
+      "Paid Leave": report.paidLeaveDays ?? report.clDays,
+      "CL Used": report.totalClUsed ?? 0,
+      "CL Balance": report.remainingCl ?? 0,
+      Excess: report.excessCLDays ?? report.excessLeave ?? 0,
+      "Daily Rate": Math.round(report.perDaySalary ?? 0),
+      "Attendance Deduction": Math.round(report.salaryDeduction ?? 0),
+      "Manual Deduction": Math.round(report.manualDeduction ?? 0),
+      Bonus: Math.round(report.bonus ?? 0),
+      "Base Salary": report.baseSalary,
       "Total Deduction": Math.round(report.totalDeduction ?? 0),
       "Net Payable": Math.round(report.netPayable ?? 0),
+      "Absent Dates": report.absentDates?.join(", ") ?? "",
+      "Present Dates": report.presentDates?.join(", ") ?? "",
+      "Late Dates": report.lateDates?.join(", ") ?? "",
+      "Leave Requests": report.approvedLeaveInfo || "-",
       Status: report.paid ? "Paid" : "Unpaid"
     }));
     const worksheet = XLSX.utils.json_to_sheet(rows);
     worksheet["!cols"] = [
-      { wch: 22 }, { wch: 14 }, { wch: 12 }, { wch: 12 }, { wch: 9 }, { wch: 9 },
-      { wch: 8 }, { wch: 14 }, { wch: 30 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 10 }
+      { wch: 22 }, { wch: 14 }, { wch: 18 }, { wch: 18 }, { wch: 9 }, { wch: 8 },
+      { wch: 9 }, { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 11 }, { wch: 10 },
+      { wch: 12 }, { wch: 18 }, { wch: 18 }, { wch: 10 }, { wch: 12 }, { wch: 16 },
+      { wch: 16 }, { wch: 30 }, { wch: 30 }, { wch: 30 }, { wch: 30 }, { wch: 10 }
     ];
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, `Salary ${month}`);
@@ -418,12 +431,14 @@ export default function SalaryPage() {
               {reports.map((report) => (
                 <tr key={report.teacherId} className="border-t border-stone-100">
                   <td className="px-4 py-3 font-medium">{report.teacherName}</td>
-                  <td className="px-4 py-3">{report.workingDays}</td>
+                  <td className="px-4 py-3" title={`Total working days in month: ${report.totalWorkingDaysInMonth ?? report.workingDays}`}>
+                    {report.workingDaysElapsed ?? report.workingDays}/{report.totalWorkingDaysInMonth ?? report.workingDays}
+                  </td>
                   <td className="px-4 py-3">{report.presentDays}</td>
                   <td className="px-4 py-3">{report.lateEntries ?? 0}</td>
                   <td className="px-4 py-3">{report.absentDays}</td>
                   <td className="px-4 py-3" title={report.approvedLeaveInfo || "No approved leave"}>
-                    {report.approvedLeaveCLDays ?? 0}
+                    {report.paidLeaveDays ?? report.clDays ?? 0}/{report.approvedLeaveCLDays ?? 0}
                     {report.attendedApprovedLeaveDays ? <span className="ml-1 text-xs text-[#7d86a8]">(+{report.attendedApprovedLeaveDays} worked)</span> : null}
                   </td>
                   <td className="px-4 py-3">
@@ -438,8 +453,8 @@ export default function SalaryPage() {
                     {report.excessLeave ?? 0}
                   </td>
                   <td className="px-4 py-3 text-xs">₹{(report.perDaySalary ?? 0).toLocaleString("en-IN")}</td>
-                  <td className={`px-4 py-3 font-semibold ${(report.excessLeaveDeduction ?? 0) > 0 ? "text-red-600" : ""}`}>
-                    ₹{(report.excessLeaveDeduction ?? 0).toLocaleString("en-IN")}
+                  <td className={`px-4 py-3 font-semibold ${(report.salaryDeduction ?? 0) > 0 ? "text-red-600" : ""}`} title={`Absent: ₹${(report.absentDeduction ?? 0).toLocaleString("en-IN")} · Excess CL: ₹${(report.excessLeaveDeduction ?? 0).toLocaleString("en-IN")} · Manual: ₹${(report.manualDeduction ?? 0).toLocaleString("en-IN")}`}>
+                    ₹{(report.salaryDeduction ?? 0).toLocaleString("en-IN")}
                   </td>
                   <td className="px-4 py-3">₹{(report.baseSalary ?? 0).toLocaleString("en-IN")}</td>
                   <td className="px-4 py-3 font-semibold">₹{(report.netPayable ?? 0).toLocaleString("en-IN")}</td>

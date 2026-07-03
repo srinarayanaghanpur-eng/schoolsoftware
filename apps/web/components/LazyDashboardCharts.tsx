@@ -2,9 +2,9 @@
 
 import dynamic from "next/dynamic";
 
-const chartFallback = <div className="grid h-[260px] place-items-center rounded-xl bg-stone-50 text-sm text-stone-500">Loading chart...</div>;
+const chartFallback = <div className="grid h-[260px] place-items-center rounded-xl bg-muted text-sm text-muted-foreground">Loading chart...</div>;
 
-const pieFallback = <div className="grid h-[220px] place-items-center rounded-xl bg-stone-50 text-sm text-stone-500">Loading chart...</div>;
+const pieFallback = <div className="grid h-[220px] place-items-center rounded-xl bg-muted text-sm text-muted-foreground">Loading chart...</div>;
 
 const AttendanceTrendChart = dynamic(() => import("@/components/Charts").then((module) => module.AttendanceTrendChart), {
   loading: () => chartFallback

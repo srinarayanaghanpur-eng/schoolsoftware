@@ -80,7 +80,10 @@ export async function POST(req: Request) {
 
     const body = await req.json().catch(() => ({}));
     const month = typeof body.month === "string" && body.month ? body.month : new Date().toISOString().slice(0, 7);
+    const payrollFinalized = Boolean(body.payrollFinalized);
     const db = adminDb();
+    const [yearText, monthText] = month.split("-");
+    const monthEndDay = new Date(Number(yearText), Number(monthText), 0).getDate();
 
     // Query only active teachers (moved filter to DB level) + parallelize all reads
     const dbTimer = startTimer();
@@ -91,7 +94,7 @@ export async function POST(req: Request) {
         .orderBy("fullName")
         .get(),
       db.collection("attendance").where("month", "==", month).get(),
-      db.collection("holidays").where("date", ">=", `${month}-01`).where("date", "<=", `${month}-31`).get(),
+      db.collection("holidays").where("date", ">=", `${month}-01`).where("date", "<=", `${month}-${String(monthEndDay).padStart(2, "0")}`).get(),
       db.collection("leave_requests").where("status", "==", "approved").get(),
       getSchoolSettings()
     ]);
@@ -102,7 +105,7 @@ export async function POST(req: Request) {
     const holidays = holidaysSnapshot.docs.map((doc) => serializeDoc<Holiday>(doc));
     // Keep only approved leave whose range overlaps the selected month.
     const monthStart = `${month}-01`;
-    const monthEnd = `${month}-31`;
+    const monthEnd = `${month}-${String(monthEndDay).padStart(2, "0")}`;
     const leaveRequests = leaveSnapshot.docs
       .map((doc) => serializeDoc<LeaveRequest>(doc))
       .filter((leave) => (leave.startDate ?? "").slice(0, 10) <= monthEnd && (leave.endDate ?? leave.startDate ?? "").slice(0, 10) >= monthStart);
@@ -132,7 +135,8 @@ export async function POST(req: Request) {
         holidays,
         leaveRequests: leaveByTeacherId.get(teacher.id) || [],
         month,
-        settings
+        settings,
+        payrollFinalized
       });
       batch.set(previousDoc, { ...withoutUndefined(report), updatedAt: FieldValue.serverTimestamp(), generatedAt: FieldValue.serverTimestamp() }, { merge: true });
       
