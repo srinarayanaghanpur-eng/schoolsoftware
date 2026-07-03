@@ -91,6 +91,26 @@ type ContextSubnav = {
   items: ContextSubnavItem[];
 };
 
+const APPROVAL_BADGE_POLL_MS = 5 * 60 * 1000;
+const APPROVAL_BADGE_QUOTA_PAUSE_MS = 10 * 60 * 1000;
+const APPROVAL_BADGE_QUOTA_PAUSE_KEY = "sriNarayana.approvalBadgeQuotaPauseUntil";
+
+function isApprovalBadgePausedForQuota() {
+  try {
+    return Number(window.localStorage.getItem(APPROVAL_BADGE_QUOTA_PAUSE_KEY) ?? "0") > Date.now();
+  } catch {
+    return false;
+  }
+}
+
+function pauseApprovalBadgeAfterQuota() {
+  try {
+    window.localStorage.setItem(APPROVAL_BADGE_QUOTA_PAUSE_KEY, String(Date.now() + APPROVAL_BADGE_QUOTA_PAUSE_MS));
+  } catch {
+    // Local storage can be blocked; the in-memory interval guard still stops polling.
+  }
+}
+
 const CONTEXT_SUBNAV_COLLAPSED_KEY = "snhs-context-subnav-collapsed";
 const FallbackIcon = Circle;
 
@@ -668,29 +688,45 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       setPendingApprovals(0);
       return;
     }
+    if (isApprovalBadgePausedForQuota()) {
+      setPendingApprovals(0);
+      return;
+    }
+    let stopped = false;
+    let interval: ReturnType<typeof setInterval> | undefined;
     const fetchCount = async () => {
+      if (stopped) return;
       try {
         const token = await auth.currentUser?.getIdToken();
         if (!token) {
           setPendingApprovals(0);
           return;
         }
-        const res = await fetch("/api/admin/approvals?status=pending", {
+        const res = await fetch("/api/admin/approvals?status=pending&count=1", {
           headers: { authorization: `Bearer ${token}` }
         });
+        const data = (await res.json().catch(() => null)) as { ok?: boolean; count?: unknown; code?: string } | null;
         if (!res.ok) {
+          if (res.status === 429 || data?.code === "quota-exceeded") {
+            stopped = true;
+            pauseApprovalBadgeAfterQuota();
+            if (interval) clearInterval(interval);
+          }
           setPendingApprovals(0);
           return;
         }
-        const data = await res.json();
-        setPendingApprovals(data?.ok ? data.requests?.length ?? 0 : 0);
+        const count = Number(data?.count ?? 0);
+        setPendingApprovals(data?.ok && Number.isFinite(count) ? count : 0);
       } catch {
         setPendingApprovals(0);
       }
     };
     void fetchCount();
-    const interval = setInterval(fetchCount, 30_000);
-    return () => clearInterval(interval);
+    interval = setInterval(fetchCount, APPROVAL_BADGE_POLL_MS);
+    return () => {
+      stopped = true;
+      if (interval) clearInterval(interval);
+    };
   }, [role]);
 
   // Mobile slide-in nav drawer. Closes automatically on navigation.

@@ -128,7 +128,7 @@ export default function AcademicYearsPage() {
         if (parsed.data.isActive && !editingYear.isActive) {
           await activateYear(editingYear.id);
         } else {
-          await refreshYears();
+          await refreshYears({ force: true });
         }
         setMessage("Academic year updated.");
       } else {
@@ -136,7 +136,7 @@ export default function AcademicYearsPage() {
           method: "POST",
           body: JSON.stringify(parsed.data)
         });
-        await refreshYears();
+        await refreshYears({ force: true });
         setMessage("Academic year added.");
       }
       closeForm();
@@ -171,7 +171,7 @@ export default function AcademicYearsPage() {
     setMessage(null);
     try {
       await adminApiRequest<{ ok: true }>(`/api/admin/academic-years/${year.id}`, { method: "DELETE" });
-      await refreshYears();
+      await refreshYears({ force: true });
       setMessage("Academic year deleted.");
     } catch (err) {
       const message = err instanceof AdminApiError ? err.message : "Unable to delete academic year.";

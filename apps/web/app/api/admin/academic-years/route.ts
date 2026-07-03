@@ -1,19 +1,53 @@
 import { NextResponse } from "next/server";
 import { FieldValue } from "firebase-admin/firestore";
-import { academicYearCreateSchema } from "@sri-narayana/shared";
+import { academicYearCreateSchema, type AcademicYear } from "@sri-narayana/shared";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { requirePermission, serializeDoc } from "@/lib/apiUtils";
+import {
+  firestoreErrorResponse,
+  firestoreQuotaResponse,
+  isFirestoreQuotaExceededError,
+  isFirestoreQuotaPaused,
+  pauseFirestoreAfterQuota
+} from "@/lib/firebaseErrors";
 
 const COLLECTION = "academic_years";
+const ACADEMIC_YEARS_CACHE_MS = 5 * 60 * 1000;
+
+let academicYearsCache: { years: AcademicYear[]; expiresAt: number } | null = null;
 
 // GET /api/admin/academic-years — list all years (newest first), active flagged.
 export async function GET(req: Request) {
   const token = await requirePermission(req, "academic_years.view");
   if (!token) return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
 
-  const snapshot = await adminDb().collection(COLLECTION).orderBy("startDate", "desc").get();
-  const years = snapshot.docs.map((doc) => serializeDoc(doc));
-  return NextResponse.json({ ok: true, years });
+  const url = new URL(req.url);
+  const canBypassCache = token.role === "admin" || token.role === "principal" || token.role === "super_admin";
+  const bypassCache = canBypassCache && url.searchParams.get("refresh") === "1";
+
+  if (!bypassCache && academicYearsCache && academicYearsCache.expiresAt > Date.now()) {
+    return NextResponse.json({ ok: true, years: academicYearsCache.years, cached: true });
+  }
+
+  if (isFirestoreQuotaPaused()) {
+    if (academicYearsCache) {
+      return NextResponse.json({ ok: true, years: academicYearsCache.years, cached: true, stale: true });
+    }
+    return firestoreQuotaResponse();
+  }
+
+  try {
+    const snapshot = await adminDb().collection(COLLECTION).orderBy("startDate", "desc").get();
+    const years = snapshot.docs.map((doc) => serializeDoc<AcademicYear>(doc));
+    academicYearsCache = { years, expiresAt: Date.now() + ACADEMIC_YEARS_CACHE_MS };
+    return NextResponse.json({ ok: true, years });
+  } catch (error) {
+    if (isFirestoreQuotaExceededError(error) && academicYearsCache) {
+      pauseFirestoreAfterQuota();
+      return NextResponse.json({ ok: true, years: academicYearsCache.years, cached: true, stale: true });
+    }
+    return firestoreErrorResponse(error, "Unable to load academic years");
+  }
 }
 
 // POST /api/admin/academic-years — create a year. Only admin/principal may write.
@@ -53,9 +87,9 @@ export async function POST(req: Request) {
       await batch.commit();
     }
 
+    academicYearsCache = null;
     return NextResponse.json({ ok: true, id: ref.id });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unable to create academic year";
-    return NextResponse.json({ ok: false, error: message }, { status: 400 });
+    return firestoreErrorResponse(error, "Unable to create academic year", 400);
   }
 }

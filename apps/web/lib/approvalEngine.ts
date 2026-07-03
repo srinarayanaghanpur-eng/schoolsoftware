@@ -190,11 +190,21 @@ export async function getApprovalRequests(options: {
 }
 
 export async function getPendingApprovalCount(): Promise<number> {
-  const snapshot = await adminDb()
-    .collection("approval_requests")
-    .where("status", "==", "pending")
-    .count()
-    .get();
+  return getApprovalRequestCount({ status: "pending" });
+}
+
+export async function getApprovalRequestCount(options: {
+  status?: ApprovalStatus;
+  requestType?: string;
+  requestedBy?: string;
+} = {}): Promise<number> {
+  let query: FirebaseFirestore.Query = adminDb().collection("approval_requests");
+
+  if (options.status) query = query.where("status", "==", options.status);
+  if (options.requestType) query = query.where("requestType", "==", options.requestType);
+  if (options.requestedBy) query = query.where("requestedBy", "==", options.requestedBy);
+
+  const snapshot = await query.count().get();
 
   return snapshot.data().count;
 }

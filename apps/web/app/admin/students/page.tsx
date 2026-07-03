@@ -49,26 +49,345 @@ interface TransportRoute {
   stops: { name: string; fee: number }[];
 }
 
-const CLASS_OPTIONS = ["Nur", "LKG", "UKG", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"];
 const SECTION_OPTIONS = ["A", "B", "C", "D", "E"];
 const GENDER_OPTIONS = ["Male", "Female", "Other"];
 
-// Human-friendly labels for the class dropdown.
-const CLASS_LABELS: Record<string, string> = {
-  Nur: "Nursery",
-  LKG: "L.K.G",
-  UKG: "U.K.G",
-  "1": "I Class",
-  "2": "II Class",
-  "3": "III Class",
-  "4": "IV Class",
-  "5": "V Class",
-  "6": "VI Class",
-  "7": "VII Class",
-  "8": "VIII Class",
-  "9": "IX Class",
-  "10": "X Class"
+type ClassAgeGroup = "toddler" | "early-years" | "primary" | "upper-primary" | "pre-teen" | "teen";
+type ChildIconVariant = "baby" | "tiny" | "kindergarten" | "primary" | "senior-primary" | "preteen" | "teen";
+
+type StudentClassCardConfig = {
+  id: string;
+  label: string;
+  ageGroup: ClassAgeGroup;
+  icon: ChildIconVariant;
+  availableSections: string[];
+  accent: {
+    border: string;
+    activeBorder: string;
+    background: string;
+    activeBackground: string;
+    text: string;
+    ring: string;
+    select: string;
+  };
 };
+
+const CLASS_SELECTOR_CLASSES: StudentClassCardConfig[] = [
+  {
+    id: "Nur",
+    label: "Nursery",
+    ageGroup: "toddler",
+    icon: "baby",
+    availableSections: SECTION_OPTIONS,
+    accent: {
+      border: "border-[#ffd8c7]",
+      activeBorder: "border-[#f08a65]",
+      background: "bg-[#fff8f3]",
+      activeBackground: "bg-[#fff0e8]",
+      text: "text-[#b75f37]",
+      ring: "shadow-[0_14px_34px_rgba(240,138,101,0.20)]",
+      select: "focus:border-[#f08a65] focus:ring-[#f08a65]/20"
+    }
+  },
+  {
+    id: "LKG",
+    label: "LKG",
+    ageGroup: "early-years",
+    icon: "tiny",
+    availableSections: SECTION_OPTIONS,
+    accent: {
+      border: "border-[#ffe2a9]",
+      activeBorder: "border-[#e5a52f]",
+      background: "bg-[#fffaf0]",
+      activeBackground: "bg-[#fff3d9]",
+      text: "text-[#a66c09]",
+      ring: "shadow-[0_14px_34px_rgba(229,165,47,0.20)]",
+      select: "focus:border-[#e5a52f] focus:ring-[#e5a52f]/20"
+    }
+  },
+  {
+    id: "UKG",
+    label: "UKG",
+    ageGroup: "early-years",
+    icon: "kindergarten",
+    availableSections: SECTION_OPTIONS,
+    accent: {
+      border: "border-[#cdeec9]",
+      activeBorder: "border-[#55ad62]",
+      background: "bg-[#f6fff5]",
+      activeBackground: "bg-[#ebfae8]",
+      text: "text-[#2e7d39]",
+      ring: "shadow-[0_14px_34px_rgba(85,173,98,0.20)]",
+      select: "focus:border-[#55ad62] focus:ring-[#55ad62]/20"
+    }
+  },
+  {
+    id: "1",
+    label: "Class 1",
+    ageGroup: "primary",
+    icon: "primary",
+    availableSections: SECTION_OPTIONS,
+    accent: {
+      border: "border-[#c8e6ff]",
+      activeBorder: "border-[#4b96d8]",
+      background: "bg-[#f4fbff]",
+      activeBackground: "bg-[#eaf6ff]",
+      text: "text-[#246ba7]",
+      ring: "shadow-[0_14px_34px_rgba(75,150,216,0.20)]",
+      select: "focus:border-[#4b96d8] focus:ring-[#4b96d8]/20"
+    }
+  },
+  {
+    id: "2",
+    label: "Class 2",
+    ageGroup: "primary",
+    icon: "primary",
+    availableSections: SECTION_OPTIONS,
+    accent: {
+      border: "border-[#d8d9ff]",
+      activeBorder: "border-[#7370dc]",
+      background: "bg-[#f8f8ff]",
+      activeBackground: "bg-[#eeeeff]",
+      text: "text-[#4f4bae]",
+      ring: "shadow-[0_14px_34px_rgba(115,112,220,0.20)]",
+      select: "focus:border-[#7370dc] focus:ring-[#7370dc]/20"
+    }
+  },
+  {
+    id: "3",
+    label: "Class 3",
+    ageGroup: "primary",
+    icon: "primary",
+    availableSections: SECTION_OPTIONS,
+    accent: {
+      border: "border-[#f2cfef]",
+      activeBorder: "border-[#c765bb]",
+      background: "bg-[#fff6fe]",
+      activeBackground: "bg-[#faeafa]",
+      text: "text-[#96398e]",
+      ring: "shadow-[0_14px_34px_rgba(199,101,187,0.20)]",
+      select: "focus:border-[#c765bb] focus:ring-[#c765bb]/20"
+    }
+  },
+  {
+    id: "4",
+    label: "Class 4",
+    ageGroup: "upper-primary",
+    icon: "senior-primary",
+    availableSections: SECTION_OPTIONS,
+    accent: {
+      border: "border-[#c8eadf]",
+      activeBorder: "border-[#36a988]",
+      background: "bg-[#f4fffb]",
+      activeBackground: "bg-[#e7faf3]",
+      text: "text-[#18765e]",
+      ring: "shadow-[0_14px_34px_rgba(54,169,136,0.20)]",
+      select: "focus:border-[#36a988] focus:ring-[#36a988]/20"
+    }
+  },
+  {
+    id: "5",
+    label: "Class 5",
+    ageGroup: "upper-primary",
+    icon: "senior-primary",
+    availableSections: SECTION_OPTIONS,
+    accent: {
+      border: "border-[#fed4dc]",
+      activeBorder: "border-[#e65b73]",
+      background: "bg-[#fff7f8]",
+      activeBackground: "bg-[#ffeef2]",
+      text: "text-[#b33b51]",
+      ring: "shadow-[0_14px_34px_rgba(230,91,115,0.20)]",
+      select: "focus:border-[#e65b73] focus:ring-[#e65b73]/20"
+    }
+  },
+  {
+    id: "6",
+    label: "Class 6",
+    ageGroup: "pre-teen",
+    icon: "preteen",
+    availableSections: SECTION_OPTIONS,
+    accent: {
+      border: "border-[#cde3ff]",
+      activeBorder: "border-[#407fd2]",
+      background: "bg-[#f6faff]",
+      activeBackground: "bg-[#eaf3ff]",
+      text: "text-[#245ca4]",
+      ring: "shadow-[0_14px_34px_rgba(64,127,210,0.20)]",
+      select: "focus:border-[#407fd2] focus:ring-[#407fd2]/20"
+    }
+  },
+  {
+    id: "7",
+    label: "Class 7",
+    ageGroup: "pre-teen",
+    icon: "preteen",
+    availableSections: SECTION_OPTIONS,
+    accent: {
+      border: "border-[#d7edd2]",
+      activeBorder: "border-[#70aa4e]",
+      background: "bg-[#f7fff3]",
+      activeBackground: "bg-[#edf9e8]",
+      text: "text-[#4f7f2f]",
+      ring: "shadow-[0_14px_34px_rgba(112,170,78,0.20)]",
+      select: "focus:border-[#70aa4e] focus:ring-[#70aa4e]/20"
+    }
+  },
+  {
+    id: "8",
+    label: "Class 8",
+    ageGroup: "pre-teen",
+    icon: "preteen",
+    availableSections: SECTION_OPTIONS,
+    accent: {
+      border: "border-[#e0d5ff]",
+      activeBorder: "border-[#8a69de]",
+      background: "bg-[#faf7ff]",
+      activeBackground: "bg-[#f1ecff]",
+      text: "text-[#6045b1]",
+      ring: "shadow-[0_14px_34px_rgba(138,105,222,0.20)]",
+      select: "focus:border-[#8a69de] focus:ring-[#8a69de]/20"
+    }
+  },
+  {
+    id: "9",
+    label: "Class 9",
+    ageGroup: "teen",
+    icon: "teen",
+    availableSections: SECTION_OPTIONS,
+    accent: {
+      border: "border-[#bfe7ec]",
+      activeBorder: "border-[#2696a6]",
+      background: "bg-[#f3fdff]",
+      activeBackground: "bg-[#e4f8fb]",
+      text: "text-[#167384]",
+      ring: "shadow-[0_14px_34px_rgba(38,150,166,0.20)]",
+      select: "focus:border-[#2696a6] focus:ring-[#2696a6]/20"
+    }
+  },
+  {
+    id: "10",
+    label: "Class 10",
+    ageGroup: "teen",
+    icon: "teen",
+    availableSections: SECTION_OPTIONS,
+    accent: {
+      border: "border-[#ffd0b9]",
+      activeBorder: "border-[#df7144]",
+      background: "bg-[#fff7f2]",
+      activeBackground: "bg-[#ffede3]",
+      text: "text-[#a64d26]",
+      ring: "shadow-[0_14px_34px_rgba(223,113,68,0.20)]",
+      select: "focus:border-[#df7144] focus:ring-[#df7144]/20"
+    }
+  }
+];
+
+const CLASS_OPTIONS = CLASS_SELECTOR_CLASSES.map((classItem) => classItem.id);
+const CLASS_SELECTOR_ROW_ONE = CLASS_SELECTOR_CLASSES.slice(0, 8);
+const CLASS_SELECTOR_ROW_TWO = CLASS_SELECTOR_CLASSES.slice(8);
+
+const CLASS_LABELS = CLASS_SELECTOR_CLASSES.reduce<Record<string, string>>((labels, classItem) => {
+  labels[classItem.id] = classItem.label;
+  return labels;
+}, {});
+
+const CHILD_ICON_STYLES: Record<ChildIconVariant, {
+  headY: number;
+  headRadius: number;
+  bodyTop: number;
+  bodyHeight: number;
+  bodyWidth: number;
+  shirt: string;
+  bottom: string;
+  hair: string;
+  bag?: string;
+  tie?: string;
+}> = {
+  baby: {
+    headY: 31,
+    headRadius: 16,
+    bodyTop: 48,
+    bodyHeight: 25,
+    bodyWidth: 30,
+    shirt: "#ffb487",
+    bottom: "#7aa7ff",
+    hair: "#5b3b2d"
+  },
+  tiny: {
+    headY: 29,
+    headRadius: 15,
+    bodyTop: 47,
+    bodyHeight: 29,
+    bodyWidth: 32,
+    shirt: "#ffd166",
+    bottom: "#6fcf97",
+    hair: "#3f2b23"
+  },
+  kindergarten: {
+    headY: 28,
+    headRadius: 15,
+    bodyTop: 46,
+    bodyHeight: 31,
+    bodyWidth: 34,
+    shirt: "#7dd3fc",
+    bottom: "#a78bfa",
+    hair: "#49372f"
+  },
+  primary: {
+    headY: 26,
+    headRadius: 14,
+    bodyTop: 44,
+    bodyHeight: 35,
+    bodyWidth: 36,
+    shirt: "#93c5fd",
+    bottom: "#f9a8d4",
+    hair: "#34251f",
+    bag: "#f97316"
+  },
+  "senior-primary": {
+    headY: 25,
+    headRadius: 13,
+    bodyTop: 43,
+    bodyHeight: 38,
+    bodyWidth: 36,
+    shirt: "#86efac",
+    bottom: "#60a5fa",
+    hair: "#2d2522",
+    bag: "#8b5cf6"
+  },
+  preteen: {
+    headY: 24,
+    headRadius: 13,
+    bodyTop: 42,
+    bodyHeight: 40,
+    bodyWidth: 37,
+    shirt: "#67e8f9",
+    bottom: "#818cf8",
+    hair: "#2a211f",
+    bag: "#14b8a6",
+    tie: "#2563eb"
+  },
+  teen: {
+    headY: 23,
+    headRadius: 12,
+    bodyTop: 41,
+    bodyHeight: 43,
+    bodyWidth: 38,
+    shirt: "#fca5a5",
+    bottom: "#475569",
+    hair: "#211816",
+    bag: "#0ea5e9",
+    tie: "#dc2626"
+  }
+};
+
+function defaultClassSections() {
+  return CLASS_SELECTOR_CLASSES.reduce<Record<string, string>>((sections, classItem) => {
+    sections[classItem.id] = classItem.availableSections[0] ?? "A";
+    return sections;
+  }, {});
+}
 
 // Fallback fees used when no fee structure exists in DB for a class
 const FALLBACK_FEE_BY_CLASS: Record<string, number> = {
@@ -86,6 +405,156 @@ function SectionDivider({ label }: { label: string }) {
   );
 }
 
+function ChildClassIcon({ variant }: { variant: ChildIconVariant }) {
+  const style = CHILD_ICON_STYLES[variant];
+  const bodyLeft = 48 - style.bodyWidth / 2;
+  const bodyRight = 48 + style.bodyWidth / 2;
+  const bodyBottom = style.bodyTop + style.bodyHeight;
+  const shortTop = style.bodyTop + style.bodyHeight * 0.52;
+  const legTop = bodyBottom - 1;
+  const legBottom = 86;
+
+  return (
+    <svg viewBox="0 0 96 96" className="h-14 w-14" role="img" aria-label="Student avatar">
+      <ellipse cx="48" cy="88" rx="27" ry="4" fill="#dfe6f4" opacity="0.85" />
+      {style.bag && (
+        <path
+          d={`M${bodyLeft - 5} ${style.bodyTop + 7} Q${bodyLeft - 10} ${style.bodyTop + 19} ${bodyLeft - 4} ${bodyBottom - 3} L${bodyLeft + 2} ${bodyBottom - 6} Q${bodyLeft - 1} ${style.bodyTop + 18} ${bodyLeft + 3} ${style.bodyTop + 9} Z`}
+          fill={style.bag}
+          opacity="0.82"
+        />
+      )}
+      <path
+        d={`M${bodyLeft + 2} ${style.bodyTop + 9} Q${bodyLeft - 10} ${style.bodyTop + 19} ${bodyLeft - 7} ${style.bodyTop + 32}`}
+        fill="none"
+        stroke="#f3c2a4"
+        strokeWidth="6"
+        strokeLinecap="round"
+      />
+      <path
+        d={`M${bodyRight - 2} ${style.bodyTop + 9} Q${bodyRight + 10} ${style.bodyTop + 19} ${bodyRight + 7} ${style.bodyTop + 32}`}
+        fill="none"
+        stroke="#f3c2a4"
+        strokeWidth="6"
+        strokeLinecap="round"
+      />
+      <path
+        d={`M${bodyLeft} ${style.bodyTop + 7} Q48 ${style.bodyTop - 2} ${bodyRight} ${style.bodyTop + 7} L${bodyRight - 4} ${shortTop} L${bodyLeft + 4} ${shortTop} Z`}
+        fill={style.shirt}
+      />
+      {style.tie && <path d={`M47 ${style.bodyTop + 9} L52 ${style.bodyTop + 9} L50 ${shortTop - 2} L45 ${shortTop - 2} Z`} fill={style.tie} />}
+      <path d={`M${bodyLeft + 4} ${shortTop} L${bodyRight - 4} ${shortTop} L${bodyRight - 1} ${bodyBottom} L${bodyLeft + 1} ${bodyBottom} Z`} fill={style.bottom} />
+      <path d={`M40 ${legTop} L38 ${legBottom}`} stroke="#f3c2a4" strokeWidth="6" strokeLinecap="round" />
+      <path d={`M56 ${legTop} L58 ${legBottom}`} stroke="#f3c2a4" strokeWidth="6" strokeLinecap="round" />
+      <path d="M34 88 Q40 82 45 87" fill="none" stroke="#4b5563" strokeWidth="4" strokeLinecap="round" />
+      <path d="M52 87 Q58 82 64 88" fill="none" stroke="#4b5563" strokeWidth="4" strokeLinecap="round" />
+      <circle cx="48" cy={style.headY} r={style.headRadius} fill="#f5c6a6" />
+      <path
+        d={`M${48 - style.headRadius} ${style.headY - 1} Q48 ${style.headY - style.headRadius - 11} ${48 + style.headRadius} ${style.headY - 1} Q57 ${style.headY - style.headRadius + 4} 48 ${style.headY - style.headRadius + 5} Q39 ${style.headY - style.headRadius + 4} ${48 - style.headRadius} ${style.headY - 1} Z`}
+        fill={style.hair}
+      />
+      {variant === "baby" && (
+        <>
+          <circle cx="33" cy="32" r="6" fill={style.hair} />
+          <circle cx="63" cy="32" r="6" fill={style.hair} />
+        </>
+      )}
+      <circle cx="43" cy={style.headY + 2} r="1.8" fill="#273244" />
+      <circle cx="53" cy={style.headY + 2} r="1.8" fill="#273244" />
+      <path d={`M43 ${style.headY + 9} Q48 ${style.headY + 13} 54 ${style.headY + 9}`} fill="none" stroke="#9f5a4a" strokeWidth="2.2" strokeLinecap="round" />
+      {variant === "teen" && <path d="M37 15 Q48 4 60 16" fill="none" stroke={style.hair} strokeWidth="5" strokeLinecap="round" />}
+    </svg>
+  );
+}
+
+function StudentClassCard({
+  classItem,
+  isSelected,
+  selectedSection,
+  onSelectClass,
+  onSelectSection
+}: {
+  classItem: StudentClassCardConfig;
+  isSelected: boolean;
+  selectedSection: string;
+  onSelectClass: (classId: string) => void;
+  onSelectSection: (classId: string, section: string) => void;
+}) {
+  return (
+    <div
+      className={`min-h-[148px] rounded-2xl border p-2.5 transition ${classItem.accent.border} ${classItem.accent.background} ${
+        isSelected ? `${classItem.accent.activeBorder} ${classItem.accent.activeBackground} ${classItem.accent.ring}` : "hover:-translate-y-0.5 hover:shadow-[0_12px_28px_rgba(31,33,54,0.10)]"
+      }`}
+    >
+      <button
+        type="button"
+        onClick={() => onSelectClass(classItem.id)}
+        aria-pressed={isSelected}
+        className="flex w-full flex-col items-center gap-1.5 rounded-xl px-1 py-1 text-center"
+      >
+        <span className={`text-[13px] font-extrabold leading-tight ${isSelected ? classItem.accent.text : "text-[#303247]"}`}>
+          {classItem.label}
+        </span>
+        <span className={`grid h-[58px] w-[58px] place-items-center rounded-2xl bg-white/80 ${isSelected ? "ring-2 ring-white" : ""}`}>
+          <ChildClassIcon variant={classItem.icon} />
+        </span>
+      </button>
+      <label className="sr-only" htmlFor={`class-section-${classItem.id}`}>
+        {classItem.label} section
+      </label>
+      <select
+        id={`class-section-${classItem.id}`}
+        value={selectedSection}
+        onChange={(event) => onSelectSection(classItem.id, event.target.value)}
+        className={`mt-2 h-9 w-full rounded-xl border border-white/80 bg-white px-2 text-xs font-bold text-[#303247] outline-none transition focus:ring-2 ${classItem.accent.select}`}
+      >
+        {classItem.availableSections.map((section) => (
+          <option key={section} value={section}>
+            Section {section}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+function StudentClassSelector({
+  selectedClass,
+  sectionByClass,
+  onSelectClass,
+  onSelectSection
+}: {
+  selectedClass: string;
+  sectionByClass: Record<string, string>;
+  onSelectClass: (classId: string) => void;
+  onSelectSection: (classId: string, section: string) => void;
+}) {
+  const renderCard = (classItem: StudentClassCardConfig) => (
+    <StudentClassCard
+      key={classItem.id}
+      classItem={classItem}
+      isSelected={selectedClass === classItem.id}
+      selectedSection={sectionByClass[classItem.id] ?? classItem.availableSections[0] ?? "A"}
+      onSelectClass={onSelectClass}
+      onSelectSection={onSelectSection}
+    />
+  );
+
+  return (
+    <div className="space-y-3">
+      <div className="hidden gap-3 xl:grid xl:grid-cols-8">
+        {CLASS_SELECTOR_ROW_ONE.map(renderCard)}
+      </div>
+      <div className="hidden gap-3 xl:grid xl:grid-cols-8">
+        {CLASS_SELECTOR_ROW_TWO.map(renderCard)}
+      </div>
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:hidden">
+        {CLASS_SELECTOR_CLASSES.map(renderCard)}
+      </div>
+    </div>
+  );
+}
+
 export default function StudentsPage() {
   const { role } = useAdminSession();
   const { activeYear } = useAcademicYears();
@@ -98,6 +567,7 @@ export default function StudentsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [classFilter, setClassFilter] = useState("1");
   const [sectionFilter, setSectionFilter] = useState("A");
+  const [sectionByClass, setSectionByClass] = useState<Record<string, string>>(() => defaultClassSections());
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(false);
   const [error, setError] = useState("");
@@ -112,6 +582,17 @@ export default function StudentsPage() {
   const academicFeeForClass = (className: string) => {
     const found = feeStructures.find((fs) => fs.className === className);
     return String(found?.total ?? FALLBACK_FEE_BY_CLASS[className] ?? 0);
+  };
+
+  const selectClassFilter = (classId: string) => {
+    setClassFilter(classId);
+    setSectionFilter(sectionByClass[classId] ?? "A");
+  };
+
+  const selectClassSection = (classId: string, section: string) => {
+    setSectionByClass((prev) => ({ ...prev, [classId]: section }));
+    setClassFilter(classId);
+    setSectionFilter(section);
   };
 
   const [formData, setFormData] = useState({
@@ -779,6 +1260,13 @@ export default function StudentsPage() {
           </div>
         )}
 
+        <StudentClassSelector
+          selectedClass={classFilter}
+          sectionByClass={sectionByClass}
+          onSelectClass={selectClassFilter}
+          onSelectSection={selectClassSection}
+        />
+
         <div className="card flex flex-col gap-3 p-4 md:flex-row md:items-center">
           <div className="min-w-0 flex-1">
           <div className="relative">
@@ -795,28 +1283,6 @@ export default function StudentsPage() {
             />
           </div>
         </div>
-        <select
-          value={classFilter}
-          onChange={(e) => setClassFilter(e.target.value)}
-            className="field md:max-w-[190px]"
-        >
-          {CLASS_OPTIONS.map((cls) => (
-            <option key={cls} value={cls}>
-              {CLASS_LABELS[cls] ?? `Class ${cls}`}
-            </option>
-          ))}
-        </select>
-        <select
-          value={sectionFilter}
-          onChange={(e) => setSectionFilter(e.target.value)}
-          className="field md:max-w-[150px]"
-        >
-          {SECTION_OPTIONS.map((section) => (
-            <option key={section} value={section}>
-              Section {section}
-            </option>
-          ))}
-        </select>
         <button type="button" onClick={() => fetchStudents()} className="btn-secondary">
           Apply
         </button>

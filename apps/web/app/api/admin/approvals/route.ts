@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { approvalRequestCreateSchema } from "@sri-narayana/shared";
 import { requireAdmin } from "@/lib/apiUtils";
-import { createApprovalRequest, getApprovalRequests } from "@/lib/approvalEngine";
+import { createApprovalRequest, getApprovalRequestCount, getApprovalRequests } from "@/lib/approvalEngine";
+import { firestoreErrorResponse, firestoreQuotaResponse, isFirestoreQuotaPaused } from "@/lib/firebaseErrors";
 
 export async function GET(req: Request) {
   try {
@@ -13,6 +14,19 @@ export async function GET(req: Request) {
     const url = new URL(req.url);
     const status = url.searchParams.get("status") ?? undefined;
     const requestType = url.searchParams.get("requestType") ?? undefined;
+    const countOnly = url.searchParams.get("count") === "1";
+
+    if (isFirestoreQuotaPaused()) {
+      return firestoreQuotaResponse();
+    }
+
+    if (countOnly) {
+      const count = await getApprovalRequestCount({
+        status: status as "pending" | "approved" | "rejected" | undefined,
+        requestType: requestType ?? undefined
+      });
+      return NextResponse.json({ ok: true, count });
+    }
 
     const requests = await getApprovalRequests({
       status: status as "pending" | "approved" | "rejected" | undefined,
@@ -21,8 +35,7 @@ export async function GET(req: Request) {
 
     return NextResponse.json({ ok: true, requests });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unable to load approvals";
-    return NextResponse.json({ ok: false, error: message }, { status: 400 });
+    return firestoreErrorResponse(error, "Unable to load approvals", 400);
   }
 }
 
@@ -44,7 +57,6 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ ok: true, id, message: "Approval request created." });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unable to create approval request";
-    return NextResponse.json({ ok: false, error: message }, { status: 400 });
+    return firestoreErrorResponse(error, "Unable to create approval request", 400);
   }
 }
