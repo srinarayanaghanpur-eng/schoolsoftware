@@ -1,9 +1,8 @@
 /**
  * Lazy Loading Service
- * Loads only essential data for initial render, defers heavy operations to background
+ * Loads only bounded data needed for initial render
  */
 
-import { backgroundSync } from './backgroundSync';
 import { cache, getCachedOrFetch } from './cache/indexedDBCache';
 import { getDocs, collection, query, limit, where } from 'firebase/firestore';
 import { db, auth } from '@sri-narayana/shared/firebase/client';
@@ -52,9 +51,6 @@ class LazyLoadManager {
         ...doc.data()
       }));
 
-      // Queue full load in background
-      this.queueFullLoad('students', filters, cfg);
-
       return students;
     }, cfg.cacheTTL);
   }
@@ -73,9 +69,6 @@ class LazyLoadManager {
         id: doc.id,
         ...doc.data()
       }));
-
-      // Queue full load in background
-      this.queueFullLoad('teachers', undefined, cfg);
 
       return teachers;
     }, cfg.cacheTTL);
@@ -101,54 +94,6 @@ class LazyLoadManager {
       const data = await response.json();
       return data.data;
     }, config?.cacheTTL || this.defaultConfig.cacheTTL);
-  }
-
-  /**
-   * Queue a full data load in background (non-blocking)
-   */
-  private queueFullLoad(
-    dataType: string,
-    filters: any,
-    config: LazyLoadConfig
-  ): void {
-    const taskId = `full-load-${dataType}`;
-
-    backgroundSync.registerTask({
-      id: taskId,
-      name: `Load all ${dataType}`,
-      priority: 'low',
-      interval: 30 * 60 * 1000, // 30 minutes
-      fn: async () => {
-        try {
-          if (dataType === 'students') {
-            let q: any = collection(db, 'students');
-
-            if (filters?.class) {
-              q = query(q, where('class', '==', filters.class));
-            }
-
-            const snapshot = await getDocs(q);
-            const allStudents = snapshot.docs.map((doc) => ({
-              id: doc.id,
-              ...doc.data()
-            }));
-
-            await cache.set('students', `${dataType}-all`, allStudents);
-          } else if (dataType === 'teachers') {
-            const q = query(collection(db, 'teachers'));
-            const snapshot = await getDocs(q);
-            const allTeachers = snapshot.docs.map((doc) => ({
-              id: doc.id,
-              ...doc.data()
-            }));
-
-            await cache.set('teachers', `${dataType}-all`, allTeachers);
-          }
-        } catch (error) {
-          console.error(`Failed to load all ${dataType}:`, error);
-        }
-      }
-    });
   }
 
   /**

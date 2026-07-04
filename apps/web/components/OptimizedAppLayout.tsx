@@ -11,6 +11,8 @@ import { initializeBackgroundSync, backgroundSync } from '@/lib/backgroundSync';
 import { lazyLoad } from '@/lib/lazyLoad';
 import { perfMonitor, trackWebVitals } from '@/lib/performanceMonitor';
 
+const DASHBOARD_SYNC_INTERVAL_MS = 5 * 60 * 1000;
+
 interface AppLayoutProps {
   children: React.ReactNode;
 }
@@ -21,49 +23,21 @@ export function OptimizedAppLayout({ children }: AppLayoutProps) {
     perfMonitor.startMeasure('app-initialization');
     trackWebVitals();
 
-    // Initialize background sync (wakes every 60s; each task is rate-limited
+    // Initialize background sync (wakes every 5 minutes; each task is rate-limited
     // by its own interval below, so this only checks what is actually due).
-    const cleanupSync = initializeBackgroundSync(60000);
+    const cleanupSync = initializeBackgroundSync(DASHBOARD_SYNC_INTERVAL_MS);
 
     // Register background sync tasks
     backgroundSync.registerTask({
       id: 'sync-dashboard',
       name: 'Dashboard sync',
       priority: 'high',
-      interval: 60000, // 1 minute
+      interval: DASHBOARD_SYNC_INTERVAL_MS,
       fn: async () => {
         try {
-          await lazyLoad.loadDashboardStats({ cacheTTL: 60000 });
+          await lazyLoad.loadDashboardStats({ cacheTTL: DASHBOARD_SYNC_INTERVAL_MS });
         } catch (error) {
           console.debug('Dashboard sync in background:', error);
-        }
-      }
-    });
-
-    backgroundSync.registerTask({
-      id: 'sync-students',
-      name: 'Students sync',
-      priority: 'normal',
-      interval: 5 * 60 * 1000, // 5 minutes
-      fn: async () => {
-        try {
-          await lazyLoad.loadStudents(undefined, { cacheTTL: 5 * 60 * 1000 });
-        } catch (error) {
-          console.debug('Students sync in background:', error);
-        }
-      }
-    });
-
-    backgroundSync.registerTask({
-      id: 'sync-teachers',
-      name: 'Teachers sync',
-      priority: 'normal',
-      interval: 5 * 60 * 1000, // 5 minutes
-      fn: async () => {
-        try {
-          await lazyLoad.loadTeachers({ cacheTTL: 5 * 60 * 1000 });
-        } catch (error) {
-          console.debug('Teachers sync in background:', error);
         }
       }
     });
