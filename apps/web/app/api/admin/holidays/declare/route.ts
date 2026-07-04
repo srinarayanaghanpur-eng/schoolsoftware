@@ -28,7 +28,18 @@ function isValidDateKey(value: string): boolean {
   return /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(new Date(`${value}T00:00:00Z`).getTime());
 }
 
-/** Declare a management holiday. Super Admin only. */
+function expandDateRange(fromDate: string, toDate: string): string[] {
+  const dates: string[] = [];
+  const current = new Date(`${fromDate}T00:00:00Z`);
+  const end = new Date(`${toDate}T00:00:00Z`);
+  while (current <= end) {
+    dates.push(current.toISOString().slice(0, 10));
+    current.setUTCDate(current.getUTCDate() + 1);
+  }
+  return dates;
+}
+
+/** Declare a management holiday for a single date or a from–to range. Super Admin only. */
 export async function POST(req: Request) {
   try {
     const decodedToken = await requireSuperAdmin(req);
@@ -37,55 +48,81 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const date = String(body.date ?? "").trim().slice(0, 10);
+    const fromDate = String(body.fromDate ?? body.date ?? "").trim().slice(0, 10);
+    const toDate = String(body.toDate ?? fromDate).trim().slice(0, 10) || fromDate;
     const reason = String(body.reason ?? "").trim();
     const branchId = String(body.branchId ?? "").trim();
     const appliesToAllBranches = branchId ? false : body.appliesToAllBranches !== false;
 
-    if (!date) throw new Error("Holiday date is required.");
-    if (!isValidDateKey(date)) throw new Error("Holiday date must be a valid date (YYYY-MM-DD).");
+    if (!fromDate) throw new Error("Holiday date is required.");
+    if (!isValidDateKey(fromDate) || !isValidDateKey(toDate)) throw new Error("Holiday dates must be valid dates (YYYY-MM-DD).");
+    if (toDate < fromDate) throw new Error("To date cannot be before from date.");
     if (!reason) throw new Error("Reason is required.");
 
+    const dates = expandDateRange(fromDate, toDate);
+    if (dates.length > 31) throw new Error("Holiday range cannot be longer than 31 days.");
+
     const db = adminDb();
+    // Single-field range query only — an extra equality filter on `type`
+    // would require a composite Firestore index; filter type in code instead.
     const existingSnapshot = await db
       .collection("holidays")
-      .where("date", "==", date)
-      .where("type", "==", "management_declared")
+      .where("date", ">=", fromDate)
+      .where("date", "<=", toDate)
       .get();
-    const duplicate = existingSnapshot.docs
-      .map((doc) => ({ id: doc.id, ...doc.data() } as Holiday))
-      .find(
-        (holiday) =>
-          isHolidayActive(holiday) &&
-          (appliesToAllBranches || holidayAppliesToBranch(holiday, branchId))
+    const alreadyDeclared = new Set(
+      existingSnapshot.docs
+        .map((doc) => ({ id: doc.id, ...doc.data() } as Holiday))
+        .filter(
+          (holiday) =>
+            holiday.type === "management_declared" &&
+            isHolidayActive(holiday) &&
+            (appliesToAllBranches || holidayAppliesToBranch(holiday, branchId))
+        )
+        .map((holiday) => holiday.date.slice(0, 10))
+    );
+
+    const newDates = dates.filter((date) => !alreadyDeclared.has(date));
+    if (newDates.length === 0) {
+      return NextResponse.json(
+        { ok: false, error: dates.length === 1 ? "Holiday already declared for this date." : "Holiday already declared for all dates in this range." },
+        { status: 409 }
       );
-    if (duplicate) {
-      return NextResponse.json({ ok: false, error: "Holiday already declared for this date." }, { status: 409 });
     }
 
     const name = await declaredByName(decodedToken.uid, decodedToken);
-    const docId = appliesToAllBranches ? `mgmt_${date}` : `mgmt_${date}_${branchId}`;
-    const docRef = db.collection("holidays").doc(docId);
-    await docRef.set({
-      date,
-      title: "Management Declared Holiday",
-      type: "management_declared",
-      reason,
-      declaredByUserId: decodedToken.uid,
-      declaredByName: name,
-      declaredAt: FieldValue.serverTimestamp(),
-      branchId: appliesToAllBranches ? "" : branchId,
-      appliesToAllBranches,
-      isActive: true,
-      cancelledByUserId: FieldValue.delete(),
-      cancelledAt: FieldValue.delete(),
-      createdAt: FieldValue.serverTimestamp()
-    }, { merge: true });
+    const batch = db.batch();
+    for (const date of newDates) {
+      const docId = appliesToAllBranches ? `mgmt_${date}` : `mgmt_${date}_${branchId}`;
+      batch.set(db.collection("holidays").doc(docId), {
+        date,
+        title: "Management Declared Holiday",
+        type: "management_declared",
+        reason,
+        declaredByUserId: decodedToken.uid,
+        declaredByName: name,
+        declaredAt: FieldValue.serverTimestamp(),
+        branchId: appliesToAllBranches ? "" : branchId,
+        appliesToAllBranches,
+        isActive: true,
+        cancelledByUserId: FieldValue.delete(),
+        cancelledAt: FieldValue.delete(),
+        createdAt: FieldValue.serverTimestamp()
+      }, { merge: true });
+    }
+    await batch.commit();
+
+    const skipped = dates.filter((date) => alreadyDeclared.has(date));
+    const message =
+      newDates.length === 1 && skipped.length === 0
+        ? "Holiday declared successfully."
+        : `Holiday declared successfully for ${newDates.length} day(s).${skipped.length ? ` Already declared: ${skipped.join(", ")}.` : ""}`;
 
     return NextResponse.json({
       ok: true,
-      holiday: { id: docRef.id, date, reason, type: "management_declared", appliesToAllBranches, branchId },
-      message: "Holiday declared successfully."
+      declaredDates: newDates,
+      skippedDates: skipped,
+      message
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to declare holiday";

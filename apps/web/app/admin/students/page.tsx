@@ -10,6 +10,7 @@ import { useAcademicYears } from "@/components/AcademicYearContext";
 import { hasPermission } from "@sri-narayana/shared";
 import { uploadFile, getStudentPhotoPath, getDocumentPath } from "@/lib/uploadService";
 import { adminApiRequest, AdminApiError } from "@/lib/adminApiClient";
+import { useClassSections } from "@/lib/useClassSections";
 
 interface FeeStructureItem {
   id?: string;
@@ -49,7 +50,8 @@ interface TransportRoute {
   stops: { name: string; fee: number }[];
 }
 
-const SECTION_OPTIONS = ["A", "B", "C", "D", "E"];
+// Static fallback only; the live per-class lists come from settings/classSections (default A/B).
+const SECTION_OPTIONS = ["A", "B"];
 const GENDER_OPTIONS = ["Male", "Female", "Other"];
 
 type ClassAgeGroup = "toddler" | "early-years" | "primary" | "upper-primary" | "pre-teen" | "teen";
@@ -469,12 +471,14 @@ function ChildClassIcon({ variant }: { variant: ChildIconVariant }) {
 
 function StudentClassCard({
   classItem,
+  sections,
   isSelected,
   selectedSection,
   onSelectClass,
   onSelectSection
 }: {
   classItem: StudentClassCardConfig;
+  sections: string[];
   isSelected: boolean;
   selectedSection: string;
   onSelectClass: (classId: string) => void;
@@ -508,7 +512,7 @@ function StudentClassCard({
         onChange={(event) => onSelectSection(classItem.id, event.target.value)}
         className={`mt-2 h-9 w-full rounded-xl border border-white/80 bg-white px-2 text-xs font-bold text-[#303247] outline-none transition focus:ring-2 ${classItem.accent.select}`}
       >
-        {classItem.availableSections.map((section) => (
+        {sections.map((section) => (
           <option key={section} value={section}>
             Section {section}
           </option>
@@ -521,24 +525,30 @@ function StudentClassCard({
 function StudentClassSelector({
   selectedClass,
   sectionByClass,
+  sectionsFor,
   onSelectClass,
   onSelectSection
 }: {
   selectedClass: string;
   sectionByClass: Record<string, string>;
+  sectionsFor: (classId: string) => string[];
   onSelectClass: (classId: string) => void;
   onSelectSection: (classId: string, section: string) => void;
 }) {
-  const renderCard = (classItem: StudentClassCardConfig) => (
-    <StudentClassCard
-      key={classItem.id}
-      classItem={classItem}
-      isSelected={selectedClass === classItem.id}
-      selectedSection={sectionByClass[classItem.id] ?? classItem.availableSections[0] ?? "A"}
-      onSelectClass={onSelectClass}
-      onSelectSection={onSelectSection}
-    />
-  );
+  const renderCard = (classItem: StudentClassCardConfig) => {
+    const sections = sectionsFor(classItem.id);
+    return (
+      <StudentClassCard
+        key={classItem.id}
+        classItem={classItem}
+        sections={sections}
+        isSelected={selectedClass === classItem.id}
+        selectedSection={sectionByClass[classItem.id] ?? sections[0] ?? "A"}
+        onSelectClass={onSelectClass}
+        onSelectSection={onSelectSection}
+      />
+    );
+  };
 
   return (
     <div className="space-y-3">
@@ -550,6 +560,176 @@ function StudentClassSelector({
       </div>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:hidden">
         {CLASS_SELECTOR_CLASSES.map(renderCard)}
+      </div>
+    </div>
+  );
+}
+
+function SectionManagerModal({
+  classId,
+  classLabel,
+  sections,
+  onClose,
+  onSaved
+}: {
+  classId: string;
+  classLabel: string;
+  sections: string[];
+  onClose: () => void;
+  onSaved: (sections: string[]) => void;
+}) {
+  const [draft, setDraft] = useState<string[]>(sections);
+  const [newSection, setNewSection] = useState("");
+  const [mergeFrom, setMergeFrom] = useState(sections[0] ?? "");
+  const [mergeTo, setMergeTo] = useState(sections[1] ?? "");
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const [errorText, setErrorText] = useState<string | null>(null);
+
+  // "From" can also be a legacy section (e.g. C/D/E from before the A/B
+  // default) that still holds students but is no longer configured.
+  const mergeFromOptions = Array.from(new Set([...sections, "A", "B", "C", "D", "E"])).sort();
+
+  const addSection = () => {
+    const value = newSection.trim().toUpperCase();
+    if (!value || draft.includes(value)) return;
+    setDraft([...draft, value].sort());
+    setNewSection("");
+  };
+
+  const saveSections = async (next: string[]) => {
+    setBusy(true);
+    setErrorText(null);
+    setMessage(null);
+    try {
+      const result = await adminApiRequest<{ ok: boolean; sections: string[] }>("/api/admin/class-sections", {
+        method: "PUT",
+        body: JSON.stringify({ classId, sections: next })
+      });
+      setDraft(result.sections);
+      onSaved(result.sections);
+      setMessage("Sections saved.");
+    } catch (err) {
+      setErrorText(err instanceof AdminApiError ? err.message : "Unable to save sections.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const runMerge = async () => {
+    if (!mergeFrom || !mergeTo || mergeFrom === mergeTo) {
+      setErrorText("Pick two different sections to merge.");
+      return;
+    }
+    if (!window.confirm(`Move ALL students of ${classLabel} Section ${mergeFrom} into Section ${mergeTo}? Section ${mergeFrom} will be removed.`)) {
+      return;
+    }
+    setBusy(true);
+    setErrorText(null);
+    setMessage(null);
+    try {
+      const result = await adminApiRequest<{ ok: boolean; movedStudents: number; sections: string[] }>(
+        "/api/admin/class-sections/merge",
+        {
+          method: "POST",
+          body: JSON.stringify({ classId, fromSection: mergeFrom, toSection: mergeTo })
+        }
+      );
+      setDraft(result.sections);
+      onSaved(result.sections);
+      setMergeFrom(result.sections[0] ?? "");
+      setMergeTo(result.sections[1] ?? "");
+      setMessage(`Moved ${result.movedStudents} student(s) from Section ${mergeFrom} to Section ${mergeTo}.`);
+    } catch (err) {
+      setErrorText(err instanceof AdminApiError ? err.message : "Unable to merge sections.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" onClick={onClose}>
+      <div className="card w-full max-w-lg p-6" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-start justify-between">
+          <div>
+            <h3 className="text-lg font-bold text-[#1f2136]">Sections · {classLabel}</h3>
+            <p className="mt-1 text-sm font-medium text-[#7d86a8]">Add, remove or merge sections for this class.</p>
+          </div>
+          <button type="button" onClick={onClose} className="grid h-9 w-9 place-items-center rounded-xl bg-[#f3f4fb] text-[#475067]" aria-label="Close">
+            <X size={16} />
+          </button>
+        </div>
+
+        {message && <div className="mt-4 rounded-xl border border-[#c8f0dc] bg-[#e6f8ef] px-4 py-3 text-sm font-semibold text-[#0f8d52]">{message}</div>}
+        {errorText && <div className="mt-4 rounded-xl border border-[#ffd5da] bg-[#ffebed] px-4 py-3 text-sm font-semibold text-[#c83f4d]">{errorText}</div>}
+
+        <div className="mt-5">
+          <p className="text-sm font-bold text-[#303247]">Current sections</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {draft.map((section) => (
+              <span key={section} className="inline-flex items-center gap-1.5 rounded-full bg-[#eef0ff] px-3 py-1.5 text-sm font-bold text-[#3033a1]">
+                {section}
+                {draft.length > 1 && (
+                  <button
+                    type="button"
+                    className="text-[#8a91b4] hover:text-[#ed515d]"
+                    aria-label={`Remove section ${section}`}
+                    onClick={() => setDraft(draft.filter((s) => s !== section))}
+                  >
+                    <X size={13} />
+                  </button>
+                )}
+              </span>
+            ))}
+          </div>
+          <div className="mt-3 flex gap-2">
+            <input
+              className="field flex-1"
+              value={newSection}
+              onChange={(e) => setNewSection(e.target.value.toUpperCase())}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  addSection();
+                }
+              }}
+              maxLength={3}
+              placeholder="New section (e.g. C)"
+            />
+            <button type="button" className="btn-secondary" onClick={addSection} disabled={busy}>
+              <Plus size={15} />
+              Add
+            </button>
+            <button type="button" className="btn-primary" onClick={() => saveSections(draft)} disabled={busy}>
+              {busy ? "Saving..." : "Save"}
+            </button>
+          </div>
+          <p className="mt-2 text-xs font-medium text-[#7d86a8]">
+            Deleting a section is only allowed when it has no students — merge them first below.
+          </p>
+        </div>
+
+        <div className="mt-6 border-t border-[#edf0f7] pt-5">
+          <p className="text-sm font-bold text-[#303247]">Merge sections</p>
+          <p className="mt-1 text-xs font-medium text-[#7d86a8]">Moves every student across and removes the source section.</p>
+          <div className="mt-3 flex flex-wrap items-end gap-2">
+            <label className="text-xs font-semibold text-[#7d86a8]">
+              From
+              <select className="field mt-1" value={mergeFrom} onChange={(e) => setMergeFrom(e.target.value)}>
+                {mergeFromOptions.map((s) => <option key={s} value={s}>Section {s}</option>)}
+              </select>
+            </label>
+            <label className="text-xs font-semibold text-[#7d86a8]">
+              Into
+              <select className="field mt-1" value={mergeTo} onChange={(e) => setMergeTo(e.target.value)}>
+                {sections.map((s) => <option key={s} value={s}>Section {s}</option>)}
+              </select>
+            </label>
+            <button type="button" className="btn-primary" onClick={runMerge} disabled={busy || sections.length < 2}>
+              {busy ? "Working..." : "Merge"}
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -568,6 +748,8 @@ export default function StudentsPage() {
   const [classFilter, setClassFilter] = useState("1");
   const [sectionFilter, setSectionFilter] = useState("A");
   const [sectionByClass, setSectionByClass] = useState<Record<string, string>>(() => defaultClassSections());
+  const { sectionsFor, applySections } = useClassSections();
+  const [showSectionManager, setShowSectionManager] = useState(false);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(false);
   const [pageSize, setPageSize] = useState(25);
@@ -588,8 +770,21 @@ export default function StudentsPage() {
 
   const selectClassFilter = (classId: string) => {
     setClassFilter(classId);
-    setSectionFilter(sectionByClass[classId] ?? "A");
+    const sections = sectionsFor(classId);
+    const remembered = sectionByClass[classId];
+    setSectionFilter(remembered && sections.includes(remembered) ? remembered : sections[0] ?? "A");
   };
+
+  // If the configured sections change (edit/merge/delete), keep the current
+  // selection valid.
+  useEffect(() => {
+    const sections = sectionsFor(classFilter);
+    if (sections.length > 0 && !sections.includes(sectionFilter)) {
+      setSectionFilter(sections[0]);
+      setSectionByClass((prev) => ({ ...prev, [classFilter]: sections[0] }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sectionsFor]);
 
   const selectClassSection = (classId: string, section: string) => {
     setSectionByClass((prev) => ({ ...prev, [classId]: section }));
@@ -1055,7 +1250,7 @@ export default function StudentsPage() {
                 <div>
                   <label className="block text-sm font-semibold text-[#303247]">Section *</label>
                   <select name="section" value={formData.section} onChange={handleChange} required className="field mt-1">
-                    {SECTION_OPTIONS.map((sec) => <option key={sec} value={sec}>{sec}</option>)}
+                    {sectionsFor(formData.class).map((sec) => <option key={sec} value={sec}>{sec}</option>)}
                   </select>
                 </div>
 
@@ -1285,12 +1480,34 @@ export default function StudentsPage() {
           </div>
         )}
 
+        {canEditStudent && (
+          <div className="flex justify-end">
+            <button type="button" className="btn-secondary" onClick={() => setShowSectionManager(true)}>
+              <Edit2 size={15} />
+              Edit Sections · {CLASS_LABELS[classFilter] ?? classFilter}
+            </button>
+          </div>
+        )}
         <StudentClassSelector
           selectedClass={classFilter}
           sectionByClass={sectionByClass}
+          sectionsFor={sectionsFor}
           onSelectClass={selectClassFilter}
           onSelectSection={selectClassSection}
         />
+        {showSectionManager && (
+          <SectionManagerModal
+            classId={classFilter}
+            classLabel={CLASS_LABELS[classFilter] ?? classFilter}
+            sections={sectionsFor(classFilter)}
+            onClose={() => setShowSectionManager(false)}
+            onSaved={(sections) => {
+              applySections(classFilter, sections);
+              fetchStudents();
+              fetchSectionCount();
+            }}
+          />
+        )}
 
         <div className="card flex flex-col gap-3 p-4 md:flex-row md:items-center">
           <div className="min-w-0 flex-1">

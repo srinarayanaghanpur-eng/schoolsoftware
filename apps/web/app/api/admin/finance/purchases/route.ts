@@ -16,7 +16,8 @@ export async function GET(req: Request) {
   const status = searchParams.get("status");
   if (vendorId) query = query.where("vendorId", "==", vendorId);
   if (status) query = query.where("status", "==", status);
-  const snap = await query.get();
+  // Hard read cap to keep query cost bounded (Firestore free-tier quota).
+  const snap = await query.limit(500).get();
   const purchases = snap.docs.map((d) => serializeDoc(d)).sort((a, b) => String(b.date ?? "").localeCompare(String(a.date ?? "")));
   return NextResponse.json({ ok: true, purchases });
 }

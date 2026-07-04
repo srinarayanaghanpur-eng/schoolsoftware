@@ -12,6 +12,7 @@ import { db, isFirebaseConfigured } from "@sri-narayana/shared/firebase/client";
 import { doc, getDoc } from "firebase/firestore";
 import { UpiQr, DEFAULT_UPI_ID, DEFAULT_UPI_PAYEE_NAME } from "@/components/UpiQr";
 import { useRefreshOnFocus } from "@/lib/useRefreshOnFocus";
+import { useClassSections } from "@/lib/useClassSections";
 
 type PaymentMethod = "cash" | "bank_transfer" | "upi" | "cheque" | "card";
 
@@ -35,7 +36,6 @@ const PAYMENT_METHODS: { value: PaymentMethod; label: string }[] = [
 ];
 
 const CLASS_OPTIONS = ["Nur", "LKG", "UKG", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"];
-const SECTION_OPTIONS = ["A", "B", "C", "D", "E"];
 
 function formatPaymentDate(value: unknown) {
   if (!value) return "--";
@@ -60,6 +60,12 @@ export default function PaymentsPage() {
   const [filterDateFrom, setFilterDateFrom] = useState("");
   const [filterDateTo, setFilterDateTo] = useState("");
   const [filterPageSize, setFilterPageSize] = useState(25);
+  const { sectionsByClass, sectionsFor } = useClassSections();
+  // Section choices: the selected class's sections, or the union across
+  // classes when no class filter is set.
+  const filterSectionOptions = filterClass
+    ? sectionsFor(filterClass)
+    : Array.from(new Set(Object.values(sectionsByClass).flat())).sort();
   const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [cancelTarget, setCancelTarget] = useState<Payment | null>(null);
@@ -184,7 +190,7 @@ export default function PaymentsPage() {
             Section
             <select className="field mt-1" value={filterSection} onChange={(e) => setFilterSection(e.target.value)}>
               <option value="">All</option>
-              {SECTION_OPTIONS.map((section) => (
+              {filterSectionOptions.map((section) => (
                 <option key={section} value={section}>{section}</option>
               ))}
             </select>
@@ -356,6 +362,15 @@ function PaymentForm({
   const [studentId, setStudentId] = useState("");
   const [studentClass, setStudentClass] = useState("1");
   const [studentSection, setStudentSection] = useState("A");
+  const { sectionsFor } = useClassSections();
+  const formSectionOptions = sectionsFor(studentClass);
+
+  // Keep the section valid when the class (or its configured sections) changes.
+  useEffect(() => {
+    if (!formSectionOptions.includes(studentSection)) {
+      setStudentSection(formSectionOptions[0] ?? "A");
+    }
+  }, [formSectionOptions, studentSection]);
   const [studentSearch, setStudentSearch] = useState("");
   const [studentsLoading, setStudentsLoading] = useState(false);
   const [amount, setAmount] = useState("");
@@ -519,7 +534,7 @@ function PaymentForm({
           <label className="text-sm font-semibold text-[#303247]">
             Section
             <select className="field mt-1" value={studentSection} onChange={(event) => setStudentSection(event.target.value)}>
-              {SECTION_OPTIONS.map((section) => (
+              {formSectionOptions.map((section) => (
                 <option key={section} value={section}>{section}</option>
               ))}
             </select>

@@ -12,7 +12,8 @@ export async function GET(req: Request) {
   const studentId = new URL(req.url).searchParams.get("studentId");
   let query: FirebaseFirestore.Query = adminDb().collection(COLLECTION);
   if (studentId) query = query.where("studentId", "==", studentId);
-  const snap = await query.get();
+  // Hard read cap to keep query cost bounded (Firestore free-tier quota).
+  const snap = await query.limit(500).get();
   const invoices = snap.docs.map((d) => serializeDoc(d)).sort((a, b) => String(b.date ?? "").localeCompare(String(a.date ?? "")));
   return NextResponse.json({ ok: true, invoices });
 }

@@ -7,11 +7,7 @@
 
 import { useEffect } from 'react';
 import { AppShell } from '@/components/AppShell';
-import { initializeBackgroundSync, backgroundSync } from '@/lib/backgroundSync';
-import { lazyLoad } from '@/lib/lazyLoad';
 import { perfMonitor, trackWebVitals } from '@/lib/performanceMonitor';
-
-const DASHBOARD_SYNC_INTERVAL_MS = 5 * 60 * 1000;
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -19,38 +15,18 @@ interface AppLayoutProps {
 
 export function OptimizedAppLayout({ children }: AppLayoutProps) {
   useEffect(() => {
-    // Initialize performance monitoring
+    // Local-only performance monitoring — no Firestore reads.
     perfMonitor.startMeasure('app-initialization');
     trackWebVitals();
-
-    // Initialize background sync (wakes every 5 minutes; each task is rate-limited
-    // by its own interval below, so this only checks what is actually due).
-    const cleanupSync = initializeBackgroundSync(DASHBOARD_SYNC_INTERVAL_MS);
-
-    // Register background sync tasks
-    backgroundSync.registerTask({
-      id: 'sync-dashboard',
-      name: 'Dashboard sync',
-      priority: 'high',
-      interval: DASHBOARD_SYNC_INTERVAL_MS,
-      fn: async () => {
-        try {
-          await lazyLoad.loadDashboardStats({ cacheTTL: DASHBOARD_SYNC_INTERVAL_MS });
-        } catch (error) {
-          console.debug('Dashboard sync in background:', error);
-        }
-      }
-    });
-
-    // Start first sync immediately (non-blocking)
-    setTimeout(() => {
-      backgroundSync.startSync();
-    }, 500);
-
     perfMonitor.endMeasure('app-initialization');
 
+    // NOTE: Timer-based background sync was removed. It re-read collections /
+    // dashboard stats on an interval for every open tab, silently burning
+    // Firestore free-tier read quota until it hit RESOURCE_EXHAUSTED (all data
+    // showing 0). Each page now loads its own data on mount and refreshes via
+    // useRefreshOnFocus (throttled) — the correct, read-efficient pattern.
+
     return () => {
-      cleanupSync();
       perfMonitor.printReport();
     };
   }, []);

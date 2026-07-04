@@ -16,7 +16,8 @@ export async function GET(req: Request) {
   const studentId = searchParams.get("studentId");
   if (studentId) query = query.where("studentId", "==", studentId);
 
-  const snap = await query.orderBy("createdAt", "desc").get();
+  // Hard read cap to keep query cost bounded (Firestore free-tier quota).
+  const snap = await query.orderBy("createdAt", "desc").limit(500).get();
   const plans = snap.docs.map((d) => serializeDoc(d));
   return NextResponse.json({ ok: true, plans });
 }

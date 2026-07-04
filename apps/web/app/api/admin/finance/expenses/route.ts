@@ -18,7 +18,10 @@ export async function GET(req: Request) {
   if (status) query = query.where("status", "==", status);
   if (category) query = query.where("category", "==", category);
 
-  const snap = await query.get();
+  // Hard read cap so the query cost stays bounded as the collection grows
+  // (protects the Firestore free-tier daily read quota). Raise/paginate if a
+  // school ever exceeds this many expense records in scope.
+  const snap = await query.limit(500).get();
   const expenses = snap.docs.map((d) => serializeDoc(d)).sort((a, b) => String(b.date ?? "").localeCompare(String(a.date ?? "")));
   return NextResponse.json({ ok: true, expenses });
 }

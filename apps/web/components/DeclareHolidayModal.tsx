@@ -19,7 +19,8 @@ type Branch = {
  */
 export function DeclareHolidayModal({ onDeclared }: { onDeclared?: () => void }) {
   const [open, setOpen] = useState(false);
-  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [fromDate, setFromDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [toDate, setToDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [reason, setReason] = useState("");
   const [branchId, setBranchId] = useState("");
   const [branches, setBranches] = useState<Branch[]>([]);
@@ -47,13 +48,18 @@ export function DeclareHolidayModal({ onDeclared }: { onDeclared?: () => void })
     event.preventDefault();
     setSaving(true);
     setError(null);
+    if (toDate < fromDate) {
+      setError("To date cannot be before from date.");
+      setSaving(false);
+      return;
+    }
     try {
       const token = await auth.currentUser?.getIdToken();
       if (!token) throw new Error("Please sign in as Super Admin again.");
       const response = await fetch("/api/admin/holidays/declare", {
         method: "POST",
         headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
-        body: JSON.stringify({ date, reason, branchId, appliesToAllBranches: !branchId })
+        body: JSON.stringify({ fromDate, toDate, reason, branchId, appliesToAllBranches: !branchId })
       });
       const result = await response.json();
       if (!response.ok || result.ok === false) throw new Error(result.error ?? "Unable to declare holiday");
@@ -101,10 +107,33 @@ export function DeclareHolidayModal({ onDeclared }: { onDeclared?: () => void })
               </div>
             )}
 
-            <label className="block text-sm font-semibold text-[#303247]">
-              Holiday date
-              <input className="field mt-1 w-full" type="date" value={date} onChange={(event) => setDate(event.target.value)} required />
-            </label>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="block text-sm font-semibold text-[#303247]">
+                From date
+                <input
+                  className="field mt-1 w-full"
+                  type="date"
+                  value={fromDate}
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    setFromDate(value);
+                    if (toDate < value) setToDate(value);
+                  }}
+                  required
+                />
+              </label>
+              <label className="block text-sm font-semibold text-[#303247]">
+                To date
+                <input
+                  className="field mt-1 w-full"
+                  type="date"
+                  value={toDate}
+                  min={fromDate}
+                  onChange={(event) => setToDate(event.target.value)}
+                  required
+                />
+              </label>
+            </div>
 
             <label className="block text-sm font-semibold text-[#303247]">
               Reason

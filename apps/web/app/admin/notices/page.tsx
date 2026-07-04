@@ -1,114 +1,120 @@
 "use client";
 
+import Link from "next/link";
+import { DeclareHolidayModal } from "@/components/DeclareHolidayModal";
 import { PageHeader } from "@/components/PageHeader";
 import { useAdminSession } from "@/components/AdminSessionContext";
-import { AdminApiError, adminApiRequest } from "@/lib/adminApiClient";
-import { hasPermission, ROLE_LABELS, ROLES, type Role } from "@sri-narayana/shared";
-import { Megaphone, Plus, Trash2, X } from "lucide-react";
-import { useEffect, useState, type FormEvent } from "react";
+import { auth } from "@sri-narayana/shared/firebase/client";
+import { hasPermission, isHolidayActive, type Holiday } from "@sri-narayana/shared";
+import type { LucideIcon } from "lucide-react";
+import { BellRing, CalendarOff, ClipboardCheck, FileClock, KeyRound, Megaphone, Send } from "lucide-react";
+import { useEffect, useState } from "react";
 
-type Notice = { id: string; title: string; body: string; category: string; audienceRoles: string[]; audienceClasses?: string[]; branch?: string; channels: string[]; createdAt?: string };
-const CHANNELS = ["app", "sms", "whatsapp", "email"] as const;
-const CATEGORIES = ["school", "branch", "class", "holiday", "exam", "event", "fee", "emergency"] as const;
+type Counts = {
+  notices: number;
+  passwordRequests: number;
+  leaveRequests: number;
+  attendanceAudits: number;
+  managementHolidays: number;
+};
 
-export default function NoticesPage() {
+type Section = {
+  href: string;
+  label: string;
+  description: string;
+  icon: LucideIcon;
+  tone: string;
+  count?: number;
+  badge?: string;
+};
+
+export default function CommunicationPage() {
   const { role } = useAdminSession();
-  const canCreate = hasPermission(role, "communication.create");
-  const [notices, setNotices] = useState<Notice[]>([]);
-  const [error, setError] = useState("");
-  const [show, setShow] = useState(false);
-  const [title, setTitle] = useState("");
-  const [body, setBody] = useState("");
-  const [category, setCategory] = useState("school");
-  const [branch, setBranch] = useState("");
-  const [audClasses, setAudClasses] = useState("");
-  const [audRoles, setAudRoles] = useState<Set<string>>(new Set());
-  const [channels, setChannels] = useState<Set<string>>(new Set(["app"]));
+  const isSuperAdmin = role === "super_admin";
+  const [counts, setCounts] = useState<Counts>({ notices: 0, passwordRequests: 0, leaveRequests: 0, attendanceAudits: 0, managementHolidays: 0 });
+  const [error, setError] = useState<string | null>(null);
 
-  async function load() {
-    try { setNotices((await adminApiRequest<{ notices: Notice[] }>("/api/admin/notices")).notices); }
-    catch (e) { setError(e instanceof AdminApiError ? e.message : "Failed to load"); }
+  const apiRequest = async <T,>(path: string): Promise<T> => {
+    const token = await auth.currentUser?.getIdToken();
+    if (!token) throw new Error("Please sign in as admin again.");
+    const response = await fetch(path, { headers: { authorization: `Bearer ${token}` } });
+    const result = await response.json();
+    if (!response.ok || result.ok === false) throw new Error(result.error ?? "Request failed");
+    return result;
+  };
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const [notifications, notices, holidays] = await Promise.all([
+          apiRequest<{ passwordRequests: unknown[]; leaveRequests: { status: string }[]; attendanceEditAudits: unknown[] }>("/api/admin/notifications").catch(() => null),
+          apiRequest<{ notices: unknown[] }>("/api/admin/notices").catch(() => null),
+          apiRequest<{ holidays: Holiday[] }>("/api/admin/holidays").catch(() => null)
+        ]);
+        setCounts({
+          notices: notices?.notices.length ?? 0,
+          passwordRequests: (notifications?.passwordRequests as { status: string }[] | undefined)?.filter((r) => r.status === "open").length ?? 0,
+          leaveRequests: notifications?.leaveRequests.filter((r) => r.status === "pending").length ?? 0,
+          attendanceAudits: notifications?.attendanceEditAudits.length ?? 0,
+          managementHolidays: holidays?.holidays.filter((h) => h.type === "management_declared" && isHolidayActive(h)).length ?? 0
+        });
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Unable to load communication summary");
+      }
+    };
+    void load();
+  }, []);
+
+  if (!hasPermission(role, "communication.view")) {
+    return <section className="p-7"><div className="card p-5 font-semibold text-[#ed515d]">Access denied.</div></section>;
   }
-  useEffect(() => { void load(); }, []);
 
-  const toggle = (set: Set<string>, v: string, fn: (s: Set<string>) => void) => { const n = new Set(set); n.has(v) ? n.delete(v) : n.add(v); fn(n); };
-
-  async function submit(e: FormEvent) {
-    e.preventDefault(); setError("");
-    try {
-      const classes = audClasses.trim() ? audClasses.split(",").map((c) => c.trim()).filter(Boolean) : [];
-      await adminApiRequest("/api/admin/notices", {
-        method: "POST",
-        body: JSON.stringify({ title, body, category, branch: branch.trim(), audienceClasses: classes, audienceRoles: [...audRoles], channels: [...channels] })
-      });
-      setTitle(""); setBody(""); setCategory("school"); setBranch(""); setAudClasses(""); setAudRoles(new Set()); setChannels(new Set(["app"])); setShow(false); await load();
-    } catch (e) { setError(e instanceof AdminApiError ? e.message : "Failed to post"); }
-  }
-  async function remove(id: string) { try { await adminApiRequest(`/api/admin/notices/${id}`, { method: "DELETE" }); await load(); } catch (e) { setError(e instanceof AdminApiError ? e.message : "Failed"); } }
-
-  if (!hasPermission(role, "communication.view")) return <section className="p-7"><div className="card p-5 font-semibold text-[#ed515d]">Access denied.</div></section>;
+  const sections: Section[] = [
+    { href: "/admin/notices/circulars", label: "Notices & Circulars", description: "Post announcements and circulars to roles and classes.", icon: Megaphone, tone: "bg-[#fff4df] text-[#c67711]", count: counts.notices },
+    { href: "/admin/holidays", label: "Holiday Declaration", description: "Declare or cancel management holidays used by attendance & payroll.", icon: CalendarOff, tone: "bg-[#fff0f2] text-[#d1485c]", count: counts.managementHolidays, badge: "active" },
+    { href: "/admin/notifications", label: "Leave Requests", description: "Approve or reject teacher leave requests.", icon: ClipboardCheck, tone: "bg-[#e9f8f0] text-[#0d8f5b]", count: counts.leaveRequests, badge: "pending" },
+    { href: "/admin/notifications", label: "Password Reset Requests", description: "Review and resolve staff password reset requests.", icon: KeyRound, tone: "bg-[#edf1ff] text-[#2e38a4]", count: counts.passwordRequests, badge: "open" },
+    { href: "/admin/notifications", label: "Attendance Audit", description: "Track manual attendance edits and their audit reasons.", icon: FileClock, tone: "bg-[#eef7f8] text-[#17808a]", count: counts.attendanceAudits, badge: "logged" },
+    { href: "/admin/messages", label: "Messages", description: "Direct messages and conversations with staff and parents.", icon: Send, tone: "bg-[#eef6ff] text-[#1967b2]" },
+    { href: "/admin/notifications", label: "Notifications", description: "All pending requests and reset history in one place.", icon: BellRing, tone: "bg-[#f4efff] text-[#7445bd]" }
+  ];
 
   return (
     <>
-      <PageHeader title="Communication" description="Post notices & circulars to roles and classes." />
-      <section className="space-y-4 p-4 md:p-7">
-        {error && <div className="card border-l-4 border-l-[#ed515d] p-4 text-sm font-semibold text-[#ed515d]">{error}</div>}
-        {canCreate && <div className="flex justify-end"><button className="btn-primary" onClick={() => setShow((v) => !v)}>{show ? <X size={16} /> : <Plus size={16} />} New notice</button></div>}
+      <PageHeader
+        title="Communication"
+        description="One hub for notices, holidays, leave, password resets, attendance audits, and messages."
+        action={isSuperAdmin ? <DeclareHolidayModal /> : undefined}
+      />
+      <section className="space-y-5 p-4 md:p-7">
+        {error && <div className="rounded-2xl border border-[#ffd5da] bg-[#ffebed] px-4 py-3 text-sm font-semibold text-[#c83f4d]">{error}</div>}
 
-        {show && (
-          <form onSubmit={submit} className="card space-y-4 p-5">
-            <input className="field" placeholder="Notice title" required value={title} onChange={(e) => setTitle(e.target.value)} />
-            <textarea className="field min-h-[100px]" placeholder="Write the notice…" required value={body} onChange={(e) => setBody(e.target.value)} />
-            <div className="grid gap-4 sm:grid-cols-3">
-              <div>
-                <p className="mb-2 text-sm font-semibold text-[#303247]">Category</p>
-                <select className="field" value={category} onChange={(e) => setCategory(e.target.value)}>
-                  {CATEGORIES.map((c) => <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>)}
-                </select>
-              </div>
-              <div>
-                <p className="mb-2 text-sm font-semibold text-[#303247]">Branch (optional)</p>
-                <input className="field" placeholder="e.g. main, branch-b" value={branch} onChange={(e) => setBranch(e.target.value)} />
-              </div>
-              <div>
-                <p className="mb-2 text-sm font-semibold text-[#303247]">Target classes (comma-sep)</p>
-                <input className="field" placeholder="e.g. 10, 9A" value={audClasses} onChange={(e) => setAudClasses(e.target.value)} />
-              </div>
-            </div>
-            <div>
-              <p className="mb-2 text-sm font-semibold text-[#303247]">Audience roles (empty = everyone)</p>
-              <div className="flex flex-wrap gap-2">{ROLES.map((r) => <button type="button" key={r} onClick={() => toggle(audRoles, r, setAudRoles)} className={`rounded-full px-3 py-1.5 text-xs font-semibold ${audRoles.has(r) ? "bg-[#2d3094] text-white" : "bg-white text-[#475067] ring-1 ring-[#e3e6f0]"}`}>{ROLE_LABELS[r as Role]}</button>)}</div>
-            </div>
-            <div>
-              <p className="mb-2 text-sm font-semibold text-[#303247]">Channels</p>
-              <div className="flex flex-wrap gap-2">{CHANNELS.map((c) => <button type="button" key={c} onClick={() => toggle(channels, c, setChannels)} className={`rounded-full px-3 py-1.5 text-xs font-semibold capitalize ${channels.has(c) ? "bg-[#14a762] text-white" : "bg-white text-[#475067] ring-1 ring-[#e3e6f0]"}`}>{c}</button>)}</div>
-              <p className="mt-1 text-xs text-stone-400">App is delivered instantly; SMS/WhatsApp/Email are queued for the provider integration.</p>
-            </div>
-            <button className="btn-primary"><Megaphone size={16} /> Post notice</button>
-          </form>
-        )}
-
-        <div className="space-y-3">
-          {notices.length === 0 ? <div className="card p-8 text-center text-sm text-stone-400">No notices posted yet</div> : notices.map((n) => (
-            <article key={n.id} className="card p-5">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="font-bold text-[#1f2136]">{n.title}</h3>
-                    {n.category && <span className="rounded-full bg-[#f0e6ff] px-2 py-0.5 text-xs font-semibold text-[#7c3aed] capitalize">{n.category}</span>}
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {sections.map((section) => {
+            const Icon = section.icon;
+            return (
+              <Link
+                key={section.label}
+                href={section.href}
+                className="dashboard-animate group flex items-start gap-4 rounded-2xl border border-[#e3e6f0] bg-white p-5 shadow-[0_2px_4px_rgba(36,42,94,0.03)] transition duration-200 hover:-translate-y-0.5 hover:border-[#c8ccef] hover:shadow-[0_12px_26px_rgba(36,42,94,0.09)]"
+              >
+                <span className={`grid h-12 w-12 shrink-0 place-items-center rounded-xl ${section.tone}`}>
+                  <Icon size={22} strokeWidth={2.1} />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <h3 className="font-bold text-[#1f2136]">{section.label}</h3>
+                    {typeof section.count === "number" && section.count > 0 && (
+                      <span className="shrink-0 rounded-full bg-[#eef0ff] px-2.5 py-1 text-xs font-bold text-[#3033a1]">
+                        {section.count} {section.badge ?? ""}
+                      </span>
+                    )}
                   </div>
-                  <p className="mt-1 whitespace-pre-wrap text-sm text-[#475067]">{n.body}</p>
-                  <div className="mt-3 flex flex-wrap gap-1.5">
-                    {(n.audienceRoles?.length ? n.audienceRoles : ["everyone"]).map((r) => <span key={r} className="rounded-full bg-[#eef0ff] px-2 py-0.5 text-xs font-semibold text-[#3033a1] capitalize">{r}</span>)}
-                    {n.branch && <span className="rounded-full bg-[#fff4df] px-2 py-0.5 text-xs font-semibold text-[#b8791a]">{n.branch}</span>}
-                    {n.audienceClasses?.map((c) => <span key={c} className="rounded-full bg-[#e6f8ef] px-2 py-0.5 text-xs font-semibold text-[#14a762]">Class {c}</span>)}
-                    {n.channels?.map((c) => <span key={c} className="rounded-full bg-[#e6f8ef] px-2 py-0.5 text-xs font-semibold text-[#14a762] capitalize">{c}</span>)}
-                  </div>
+                  <p className="mt-1 text-sm font-medium text-[#7d86a8]">{section.description}</p>
                 </div>
-                {canCreate && <button onClick={() => remove(n.id)} className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-[#ed515d] hover:bg-[#ffebed]"><Trash2 size={16} /></button>}
-              </div>
-            </article>
-          ))}
+              </Link>
+            );
+          })}
         </div>
       </section>
     </>

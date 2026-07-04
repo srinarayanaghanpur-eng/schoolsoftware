@@ -3,6 +3,7 @@ import { AggregateField } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { requirePermission } from "@/lib/apiUtils";
 import { logFirestoreAggregateRead } from "@/lib/firestoreReadLogger";
+import { firestoreErrorResponse, firestoreQuotaResponse, isFirestoreQuotaPaused } from "@/lib/firebaseErrors";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +15,10 @@ export async function GET(request: NextRequest) {
   try {
     const auth = await requirePermission(request, "reports.view");
     if (!auth) return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+
+    if (isFirestoreQuotaPaused()) {
+      return firestoreQuotaResponse();
+    }
 
     const db = adminDb();
     const now = new Date();
@@ -96,9 +101,6 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error('Error getting dashboard stats:', error);
-    return NextResponse.json(
-      { success: false, error: 'Failed to get stats' },
-      { status: 500 }
-    );
+    return firestoreErrorResponse(error, 'Failed to get stats');
   }
 }

@@ -3,6 +3,7 @@ import { FieldValue } from "firebase-admin/firestore";
 import { teacherLoginCreateSchema } from "@sri-narayana/shared";
 import { adminAuth, adminDb } from "@/lib/firebaseAdmin";
 import { requireAdmin } from "@/lib/apiUtils";
+import { firestoreErrorResponse, firestoreQuotaResponse, isFirestoreQuotaPaused } from "@/lib/firebaseErrors";
 import {
   assertEmployeeIdAvailable,
   buildTeacherAuthProfile,
@@ -15,6 +16,10 @@ export async function GET(req: Request) {
     const decodedToken = await requireAdmin(req);
     if (!decodedToken) {
       return NextResponse.json({ ok: false, error: "Admin access required" }, { status: 403 });
+    }
+
+    if (isFirestoreQuotaPaused()) {
+      return firestoreQuotaResponse();
     }
 
     const { searchParams } = new URL(req.url);
@@ -54,8 +59,7 @@ export async function GET(req: Request) {
 
     return NextResponse.json({ ok: true, teachers, count: teachers.length, limit });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unable to load teachers";
-    return NextResponse.json({ ok: false, error: message }, { status: 400 });
+    return firestoreErrorResponse(error, "Unable to load teachers", 400);
   }
 }
 
@@ -127,7 +131,6 @@ export async function POST(req: Request) {
     if (createdUid) {
       await adminAuth().deleteUser(createdUid).catch(() => undefined);
     }
-    const message = error instanceof Error ? error.message : "Unable to create teacher";
-    return NextResponse.json({ ok: false, error: message }, { status: 400 });
+    return firestoreErrorResponse(error, "Unable to create teacher", 400);
   }
 }

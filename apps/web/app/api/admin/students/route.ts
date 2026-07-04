@@ -3,6 +3,7 @@ import { adminDb } from "@/lib/firebaseAdmin";
 import { requirePermission } from "@/lib/apiUtils";
 import { createApprovalRequest } from "@/lib/approvalEngine";
 import { docCursor, logFirestoreRead, readLimit } from "@/lib/firestoreReadLogger";
+import { firestoreErrorResponse, firestoreQuotaResponse, isFirestoreQuotaPaused } from "@/lib/firebaseErrors";
 
 function normalizeText(value: unknown) {
   return String(value ?? "").trim().toLowerCase();
@@ -21,6 +22,10 @@ export async function GET(request: NextRequest) {
   try {
     const auth = await requirePermission(request, "students.view");
     if (!auth) return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+
+    if (isFirestoreQuotaPaused()) {
+      return firestoreQuotaResponse();
+    }
 
     const db = adminDb();
     const searchParams = request.nextUrl.searchParams;
@@ -88,10 +93,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ success: true, data: students, pageSize, nextCursor, hasMore: Boolean(nextCursor) });
   } catch (error) {
     console.error('Error fetching students:', error);
-    return NextResponse.json(
-      { success: false, error: 'Failed to fetch students' },
-      { status: 500 }
-    );
+    return firestoreErrorResponse(error, 'Failed to fetch students');
   }
 }
 
@@ -239,9 +241,6 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('Error creating student:', error);
-    return NextResponse.json(
-      { success: false, error: 'Failed to create student' },
-      { status: 500 }
-    );
+    return firestoreErrorResponse(error, 'Failed to create student');
   }
 }
