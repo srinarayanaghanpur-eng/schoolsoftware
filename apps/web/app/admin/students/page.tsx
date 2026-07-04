@@ -5,6 +5,7 @@ import { useRefreshOnFocus } from "@/lib/useRefreshOnFocus";
 import { Plus, X, Edit2, Trash2, Search, Upload, Camera, QrCode, Printer } from "lucide-react";
 import Link from "next/link";
 import { PageHeader } from "@/components/PageHeader";
+import { PaginationControls } from "@/components/PaginationControls";
 import { useAdminSession } from "@/components/AdminSessionContext";
 import { useAcademicYears } from "@/components/AcademicYearContext";
 import { hasPermission } from "@sri-narayana/shared";
@@ -53,6 +54,7 @@ interface TransportRoute {
 // Static fallback only; the live per-class lists come from settings/classSections (default A/B).
 const SECTION_OPTIONS = ["A", "B"];
 const GENDER_OPTIONS = ["Male", "Female", "Other"];
+const STUDENTS_PAGE_SIZE = 25;
 
 type ClassAgeGroup = "toddler" | "early-years" | "primary" | "upper-primary" | "pre-teen" | "teen";
 type ChildIconVariant = "baby" | "tiny" | "kindergarten" | "primary" | "senior-primary" | "preteen" | "teen";
@@ -752,7 +754,8 @@ export default function StudentsPage() {
   const [showSectionManager, setShowSectionManager] = useState(false);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(false);
-  const [pageSize, setPageSize] = useState(25);
+  const [currentPage, setCurrentPage] = useState(0);
+  const [pageCursors, setPageCursors] = useState<(string | null)[]>([null]);
   const [sectionCount, setSectionCount] = useState<number | null>(null);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -823,13 +826,13 @@ export default function StudentsPage() {
     commitmentFee: "0"
   });
 
-  // Reload whenever the class/section/year/page-size selection changes, so the
+  // Reload whenever the class/section/year selection changes, so the
   // list always shows exactly the selected section (never a mixed list).
   useEffect(() => {
-    fetchStudents();
+    fetchStudents({ page: 0, cursor: null });
     fetchSectionCount();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeYear?.id, classFilter, sectionFilter, pageSize]);
+  }, [activeYear?.id, classFilter, sectionFilter]);
   useEffect(() => {
     fetchTransportRoutes();
   }, []);
@@ -863,7 +866,7 @@ export default function StudentsPage() {
 
   const buildStudentQuery = (cursor?: string | null) => {
     const params = new URLSearchParams();
-    params.set("pageSize", String(pageSize));
+    params.set("pageSize", String(STUDENTS_PAGE_SIZE));
     if (activeYear?.id) params.set("academicYearId", activeYear.id);
     if (classFilter) params.set("class", classFilter);
     if (sectionFilter) params.set("section", sectionFilter);
@@ -889,21 +892,47 @@ export default function StudentsPage() {
     }
   };
 
-  const fetchStudents = async (options: { append?: boolean; cursor?: string | null } = {}) => {
+  const fetchStudents = async (options: { cursor?: string | null; page?: number } = {}) => {
+    const targetPage = options.page ?? currentPage;
+    const targetCursor = options.cursor !== undefined ? options.cursor : pageCursors[targetPage] ?? null;
     try {
       setLoading(true);
       const data = await adminApiRequest<{ success?: boolean; data: Student[]; nextCursor?: string | null; hasMore?: boolean }>(
-        `/api/admin/students?${buildStudentQuery(options.cursor)}`
+        `/api/admin/students?${buildStudentQuery(targetCursor)}`
       );
-      setStudents((prev) => options.append ? [...prev, ...(data.data ?? [])] : data.data ?? []);
+      setStudents(data.data ?? []);
       setNextCursor(data.nextCursor ?? null);
       setHasMore(Boolean(data.hasMore));
+      setCurrentPage(targetPage);
+      setPageCursors((prev) => {
+        const next = targetPage === 0 ? [null] : prev.slice(0, targetPage + 1);
+        if (data.nextCursor) next[targetPage + 1] = data.nextCursor;
+        return next;
+      });
     } catch (err) {
       console.error("Failed to fetch students:", err);
       setError(err instanceof AdminApiError ? err.message : "Failed to fetch students");
+      // On a load failure, clear the list. Otherwise the
+      // previously loaded class's students stay on screen, making every class
+      // you switch to look like it has the *same* students — which is exactly
+      // what happens when a request fails (e.g. Firestore quota 429).
+      setStudents([]);
+      setNextCursor(null);
+      setHasMore(false);
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchNextStudentPage = () => {
+    if (!nextCursor) return;
+    fetchStudents({ page: currentPage + 1, cursor: nextCursor });
+  };
+
+  const fetchPreviousStudentPage = () => {
+    if (currentPage === 0) return;
+    const previousPage = currentPage - 1;
+    fetchStudents({ page: previousPage, cursor: pageCursors[previousPage] ?? null });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -1503,7 +1532,7 @@ export default function StudentsPage() {
             onClose={() => setShowSectionManager(false)}
             onSaved={(sections) => {
               applySections(classFilter, sections);
-              fetchStudents();
+              fetchStudents({ page: 0, cursor: null });
               fetchSectionCount();
             }}
           />
@@ -1519,23 +1548,16 @@ export default function StudentsPage() {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === "Enter") fetchStudents();
+                if (e.key === "Enter") fetchStudents({ page: 0, cursor: null });
               }}
                 className="field pl-10"
             />
           </div>
         </div>
-        <select
-          value={pageSize}
-          onChange={(e) => setPageSize(Number(e.target.value))}
-          className="field w-auto"
-          aria-label="Students per page"
-        >
-          <option value={25}>25 / page</option>
-          <option value={50}>50 / page</option>
-          <option value={100}>100 / page</option>
-        </select>
-        <button type="button" onClick={() => fetchStudents()} className="btn-secondary">
+        <span className="inline-flex h-10 items-center rounded-xl border border-[#dfe3f1] bg-[#f7f8fd] px-3 text-sm font-bold text-[#303247]">
+          25 / page
+        </span>
+        <button type="button" onClick={() => fetchStudents({ page: 0, cursor: null })} className="btn-secondary">
           Apply
         </button>
         </div>
@@ -1634,12 +1656,19 @@ export default function StudentsPage() {
           </div>
           </>
         )}
-        {hasMore && (
-          <div className="border-t border-[#edf0f7] p-4 text-center">
-            <button type="button" onClick={() => fetchStudents({ append: true, cursor: nextCursor })} className="btn-secondary" disabled={loading || !nextCursor}>
-              Load more
-            </button>
-          </div>
+        {(students.length > 0 || currentPage > 0 || hasMore) && (
+          <PaginationControls
+            page={currentPage}
+            pageSize={STUDENTS_PAGE_SIZE}
+            itemCount={students.length}
+            totalItems={searchTerm.trim() ? null : sectionCount}
+            itemLabel="students"
+            hasPrevious={currentPage > 0}
+            hasNext={hasMore}
+            loading={loading}
+            onPrevious={fetchPreviousStudentPage}
+            onNext={fetchNextStudentPage}
+          />
         )}
       </div>
 
@@ -1647,8 +1676,7 @@ export default function StudentsPage() {
           <div className="card p-5">
             <p className="text-sm font-semibold text-[#7d86a8]">Students In Section</p>
             <p className="mt-3 text-[32px] font-extrabold leading-none text-[#1b1d32]">
-              {students.length}
-              {sectionCount !== null && sectionCount > students.length ? <span className="text-base font-bold text-[#7d86a8]"> / {sectionCount}</span> : null}
+              {sectionCount ?? students.length}
             </p>
         </div>
           <div className="card p-5">

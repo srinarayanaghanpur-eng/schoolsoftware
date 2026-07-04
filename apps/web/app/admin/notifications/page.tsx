@@ -2,365 +2,696 @@
 
 import { PageHeader } from "@/components/PageHeader";
 import { PasswordInput } from "@/components/PasswordInput";
-import { auth, isFirebaseConfigured } from "@sri-narayana/shared/firebase/client";
+import { useAdminSession } from "@/components/AdminSessionContext";
+import { adminApiRequest, AdminApiError } from "@/lib/adminApiClient";
+import { useRefreshOnFocus } from "@/lib/useRefreshOnFocus";
 import {
-  demoAttendanceEditAudits,
-  demoLeaveRequests,
-  demoPasswordResetHistory,
-  demoPasswordResetRequests,
-  type AttendanceEditAudit,
-  type LeaveRequest,
-  type PasswordResetHistory,
-  type PasswordResetRequest
-} from "@sri-narayana/shared";
-import { BellRing, CheckCircle2, ClipboardCheck, KeyRound, XCircle } from "lucide-react";
+  Archive,
+  ArchiveRestore,
+  BellRing,
+  CheckCircle2,
+  ClipboardCheck,
+  Eye,
+  KeyRound,
+  Search,
+  Trash2,
+  XCircle
+} from "lucide-react";
 import type { FormEvent } from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
-type NotificationPayload = {
-  passwordRequests: PasswordResetRequest[];
-  leaveRequests: LeaveRequest[];
-  passwordResetHistory: PasswordResetHistory[];
-  attendanceEditAudits: AttendanceEditAudit[];
+type RequestType = "password_reset" | "leave" | "attendance_edit";
+type NormalizedStatus = "pending" | "approved" | "rejected" | "log";
+
+type CommRequest = {
+  id: string;
+  type: RequestType;
+  name: string;
+  roleOrClass: string;
+  createdAt: string;
+  status: NormalizedStatus;
+  message: string;
+  archived: boolean;
+  deletedAt: string | null;
+  teacherId?: string;
+  loginId?: string;
+  employeeId?: string;
 };
 
-type ResetForm = {
-  password: string;
-  confirmPassword: string;
-  adminNote: string;
+type Tab = "pending" | "approved" | "rejected" | "archived" | "all";
+
+const TABS: { key: Tab; label: string }[] = [
+  { key: "pending", label: "Pending" },
+  { key: "approved", label: "Approved" },
+  { key: "rejected", label: "Rejected" },
+  { key: "archived", label: "Archived" },
+  { key: "all", label: "All" }
+];
+
+const TYPE_FILTERS: { key: RequestType | "all"; label: string }[] = [
+  { key: "all", label: "All types" },
+  { key: "password_reset", label: "Password Reset" },
+  { key: "leave", label: "Leave" },
+  { key: "attendance_edit", label: "Attendance Edit" }
+];
+
+const TYPE_LABEL: Record<RequestType, string> = {
+  password_reset: "Password Reset",
+  leave: "Leave",
+  attendance_edit: "Attendance Edit"
 };
 
-const emptyResetForm: ResetForm = {
-  password: "",
-  confirmPassword: "",
-  adminNote: ""
-};
+const PAGE_SIZE = 25;
 
-function statusClass(status: string) {
-  if (status === "open" || status === "pending") return "bg-[#fff4df] text-[#d79418]";
-  if (status === "resolved" || status === "approved") return "bg-[#e6f8ef] text-[#13a961]";
-  return "bg-[#ffebed] text-[#ed515d]";
+function rowKey(request: CommRequest) {
+  return `${request.type}:${request.id}`;
 }
 
+function statusBadge(request: CommRequest) {
+  if (request.archived) return "bg-[#eef0f5] text-[#6b7391]";
+  if (request.status === "pending") return "bg-[#fff4df] text-[#d79418]";
+  if (request.status === "approved") return "bg-[#e6f8ef] text-[#13a961]";
+  if (request.status === "rejected") return "bg-[#ffebed] text-[#ed515d]";
+  return "bg-[#eef2ff] text-[#5a63c4]";
+}
+
+function statusLabel(request: CommRequest) {
+  if (request.archived) return "archived";
+  if (request.status === "log") return "log";
+  return request.status;
+}
+
+function formatDate(value: string) {
+  if (!value) return "--";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" });
+}
+
+type ResetForm = { password: string; confirmPassword: string; adminNote: string };
+const emptyResetForm: ResetForm = { password: "", confirmPassword: "", adminNote: "" };
+
 export default function NotificationsPage() {
-  const [passwordRequests, setPasswordRequests] = useState<PasswordResetRequest[]>(
-    isFirebaseConfigured ? [] : demoPasswordResetRequests
-  );
-  const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>(isFirebaseConfigured ? [] : demoLeaveRequests);
-  const [passwordResetHistory, setPasswordResetHistory] = useState<PasswordResetHistory[]>(
-    isFirebaseConfigured ? [] : demoPasswordResetHistory
-  );
-  const [attendanceEditAudits, setAttendanceEditAudits] = useState<AttendanceEditAudit[]>(
-    isFirebaseConfigured ? [] : demoAttendanceEditAudits
-  );
-  const [selectedResetRequest, setSelectedResetRequest] = useState<PasswordResetRequest | null>(null);
+  const { role } = useAdminSession();
+  const isSuperAdmin = role === "super_admin";
+
+  const [tab, setTab] = useState<Tab>("pending");
+  const [typeFilter, setTypeFilter] = useState<RequestType | "all">("all");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [search, setSearch] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+
+  const [requests, setRequests] = useState<CommRequest[]>([]);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [pendingCount, setPendingCount] = useState<number | null>(null);
+
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [toast, setToast] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
+  const [confirmState, setConfirmState] = useState<null | { text: string; onConfirm: () => void }>(null);
+  const [details, setDetails] = useState<CommRequest | null>(null);
+  const [resetTarget, setResetTarget] = useState<CommRequest | null>(null);
   const [resetForm, setResetForm] = useState<ResetForm>(emptyResetForm);
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
 
-  const pendingCount = useMemo(
-    () =>
-      passwordRequests.filter((request) => request.status === "open").length +
-      leaveRequests.filter((request) => request.status === "pending").length,
-    [leaveRequests, passwordRequests]
-  );
-
-  const apiRequest = async <T,>(path: string, init?: RequestInit): Promise<T> => {
-    const token = await auth.currentUser?.getIdToken();
-    if (!token) throw new Error("Please sign in as admin again.");
-    const response = await fetch(path, {
-      ...init,
-      headers: {
-        "content-type": "application/json",
-        authorization: `Bearer ${token}`,
-        ...(init?.headers ?? {})
-      }
-    });
-    const result = await response.json();
-    if (!response.ok || result.ok === false) throw new Error(result.error ?? "Request failed");
-    return result;
-  };
-
-  const loadNotifications = async () => {
-    if (!isFirebaseConfigured) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const result = await apiRequest<NotificationPayload>("/api/admin/notifications");
-      setPasswordRequests(result.passwordRequests);
-      setLeaveRequests(result.leaveRequests);
-      setPasswordResetHistory(result.passwordResetHistory);
-      setAttendanceEditAudits(result.attendanceEditAudits);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to load notifications");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    void loadNotifications();
+  const notify = useCallback((kind: "ok" | "err", text: string) => {
+    setToast({ kind, text });
+    window.setTimeout(() => setToast(null), 4000);
   }, []);
 
-  const reviewLeave = async (requestId: string | undefined, status: "approved" | "rejected") => {
-    if (!requestId) return;
-    setLoading(true);
-    setError(null);
-    setMessage(null);
-    try {
-      if (!isFirebaseConfigured) {
-        setLeaveRequests((requests) =>
-          requests.map((request) => (request.id === requestId ? { ...request, status } : request))
-        );
-        setMessage(`Demo leave request ${status}.`);
-        return;
-      }
-      const result = await apiRequest<{ message?: string }>("/api/admin/leave-requests", {
-        method: "PATCH",
-        body: JSON.stringify({ requestId, status })
-      });
-      setMessage(result.message ?? `Leave request ${status}.`);
-      await loadNotifications();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to update leave request");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const buildQuery = useCallback(
+    (cursor?: string | null) => {
+      const params = new URLSearchParams({ status: tab, type: typeFilter, pageSize: String(PAGE_SIZE) });
+      if (startDate) params.set("startDate", startDate);
+      if (endDate) params.set("endDate", endDate);
+      if (search) params.set("search", search);
+      if (cursor) params.set("cursor", cursor);
+      return params.toString();
+    },
+    [tab, typeFilter, startDate, endDate, search]
+  );
 
-  const rejectPasswordRequest = async (requestId: string | undefined) => {
-    if (!requestId) return;
-    setLoading(true);
-    setError(null);
-    setMessage(null);
-    try {
-      if (!isFirebaseConfigured) {
-        setPasswordRequests((requests) =>
-          requests.map((request) => (request.id === requestId ? { ...request, status: "rejected" } : request))
+  const fetchRequests = useCallback(
+    async (options: { append?: boolean; cursor?: string | null } = {}) => {
+      setLoading(true);
+      try {
+        const data = await adminApiRequest<{ ok: boolean; requests: CommRequest[]; nextCursor: string | null; hasMore: boolean }>(
+          `/api/admin/communication/requests?${buildQuery(options.cursor)}`
         );
-        setMessage("Demo password request rejected.");
-        return;
+        setRequests((prev) => (options.append ? [...prev, ...data.requests] : data.requests));
+        setNextCursor(data.nextCursor);
+        setHasMore(data.hasMore);
+        if (!options.append) setSelected(new Set());
+      } catch (err) {
+        notify("err", err instanceof AdminApiError ? err.message : "Unable to load requests.");
+      } finally {
+        setLoading(false);
       }
-      await apiRequest("/api/admin/password-reset-requests", {
-        method: "PATCH",
-        body: JSON.stringify({ requestId, status: "rejected", adminNote: "Rejected by admin" })
-      });
-      setMessage("Password request rejected.");
-      await loadNotifications();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to reject password request");
-    } finally {
-      setLoading(false);
+    },
+    [buildQuery, notify]
+  );
+
+  const fetchPendingCount = useCallback(async () => {
+    try {
+      const data = await adminApiRequest<{ ok: boolean; pendingCount: number }>("/api/admin/communication/requests?count=1");
+      setPendingCount(data.pendingCount);
+    } catch {
+      setPendingCount(null);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    void fetchRequests();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, typeFilter, startDate, endDate, search]);
+
+  useEffect(() => {
+    void fetchPendingCount();
+  }, [fetchPendingCount]);
+
+  useRefreshOnFocus(() => {
+    void fetchRequests();
+    void fetchPendingCount();
+  });
+
+  const runAction = useCallback(
+    async (request: CommRequest, action: "approve" | "reject" | "archive" | "restore") => {
+      setBusy(true);
+      try {
+        const result = await adminApiRequest<{ message?: string }>(`/api/admin/communication/requests/${request.id}`, {
+          method: "PATCH",
+          body: JSON.stringify({ type: request.type, action })
+        });
+        notify("ok", result.message ?? "Done.");
+        await Promise.all([fetchRequests(), fetchPendingCount()]);
+      } catch (err) {
+        notify("err", err instanceof AdminApiError ? err.message : "Action failed.");
+      } finally {
+        setBusy(false);
+      }
+    },
+    [fetchRequests, fetchPendingCount, notify]
+  );
+
+  const deleteRequest = useCallback(
+    async (request: CommRequest, hard: boolean) => {
+      setBusy(true);
+      try {
+        const params = new URLSearchParams({ type: request.type });
+        if (hard) params.set("hard", "1");
+        const result = await adminApiRequest<{ message?: string }>(
+          `/api/admin/communication/requests/${request.id}?${params.toString()}`,
+          { method: "DELETE" }
+        );
+        notify("ok", result.message ?? "Removed.");
+        await Promise.all([fetchRequests(), fetchPendingCount()]);
+      } catch (err) {
+        notify("err", err instanceof AdminApiError ? err.message : "Delete failed.");
+      } finally {
+        setBusy(false);
+      }
+    },
+    [fetchRequests, fetchPendingCount, notify]
+  );
+
+  const runBulk = useCallback(
+    async (action: "archive" | "delete" | "clearRejected" | "clearApprovedOld") => {
+      setBusy(true);
+      try {
+        const body: Record<string, unknown> = { action };
+        if (action === "archive" || action === "delete") {
+          const items = requests.filter((r) => selected.has(rowKey(r))).map((r) => ({ id: r.id, type: r.type }));
+          if (items.length === 0) {
+            notify("err", "Select at least one row.");
+            setBusy(false);
+            return;
+          }
+          body.items = items;
+        }
+        if (action === "clearApprovedOld") body.olderThanDays = 30;
+        const result = await adminApiRequest<{ message?: string }>("/api/admin/communication/requests/bulk", {
+          method: "POST",
+          body: JSON.stringify(body)
+        });
+        notify("ok", result.message ?? "Done.");
+        await Promise.all([fetchRequests(), fetchPendingCount()]);
+      } catch (err) {
+        notify("err", err instanceof AdminApiError ? err.message : "Bulk action failed.");
+      } finally {
+        setBusy(false);
+      }
+    },
+    [requests, selected, fetchRequests, fetchPendingCount, notify]
+  );
 
   const submitPasswordReset = async (event: FormEvent) => {
     event.preventDefault();
-    if (!selectedResetRequest?.teacherId) {
-      setError("This request is not linked to a teacher profile.");
+    if (!resetTarget?.teacherId) {
+      notify("err", "This request is not linked to a teacher profile.");
       return;
     }
-    setLoading(true);
-    setError(null);
-    setMessage(null);
+    setBusy(true);
     try {
-      if (!isFirebaseConfigured) {
-        setPasswordRequests((requests) =>
-          requests.map((request) =>
-            request.id === selectedResetRequest.id ? { ...request, status: "resolved" } : request
-          )
-        );
-        setPasswordResetHistory((history) => [
-          {
-            id: `demo_reset_${Date.now()}`,
-            teacherId: selectedResetRequest.teacherId ?? "",
-            teacherName: selectedResetRequest.teacherName ?? "",
-            employeeId: selectedResetRequest.employeeId ?? selectedResetRequest.loginId,
-            resetBy: "admin_demo",
-            resetAt: new Date().toISOString(),
-            requestId: selectedResetRequest.id,
-            note: resetForm.adminNote
-          },
-          ...history
-        ]);
-        setSelectedResetRequest(null);
-        setResetForm(emptyResetForm);
-        setMessage("Demo password request resolved.");
-        return;
-      }
-
-      const result = await apiRequest<{ message?: string }>(
-        `/api/admin/teachers/${selectedResetRequest.teacherId}/reset-password`,
-        {
-          method: "POST",
-          body: JSON.stringify({
-            ...resetForm,
-            requestId: selectedResetRequest.id
-          })
-        }
-      );
-      setSelectedResetRequest(null);
+      const result = await adminApiRequest<{ message?: string }>(`/api/admin/teachers/${resetTarget.teacherId}/reset-password`, {
+        method: "POST",
+        body: JSON.stringify({ ...resetForm, requestId: resetTarget.id })
+      });
+      setResetTarget(null);
       setResetForm(emptyResetForm);
-      setMessage(result.message ?? "Password reset and request resolved.");
-      await loadNotifications();
+      notify("ok", result.message ?? "Password reset and request resolved.");
+      await Promise.all([fetchRequests(), fetchPendingCount()]);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to reset password");
+      notify("err", err instanceof AdminApiError ? err.message : "Unable to reset password.");
     } finally {
-      setLoading(false);
+      setBusy(false);
     }
   };
+
+  const allVisibleSelected = requests.length > 0 && requests.every((r) => selected.has(rowKey(r)));
+  const toggleAll = () => {
+    setSelected((prev) => {
+      if (allVisibleSelected) return new Set();
+      const next = new Set(prev);
+      requests.forEach((r) => next.add(rowKey(r)));
+      return next;
+    });
+  };
+  const toggleOne = (request: CommRequest) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      const key = rowKey(request);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  const askDelete = (request: CommRequest, hard: boolean) => {
+    setConfirmState({
+      text: hard
+        ? `Permanently delete this ${TYPE_LABEL[request.type]} request? This cannot be undone.`
+        : `Remove this ${TYPE_LABEL[request.type]} request from the list?`,
+      onConfirm: () => {
+        setConfirmState(null);
+        void deleteRequest(request, hard);
+      }
+    });
+  };
+
+  const selectedCount = useMemo(() => requests.filter((r) => selected.has(rowKey(r))).length, [requests, selected]);
 
   return (
     <>
       <PageHeader
-        title="Notifications"
-        description="Review password reset requests, leave requests, password reset history, and attendance edit audit logs."
+        title="Communication"
+        description="Password reset requests, leave requests, and attendance edit audit logs."
         action={
-          <button className="btn-secondary" onClick={loadNotifications} disabled={loading}>
-            <BellRing size={16} /> {loading ? "Refreshing..." : `${pendingCount} pending`}
+          <button className="btn-secondary" onClick={() => { void fetchRequests(); void fetchPendingCount(); }} disabled={loading}>
+            <BellRing size={16} /> {pendingCount === null ? "Refresh" : `${pendingCount} pending`}
           </button>
         }
       />
 
-      <section className="space-y-5 p-4 md:p-7">
-        {message && <div className="rounded-2xl border border-[#c8f0dc] bg-[#e6f8ef] px-4 py-3 text-sm font-semibold text-[#0f8d52]">{message}</div>}
-        {error && <div className="rounded-2xl border border-[#ffd5da] bg-[#ffebed] px-4 py-3 text-sm font-semibold text-[#c83f4d]">{error}</div>}
+      <section className="space-y-4 p-4 md:p-7">
+        {toast && (
+          <div
+            className={`rounded-2xl border px-4 py-3 text-sm font-semibold ${
+              toast.kind === "ok"
+                ? "border-[#c8f0dc] bg-[#e6f8ef] text-[#0f8d52]"
+                : "border-[#ffd5da] bg-[#ffebed] text-[#c83f4d]"
+            }`}
+          >
+            {toast.text}
+          </div>
+        )}
 
-        {selectedResetRequest && (
-          <form onSubmit={submitPasswordReset} className="card p-4">
+        {/* Tabs */}
+        <div className="flex flex-wrap gap-2">
+          {TABS.map((t) => (
+            <button
+              key={t.key}
+              type="button"
+              onClick={() => setTab(t.key)}
+              className={`rounded-full px-4 py-2 text-sm font-bold transition ${
+                tab === t.key ? "bg-[#2d3094] text-white shadow-sm" : "bg-white text-[#475067] ring-1 ring-[#e3e6f0] hover:bg-[#f3f4fb]"
+              }`}
+            >
+              {t.label}
+              {t.key === "pending" && pendingCount ? ` (${pendingCount})` : ""}
+            </button>
+          ))}
+        </div>
+
+        {/* Filters */}
+        <div className="card flex flex-wrap items-end gap-3 p-4">
+          <label className="text-xs font-semibold text-[#7d86a8]">
+            Type
+            <select className="field mt-1" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value as RequestType | "all")}>
+              {TYPE_FILTERS.map((t) => (
+                <option key={t.key} value={t.key}>{t.label}</option>
+              ))}
+            </select>
+          </label>
+          <label className="text-xs font-semibold text-[#7d86a8]">
+            From
+            <input type="date" className="field mt-1" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+          </label>
+          <label className="text-xs font-semibold text-[#7d86a8]">
+            To
+            <input type="date" className="field mt-1" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+          </label>
+          <label className="min-w-[180px] flex-1 text-xs font-semibold text-[#7d86a8]">
+            Search
+            <div className="relative mt-1">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8490b9]" />
+              <input
+                className="field pl-9"
+                placeholder="Name, employee ID, user id..."
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") setSearch(searchInput.trim()); }}
+              />
+            </div>
+          </label>
+          <button type="button" className="btn-secondary" onClick={() => setSearch(searchInput.trim())}>Apply</button>
+          {(startDate || endDate || search || typeFilter !== "all") && (
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => { setStartDate(""); setEndDate(""); setSearch(""); setSearchInput(""); setTypeFilter("all"); }}
+            >
+              Clear filters
+            </button>
+          )}
+        </div>
+
+        {/* Bulk actions */}
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-sm font-semibold text-[#6b7391]">{selectedCount} selected</span>
+          <button type="button" className="btn-secondary" onClick={() => void runBulk("archive")} disabled={busy || selectedCount === 0}>
+            <Archive size={15} /> Archive selected
+          </button>
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={() =>
+              setConfirmState({
+                text: `Remove ${selectedCount} selected request(s) from the list?`,
+                onConfirm: () => { setConfirmState(null); void runBulk("delete"); }
+              })
+            }
+            disabled={busy || selectedCount === 0}
+          >
+            <Trash2 size={15} /> Delete selected
+          </button>
+          <div className="mx-1 h-6 w-px bg-[#e3e6f0]" />
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={() =>
+              setConfirmState({ text: "Archive ALL rejected requests?", onConfirm: () => { setConfirmState(null); void runBulk("clearRejected"); } })
+            }
+            disabled={busy}
+          >
+            Clear rejected
+          </button>
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={() =>
+              setConfirmState({
+                text: "Archive all approved requests older than 30 days?",
+                onConfirm: () => { setConfirmState(null); void runBulk("clearApprovedOld"); }
+              })
+            }
+            disabled={busy}
+          >
+            Clear approved &gt; 30d
+          </button>
+        </div>
+
+        {/* Desktop table */}
+        <div className="card hidden overflow-hidden md:block">
+          <div className="max-h-[65vh] overflow-auto">
+            <table className="w-full min-w-[900px] text-left text-sm">
+              <thead className="sticky top-0 z-10 bg-[#f7f8fd] text-xs uppercase tracking-[0.03em] text-[#6f7898]">
+                <tr>
+                  <th className="px-4 py-3">
+                    <input type="checkbox" checked={allVisibleSelected} onChange={toggleAll} aria-label="Select all visible" />
+                  </th>
+                  <th className="px-4 py-3">Type</th>
+                  <th className="px-4 py-3">Name</th>
+                  <th className="px-4 py-3">Role / Class</th>
+                  <th className="px-4 py-3">Requested</th>
+                  <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3">Message</th>
+                  <th className="px-4 py-3 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loading && requests.length === 0
+                  ? Array.from({ length: 5 }).map((_, i) => (
+                      <tr key={`skeleton-${i}`} className="border-t border-[#edf0f7]">
+                        <td className="px-4 py-3" colSpan={8}>
+                          <div className="h-5 w-full animate-pulse rounded bg-[#eef0f7]" />
+                        </td>
+                      </tr>
+                    ))
+                  : requests.map((request) => (
+                      <tr key={rowKey(request)} className="border-t border-[#edf0f7] align-top hover:bg-[#fafbff]">
+                        <td className="px-4 py-3">
+                          <input type="checkbox" checked={selected.has(rowKey(request))} onChange={() => toggleOne(request)} aria-label="Select row" />
+                        </td>
+                        <td className="px-4 py-3 font-semibold text-[#303247]">{TYPE_LABEL[request.type]}</td>
+                        <td className="px-4 py-3 font-medium text-[#303247]">{request.name}</td>
+                        <td className="px-4 py-3 text-[#7d86a8]">{request.roleOrClass}</td>
+                        <td className="px-4 py-3 whitespace-nowrap text-[#7d86a8]">{formatDate(request.createdAt)}</td>
+                        <td className="px-4 py-3">
+                          <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${statusBadge(request)}`}>{statusLabel(request)}</span>
+                        </td>
+                        <td className="px-4 py-3 max-w-[260px] truncate text-[#5f6888]" title={request.message}>{request.message || "--"}</td>
+                        <td className="px-4 py-3">
+                          <RowActions
+                            request={request}
+                            busy={busy}
+                            isSuperAdmin={isSuperAdmin}
+                            onApprove={() => void runAction(request, "approve")}
+                            onReject={() => void runAction(request, "reject")}
+                            onReset={() => { setResetTarget(request); setResetForm(emptyResetForm); }}
+                            onArchive={() => void runAction(request, "archive")}
+                            onRestore={() => void runAction(request, "restore")}
+                            onDelete={(hard) => askDelete(request, hard)}
+                            onView={() => setDetails(request)}
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                {!loading && requests.length === 0 && (
+                  <tr>
+                    <td className="px-4 py-10 text-center text-sm font-medium text-[#7d86a8]" colSpan={8}>
+                      No {tab === "all" ? "" : tab} requests.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Mobile compact cards */}
+        <div className="space-y-2 md:hidden">
+          {loading && requests.length === 0 && (
+            <div className="card p-4"><div className="h-16 w-full animate-pulse rounded bg-[#eef0f7]" /></div>
+          )}
+          {!loading && requests.length === 0 && (
+            <div className="card py-8 text-center text-sm font-medium text-[#7d86a8]">No {tab === "all" ? "" : tab} requests.</div>
+          )}
+          {requests.map((request) => (
+            <div key={rowKey(request)} className="card p-3">
+              <div className="flex items-start gap-2">
+                <input type="checkbox" className="mt-1" checked={selected.has(rowKey(request))} onChange={() => toggleOne(request)} aria-label="Select row" />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="truncate text-sm font-bold text-[#303247]">{request.name}</p>
+                    <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold ${statusBadge(request)}`}>{statusLabel(request)}</span>
+                  </div>
+                  <p className="mt-0.5 text-xs font-medium text-[#7d86a8]">{TYPE_LABEL[request.type]} · {request.roleOrClass} · {formatDate(request.createdAt)}</p>
+                  {request.message && <p className="mt-1 line-clamp-2 text-xs text-[#5f6888]">{request.message}</p>}
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    <RowActions
+                      request={request}
+                      busy={busy}
+                      compact
+                      isSuperAdmin={isSuperAdmin}
+                      onApprove={() => void runAction(request, "approve")}
+                      onReject={() => void runAction(request, "reject")}
+                      onReset={() => { setResetTarget(request); setResetForm(emptyResetForm); }}
+                      onArchive={() => void runAction(request, "archive")}
+                      onRestore={() => void runAction(request, "restore")}
+                      onDelete={(hard) => askDelete(request, hard)}
+                      onView={() => setDetails(request)}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {hasMore && (
+          <div className="text-center">
+            <button type="button" className="btn-secondary" onClick={() => void fetchRequests({ append: true, cursor: nextCursor })} disabled={loading || !nextCursor}>
+              {loading ? "Loading..." : "Load more"}
+            </button>
+          </div>
+        )}
+      </section>
+
+      {/* Password reset modal */}
+      {resetTarget && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" onClick={() => setResetTarget(null)}>
+          <form onSubmit={submitPasswordReset} className="card w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h2 className="font-bold text-[#1f2136]">Reset teacher password</h2>
-                <p className="text-sm font-medium text-[#7d86a8]">
-                  {selectedResetRequest.teacherName || selectedResetRequest.loginId} · {selectedResetRequest.employeeId || selectedResetRequest.loginId}
-                </p>
+                <p className="text-sm font-medium text-[#7d86a8]">{resetTarget.name} · {resetTarget.employeeId || resetTarget.loginId}</p>
               </div>
-              <button type="button" className="grid h-9 w-9 place-items-center rounded-xl text-[#7d86a8] hover:bg-[#f4f5fb] hover:text-[#3033a1]" onClick={() => setSelectedResetRequest(null)}>
+              <button type="button" className="grid h-9 w-9 place-items-center rounded-xl text-[#7d86a8] hover:bg-[#f4f5fb]" onClick={() => setResetTarget(null)}>
                 <XCircle size={18} />
               </button>
             </div>
-            <div className="mt-4 grid gap-3 md:grid-cols-3">
-              <PasswordInput placeholder="New password" value={resetForm.password} onChange={(event) => setResetForm({ ...resetForm, password: event.target.value })} required />
-              <PasswordInput placeholder="Confirm password" value={resetForm.confirmPassword} onChange={(event) => setResetForm({ ...resetForm, confirmPassword: event.target.value })} required />
-              <input className="field" placeholder="Admin note" value={resetForm.adminNote} onChange={(event) => setResetForm({ ...resetForm, adminNote: event.target.value })} />
+            <div className="mt-4 space-y-3">
+              <PasswordInput placeholder="New password" value={resetForm.password} onChange={(e) => setResetForm({ ...resetForm, password: e.target.value })} required />
+              <PasswordInput placeholder="Confirm password" value={resetForm.confirmPassword} onChange={(e) => setResetForm({ ...resetForm, confirmPassword: e.target.value })} required />
+              <input className="field" placeholder="Admin note" value={resetForm.adminNote} onChange={(e) => setResetForm({ ...resetForm, adminNote: e.target.value })} />
             </div>
-            <button className="btn-primary mt-4" disabled={loading}>
+            <button className="btn-primary mt-4" disabled={busy}>
               <KeyRound size={16} /> Reset and resolve
             </button>
           </form>
-        )}
+        </div>
+      )}
 
-        <div className="grid gap-4 xl:grid-cols-2">
-          <div className="card p-4">
-            <div className="mb-4 flex items-center gap-2 font-semibold">
-              <KeyRound size={18} /> Password reset requests
+      {/* Details modal */}
+      {details && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" onClick={() => setDetails(null)}>
+          <div className="card w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-start justify-between gap-4">
+              <h2 className="font-bold text-[#1f2136]">{TYPE_LABEL[details.type]} request</h2>
+              <button type="button" className="grid h-9 w-9 place-items-center rounded-xl text-[#7d86a8] hover:bg-[#f4f5fb]" onClick={() => setDetails(null)}>
+                <XCircle size={18} />
+              </button>
             </div>
-            <div className="space-y-3">
-              {passwordRequests.map((request) => (
-                <div key={request.id ?? request.loginId} className="rounded-xl border border-[#e3e6f0] bg-[#fafbff] p-3">
-                  <div className="flex flex-wrap items-start justify-between gap-2">
-                    <div>
-                      <p className="font-bold text-[#303247]">{request.teacherName || request.loginId}</p>
-                      <p className="text-sm font-medium text-[#7d86a8]">{request.employeeId || request.loginId} · {request.requestedAt ? new Date(request.requestedAt).toLocaleString() : "--"}</p>
-                    </div>
-                    <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${statusClass(request.status)}`}>{request.status}</span>
-                  </div>
-                  {request.status === "open" && (
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      <button className="btn-primary" onClick={() => setSelectedResetRequest(request)} disabled={!request.teacherId || loading}>
-                        <KeyRound size={15} /> Reset password
-                      </button>
-                      <button className="btn-secondary" onClick={() => rejectPasswordRequest(request.id)} disabled={loading}>
-                        <XCircle size={15} /> Reject
-                      </button>
-                    </div>
-                  )}
-                </div>
-              ))}
-              {!passwordRequests.length && <p className="text-sm font-medium text-[#7d86a8]">No password requests.</p>}
-            </div>
+            <dl className="mt-4 space-y-2 text-sm">
+              <DetailRow label="Name" value={details.name} />
+              <DetailRow label="Role / Class" value={details.roleOrClass} />
+              <DetailRow label="Status" value={statusLabel(details)} />
+              <DetailRow label="Requested" value={formatDate(details.createdAt)} />
+              <DetailRow label="Message" value={details.message || "--"} />
+              {details.employeeId && <DetailRow label="Employee ID" value={details.employeeId} />}
+              {details.teacherId && <DetailRow label="Teacher ID" value={details.teacherId} />}
+            </dl>
           </div>
+        </div>
+      )}
 
-          <div className="card p-4">
-            <div className="mb-4 flex items-center gap-2 font-semibold">
-              <ClipboardCheck size={18} /> Leave requests
-            </div>
-            <div className="space-y-3">
-              {leaveRequests.map((request) => (
-                <div key={request.id ?? `${request.teacherId}_${request.startDate}`} className="rounded-xl border border-[#e3e6f0] bg-[#fafbff] p-3">
-                  <div className="flex flex-wrap items-start justify-between gap-2">
-                    <div>
-                      <p className="font-bold text-[#303247]">{request.teacherName}</p>
-                      <p className="text-sm font-medium text-[#7d86a8]">{request.startDate} to {request.endDate}</p>
-                      <p className="mt-1 text-sm font-medium text-[#5f6888]">{request.reason}</p>
-                    </div>
-                    <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${statusClass(request.status)}`}>{request.status}</span>
-                  </div>
-                  {request.status === "pending" && (
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      <button className="btn-primary" onClick={() => reviewLeave(request.id, "approved")} disabled={loading}>
-                        <CheckCircle2 size={15} /> Approve
-                      </button>
-                      <button className="btn-secondary" onClick={() => reviewLeave(request.id, "rejected")} disabled={loading}>
-                        <XCircle size={15} /> Reject
-                      </button>
-                    </div>
-                  )}
-                </div>
-              ))}
-              {!leaveRequests.length && <p className="text-sm font-medium text-[#7d86a8]">No leave requests.</p>}
+      {/* Confirm modal */}
+      {confirmState && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" onClick={() => setConfirmState(null)}>
+          <div className="card w-full max-w-sm p-6" onClick={(e) => e.stopPropagation()}>
+            <h2 className="font-bold text-[#1f2136]">Please confirm</h2>
+            <p className="mt-2 text-sm font-medium text-[#5f6888]">{confirmState.text}</p>
+            <div className="mt-5 flex justify-end gap-2">
+              <button type="button" className="btn-secondary" onClick={() => setConfirmState(null)}>Cancel</button>
+              <button type="button" className="btn-primary" onClick={confirmState.onConfirm} disabled={busy}>Confirm</button>
             </div>
           </div>
         </div>
-
-        {/* Audit/history tables — desktop detail, hidden on the focused mobile view */}
-        <div className="hidden gap-4 md:grid xl:grid-cols-2">
-          <div className="card overflow-hidden">
-            <div className="border-b border-stone-100 px-4 py-3 font-semibold">Password reset history</div>
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[620px] text-left text-sm">
-                <thead className="bg-stone-50 text-xs uppercase text-stone-500">
-                  <tr><th className="px-4 py-3">Teacher</th><th className="px-4 py-3">Employee ID</th><th className="px-4 py-3">Reset at</th><th className="px-4 py-3">Admin</th></tr>
-                </thead>
-                <tbody>
-                  {passwordResetHistory.map((item) => (
-                    <tr key={item.id ?? `${item.teacherId}_${item.resetAt}`} className="border-t border-stone-100">
-                      <td className="px-4 py-3 font-medium">{item.teacherName}</td>
-                      <td className="px-4 py-3">{item.employeeId}</td>
-                      <td className="px-4 py-3">{new Date(item.resetAt).toLocaleString()}</td>
-                      <td className="px-4 py-3">{item.resetBy}</td>
-                    </tr>
-                  ))}
-                  {!passwordResetHistory.length && <tr><td className="px-4 py-6 text-center text-stone-500" colSpan={4}>No password reset history.</td></tr>}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <div className="card overflow-hidden">
-            <div className="border-b border-stone-100 px-4 py-3 font-semibold">Attendance edit audit</div>
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[620px] text-left text-sm">
-                <thead className="bg-stone-50 text-xs uppercase text-stone-500">
-                  <tr><th className="px-4 py-3">Date</th><th className="px-4 py-3">Teacher ID</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Reason</th></tr>
-                </thead>
-                <tbody>
-                  {attendanceEditAudits.map((item) => (
-                    <tr key={item.id ?? `${item.attendanceId}_${item.editedAt}`} className="border-t border-stone-100">
-                      <td className="px-4 py-3">{item.date}</td>
-                      <td className="px-4 py-3">{item.teacherId}</td>
-                      <td className="px-4 py-3">{item.previousStatus ? `${item.previousStatus} -> ${item.newStatus}` : item.newStatus}</td>
-                      <td className="px-4 py-3">{item.reason}</td>
-                    </tr>
-                  ))}
-                  {!attendanceEditAudits.length && <tr><td className="px-4 py-6 text-center text-stone-500" colSpan={4}>No attendance edit audits.</td></tr>}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      </section>
+      )}
     </>
+  );
+}
+
+function DetailRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex gap-3">
+      <dt className="w-28 shrink-0 font-semibold text-[#7d86a8]">{label}</dt>
+      <dd className="flex-1 font-medium text-[#303247]">{value}</dd>
+    </div>
+  );
+}
+
+function RowActions({
+  request,
+  busy,
+  compact,
+  isSuperAdmin,
+  onApprove,
+  onReject,
+  onReset,
+  onArchive,
+  onRestore,
+  onDelete,
+  onView
+}: {
+  request: CommRequest;
+  busy: boolean;
+  compact?: boolean;
+  isSuperAdmin: boolean;
+  onApprove: () => void;
+  onReject: () => void;
+  onReset: () => void;
+  onArchive: () => void;
+  onRestore: () => void;
+  onDelete: (hard: boolean) => void;
+  onView: () => void;
+}) {
+  const isPending = request.status === "pending" && !request.archived;
+  const canApproveLeave = request.type === "leave" && isPending;
+  const canResetPassword = request.type === "password_reset" && isPending;
+  const canReject = (request.type === "leave" || request.type === "password_reset") && isPending;
+  const btn = compact
+    ? "inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-bold"
+    : "inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-bold";
+
+  return (
+    <div className={compact ? "flex flex-wrap gap-1.5" : "flex flex-wrap justify-end gap-1.5"}>
+      {canApproveLeave && (
+        <button className={`${btn} bg-[#e6f8ef] text-[#0f8d52] hover:bg-[#d6f2e3]`} onClick={onApprove} disabled={busy}>
+          <CheckCircle2 size={14} /> Approve
+        </button>
+      )}
+      {canResetPassword && (
+        <button className={`${btn} bg-[#eef0ff] text-[#3033a1] hover:bg-[#e3e5ff]`} onClick={onReset} disabled={busy || !request.teacherId}>
+          <KeyRound size={14} /> Reset
+        </button>
+      )}
+      {canReject && (
+        <button className={`${btn} bg-[#ffebed] text-[#ed515d] hover:bg-[#ffdfe4]`} onClick={onReject} disabled={busy}>
+          <XCircle size={14} /> Reject
+        </button>
+      )}
+      {request.archived ? (
+        <button className={`${btn} bg-[#eef2ff] text-[#5a63c4] hover:bg-[#e3e8ff]`} onClick={onRestore} disabled={busy}>
+          <ArchiveRestore size={14} /> Restore
+        </button>
+      ) : (
+        <button className={`${btn} bg-[#f3f4fb] text-[#5f6888] hover:bg-[#e9ebf5]`} onClick={onArchive} disabled={busy}>
+          <Archive size={14} /> Archive
+        </button>
+      )}
+      <button className={`${btn} bg-[#f3f4fb] text-[#5f6888] hover:bg-[#e9ebf5]`} onClick={onView}>
+        <Eye size={14} /> {compact ? "" : "View"}
+      </button>
+      <button className={`${btn} bg-[#fff0f1] text-[#c83f4d] hover:bg-[#ffe0e3]`} onClick={() => onDelete(false)} disabled={busy}>
+        <Trash2 size={14} /> {compact ? "" : "Delete"}
+      </button>
+      {isSuperAdmin && request.type !== "attendance_edit" && (
+        <button className={`${btn} bg-[#ffe0e3] text-[#a3242f] hover:bg-[#ffd0d5]`} onClick={() => onDelete(true)} disabled={busy} title="Permanent delete (super admin)">
+          <Trash2 size={14} /> {compact ? "!" : "Hard delete"}
+        </button>
+      )}
+    </div>
   );
 }

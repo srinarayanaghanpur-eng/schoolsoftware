@@ -40,6 +40,15 @@ export async function requireAdmin(req: Request): Promise<DecodedIdToken | null>
   return decodedToken;
 }
 
+/** Allow the request only for super_admin (used for hard deletes of records). */
+export async function requireSuperAdmin(req: Request): Promise<DecodedIdToken | null> {
+  const decodedToken = await verifyBearerToken(req);
+  if (!decodedToken) return null;
+  const role = await resolveRole(decodedToken);
+  if (role !== "super_admin") return null;
+  return decodedToken;
+}
+
 export async function requireSignedIn(req: Request): Promise<DecodedIdToken | null> {
   return verifyBearerToken(req);
 }

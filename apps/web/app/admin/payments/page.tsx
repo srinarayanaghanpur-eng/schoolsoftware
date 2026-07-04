@@ -5,6 +5,7 @@ import { CheckCircle2, Plus, Printer, XCircle } from "lucide-react";
 import { Payment } from "@/types/fee.types";
 import { FeeStatusBadge, PaymentMethodBadge } from "@/components/FeeComponents";
 import { PageHeader } from "@/components/PageHeader";
+import { PaginationControls } from "@/components/PaginationControls";
 import { useAdminSession } from "@/components/AdminSessionContext";
 import { hasPermission } from "@sri-narayana/shared";
 import { adminApiRequest } from "@/lib/adminApiClient";
@@ -36,6 +37,7 @@ const PAYMENT_METHODS: { value: PaymentMethod; label: string }[] = [
 ];
 
 const CLASS_OPTIONS = ["Nur", "LKG", "UKG", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"];
+const RECEIPTS_PAGE_SIZE = 25;
 
 function formatPaymentDate(value: unknown) {
   if (!value) return "--";
@@ -54,12 +56,13 @@ export default function PaymentsPage() {
   const [loading, setLoading] = useState(true);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(false);
+  const [currentPage, setCurrentPage] = useState(0);
+  const [pageCursors, setPageCursors] = useState<(string | null)[]>([null]);
   const [filterClass, setFilterClass] = useState("");
   const [filterSection, setFilterSection] = useState("");
   const [filterMethod, setFilterMethod] = useState("");
   const [filterDateFrom, setFilterDateFrom] = useState("");
   const [filterDateTo, setFilterDateTo] = useState("");
-  const [filterPageSize, setFilterPageSize] = useState(25);
   const { sectionsByClass, sectionsFor } = useClassSections();
   // Section choices: the selected class's sections, or the union across
   // classes when no class filter is set.
@@ -75,30 +78,53 @@ export default function PaymentsPage() {
   const [cancelSuccess, setCancelSuccess] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchPayments();
+    fetchPayments({ page: 0, cursor: null });
   }, []);
   useRefreshOnFocus(() => fetchPayments());
 
-  const fetchPayments = async (options: { append?: boolean; cursor?: string | null } = {}) => {
+  const fetchPayments = async (options: { cursor?: string | null; page?: number } = {}) => {
+    const targetPage = options.page ?? currentPage;
+    const targetCursor = options.cursor !== undefined ? options.cursor : pageCursors[targetPage] ?? null;
     try {
       setError(null);
-      const params = new URLSearchParams({ pageSize: String(filterPageSize) });
+      setLoading(true);
+      const params = new URLSearchParams({ pageSize: String(RECEIPTS_PAGE_SIZE) });
       if (filterClass) params.set("classId", filterClass);
       if (filterSection) params.set("sectionId", filterSection);
       if (filterMethod) params.set("paymentMode", filterMethod);
       if (filterDateFrom) params.set("dateFrom", filterDateFrom);
       if (filterDateTo) params.set("dateTo", filterDateTo);
-      if (options.cursor) params.set("cursor", options.cursor);
+      if (targetCursor) params.set("cursor", targetCursor);
       const data = await adminApiRequest<{ success?: boolean; data: Payment[]; nextCursor?: string | null; hasMore?: boolean }>(`/api/admin/payments?${params}`);
-      setPayments((prev) => options.append ? [...prev, ...(data.data ?? [])] : data.data ?? []);
+      setPayments(data.data ?? []);
       setNextCursor(data.nextCursor ?? null);
       setHasMore(Boolean(data.hasMore));
+      setCurrentPage(targetPage);
+      setPageCursors((prev) => {
+        const next = targetPage === 0 ? [null] : prev.slice(0, targetPage + 1);
+        if (data.nextCursor) next[targetPage + 1] = data.nextCursor;
+        return next;
+      });
     } catch (error) {
       console.error("Failed to fetch payments:", error);
       setError(error instanceof Error ? error.message : "Failed to load payments.");
+      setPayments([]);
+      setNextCursor(null);
+      setHasMore(false);
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchNextPaymentPage = () => {
+    if (!nextCursor) return;
+    fetchPayments({ page: currentPage + 1, cursor: nextCursor });
+  };
+
+  const fetchPreviousPaymentPage = () => {
+    if (currentPage === 0) return;
+    const previousPage = currentPage - 1;
+    fetchPayments({ page: previousPage, cursor: pageCursors[previousPage] ?? null });
   };
 
   const handleCancel = async () => {
@@ -118,7 +144,7 @@ export default function PaymentsPage() {
       setCancelSuccess(result.message || "Cancellation request submitted for approval.");
       setCancelTarget(null);
       setCancelReason("");
-      fetchPayments();
+      fetchPayments({ page: currentPage, cursor: pageCursors[currentPage] ?? null });
     } catch (err) {
       setCancelError(err instanceof Error ? err.message : "Failed to cancel receipt.");
     } finally {
@@ -148,15 +174,15 @@ export default function PaymentsPage() {
       <section className="space-y-5 p-4 md:p-7">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <div className="card p-5">
-            <p className="text-sm font-semibold text-[#7d86a8]">Loaded Payments</p>
+            <p className="text-sm font-semibold text-[#7d86a8]">Page Receipts</p>
             <p className="mt-3 text-[32px] font-extrabold leading-none text-[#1b1d32]">{payments.length}</p>
           </div>
           <div className="card p-5">
-            <p className="text-sm font-semibold text-[#7d86a8]">Loaded Collected</p>
+            <p className="text-sm font-semibold text-[#7d86a8]">Page Collected</p>
             <p className="mt-3 text-[32px] font-extrabold leading-none text-[#1b1d32]">₹{totalCollected.toLocaleString("en-IN")}</p>
           </div>
           <div className="card p-5">
-            <p className="text-sm font-semibold text-[#7d86a8]">Average Loaded Payment</p>
+            <p className="text-sm font-semibold text-[#7d86a8]">Average Page Receipt</p>
             <p className="mt-3 text-[32px] font-extrabold leading-none text-[#1b1d32]">
               ₹{payments.length > 0 ? Math.round(totalCollected / payments.length).toLocaleString("en-IN") : "0"}
             </p>
@@ -169,7 +195,7 @@ export default function PaymentsPage() {
             <PaymentForm
               onSuccess={() => {
                 setShowForm(false);
-                fetchPayments();
+                fetchPayments({ page: 0, cursor: null });
               }}
               onCancel={() => setShowForm(false)}
             />
@@ -212,15 +238,10 @@ export default function PaymentsPage() {
             To
             <input type="date" className="field mt-1" value={filterDateTo} onChange={(e) => setFilterDateTo(e.target.value)} />
           </label>
-          <label className="text-xs font-semibold text-[#7d86a8]">
-            Per page
-            <select className="field mt-1" value={filterPageSize} onChange={(e) => setFilterPageSize(Number(e.target.value))}>
-              <option value={25}>25</option>
-              <option value={50}>50</option>
-              <option value={100}>100</option>
-            </select>
-          </label>
-          <button type="button" className="btn-secondary" onClick={() => fetchPayments()} disabled={loading}>
+          <span className="inline-flex h-10 items-center rounded-xl border border-[#dfe3f1] bg-[#f7f8fd] px-3 text-sm font-bold text-[#303247]">
+            25 / page
+          </span>
+          <button type="button" className="btn-secondary" onClick={() => fetchPayments({ page: 0, cursor: null })} disabled={loading}>
             Apply
           </button>
           <button
@@ -298,11 +319,20 @@ export default function PaymentsPage() {
               </div>
             ))
           )}
-          {hasMore && (
-            <div className="pt-2 text-center">
-              <button type="button" className="btn-secondary" onClick={() => fetchPayments({ append: true, cursor: nextCursor })} disabled={loading || !nextCursor}>
-                Load more
-              </button>
+          {(payments.length > 0 || currentPage > 0 || hasMore) && (
+            <div className="card overflow-hidden">
+              <PaginationControls
+                page={currentPage}
+                pageSize={RECEIPTS_PAGE_SIZE}
+                itemCount={payments.length}
+                itemLabel="receipts"
+                hasPrevious={currentPage > 0}
+                hasNext={hasMore}
+                loading={loading}
+                onPrevious={fetchPreviousPaymentPage}
+                onNext={fetchNextPaymentPage}
+                className="border-t-0"
+              />
             </div>
           )}
         </div>

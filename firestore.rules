@@ -6,19 +6,50 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function isAdmin() {
-      return signedIn() && (
-        request.auth.token.role == "admin" ||
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin"
-      );
-    }
-
+    // ---- Role resolution -------------------------------------------------
+    // Prefer the Firebase custom-claim fields (role / status / teacherId),
+    // which cost ZERO Firestore reads, and fall back to the users/{uid}
+    // document only for legacy accounts whose claims predate those fields.
+    // The web API sets all three claims whenever a user or teacher is created
+    // or updated, so the claim is authoritative. Trade-off: a role/status
+    // change is written to the claim server-side immediately, but a signed-in
+    // client keeps its cached ID token for up to ~1h until it refreshes.
+    //
+    // This is deliberate: the previous rules called get() up to 3x per teacher
+    // request, multiplying billed reads and exhausting the Firestore free-tier
+    // daily quota.
     function userDoc() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
 
+    function effectiveRole() {
+      return request.auth.token.role != null
+        ? request.auth.token.role
+        : userDoc().role;
+    }
+
+    function effectiveStatus() {
+      return request.auth.token.status != null
+        ? request.auth.token.status
+        : userDoc().status;
+    }
+
+    function effectiveTeacherId() {
+      return request.auth.token.teacherId != null
+        ? request.auth.token.teacherId
+        : userDoc().teacherId;
+    }
+
+    function isAdmin() {
+      return signedIn() && (effectiveRole() == "admin" || effectiveRole() == "super_admin");
+    }
+
+    function isSuperAdmin() {
+      return signedIn() && effectiveRole() == "super_admin";
+    }
+
     function isActiveTeacher() {
-      return signedIn() && userDoc().role == "teacher" && userDoc().status == "active";
+      return signedIn() && effectiveRole() == "teacher" && effectiveStatus() == "active";
     }
 
     function isOwnTeacherProfile() {
@@ -26,7 +57,7 @@ service cloud.firestore {
     }
 
     function isOwnTeacherId(teacherId) {
-      return isActiveTeacher() && userDoc().teacherId == teacherId;
+      return isActiveTeacher() && effectiveTeacherId() == teacherId;
     }
 
     match /users/{uid} {
@@ -70,22 +101,34 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
 
+    // Password reset requests: admins review/approve/reject/archive; a teacher
+    // may only create their own request. Hard delete is super-admin only.
     match /password_reset_requests/{requestId} {
-      allow read, write: if isAdmin();
+      allow read: if isAdmin();
+      allow create: if isAdmin() || isOwnTeacherId(request.resource.data.teacherId);
+      allow update: if isAdmin();
+      allow delete: if isSuperAdmin();
     }
 
     match /password_reset_history/{historyId} {
-      allow read, write: if isAdmin();
+      allow read: if isAdmin();
+      allow create, update: if isAdmin();
+      allow delete: if isSuperAdmin();
     }
 
     match /leave_requests/{requestId} {
       allow read: if isAdmin() || isOwnTeacherId(resource.data.teacherId);
       allow create: if isAdmin() || isOwnTeacherId(request.resource.data.teacherId);
-      allow update, delete: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isSuperAdmin();
     }
 
+    // Attendance edit audit logs are permanent audit records: admins may read
+    // and append/annotate (archive/soft-hide), but NEVER delete from a client.
     match /attendance_edit_audit_logs/{auditId} {
-      allow read, write: if isAdmin();
+      allow read: if isAdmin();
+      allow create, update: if isAdmin();
+      allow delete: if false;
     }
 
     match /admin_notifications/{notificationId} {
@@ -182,11 +225,11 @@ service cloud.firestore {
 
     // Fee Concession Management Rules
     function isAccountant() {
-      return signedIn() && userDoc().role == "accountant";
+      return signedIn() && effectiveRole() == "accountant";
     }
 
     function isPrincipal() {
-      return signedIn() && userDoc().role == "principal";
+      return signedIn() && effectiveRole() == "principal";
     }
 
     // Concessions collection

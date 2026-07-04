@@ -47,19 +47,23 @@ export async function GET(request: NextRequest) {
     if (dateFrom) query = query.where("createdAt", ">=", new Date(dateFrom));
     if (dateTo) query = query.where("createdAt", "<=", new Date(`${dateTo}T23:59:59.999`));
 
-    query = query.orderBy('createdAt', 'desc').limit(pageSize);
+    query = query.orderBy('createdAt', 'desc');
     if (cursor) {
       const cursorDoc = await db.collection("payments").doc(cursor).get();
       if (cursorDoc.exists) query = query.startAfter(cursorDoc);
     }
+    query = query.limit(pageSize + 1);
 
     const snapshot = await query.get();
     logFirestoreRead("PaymentsAPI", "payments", snapshot, { branchId, academicYearId, classId, sectionId, studentId, status, paymentMethod, receiptNo, pageSize });
-    const payments = snapshot.docs.map((doc: { id: string; data: () => any }) => ({
+    const pageDocs = snapshot.docs.slice(0, pageSize);
+    const payments = pageDocs.map((doc: { id: string; data: () => any }) => ({
       id: doc.id,
       ...doc.data()
     }));
-    const nextCursor = snapshot.docs.length === pageSize ? snapshot.docs[snapshot.docs.length - 1].id : null;
+    const nextCursor = snapshot.docs.length > pageSize && pageDocs.length > 0
+      ? pageDocs[pageDocs.length - 1].id
+      : null;
 
     return NextResponse.json({ success: true, data: payments, pageSize, nextCursor, hasMore: Boolean(nextCursor) });
   } catch (error) {

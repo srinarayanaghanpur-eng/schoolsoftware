@@ -59,36 +59,43 @@ export async function GET(request: NextRequest) {
 
     let query: any = applyScope(db.collection('students'));
     let appliedLimit = pageSize;
+    let canUseCursorPaging = false;
 
     if (q) {
       const normalized = normalizeText(q);
       if (/^\d{6,}$/.test(normalized)) {
         appliedLimit = 10;
-        query = query.where("phone", "==", normalized).limit(appliedLimit);
+        query = query.where("phone", "==", normalized);
       } else if (/^[a-z]*[-/]?\d+$/i.test(q) || /^\d+$/.test(q)) {
         appliedLimit = 10;
-        query = query.where("admissionNumber", "==", q).limit(appliedLimit);
+        query = query.where("admissionNumber", "==", q);
       } else {
         appliedLimit = Math.min(pageSize, 25);
-        query = query.orderBy("studentNameLower", "asc").startAt(normalized).endAt(`${normalized}\uf8ff`).limit(appliedLimit);
+        query = query.orderBy("studentNameLower", "asc").startAt(normalized).endAt(`${normalized}\uf8ff`);
       }
     } else {
-      query = query.orderBy("admissionNumber", "asc").limit(pageSize);
+      canUseCursorPaging = true;
+      query = query.orderBy("admissionNumber", "asc");
     }
 
-    if (cursor && !q) {
+    if (cursor && canUseCursorPaging) {
       const cursorDoc = await db.collection("students").doc(cursor).get();
       if (cursorDoc.exists) query = query.startAfter(cursorDoc);
     }
 
+    query = query.limit(canUseCursorPaging ? pageSize + 1 : appliedLimit);
+
     const snapshot = await query.get();
     logFirestoreRead("StudentsAPI", "students", snapshot, { branchId, academicYearId, classId, sectionId, status, q: q || "none", pageSize });
-    const students = snapshot.docs.map((doc: { id: string; data: () => any }) => ({
+    const pageDocs = canUseCursorPaging ? snapshot.docs.slice(0, pageSize) : snapshot.docs;
+    const students = pageDocs.map((doc: { id: string; data: () => any }) => ({
       id: doc.id,
       ...doc.data()
     }));
 
-    const nextCursor = !q && snapshot.docs.length === appliedLimit ? snapshot.docs[snapshot.docs.length - 1].id : null;
+    const nextCursor = canUseCursorPaging && snapshot.docs.length > pageSize && pageDocs.length > 0
+      ? pageDocs[pageDocs.length - 1].id
+      : null;
 
     return NextResponse.json({ success: true, data: students, pageSize, nextCursor, hasMore: Boolean(nextCursor) });
   } catch (error) {
