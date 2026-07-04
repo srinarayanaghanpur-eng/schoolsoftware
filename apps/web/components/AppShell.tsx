@@ -29,9 +29,11 @@ import {
   LayoutDashboard,
   Layers,
   LogOut,
+  MapPin,
   Megaphone,
   Menu,
   MessageSquare,
+  Phone,
   ReceiptIndianRupee,
   RefreshCw,
   Settings,
@@ -54,6 +56,7 @@ import { onAuthStateChanged, signOut } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import {
   ROLE_LABELS,
+  SCHOOL_CONTACT,
   canAccessModule,
   isValidRole,
   modulesForRole,
@@ -1037,9 +1040,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <LiveClock className="hidden sm:inline-flex" />
           <DarkModeToggle />
           {role && canAccessModule(role, "communication") && (
-            <Link href="/admin/notifications" aria-label="Communication & notifications" className="relative grid h-11 w-11 place-items-center rounded-lg bg-accent text-accent-foreground transition hover:bg-muted">
+            <Link href="/admin/notifications" aria-label="Communication & notifications" className="relative grid h-10 w-10 place-items-center rounded-lg bg-accent text-accent-foreground transition hover:bg-muted md:h-11 md:w-11">
               <BellRing size={19} />
-              <span className="absolute right-3 top-3 h-1.5 w-1.5 rounded-full bg-destructive ring-2 ring-card" />
+              <span className="absolute right-2.5 top-2.5 h-1.5 w-1.5 rounded-full bg-destructive ring-2 ring-card md:right-3 md:top-3" />
             </Link>
           )}
           <button
@@ -1048,7 +1051,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             disabled={refreshing}
             aria-label="Hard refresh app data"
             title="Hard refresh (clears cache & reloads the whole app)"
-            className="ml-1 grid h-11 w-11 place-items-center rounded-lg bg-accent text-accent-foreground transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
+            className="ml-1 grid h-10 w-10 place-items-center rounded-lg bg-accent text-accent-foreground transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60 md:h-11 md:w-11"
           >
             <RefreshCw size={19} className={clsx(refreshing && "animate-spin")} />
           </button>
@@ -1057,6 +1060,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <ErrorBoundary resetKey={pathname}>
             {sessionLoading ? <BrandLoader message="Loading secure workspace…" /> : routeDenied ? <AccessDeniedState module={currentModule} /> : (<>{!contextualSubnav && <SectionTabs />}{children}</>)}
           </ErrorBoundary>
+          {isPortalRole && !sessionLoading && (
+            <footer className="mt-6 border-t border-border bg-card/60 px-4 py-6 text-center md:px-7">
+              <p className="text-sm font-extrabold tracking-tight text-foreground">{SCHOOL_CONTACT.name}</p>
+              <div className="mt-2 flex flex-col items-center justify-center gap-1.5 text-xs font-medium text-muted-foreground sm:flex-row sm:gap-4">
+                <span className="inline-flex items-center gap-1.5">
+                  <Phone size={13} className="text-primary" /> {SCHOOL_CONTACT.phone}
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <MapPin size={13} className="text-primary" /> {SCHOOL_CONTACT.address}
+                </span>
+              </div>
+            </footer>
+          )}
         </div>
       </main>
 

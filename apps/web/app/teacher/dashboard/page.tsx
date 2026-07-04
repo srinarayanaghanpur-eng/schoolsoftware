@@ -6,15 +6,17 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { TeacherAttendancePanel } from "@/components/TeacherAttendancePanel";
 import { BrandLoader } from "@/components/BrandLoader";
 import { auth } from "@sri-narayana/shared/firebase/client";
-import { getAttendancePercentage, type AttendanceRecord, type Teacher } from "@sri-narayana/shared";
+import { getAttendancePercentage, type AttendanceRecord, type Holiday, type Teacher } from "@sri-narayana/shared";
 import { signOut } from "firebase/auth";
-import { CalendarDays, CheckCircle2, Circle, Clock3, LogOut, MapPin, Sparkles, UserRound } from "lucide-react";
+import { CalendarDays, CalendarOff, CheckCircle2, Circle, Clock3, LogOut, MapPin, Sparkles, UserRound } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
 type TeacherDashboardPayload = {
   teacher: Teacher;
   records: AttendanceRecord[];
+  holidays?: Holiday[];
+  todayHoliday?: Holiday | null;
 };
 
 function greeting() {
@@ -71,6 +73,8 @@ export default function TeacherDashboardPage() {
   const router = useRouter();
   const [teacher, setTeacher] = useState<Teacher | null>(null);
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
+  const [holidays, setHolidays] = useState<Holiday[]>([]);
+  const [todayHoliday, setTodayHoliday] = useState<Holiday | null>(null);
   const [loading, setLoading] = useState(true);
   const [signingOut, setSigningOut] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -99,6 +103,8 @@ export default function TeacherDashboardPage() {
         if (!response.ok || result.ok === false) throw new Error(result.error ?? "Unable to load dashboard");
         setTeacher(result.teacher);
         setRecords(result.records);
+        setHolidays(result.holidays ?? []);
+        setTodayHoliday(result.todayHoliday ?? null);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Unable to load dashboard");
       } finally {
@@ -161,6 +167,15 @@ export default function TeacherDashboardPage() {
       </header>
 
       <section className="mx-auto max-w-[1440px] space-y-5 p-4 md:p-7">
+        {todayHoliday?.type === "management_declared" && (
+          <article className="dashboard-animate rounded-3xl border border-[#ffe1a6] bg-[#fff8e8] px-5 py-5 shadow-[0_10px_24px_rgba(226,152,19,0.12)] md:px-7">
+            <p className="flex items-center gap-2 text-base font-extrabold text-[#a76e08]">
+              <CalendarOff size={20} /> Today is a Management Declared Holiday
+            </p>
+            <p className="mt-1.5 text-sm font-bold text-[#7a5205]">Reason: {todayHoliday.reason || todayHoliday.title}</p>
+            <p className="mt-0.5 text-sm font-semibold text-[#9c7b2f]">No attendance required today.</p>
+          </article>
+        )}
         <article className="dashboard-animate relative overflow-hidden rounded-3xl bg-[radial-gradient(circle_at_90%_15%,#5a5ec9_0%,#30328f_42%,#24266f_100%)] px-5 py-6 text-white shadow-[0_16px_32px_rgba(36,38,111,0.22)] md:px-7" style={{ animationDelay: "30ms" }}>
           <div className="absolute -right-8 -top-12 h-44 w-44 rounded-full border border-white/10" />
           <div className="absolute right-20 top-12 h-16 w-16 rounded-full bg-[#f7c548]/15 blur-xl" />
@@ -181,7 +196,7 @@ export default function TeacherDashboardPage() {
         </div>
 
         <div className="grid gap-5 xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.8fr)]">
-          <TeacherAttendancePanel teacherId={teacher.id} employmentType={teacher.employmentType} />
+          <TeacherAttendancePanel teacherId={teacher.id} employmentType={teacher.employmentType} todayHoliday={todayHoliday} />
 
           <article className="dashboard-animate rounded-2xl border border-[#e3e6f0] bg-white p-5 shadow-[0_2px_4px_rgba(36,42,94,0.03)]" style={{ animationDelay: "260ms" }}>
             <div className="flex items-center justify-between gap-3"><div><p className="text-sm font-bold text-[#242640]">Monthly overview</p><p className="mt-1 text-xs font-medium text-[#7d86a8]">{monthLabel}</p></div><span className="grid h-9 w-9 place-items-center rounded-xl bg-[#eef0ff] text-[#3436a2]"><UserRound size={18} /></span></div>
@@ -196,7 +211,7 @@ export default function TeacherDashboardPage() {
 
         <article className="dashboard-animate overflow-hidden rounded-2xl border border-[#e3e6f0] bg-white shadow-[0_2px_4px_rgba(36,42,94,0.03)]" style={{ animationDelay: "320ms" }}>
           <div className="flex flex-col gap-1 border-b border-[#edf0f7] px-5 py-4 sm:flex-row sm:items-center sm:justify-between"><div><h2 className="font-bold text-[#23253a]">Attendance calendar</h2><p className="mt-0.5 text-sm font-medium text-[#7d86a8]">A daily view of your {monthLabel} record</p></div><span className="mt-2 inline-flex w-fit items-center rounded-lg bg-[#f1f2fa] px-3 py-1.5 text-xs font-bold text-[#4d5096] sm:mt-0">{monthRecords.length} recorded days</span></div>
-          <AttendanceCalendar records={monthRecords} month={month} />
+          <AttendanceCalendar records={monthRecords} month={month} holidays={holidays} />
         </article>
       </section>
     </main>

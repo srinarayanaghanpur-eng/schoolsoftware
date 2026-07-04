@@ -124,7 +124,10 @@ function PortalDashboard() {
 
   if (!childrenLoading && children.length === 0) {
     return (
-      <PageHeader title="Parent Portal" description="Student and parent dashboard" />
+      <>
+        <PageHeader title="Parent Portal" description="Student and parent dashboard" />
+        <NoLinkedStudents />
+      </>
     );
   }
 

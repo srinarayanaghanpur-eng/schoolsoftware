@@ -4,7 +4,7 @@ import clsx from "clsx";
 import { memo, useEffect, useMemo, useState } from "react";
 import { Circle, Clock, LogIn, LogOut, MapPin, Smartphone, Timer, X } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import type { AttendanceRecord, AttendanceStatus } from "@sri-narayana/shared";
+import { isHolidayActive, type AttendanceRecord, type AttendanceStatus, type Holiday } from "@sri-narayana/shared";
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
 
@@ -56,7 +56,7 @@ function DetailTile({ icon: Icon, label, value, tone }: { icon?: LucideIcon; lab
   );
 }
 
-function AttendanceCalendarInner({ records, month = "2026-05" }: { records: AttendanceRecord[]; month?: string }) {
+function AttendanceCalendarInner({ records, month = "2026-05", holidays = [] }: { records: AttendanceRecord[]; month?: string; holidays?: Holiday[] }) {
   const [yearText, monthText] = month.split("-");
   const year = Number(yearText);
   const monthIndex = Number(monthText) - 1;
@@ -65,6 +65,10 @@ function AttendanceCalendarInner({ records, month = "2026-05" }: { records: Atte
   const blanks = Array.from({ length: firstDay });
   const dates = Array.from({ length: days }, (_, index) => `${month}-${String(index + 1).padStart(2, "0")}`);
   const recordsByDate = useMemo(() => new Map(records.map((record) => [record.date, record])), [records]);
+  const holidaysByDate = useMemo(
+    () => new Map(holidays.filter(isHolidayActive).map((holiday) => [holiday.date.slice(0, 10), holiday])),
+    [holidays]
+  );
 
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   // Reset the open detail panel whenever the month or dataset changes.
@@ -76,11 +80,11 @@ function AttendanceCalendarInner({ records, month = "2026-05" }: { records: Atte
   const summary = useMemo(() => {
     const counts: Partial<Record<AttendanceStatus, number>> = {};
     for (const date of dates) {
-      const status = recordsByDate.get(date)?.status ?? "not_marked";
+      const status = recordsByDate.get(date)?.status ?? (holidaysByDate.has(date) ? "holiday" : "not_marked");
       counts[status] = (counts[status] ?? 0) + 1;
     }
     return counts;
-  }, [dates, recordsByDate]);
+  }, [dates, recordsByDate, holidaysByDate]);
 
   const selectedRecord = selectedDate ? recordsByDate.get(selectedDate) : undefined;
   const selectedStyle = selectedRecord ? STATUS_STYLES[selectedRecord.status] : null;
@@ -163,8 +167,14 @@ function AttendanceCalendarInner({ records, month = "2026-05" }: { records: Atte
             ))}
             {dates.map((date, index) => {
               const record = recordsByDate.get(date);
-              const status: AttendanceStatus = record?.status ?? "not_marked";
+              const holiday = holidaysByDate.get(date);
+              const status: AttendanceStatus = record?.status ?? (holiday ? "holiday" : "not_marked");
               const style = STATUS_STYLES[status];
+              const emptyCellLabel = holiday
+                ? holiday.type === "management_declared"
+                  ? `Management Holiday${holiday.reason ? ` · ${holiday.reason}` : ""}`
+                  : holiday.title
+                : style.label;
               const isToday = date === todayIso;
               const isSelected = date === selectedDate;
               const clickable = Boolean(record);
@@ -211,7 +221,7 @@ function AttendanceCalendarInner({ records, month = "2026-05" }: { records: Atte
                       </p>
                     </div>
                   ) : (
-                    <p className="mt-3 text-[11px] font-medium text-muted-foreground">{style.label}</p>
+                    <p className="mt-3 text-[11px] font-medium text-muted-foreground">{emptyCellLabel}</p>
                   )}
                 </button>
               );

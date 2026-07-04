@@ -97,7 +97,26 @@ export default function FeeRemindersPage() {
           </form>
         )}
 
-        <div className="card overflow-x-auto">
+        {/* Mobile: reminder cards */}
+        <div className="space-y-3 md:hidden">
+          {reminders.length === 0 ? (
+            <div className="card p-8 text-center text-sm text-stone-400">No reminders yet</div>
+          ) : reminders.map((r) => (
+            <div key={r.id} className="card p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate text-base font-bold text-[#303247]">{r.studentName}</p>
+                  <p className="mt-0.5 text-xs font-medium text-stone-500">Class {r.className} · Due {r.dueDate}</p>
+                </div>
+                <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-bold ${r.sent ? "bg-[#e6f8ef] text-[#14a762]" : "bg-[#fff4df] text-[#b8791a]"}`}>{r.sent ? "Sent" : "Draft"}</span>
+              </div>
+              <p className="mt-2 text-lg font-extrabold text-[#ed515d]">₹{r.amount}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Desktop / tablet: table */}
+        <div className="card hidden overflow-x-auto md:block">
           <table className="w-full min-w-[600px] text-left text-sm">
             <thead className="bg-stone-50 text-xs uppercase text-stone-500"><tr>
               <th className="px-4 py-3">Student</th><th className="px-4 py-3">Class</th><th className="px-4 py-3">Amount</th><th className="px-4 py-3">Due Date</th><th className="px-4 py-3">Status</th>

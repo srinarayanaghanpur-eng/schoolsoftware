@@ -1,6 +1,7 @@
 "use client";
 
 import { PageHeader } from "@/components/PageHeader";
+import { ResponsiveTable, type Column } from "@/components/ResponsiveTable";
 import { useAdminSession } from "@/components/AdminSessionContext";
 import { AdminApiError, adminApiRequest } from "@/lib/adminApiClient";
 import { hasPermission } from "@sri-narayana/shared";
@@ -12,6 +13,13 @@ function inr(n: number) { return `₹${(n || 0).toLocaleString("en-IN")}`; }
 const CATEGORIES = ["donation", "rent", "grant", "event", "misc"];
 const METHODS = ["cash", "bank", "upi", "cheque", "card"];
 const blank = { category: "donation", amount: "", date: new Date().toISOString().slice(0, 10), description: "", source: "", paymentMethod: "cash" };
+
+const incomeColumns: Column<Income>[] = [
+  { key: "description", header: "Description", primary: true, cell: (x) => x.description || "—" },
+  { key: "date", header: "Date", cell: (x) => <span className="text-stone-500">{x.date}</span> },
+  { key: "category", header: "Category", cell: (x) => <span className="capitalize">{x.category}</span> },
+  { key: "amount", header: "Amount", align: "right", cell: (x) => <span className="font-semibold text-[#14a762]">{inr(x.amount)}</span> },
+];
 
 export default function IncomePage() {
   const { role } = useAdminSession();
@@ -54,16 +62,17 @@ export default function IncomePage() {
             <div className="sm:col-span-2"><button className="btn-primary" disabled={saving}>{saving ? "Saving…" : "Save income"}</button></div>
           </form>
         )}
-        <div className="card overflow-x-auto">
-          <table className="w-full min-w-[600px] text-left text-sm">
-            <thead className="bg-stone-50 text-xs uppercase text-stone-500"><tr><th className="px-4 py-3">Date</th><th className="px-4 py-3">Category</th><th className="px-4 py-3">Description</th><th className="px-4 py-3 text-right">Amount</th></tr></thead>
-            <tbody>
-              {loading ? <tr><td colSpan={4} className="px-4 py-8 text-center text-stone-400">Loading…</td></tr>
-              : items.length === 0 ? <tr><td colSpan={4} className="px-4 py-8 text-center text-stone-400">No income recorded yet</td></tr>
-              : items.map((x) => (<tr key={x.id} className="border-t border-stone-100"><td className="px-4 py-3 text-stone-500">{x.date}</td><td className="px-4 py-3 capitalize">{x.category}</td><td className="px-4 py-3">{x.description}</td><td className="px-4 py-3 text-right font-semibold text-[#14a762]">{inr(x.amount)}</td></tr>))}
-            </tbody>
-          </table>
-        </div>
+        {loading ? (
+          <div className="card p-8 text-center text-sm font-medium text-stone-400">Loading…</div>
+        ) : (
+          <ResponsiveTable
+            rows={items}
+            rowKey={(x) => x.id}
+            minTableWidth={600}
+            empty="No income recorded yet"
+            columns={incomeColumns}
+          />
+        )}
       </section>
     </>
   );

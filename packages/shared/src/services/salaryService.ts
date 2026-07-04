@@ -1,5 +1,6 @@
 import type { AttendanceRecord, Holiday, LeaveRequest, SalaryReport, SchoolSettings, Teacher } from "../types/models";
 import { DEFAULT_SETTINGS } from "../constants";
+import { filterActiveHolidays, formatManagementHolidayInfo, isManagementDeclaredHoliday } from "./holidayService";
 import { daysInMonth, nowIso, toDateKey } from "../utils/date";
 
 export type SalaryCalculationInput = {
@@ -124,7 +125,15 @@ export function calculateMonthlySalary(input: SalaryCalculationInput): SalaryRep
   const monthNumber = Number(monthText);
 
   const totalCalendarDays = daysInMonth(year, monthNumber);
-  const { dates: totalWorkingDates, holidayDates } = buildWorkingDates(year, monthNumber, input.holidays);
+  // Cancelled holidays must not reduce working days; management-declared
+  // holidays are excluded from working days exactly like configured holidays.
+  const activeHolidays = filterActiveHolidays(input.holidays);
+  const managementHolidays = activeHolidays.filter(
+    (holiday) => isManagementDeclaredHoliday(holiday) && isInMonth(holiday.date, input.month)
+  );
+  const managementHolidayDates = sortDates(managementHolidays.map((holiday) => normalizeDate(holiday.date)));
+  const managementHolidayInfo = formatManagementHolidayInfo(managementHolidays);
+  const { dates: totalWorkingDates, holidayDates } = buildWorkingDates(year, monthNumber, activeHolidays);
   const cutoffDate = elapsedCutoffDate(input, settings, year, monthNumber);
   const workingDatesElapsed = cutoffDate
     ? totalWorkingDates.filter((date) => date <= cutoffDate)
@@ -205,6 +214,8 @@ export function calculateMonthlySalary(input: SalaryCalculationInput): SalaryRep
     clDays: paidLeaveDays,
     absentDays,
     holidays: holidayDates.size,
+    managementHolidayDays: managementHolidayDates.length,
+    managementHolidayInfo,
 
     baseSalary: Math.round(input.teacher.baseSalary),
     perDaySalary: roundedPerDaySalary,
@@ -256,6 +267,7 @@ export function calculateMonthlySalary(input: SalaryCalculationInput): SalaryRep
       workingDaysElapsed: workingDatesElapsed.length,
       presentDates,
       absentDates,
+      managementHolidayDates,
       approvedLeaveDates,
       attendedApprovedLeaveDates,
       lateDates,

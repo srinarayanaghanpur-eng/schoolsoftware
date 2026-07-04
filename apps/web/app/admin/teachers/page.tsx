@@ -2,6 +2,7 @@
 
 import { PageHeader } from "@/components/PageHeader";
 import { PasswordInput } from "@/components/PasswordInput";
+import { ActionMenu } from "@/components/ActionMenu";
 import { useAdminSession } from "@/components/AdminSessionContext";
 import { auth, isFirebaseConfigured } from "@sri-narayana/shared/firebase/client";
 import { demoTeachers, type Teacher } from "@sri-narayana/shared";
@@ -378,7 +379,53 @@ export default function TeachersPage() {
           </div>
         </div>
 
-        <div className="card overflow-x-auto">
+        {/* Mobile: staff cards */}
+        <div className="space-y-3 md:hidden">
+          {filteredTeachers.map((teacher) => (
+            <div key={teacher.id} className="card p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate text-base font-bold text-[#1f2136]">{teacher.fullName}</p>
+                  <p className="mt-0.5 text-xs font-medium text-[#7d86a8]">{teacher.subject || "—"} · {teacher.employeeId}</p>
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <span className={teacher.status === "active" ? "rounded-full bg-[#e6f8ef] px-2.5 py-1 text-xs font-bold text-[#13a961]" : "rounded-full bg-[#eef0f7] px-2.5 py-1 text-xs font-bold text-[#7d86a8]"}>
+                    {teacher.status}
+                  </span>
+                  {canManageTeachers && (
+                    <ActionMenu
+                      items={[
+                        { label: "Edit", icon: Edit3, onClick: () => startEdit(teacher), disabled: !isFirebaseConfigured || loading },
+                        { label: "Reset password", icon: KeyRound, onClick: () => setResetTeacher(teacher), disabled: !isFirebaseConfigured || loading },
+                        { label: teacher.status === "active" ? "Deactivate" : "Activate", icon: teacher.status === "active" ? UserX : CheckCircle2, onClick: () => toggleStatus(teacher), disabled: !isFirebaseConfigured || loading },
+                      ]}
+                    />
+                  )}
+                </div>
+              </div>
+              <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2">
+                <div>
+                  <dt className="text-[11px] font-semibold uppercase tracking-wide text-[#8490b9]">Phone</dt>
+                  <dd className="text-sm font-semibold text-[#303247]">{teacher.phone ? <a href={`tel:${teacher.phone}`} className="text-[#3033a1]">{teacher.phone}</a> : "--"}</dd>
+                </div>
+                <div>
+                  <dt className="text-[11px] font-semibold uppercase tracking-wide text-[#8490b9]">Base Salary</dt>
+                  <dd className="text-sm font-semibold text-[#303247]">₹{Number(teacher.baseSalary ?? 0).toLocaleString("en-IN")}</dd>
+                </div>
+                <div>
+                  <dt className="text-[11px] font-semibold uppercase tracking-wide text-[#8490b9]">Biometric ID</dt>
+                  <dd className="text-sm font-semibold text-[#303247]">{teacher.biometricUserId || "--"}</dd>
+                </div>
+              </dl>
+            </div>
+          ))}
+          {!filteredTeachers.length && (
+            <div className="card p-8 text-center text-sm font-medium text-[#7d86a8]">{loading ? "Loading teachers..." : "No teachers found."}</div>
+          )}
+        </div>
+
+        {/* Desktop / tablet: table */}
+        <div className="card hidden overflow-x-auto md:block">
           <table className="w-full min-w-[980px] text-left text-sm">
             <thead className="bg-stone-50 text-xs uppercase text-stone-500">
               <tr>

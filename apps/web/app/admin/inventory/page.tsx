@@ -50,8 +50,8 @@ export default function InventoryPage() {
                 <button className="btn-primary sm:col-span-2">Add item</button>
               </form>
             )}
-            <table className="w-full min-w-[420px] text-left text-sm">
-              <thead className="bg-stone-50 text-xs uppercase text-stone-500"><tr><th className="px-4 py-3">Item</th><th className="px-4 py-3">Category</th><th className="px-4 py-3 text-right">Stock</th><th className="px-4 py-3 text-right">Price</th></tr></thead>
+            <table className="w-full text-left text-sm">
+              <thead className="bg-stone-50 text-xs uppercase text-stone-500"><tr><th className="px-3 py-3 sm:px-4">Item</th><th className="px-3 py-3 sm:px-4">Category</th><th className="px-3 py-3 text-right sm:px-4">Stock</th><th className="px-3 py-3 text-right sm:px-4">Price</th></tr></thead>
               <tbody>{items.length === 0 ? <tr><td colSpan={4} className="px-4 py-8 text-center text-stone-400">No items</td></tr> : items.map((x) => (<tr key={x.id} className="border-t border-stone-100"><td className="px-4 py-3 font-semibold">{x.name}</td><td className="px-4 py-3">{x.category}</td><td className={`px-4 py-3 text-right font-semibold ${x.stock <= 0 ? "text-[#ed515d]" : ""}`}>{x.stock}</td><td className="px-4 py-3 text-right">{inr(x.unitPrice)}</td></tr>))}</tbody>
             </table>
           </article>

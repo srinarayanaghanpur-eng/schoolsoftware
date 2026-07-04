@@ -122,7 +122,30 @@ export default function ExamsPage() {
           </div>
         )}
 
-        <div className="card overflow-x-auto">
+        {/* Mobile: exam cards */}
+        <div className="space-y-3 md:hidden">
+          {exams.length === 0 ? (
+            <div className="card p-8 text-center text-sm text-stone-400">No exams scheduled yet</div>
+          ) : exams.map((x) => (
+            <div key={x.id} className="card p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate text-base font-bold text-[#303247]">{x.name}</p>
+                  <p className="mt-0.5 text-xs font-medium capitalize text-stone-500">Class {x.className}{x.section} · {x.examType.replace("_", " ")}</p>
+                </div>
+                <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-bold capitalize ${statusTone[x.status]}`}>{x.status}</span>
+              </div>
+              <p className="mt-2 text-xs font-medium text-stone-500">{x.startDate}{x.endDate ? ` – ${x.endDate}` : ""} · Max {x.maxMarks}{x.timetable?.length ? ` · ${x.timetable.length} subjects` : ""}</p>
+              <div className="mt-3 flex gap-2">
+                <Link href={`/admin/exams/${x.id}`} className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-[#eef0ff] px-3 py-2.5 text-sm font-bold text-[#3033a1]"><ClipboardList size={15} /> Marks</Link>
+                {x.status !== "published" && canApprove && <button onClick={() => publish(x.id)} className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-[#e6f8ef] px-3 py-2.5 text-sm font-bold text-[#14a762]"><CheckCircle2 size={15} /> Publish</button>}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Desktop / tablet: table */}
+        <div className="card hidden overflow-x-auto md:block">
           <table className="w-full min-w-[760px] text-left text-sm">
             <thead className="bg-stone-50 text-xs uppercase text-stone-500"><tr><th className="px-4 py-3">Exam</th><th className="px-4 py-3">Class</th><th className="px-4 py-3">Type</th><th className="px-4 py-3">Date</th><th className="px-4 py-3">Max</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Actions</th></tr></thead>
             <tbody>

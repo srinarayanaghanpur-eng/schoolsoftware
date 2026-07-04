@@ -39,6 +39,17 @@ export const FEE_HEAD_PRESETS = [
   "Uniform Fee"
 ] as const;
 
+/**
+ * School identity/contact details shown to parents across the portal
+ * (footer, contact page, receipts). Single source of truth so every
+ * parent-facing surface stays consistent.
+ */
+export const SCHOOL_CONTACT = {
+  name: "SRI NARAYANA HIGH SCHOOL",
+  phone: "6300038389",
+  address: "Ghanpur, Jayashankar Bhupalpally-506135"
+} as const;
+
 export const DEFAULT_SETTINGS: SchoolSettings = {
   schoolName: "SRI NARAYANA HIGH SCHOOL",
   campusLatitude: 18.30639479001936,

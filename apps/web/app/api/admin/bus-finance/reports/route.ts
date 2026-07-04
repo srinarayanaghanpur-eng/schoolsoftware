@@ -30,9 +30,21 @@ export async function GET(req: NextRequest) {
     const today = new Date().toISOString().slice(0, 10);
 
     const db = adminDb();
+
+    // Pull only the EMI payments the requested report needs, filtered at the
+    // database level, instead of the whole collection for every report type.
+    let paymentsQuery: FirebaseFirestore.Query = db.collection(BUS_EMI_PAYMENTS_COLLECTION);
+    if (type === "monthly") {
+      paymentsQuery = paymentsQuery.where("emiMonth", "==", monthFilter || today.slice(0, 7));
+    } else if (type === "pending") {
+      paymentsQuery = paymentsQuery.where("status", "in", ["pending", "partial"]);
+    } else if (type === "overdue") {
+      paymentsQuery = paymentsQuery.where("dueDate", "<", today);
+    }
+
     const [financeSnap, paymentsSnap] = await Promise.all([
-      db.collection(BUS_FINANCE_COLLECTION).get(),
-      db.collection(BUS_EMI_PAYMENTS_COLLECTION).get(),
+      db.collection(BUS_FINANCE_COLLECTION).limit(500).get(),
+      paymentsQuery.limit(2000).get(),
     ]);
 
     const finances = financeSnap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<BusFinance, "id">) }) as BusFinance);

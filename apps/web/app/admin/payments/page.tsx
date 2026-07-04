@@ -54,6 +54,12 @@ export default function PaymentsPage() {
   const [loading, setLoading] = useState(true);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(false);
+  const [filterClass, setFilterClass] = useState("");
+  const [filterSection, setFilterSection] = useState("");
+  const [filterMethod, setFilterMethod] = useState("");
+  const [filterDateFrom, setFilterDateFrom] = useState("");
+  const [filterDateTo, setFilterDateTo] = useState("");
+  const [filterPageSize, setFilterPageSize] = useState(25);
   const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [cancelTarget, setCancelTarget] = useState<Payment | null>(null);
@@ -70,7 +76,12 @@ export default function PaymentsPage() {
   const fetchPayments = async (options: { append?: boolean; cursor?: string | null } = {}) => {
     try {
       setError(null);
-      const params = new URLSearchParams({ pageSize: "25" });
+      const params = new URLSearchParams({ pageSize: String(filterPageSize) });
+      if (filterClass) params.set("classId", filterClass);
+      if (filterSection) params.set("sectionId", filterSection);
+      if (filterMethod) params.set("paymentMode", filterMethod);
+      if (filterDateFrom) params.set("dateFrom", filterDateFrom);
+      if (filterDateTo) params.set("dateTo", filterDateTo);
       if (options.cursor) params.set("cursor", options.cursor);
       const data = await adminApiRequest<{ success?: boolean; data: Payment[]; nextCursor?: string | null; hasMore?: boolean }>(`/api/admin/payments?${params}`);
       setPayments((prev) => options.append ? [...prev, ...(data.data ?? [])] : data.data ?? []);
@@ -158,6 +169,68 @@ export default function PaymentsPage() {
             />
           </div>
         )}
+
+        <div className="card flex flex-wrap items-end gap-3 p-4">
+          <label className="text-xs font-semibold text-[#7d86a8]">
+            Class
+            <select className="field mt-1" value={filterClass} onChange={(e) => setFilterClass(e.target.value)}>
+              <option value="">All</option>
+              {CLASS_OPTIONS.map((cls) => (
+                <option key={cls} value={cls}>{cls}</option>
+              ))}
+            </select>
+          </label>
+          <label className="text-xs font-semibold text-[#7d86a8]">
+            Section
+            <select className="field mt-1" value={filterSection} onChange={(e) => setFilterSection(e.target.value)}>
+              <option value="">All</option>
+              {SECTION_OPTIONS.map((section) => (
+                <option key={section} value={section}>{section}</option>
+              ))}
+            </select>
+          </label>
+          <label className="text-xs font-semibold text-[#7d86a8]">
+            Mode
+            <select className="field mt-1" value={filterMethod} onChange={(e) => setFilterMethod(e.target.value)}>
+              <option value="">All</option>
+              {PAYMENT_METHODS.map((pm) => (
+                <option key={pm.value} value={pm.value}>{pm.label}</option>
+              ))}
+            </select>
+          </label>
+          <label className="text-xs font-semibold text-[#7d86a8]">
+            From
+            <input type="date" className="field mt-1" value={filterDateFrom} onChange={(e) => setFilterDateFrom(e.target.value)} />
+          </label>
+          <label className="text-xs font-semibold text-[#7d86a8]">
+            To
+            <input type="date" className="field mt-1" value={filterDateTo} onChange={(e) => setFilterDateTo(e.target.value)} />
+          </label>
+          <label className="text-xs font-semibold text-[#7d86a8]">
+            Per page
+            <select className="field mt-1" value={filterPageSize} onChange={(e) => setFilterPageSize(Number(e.target.value))}>
+              <option value={25}>25</option>
+              <option value={50}>50</option>
+              <option value={100}>100</option>
+            </select>
+          </label>
+          <button type="button" className="btn-secondary" onClick={() => fetchPayments()} disabled={loading}>
+            Apply
+          </button>
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={() => {
+              setFilterClass("");
+              setFilterSection("");
+              setFilterMethod("");
+              setFilterDateFrom("");
+              setFilterDateTo("");
+            }}
+          >
+            Clear
+          </button>
+        </div>
 
         <div className="space-y-3">
           {error && (

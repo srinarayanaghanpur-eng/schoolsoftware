@@ -234,13 +234,15 @@ export default function SalaryPage() {
       "Absent Dates": report.absentDates?.join(", ") ?? "",
       "Present Dates": report.presentDates?.join(", ") ?? "",
       "Leave Requests": report.approvedLeaveInfo || "-",
+      "Management Holidays": report.managementHolidayDays ?? 0,
+      "Management Holiday Details": report.managementHolidayInfo || "-",
       Status: report.paid ? "Paid" : "Unpaid"
     }));
     const worksheet = XLSX.utils.json_to_sheet(rows);
     worksheet["!cols"] = [
       { wch: 22 }, { wch: 14 }, { wch: 10 }, { wch: 14 }, { wch: 18 }, { wch: 20 },
       { wch: 12 }, { wch: 22 }, { wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 10 },
-      { wch: 14 }, { wch: 30 }, { wch: 30 }, { wch: 30 }, { wch: 10 }
+      { wch: 14 }, { wch: 30 }, { wch: 30 }, { wch: 30 }, { wch: 20 }, { wch: 40 }, { wch: 10 }
     ];
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, `Salary ${month}`);
@@ -415,7 +417,50 @@ export default function SalaryPage() {
             <Download size={16} /> Export Excel
           </button>
         </div>
-        <div className="card overflow-x-auto">
+        {/* Mobile: staff salary cards (the 12-column table is unreadable on phones) */}
+        <div className="space-y-3 md:hidden">
+          {reports.map((report) => (
+            <div key={report.teacherId} className="card p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate text-base font-bold text-[#1f2136]">{report.teacherName}</p>
+                  <p className="mt-0.5 text-xs font-medium text-[#7d86a8]">Base ₹{money(report.baseSalary)} · Daily ₹{money(report.perDaySalary)}</p>
+                </div>
+                <button className="btn-secondary shrink-0" disabled={loading} onClick={() => togglePaid(report)}>
+                  <CheckCircle2 size={15} /> {report.paid ? "Paid" : "Mark paid"}
+                </button>
+              </div>
+              <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2.5">
+                <div>
+                  <dt className="text-[11px] font-semibold uppercase tracking-wide text-[#8490b9]">Present Days</dt>
+                  <dd className="text-sm font-bold text-[#303247]">{report.presentDays}</dd>
+                </div>
+                <div>
+                  <dt className="text-[11px] font-semibold uppercase tracking-wide text-[#8490b9]">Paid CL</dt>
+                  <dd className="text-sm font-bold text-[#303247]">{approvedPaidCLDays(report)}</dd>
+                </div>
+                <div>
+                  <dt className="text-[11px] font-semibold uppercase tracking-wide text-[#8490b9]">Unpaid Absent</dt>
+                  <dd className={`text-sm font-bold ${unpaidAbsentDays(report) > 0 ? "text-[#ed515d]" : "text-[#13a961]"}`}>{unpaidAbsentDays(report)}</dd>
+                </div>
+                <div>
+                  <dt className="text-[11px] font-semibold uppercase tracking-wide text-[#8490b9]">Deduction</dt>
+                  <dd className={`text-sm font-bold ${(report.salaryDeduction ?? 0) > 0 ? "text-red-600" : "text-[#303247]"}`}>₹{money(report.salaryDeduction)}</dd>
+                </div>
+                <div className="col-span-2 mt-1 rounded-xl bg-[#f7f8fd] p-3">
+                  <dt className="text-[11px] font-semibold uppercase tracking-wide text-[#8490b9]">Net Payable</dt>
+                  <dd className="text-xl font-extrabold text-[#1b1d32]">₹{money(report.netPayable)}</dd>
+                </div>
+              </dl>
+            </div>
+          ))}
+          {!loading && reports.length === 0 && (
+            <div className="card p-6 text-center text-sm font-medium text-[#7d86a8]">No salary reports yet. Click Generate monthly salary.</div>
+          )}
+        </div>
+
+        {/* Desktop / tablet: full payroll table */}
+        <div className="card hidden overflow-x-auto md:block">
           <table className="w-full min-w-[1220px] text-left text-sm">
             <thead className="bg-stone-50 text-xs uppercase text-stone-500">
               <tr>

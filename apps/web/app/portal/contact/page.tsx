@@ -4,8 +4,8 @@ import { AppShell } from "@/components/AppShell";
 import { AuthGate } from "@/components/AuthGate";
 import { PageHeader } from "@/components/PageHeader";
 import { adminApiRequest } from "@/lib/adminApiClient";
-import { ROLES } from "@sri-narayana/shared";
-import { Mail, Phone, MapPin, Send, MessageSquare, Users } from "lucide-react";
+import { ROLES, SCHOOL_CONTACT } from "@sri-narayana/shared";
+import { Mail, Phone, MapPin, Send, MessageSquare } from "lucide-react";
 import { useEffect, useState } from "react";
 
 type Contacts = Record<string, string>;
@@ -19,19 +19,22 @@ const MESSAGE_TYPES = [
 
 function Contact() {
   const [contacts, setContacts] = useState<Contacts>({});
-  const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState({ subject: "", message: "", type: "enquiry" });
 
   useEffect(() => {
-    setLoading(true);
     adminApiRequest<{ ok: true; contacts: Contacts }>("/api/portal/messages")
       .then((result) => setContacts(result.contacts))
-      .catch(() => {})
-      .finally(() => setLoading(false));
+      .catch(() => {});
   }, []);
+
+  // Always show the school's own details, falling back to the constants when
+  // the admin hasn't configured overrides in settings.
+  const phone = contacts.phone || SCHOOL_CONTACT.phone;
+  const email = contacts.email;
+  const address = contacts.address || SCHOOL_CONTACT.address;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,38 +60,28 @@ function Contact() {
     <>
       <PageHeader title="Contact School" description="Reach out to the school administration" />
       <section className="space-y-5 p-4 md:p-7">
-        {contacts.phone || contacts.email || contacts.address ? (
-          <div className="stagger-children grid gap-4 sm:grid-cols-3">
-            {contacts.phone && (
-              <div className="card p-5">
-                <Phone size={20} className="mb-2 text-[#3033a1]" />
-                <h3 className="font-extrabold text-[#1b1d32]">Phone</h3>
-                <p className="mt-1 text-sm font-medium text-[#7d86a8]">{contacts.phone}</p>
-              </div>
-            )}
-            {contacts.email && (
-              <div className="card p-5">
+        <div className="card p-5">
+          <h3 className="font-extrabold text-[#1b1d32]">{SCHOOL_CONTACT.name}</h3>
+          <div className="stagger-children mt-4 grid gap-4 sm:grid-cols-3">
+            <div className="rounded-xl bg-[#f7f8fd] p-4">
+              <Phone size={20} className="mb-2 text-[#3033a1]" />
+              <h4 className="font-extrabold text-[#1b1d32]">Phone</h4>
+              <p className="mt-1 text-sm font-medium text-[#7d86a8]">{phone}</p>
+            </div>
+            {email && (
+              <div className="rounded-xl bg-[#f7f8fd] p-4">
                 <Mail size={20} className="mb-2 text-[#3033a1]" />
-                <h3 className="font-extrabold text-[#1b1d32]">Email</h3>
-                <p className="mt-1 text-sm font-medium text-[#7d86a8]">{contacts.email}</p>
+                <h4 className="font-extrabold text-[#1b1d32]">Email</h4>
+                <p className="mt-1 text-sm font-medium text-[#7d86a8]">{email}</p>
               </div>
             )}
-            {contacts.address && (
-              <div className="card p-5">
-                <MapPin size={20} className="mb-2 text-[#3033a1]" />
-                <h3 className="font-extrabold text-[#1b1d32]">Address</h3>
-                <p className="mt-1 text-sm font-medium text-[#7d86a8]">{contacts.address}</p>
-              </div>
-            )}
+            <div className="rounded-xl bg-[#f7f8fd] p-4">
+              <MapPin size={20} className="mb-2 text-[#3033a1]" />
+              <h4 className="font-extrabold text-[#1b1d32]">Address</h4>
+              <p className="mt-1 text-sm font-medium text-[#7d86a8]">{address}</p>
+            </div>
           </div>
-        ) : loading ? (
-          <div className="card p-8 text-center text-sm font-semibold text-[#7d86a8]">Loading contacts...</div>
-        ) : (
-          <div className="card p-8 text-center text-sm font-semibold text-[#7d86a8]">
-            <Users className="mx-auto mb-3 text-[#3033a1]" size={32} />
-            Contact information not yet configured by the school.
-          </div>
-        )}
+        </div>
 
         <div className="card p-5">
           <div className="mb-4 flex items-center gap-3">

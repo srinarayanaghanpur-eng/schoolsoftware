@@ -570,6 +570,8 @@ export default function StudentsPage() {
   const [sectionByClass, setSectionByClass] = useState<Record<string, string>>(() => defaultClassSections());
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(false);
+  const [pageSize, setPageSize] = useState(25);
+  const [sectionCount, setSectionCount] = useState<number | null>(null);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -626,10 +628,16 @@ export default function StudentsPage() {
     commitmentFee: "0"
   });
 
+  // Reload whenever the class/section/year/page-size selection changes, so the
+  // list always shows exactly the selected section (never a mixed list).
   useEffect(() => {
     fetchStudents();
+    fetchSectionCount();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeYear?.id, classFilter, sectionFilter, pageSize]);
+  useEffect(() => {
     fetchTransportRoutes();
-  }, [activeYear?.id]);
+  }, []);
   useRefreshOnFocus(() => fetchStudents());
 
   useEffect(() => {
@@ -660,13 +668,30 @@ export default function StudentsPage() {
 
   const buildStudentQuery = (cursor?: string | null) => {
     const params = new URLSearchParams();
-    params.set("pageSize", "25");
+    params.set("pageSize", String(pageSize));
     if (activeYear?.id) params.set("academicYearId", activeYear.id);
     if (classFilter) params.set("class", classFilter);
     if (sectionFilter) params.set("section", sectionFilter);
     if (searchTerm.trim()) params.set("q", searchTerm.trim());
     if (cursor) params.set("cursor", cursor);
     return params.toString();
+  };
+
+  // Aggregate count for the selected scope — 1 read per 1000 students instead
+  // of downloading them all just to show a total.
+  const fetchSectionCount = async () => {
+    try {
+      const params = new URLSearchParams({ count: "1" });
+      if (activeYear?.id) params.set("academicYearId", activeYear.id);
+      if (classFilter) params.set("class", classFilter);
+      if (sectionFilter) params.set("section", sectionFilter);
+      const data = await adminApiRequest<{ success?: boolean; count?: number }>(
+        `/api/admin/students?${params.toString()}`
+      );
+      setSectionCount(typeof data.count === "number" ? data.count : null);
+    } catch {
+      setSectionCount(null);
+    }
   };
 
   const fetchStudents = async (options: { append?: boolean; cursor?: string | null } = {}) => {
@@ -1283,6 +1308,16 @@ export default function StudentsPage() {
             />
           </div>
         </div>
+        <select
+          value={pageSize}
+          onChange={(e) => setPageSize(Number(e.target.value))}
+          className="field w-auto"
+          aria-label="Students per page"
+        >
+          <option value={25}>25 / page</option>
+          <option value={50}>50 / page</option>
+          <option value={100}>100 / page</option>
+        </select>
         <button type="button" onClick={() => fetchStudents()} className="btn-secondary">
           Apply
         </button>
@@ -1393,8 +1428,11 @@ export default function StudentsPage() {
 
         <div className="grid gap-4 sm:grid-cols-3">
           <div className="card p-5">
-            <p className="text-sm font-semibold text-[#7d86a8]">Loaded Students</p>
-            <p className="mt-3 text-[32px] font-extrabold leading-none text-[#1b1d32]">{students.length}</p>
+            <p className="text-sm font-semibold text-[#7d86a8]">Students In Section</p>
+            <p className="mt-3 text-[32px] font-extrabold leading-none text-[#1b1d32]">
+              {students.length}
+              {sectionCount !== null && sectionCount > students.length ? <span className="text-base font-bold text-[#7d86a8]"> / {sectionCount}</span> : null}
+            </p>
         </div>
           <div className="card p-5">
             <p className="text-sm font-semibold text-[#7d86a8]">Class / Section</p>

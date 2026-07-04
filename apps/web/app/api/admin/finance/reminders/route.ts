@@ -22,10 +22,19 @@ export async function GET(req: Request) {
 
   const snap = await query.get();
   logFirestoreRead("FinanceRemindersAPI", "studentFeeSummaries", snap, { classFilter, sectionFilter, pageSize });
-  const studentSnaps = await Promise.all(
-    snap.docs.map((doc) => db.collection("students").doc(String(doc.data().studentId || "")).get())
-  );
-  const studentById = new Map(studentSnaps.filter((doc) => doc.exists).map((doc) => [doc.id, doc.data() ?? {}]));
+  // Summaries written since the fee-summary rollout carry name/class/phone, so
+  // only fall back to the student doc for legacy summaries missing them.
+  const missingIds = snap.docs
+    .filter((doc) => !doc.data().studentName || !doc.data().phone)
+    .map((doc) => String(doc.data().studentId || ""))
+    .filter(Boolean);
+  const studentById = new Map<string, FirebaseFirestore.DocumentData>();
+  if (missingIds.length > 0) {
+    const studentSnaps = await db.getAll(...missingIds.map((id) => db.collection("students").doc(id)));
+    studentSnaps.forEach((doc) => {
+      if (doc.exists) studentById.set(doc.id, doc.data() ?? {});
+    });
+  }
 
   const reminders = snap.docs.map((d) => {
     const summary = d.data();

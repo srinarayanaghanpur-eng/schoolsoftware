@@ -56,7 +56,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
       return NextResponse.json({ ok: true, reportCard });
     }
 
-    const allStudents = await db.collection("students").where("class", "==", exam.className).get();
+    const allStudents = await db.collection("students").where("class", "==", exam.className).limit(300).get();
     const studentsMap = new Map(allStudents.docs.map((d) => [d.id, d.data()]));
 
     const studentTotals = new Map<string, number>();

@@ -12,9 +12,10 @@ import {
   toDateKey
 } from "@sri-narayana/shared";
 import { FieldValue } from "firebase-admin/firestore";
+import { managementHolidayMessage } from "@sri-narayana/shared";
 import { adminDb, verifyBearerToken } from "@/lib/firebaseAdmin";
 import { removeUndefinedFields } from "@/lib/firestoreSanitize";
-import { getAttendanceRecord, getSchoolSettings, getTeacherById } from "@/lib/firestoreServer";
+import { getAttendanceRecord, getHolidayByDate, getSchoolSettings, getTeacherById } from "@/lib/firestoreServer";
 
 function getEffectiveGpsSettings(
   teacher: NonNullable<Awaited<ReturnType<typeof getTeacherById>>>,
@@ -50,6 +51,17 @@ export async function POST(req: Request) {
     }
 
     const schoolSettings = await getSchoolSettings();
+
+    // ===== Management-declared holiday: no check-in or check-out required =====
+    const attendanceDate = toDateKey(payload.timestamp, schoolSettings.timezone);
+    const holidayToday = await getHolidayByDate(attendanceDate);
+    if (!isAdmin && holidayToday?.type === "management_declared") {
+      return NextResponse.json(
+        { ok: false, error: managementHolidayMessage(holidayToday), holiday: holidayToday },
+        { status: 403 }
+      );
+    }
+
     const { gpsRequired, settings } = getEffectiveGpsSettings(teacher, schoolSettings);
     const hasGps = typeof payload.latitude === "number" && typeof payload.longitude === "number";
     const gps = hasGps

@@ -9,7 +9,7 @@ const COLLECTION = "inventory_sales";
 export async function GET(req: Request) {
   const token = await requirePermission(req, "inventory.view");
   if (!token) return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
-  const snap = await adminDb().collection(COLLECTION).get();
+  const snap = await adminDb().collection(COLLECTION).orderBy("createdAt", "desc").limit(500).get();
   const sales = snap.docs.map((d) => serializeDoc(d)).sort((a, b) => String(b.date ?? "").localeCompare(String(a.date ?? "")));
   return NextResponse.json({ ok: true, sales });
 }

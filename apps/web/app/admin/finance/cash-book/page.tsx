@@ -57,7 +57,31 @@ export default function CashBookPage() {
           <div className="card p-4"><p className="text-sm font-semibold text-[#7d86a8]">Net Cash Flow</p><p className={`text-2xl font-extrabold ${closing >= 0 ? "text-[#14a762]" : "text-[#ed515d]"}`}>{inr(totalIn - totalOut)}</p></div>
         </div>
 
-        <div className="card overflow-x-auto">
+        {/* Mobile: cash entry cards */}
+        <div className="space-y-3 md:hidden">
+          {loading ? (
+            <div className="card p-8 text-center text-sm text-stone-400">Loading…</div>
+          ) : entries.length === 0 ? (
+            <div className="card p-8 text-center text-sm text-stone-400">No cash transactions</div>
+          ) : entries.map((e, i) => (
+            <div key={i} className="card p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-bold text-[#303247]">{e.description || e.category}</p>
+                  <p className="mt-0.5 text-xs font-medium capitalize text-stone-500">{e.date} · {e.source}</p>
+                </div>
+                <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-bold ${e.type === "income" ? "bg-[#e6f8ef] text-[#14a762]" : "bg-[#ffebed] text-[#ed515d]"}`}>{e.type}</span>
+              </div>
+              <div className="mt-3 flex items-end justify-between">
+                <span className={`text-lg font-extrabold ${e.type === "income" ? "text-[#14a762]" : "text-[#ed515d]"}`}>{e.type === "income" ? "+" : "−"}{inr(e.amount)}</span>
+                <span className="text-xs font-semibold text-stone-500">Bal: {inr(e.balance)}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Desktop / tablet: table */}
+        <div className="card hidden overflow-x-auto md:block">
           <table className="w-full min-w-[680px] text-left text-sm">
             <thead className="bg-stone-50 text-xs uppercase text-stone-500"><tr><th className="px-4 py-3">Date</th><th className="px-4 py-3">Type</th><th className="px-4 py-3">Description</th><th className="px-4 py-3">Source</th><th className="px-4 py-3 text-right">Amount</th><th className="px-4 py-3 text-right">Balance</th></tr></thead>
             <tbody>

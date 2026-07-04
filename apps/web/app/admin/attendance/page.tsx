@@ -6,12 +6,14 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { auth } from "@sri-narayana/shared/firebase/client";
 import {
   createAttendanceDocumentId,
+  isHolidayActive,
   type AttendanceEditAudit,
   type AttendanceRecord,
   type AttendanceStatus,
+  type Holiday,
   type Teacher
 } from "@sri-narayana/shared";
-import { ClipboardList, Pencil, Save, Search, X } from "lucide-react";
+import { CalendarOff, ClipboardList, Pencil, Save, Search, X } from "lucide-react";
 import type { FormEvent } from "react";
 import { useEffect, useMemo, useState } from "react";
 
@@ -62,6 +64,7 @@ export default function AttendancePage() {
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [audits, setAudits] = useState<AttendanceEditAudit[]>([]);
+  const [holidays, setHolidays] = useState<Holiday[]>([]);
   const [statusFilter, setStatusFilter] = useState("all");
   const [teacherFilter, setTeacherFilter] = useState("all");
   const [fromDate, setFromDate] = useState("");
@@ -71,6 +74,24 @@ export default function AttendancePage() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const managementHolidayByDate = useMemo(
+    () =>
+      new Map(
+        holidays
+          .filter((holiday) => holiday.type === "management_declared" && isHolidayActive(holiday))
+          .map((holiday) => [holiday.date.slice(0, 10), holiday])
+      ),
+    [holidays]
+  );
+
+  const visibleManagementHolidays = useMemo(
+    () =>
+      [...managementHolidayByDate.values()]
+        .filter((holiday) => (!fromDate || holiday.date >= fromDate) && (!toDate || holiday.date <= toDate))
+        .sort((a, b) => b.date.localeCompare(a.date)),
+    [managementHolidayByDate, fromDate, toDate]
+  );
 
   const filteredRecords = useMemo(() => {
     return records.filter((record) => {
@@ -109,10 +130,14 @@ export default function AttendancePage() {
     setLoading(true);
     setError(null);
     try {
-      const result = await apiRequest<AttendancePayload>("/api/admin/attendance");
+      const [result, holidayResult] = await Promise.all([
+        apiRequest<AttendancePayload>("/api/admin/attendance"),
+        apiRequest<{ holidays: Holiday[] }>("/api/admin/holidays").catch(() => ({ holidays: [] as Holiday[] }))
+      ]);
       setRecords(result.records);
       setTeachers(result.teachers);
       setAudits(result.audits);
+      setHolidays(holidayResult.holidays);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to load attendance");
     } finally {
@@ -190,6 +215,19 @@ export default function AttendancePage() {
           loading={loading}
         />
 
+        {visibleManagementHolidays.length > 0 && (
+          <div className="rounded-2xl border border-[#ffe1a6] bg-[#fff8e8] px-4 py-3">
+            <p className="flex items-center gap-2 text-sm font-bold text-[#a76e08]"><CalendarOff size={16} /> Management Declared Holidays</p>
+            <ul className="mt-1.5 space-y-0.5 text-sm font-medium text-[#7a5205]">
+              {visibleManagementHolidays.map((holiday) => (
+                <li key={holiday.id ?? holiday.date}>
+                  {formatDateForDisplay(holiday.date) || holiday.date} — Reason: {holiday.reason || holiday.title}. Teachers are not marked absent on this date.
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         {editing && (
           <form onSubmit={submitEdit} className="card p-4">
             <div className="mb-4 flex items-start justify-between gap-4">
@@ -217,7 +255,52 @@ export default function AttendancePage() {
           </form>
         )}
 
-        <div className="card overflow-x-auto">
+        {/* Mobile: attendance record cards */}
+        <div className="space-y-3 md:hidden">
+          {filteredRecords.map((record) => {
+            const teacher = teachers.find((item) => item.id === record.teacherId);
+            const attendanceId = createAttendanceDocumentId(record.teacherId, record.date);
+            const managementHoliday = managementHolidayByDate.get(record.date);
+            return (
+              <div key={attendanceId} className="card p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-base font-bold text-[#1f2136]">{teacher?.fullName ?? record.teacherId}</p>
+                    <p className="mt-0.5 text-xs font-medium text-[#7d86a8]">{teacher?.subject ?? "--"} · {formatDateForDisplay(record.date) || record.date}</p>
+                  </div>
+                  {managementHoliday ? (
+                    <span className="shrink-0 text-right" title={`Reason: ${managementHoliday.reason || managementHoliday.title}`}>
+                      <StatusBadge status="holiday" />
+                    </span>
+                  ) : (
+                    <span className="shrink-0"><StatusBadge status={record.status} /></span>
+                  )}
+                </div>
+                <dl className="mt-3 grid grid-cols-3 gap-2 text-center">
+                  <div className="rounded-lg bg-[#f7f8fd] p-2">
+                    <dt className="text-[10px] font-semibold uppercase text-[#8490b9]">Check-in</dt>
+                    <dd className="text-xs font-bold text-[#303247]">{record.checkInTime ? new Date(record.checkInTime).toLocaleTimeString() : "-"}</dd>
+                  </div>
+                  <div className="rounded-lg bg-[#f7f8fd] p-2">
+                    <dt className="text-[10px] font-semibold uppercase text-[#8490b9]">Check-out</dt>
+                    <dd className="text-xs font-bold text-[#303247]">{record.checkOutTime ? new Date(record.checkOutTime).toLocaleTimeString() : "-"}</dd>
+                  </div>
+                  <div className="rounded-lg bg-[#f7f8fd] p-2">
+                    <dt className="text-[10px] font-semibold uppercase text-[#8490b9]">Late</dt>
+                    <dd className="text-xs font-bold text-[#303247]">{record.lateMinutes} min</dd>
+                  </div>
+                </dl>
+                <button className="btn-secondary mt-3 w-full" onClick={() => setEditing(createEditForm(record))}><Pencil size={15} /> Edit record</button>
+              </div>
+            );
+          })}
+          {!filteredRecords.length && (
+            <div className="card p-8 text-center text-sm font-medium text-[#7d86a8]">No attendance records found.</div>
+          )}
+        </div>
+
+        {/* Desktop / tablet: table */}
+        <div className="card hidden overflow-x-auto md:block">
           <table className="w-full min-w-[980px] text-left text-sm">
             <thead className="bg-stone-50 text-xs uppercase text-stone-500">
               <tr>
@@ -237,12 +320,22 @@ export default function AttendancePage() {
               {filteredRecords.map((record) => {
                 const teacher = teachers.find((item) => item.id === record.teacherId);
                 const attendanceId = createAttendanceDocumentId(record.teacherId, record.date);
+                const managementHoliday = managementHolidayByDate.get(record.date);
                 return (
                   <tr key={attendanceId} className="border-t border-stone-100">
                     <td className="px-4 py-3">{formatDateForDisplay(record.date) || record.date}</td>
                     <td className="px-4 py-3 font-medium">{teacher?.fullName ?? record.teacherId}</td>
                     <td className="px-4 py-3">{teacher?.subject ?? "--"}</td>
-                    <td className="px-4 py-3"><StatusBadge status={record.status} /></td>
+                    <td className="px-4 py-3">
+                      {managementHoliday ? (
+                        <span title={`Reason: ${managementHoliday.reason || managementHoliday.title}`}>
+                          <StatusBadge status="holiday" />
+                          <span className="mt-1 block text-[11px] font-semibold text-[#a76e08]">Management Holiday</span>
+                        </span>
+                      ) : (
+                        <StatusBadge status={record.status} />
+                      )}
+                    </td>
                     <td className="px-4 py-3">{record.checkInTime ? new Date(record.checkInTime).toLocaleTimeString() : "-"}</td>
                     <td className="px-4 py-3">{record.checkOutTime ? new Date(record.checkOutTime).toLocaleTimeString() : "-"}</td>
                     <td className="px-4 py-3">{record.sourcesUsed.join(", ")}</td>

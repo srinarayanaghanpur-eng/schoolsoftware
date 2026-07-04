@@ -117,6 +117,23 @@ function holiday(date: string): Holiday {
   };
 }
 
+function managementHoliday(date: string, overrides?: Partial<Holiday>): Holiday {
+  return {
+    id: `mgmt_${date}`,
+    date,
+    title: "Management Declared Holiday",
+    type: "management_declared",
+    reason: "Heavy rain",
+    declaredByUserId: "SUPER1",
+    declaredByName: "Super Admin",
+    declaredAt: `${date}T06:00:00+05:30`,
+    appliesToAllBranches: true,
+    isActive: true,
+    createdAt: `${date}T06:00:00+05:30`,
+    ...overrides,
+  };
+}
+
 function calculate(overrides: Partial<SalaryCalculationInput>) {
   return calculateMonthlySalary({
     teacher: createTeacher(),
@@ -320,6 +337,82 @@ runTest("holidays and Sundays are not counted as absences", () => {
   assert.equal(report.absentDays, workingDates(TEST_MONTH, [schoolHoliday]).length);
   assert.equal(report.unpaidAbsentDays, workingDates(TEST_MONTH, [schoolHoliday]).length);
   assert.equal(report.absentDates?.includes(schoolHoliday.date), false);
+});
+
+runTest("management declared holiday is excluded from working days and salary is not deducted", () => {
+  const baseDates = workingDates();
+  const holidayDate = baseDates[10];
+  const declared = managementHoliday(holidayDate);
+  const remainingDates = baseDates.filter((date) => date !== holidayDate);
+  const report = calculate({
+    teacher: createTeacher({ baseSalary: 20000 }),
+    holidays: [declared],
+    records: remainingDates.map((date) => attendance(date)),
+  });
+
+  // 27 working days before the declaration become 26 after it.
+  assert.equal(baseDates.length, 27);
+  assert.equal(report.totalWorkingDaysInMonth, 26);
+  assert.equal(report.workingDaysElapsed, 26);
+  assert.equal(report.managementHolidayDays, 1);
+  assert.ok(report.managementHolidayInfo?.includes(holidayDate));
+  assert.ok(report.managementHolidayInfo?.includes("Heavy rain"));
+  // Not present, not absent, no CL used, no deduction.
+  assert.equal(report.presentDays, 26);
+  assert.equal(report.absentDays, 0);
+  assert.equal(report.totalClUsed, 0);
+  assert.equal(report.absentDates?.includes(holidayDate), false);
+  assert.equal(report.salaryDeduction, 0);
+  assertMoney(report.perDaySalary, 20000 / 26, "daily rate uses 26 working days");
+  assertMoney(report.netPayable, 20000, "full salary is paid");
+});
+
+runTest("declared holiday is not counted as absent even when nobody attends", () => {
+  const baseDates = workingDates();
+  const holidayDate = baseDates[5];
+  const report = calculate({
+    holidays: [managementHoliday(holidayDate)],
+    records: [],
+  });
+  assert.equal(report.totalWorkingDaysInMonth, baseDates.length - 1);
+  assert.equal(report.absentDays, baseDates.length - 1);
+  assert.equal(report.absentDates?.includes(holidayDate), false);
+  assert.equal(report.calculationDebug?.managementHolidayDates?.includes(holidayDate), true);
+});
+
+runTest("teacher who checked in before the holiday was declared is not punished", () => {
+  const baseDates = workingDates();
+  const holidayDate = baseDates[3];
+  const report = calculate({
+    teacher: createTeacher({ baseSalary: 20000 }),
+    holidays: [managementHoliday(holidayDate)],
+    // Attendance record exists for the holiday date (checked in before declaration).
+    records: baseDates.map((date) => attendance(date)),
+  });
+  // The date stays a holiday: not a present working day, not absent, no deduction.
+  assert.equal(report.totalWorkingDaysInMonth, 26);
+  assert.equal(report.presentDays, 26);
+  assert.equal(report.presentDates?.includes(holidayDate), false);
+  assert.equal(report.absentDays, 0);
+  assert.equal(report.salaryDeduction, 0);
+  assertMoney(report.netPayable, 20000, "full salary despite holiday check-in");
+});
+
+runTest("cancelled management holiday keeps the date as a working day", () => {
+  const baseDates = workingDates();
+  const holidayDate = baseDates[10];
+  const cancelled = managementHoliday(holidayDate, {
+    isActive: false,
+    cancelledByUserId: "SUPER1",
+    cancelledAt: `${holidayDate}T09:00:00+05:30`,
+  });
+  const report = calculate({
+    holidays: [cancelled],
+    records: baseDates.map((date) => attendance(date)),
+  });
+  assert.equal(report.totalWorkingDaysInMonth, 27);
+  assert.equal(report.presentDays, 27);
+  assert.equal(report.managementHolidayDays, 0);
 });
 
 console.log("All salary calculation tests passed.");

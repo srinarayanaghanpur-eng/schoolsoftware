@@ -72,7 +72,15 @@ export async function POST(req: Request) {
         .get(),
       db.collection("attendance").where("month", "==", month).get(),
       db.collection("holidays").where("date", ">=", `${month}-01`).where("date", "<=", `${month}-${String(monthEndDay).padStart(2, "0")}`).get(),
-      db.collection("leave_requests").where("status", "==", "approved").get(),
+      // Only leave that can overlap the month: startDate up to month end. The
+      // in-memory endDate check below drops old leave that ended before the
+      // month started (bounded far tighter than fetching every approved leave).
+      db.collection("leave_requests")
+        .where("status", "==", "approved")
+        .where("startDate", "<=", `${month}-${String(monthEndDay).padStart(2, "0")}`)
+        .orderBy("startDate", "desc")
+        .limit(500)
+        .get(),
       getSchoolSettings()
     ]);
     const dbMs = dbTimer();

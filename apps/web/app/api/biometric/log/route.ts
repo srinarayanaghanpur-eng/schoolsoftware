@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
-import { createAttendanceDocumentId, processBiometricLog, toDateKey, validateBiometricSecret } from "@sri-narayana/shared";
+import { createAttendanceDocumentId, managementHolidayMessage, processBiometricLog, toDateKey, validateBiometricSecret } from "@sri-narayana/shared";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { removeUndefinedFields } from "@/lib/firestoreSanitize";
-import { getAttendanceRecord, getSchoolSettings, getTeacherByBiometricUserId } from "@/lib/firestoreServer";
+import { getAttendanceRecord, getHolidayByDate, getSchoolSettings, getTeacherByBiometricUserId } from "@/lib/firestoreServer";
 
 export async function POST(req: Request) {
   try {
@@ -14,6 +14,26 @@ export async function POST(req: Request) {
 
     const payload = await req.json();
     const teacher = await getTeacherByBiometricUserId(payload.biometricUserId);
+
+    // Management-declared holiday: keep the raw device log for history but do
+    // not create attendance — the day is not a working day.
+    if (payload.timestamp) {
+      const holidayToday = await getHolidayByDate(toDateKey(payload.timestamp, settings.timezone));
+      if (holidayToday?.type === "management_declared") {
+        const rawLogRef = await adminDb().collection("biometric_logs").add(removeUndefinedFields({
+          ...payload,
+          processed: false,
+          errorMessage: managementHolidayMessage(holidayToday),
+          createdAt: new Date().toISOString()
+        }));
+        return NextResponse.json({
+          ok: false,
+          biometricLogId: rawLogRef.id,
+          error: managementHolidayMessage(holidayToday)
+        });
+      }
+    }
+
     const existingAttendance =
       teacher && payload.timestamp
         ? await getAttendanceRecord(createAttendanceDocumentId(teacher.id, toDateKey(payload.timestamp, settings.timezone)))

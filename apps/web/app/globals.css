@@ -67,7 +67,37 @@ html, body {
   background: hsl(var(--background));
   color: hsl(var(--foreground));
   font-family: "Poppins", "Inter", "Segoe UI", sans-serif;
-  font-size: 18px;
+  /* Mobile-first fluid base type. Every rem-based size scales with this, so
+     lowering it on small screens de-crowds the whole app at once. Desktop
+     (>=1280px) keeps the original 18px, so laptop/desktop layouts are
+     pixel-identical to before. */
+  font-size: 15px;
+}
+
+/* Stop iOS from auto-inflating text and never let the document scroll
+   sideways — the #1 source of "broken" mobile layouts. */
+html {
+  -webkit-text-size-adjust: 100%;
+}
+html, body {
+  overflow-x: hidden;
+  max-width: 100%;
+}
+
+@media (min-width: 640px) {
+  html, body { font-size: 16px; }
+}
+@media (min-width: 1024px) {
+  html, body { font-size: 17px; }
+}
+@media (min-width: 1280px) {
+  html, body { font-size: 18px; }
+}
+
+/* Media and tables must never force the page wider than the viewport. */
+img, svg, video, canvas {
+  max-width: 100%;
+  height: auto;
 }
 
 @keyframes erp-float-slow {
@@ -499,6 +529,133 @@ html, body {
     background: #f5f5f4;
   }
 }
+
+/* =========================================================================
+   Responsive foundation utilities
+   Mobile-first helpers adopted incrementally by each module. They centralise
+   the grid / table / filter / modal / touch-target rules so pages don't each
+   reinvent (and mis-implement) responsiveness.
+   ========================================================================= */
+
+/* Metric/stat card grid: 1 col mobile → 2 tablet → 4 desktop. */
+.stat-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+}
+@media (min-width: 640px) {
+  .stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+}
+@media (min-width: 1280px) {
+  .stat-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1.25rem; }
+}
+
+/* Two-up card grid: 1 col mobile → 2 from tablet up. */
+.dual-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+}
+@media (min-width: 768px) {
+  .dual-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.25rem; }
+}
+
+/* Responsive page padding: 12 → 20 → 28px. Use in place of ad-hoc p-4/md:p-7. */
+.page-pad {
+  padding: 0.75rem;
+}
+@media (min-width: 640px) {
+  .page-pad { padding: 1.25rem; }
+}
+@media (min-width: 1024px) {
+  .page-pad { padding: 1.75rem; }
+}
+
+/* Horizontal-scroll wrapper for wide tables. min-w-0 on the flex/grid parent
+   is still required for this to actually clip instead of pushing the page. */
+.table-scroll {
+  width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+.table-scroll::-webkit-scrollbar { height: 6px; }
+.table-scroll::-webkit-scrollbar-thumb {
+  background-color: hsl(var(--border));
+  border-radius: 9999px;
+}
+
+/* Active-filter chips shown under a page title on mobile. */
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  border-radius: 9999px;
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--accent));
+  color: hsl(var(--accent-foreground));
+  padding: 0.25rem 0.625rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1rem;
+}
+
+/* Larger touch targets on touch devices only — desktop mouse UX unchanged. */
+@media (pointer: coarse) {
+  .btn-primary,
+  .btn-secondary,
+  .touch-target {
+    min-height: 44px;
+  }
+  .icon-btn {
+    min-height: 40px;
+    min-width: 40px;
+  }
+}
+
+/* Bottom-sheet / full-screen dialog treatment for modals on mobile. Add
+   `.sheet-mobile` to a centered modal panel; it docks to the bottom, spans the
+   width, and caps its height so long forms scroll instead of overflowing. */
+@media (max-width: 639px) {
+  .sheet-mobile {
+    position: fixed !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    top: auto !important;
+    margin: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    max-height: 92vh !important;
+    border-bottom-left-radius: 0 !important;
+    border-bottom-right-radius: 0 !important;
+    border-top-left-radius: 1.25rem !important;
+    border-top-right-radius: 1.25rem !important;
+  }
+}
+
+/* Sticky submit bar pinned to the bottom of a scrolling form on mobile. */
+.form-sticky-footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
+  background: hsl(var(--card));
+  border-top: 1px solid hsl(var(--border));
+  padding: 0.75rem;
+}
+
+/* Horizontal-scroll chip/tab strip (module sub-nav on mobile). */
+.chip-scroll {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding-bottom: 0.25rem;
+}
+.chip-scroll::-webkit-scrollbar { display: none; }
+.chip-scroll > * { flex: 0 0 auto; }
 
 /* Theme compatibility for existing utility-heavy pages. */
 .erp-app {

@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
-import type { AttendanceRecord, AppUser, Teacher } from "@sri-narayana/shared";
+import { filterActiveHolidays, findHolidayForDate, toDateKey, type AttendanceRecord, type AppUser, type Holiday, type Teacher } from "@sri-narayana/shared";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { requireSignedIn, serializeDoc, startTimer } from "@/lib/apiUtils";
+import { getSchoolSettings } from "@/lib/firestoreServer";
 
 export async function GET(req: Request) {
   const totalTimer = startTimer();
@@ -20,10 +21,15 @@ export async function GET(req: Request) {
       return NextResponse.json({ ok: false, error: "Teacher profile is missing." }, { status: 404 });
     }
 
+    const settings = await getSchoolSettings();
+    const today = toDateKey(new Date(), settings.timezone);
+    const month = today.slice(0, 7);
+
     const dbTimer = startTimer();
-    const [teacherSnapshot, attendanceSnapshot] = await Promise.all([
+    const [teacherSnapshot, attendanceSnapshot, holidaysSnapshot] = await Promise.all([
       db.collection("teachers").doc(teacherId).get(),
-      db.collection("attendance").where("teacherId", "==", teacherId).orderBy("date", "desc").limit(60).get()
+      db.collection("attendance").where("teacherId", "==", teacherId).orderBy("date", "desc").limit(60).get(),
+      db.collection("holidays").where("date", ">=", `${month}-01`).where("date", "<=", `${month}-31`).get()
     ]);
     const dbMs = dbTimer();
 
@@ -38,11 +44,13 @@ export async function GET(req: Request) {
 
     const records = attendanceSnapshot.docs
       .map((doc) => serializeDoc<AttendanceRecord>(doc));
+    const holidays = filterActiveHolidays(holidaysSnapshot.docs.map((doc) => serializeDoc<Holiday>(doc)));
+    const todayHoliday = findHolidayForDate(holidays, today) ?? null;
 
     const totalMs = totalTimer();
     console.log(`[API] /api/teacher/me - DB: ${dbMs}ms, Total: ${totalMs}ms, Records: ${records.length}`);
 
-    return NextResponse.json({ ok: true, teacher, records, _metrics: { dbMs, totalMs } });
+    return NextResponse.json({ ok: true, teacher, records, holidays, todayHoliday, _metrics: { dbMs, totalMs } });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to load teacher dashboard";
     return NextResponse.json({ ok: false, error: message }, { status: 400 });

@@ -22,25 +22,32 @@ export async function GET(request: NextRequest) {
     const to = searchParams.get("to") || new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10);
     const fromDate = new Date(`${from}T00:00:00`);
     const toDate = new Date(`${to}T23:59:59.999`);
-    const [paymentsSnap, usersSnap] = await Promise.all([
-      db.collection("payments")
-        .where("status", "==", "completed")
-        .where("createdAt", ">=", fromDate)
-        .where("createdAt", "<=", toDate)
-        .orderBy("createdAt", "desc")
-        .limit(1000)
-        .get(),
-      db.collection("users").get()
-    ]);
+    const paymentsSnap = await db.collection("payments")
+      .where("status", "==", "completed")
+      .where("createdAt", ">=", fromDate)
+      .where("createdAt", "<=", toDate)
+      .orderBy("createdAt", "desc")
+      .limit(1000)
+      .get();
     logFirestoreRead("UserWiseReportAPI", "payments", paymentsSnap, { from, to, status: "completed", limit: 1000 });
-    logFirestoreRead("UserWiseReportAPI", "users", usersSnap, { purpose: "display-names" });
 
-    // Map uid -> display name for readable rows.
-    const nameByUid: Record<string, string> = {};
-    usersSnap.docs.forEach((doc: QueryDocumentSnapshot) => {
-      const data = doc.data();
-      nameByUid[doc.id] = (data.displayName as string) || (data.internalEmail as string) || doc.id;
+    // Fetch display names only for the uids that appear in payments and don't
+    // already carry a paidByName (instead of reading the whole users collection).
+    const uidsNeedingNames = new Set<string>();
+    paymentsSnap.docs.forEach((doc: QueryDocumentSnapshot) => {
+      const p = doc.data();
+      const uid = p.paidBy as string;
+      if (uid && !p.paidByName) uidsNeedingNames.add(uid);
     });
+    const nameByUid: Record<string, string> = {};
+    if (uidsNeedingNames.size > 0) {
+      const userRefs = Array.from(uidsNeedingNames).slice(0, 100).map((uid) => db.collection("users").doc(uid));
+      const userDocs = await db.getAll(...userRefs);
+      userDocs.forEach((doc) => {
+        const data = doc.data();
+        if (data) nameByUid[doc.id] = (data.displayName as string) || (data.internalEmail as string) || doc.id;
+      });
+    }
 
     const byUser: Record<string, { collectedBy: string; transactions: number; totalCollected: number }> = {};
     paymentsSnap.docs.forEach((doc: QueryDocumentSnapshot) => {

@@ -241,8 +241,18 @@ export type Holiday = {
   id?: string;
   date: string;
   title: string;
-  type: "public" | "school" | "exam" | "other";
+  type: "public" | "school" | "exam" | "other" | "management_declared";
   createdAt: FirestoreDate;
+  // Management-declared holiday fields
+  reason?: string;
+  declaredByUserId?: string;
+  declaredByName?: string;
+  declaredAt?: FirestoreDate;
+  branchId?: string; // specific branch code, empty = all branches
+  appliesToAllBranches?: boolean;
+  isActive?: boolean; // false = cancelled; missing means active
+  cancelledByUserId?: string;
+  cancelledAt?: FirestoreDate;
 };
 
 export type SalaryReport = {
@@ -265,6 +275,8 @@ export type SalaryReport = {
   clDays: number;
   absentDays: number;
   holidays: number;
+  managementHolidayDays?: number; // active management-declared holidays in the month
+  managementHolidayInfo?: string; // formatted "date (reason)" list for reports/Excel
   // Salary Calculation
   baseSalary: number;
   perDaySalary: number;
@@ -321,6 +333,7 @@ export type PayrollCalculationDebug = {
   workingDaysElapsed: number;
   presentDates: string[];
   absentDates: string[];
+  managementHolidayDates?: string[];
   approvedLeaveDates: string[];
   attendedApprovedLeaveDates: string[];
   lateDates: string[];

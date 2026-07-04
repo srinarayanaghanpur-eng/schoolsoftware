@@ -16,15 +16,15 @@ function StatCardInner({
 }) {
   const SafeIcon = Icon ?? Circle;
   return (
-    <div className="card dashboard-animate group p-5 transition duration-200 hover:-translate-y-0.5 hover:border-[#c7caf0]">
+    <div className="card dashboard-animate group p-4 transition duration-200 hover:-translate-y-0.5 hover:border-[#c7caf0] sm:p-5">
       <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-sm font-semibold text-[#7d86a8]">{label}</p>
-          <p className="mt-3 text-[32px] font-extrabold leading-none tabular-nums tracking-tight text-[#1b1d32]">{value}</p>
-          {helper && <p className="mt-2 text-sm font-semibold text-[#7d86a8]">{helper}</p>}
+        <div className="min-w-0">
+          <p className="truncate text-xs font-semibold text-[#7d86a8] sm:text-sm">{label}</p>
+          <p className="mt-2 text-[24px] font-extrabold leading-none tabular-nums tracking-tight text-[#1b1d32] sm:mt-3 sm:text-[28px] xl:text-[32px]">{value}</p>
+          {helper && <p className="mt-1.5 truncate text-xs font-semibold text-[#7d86a8] sm:mt-2 sm:text-sm">{helper}</p>}
         </div>
-        <div className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl transition duration-200 group-hover:scale-105 ${tone}`}>
-          <SafeIcon size={21} strokeWidth={2.25} />
+        <div className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl transition duration-200 group-hover:scale-105 sm:h-11 sm:w-11 ${tone}`}>
+          <SafeIcon size={20} strokeWidth={2.25} />
         </div>
       </div>
     </div>

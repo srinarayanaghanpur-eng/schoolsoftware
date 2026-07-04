@@ -83,26 +83,58 @@ export default function CollectionsPage() {
           loading={loading}
         />
 
-        <div className="grid gap-4 sm:grid-cols-4">
-          <div className="card p-5">
-            <p className="text-sm font-semibold text-[#7d86a8]">Total Income</p>
-            <p className="mt-3 text-[30px] font-extrabold leading-none tracking-tight text-[#1b1d32]">{inr(totalIncome)}</p>
+        <div className="stat-grid">
+          <div className="card p-4 sm:p-5">
+            <p className="text-xs font-semibold text-[#7d86a8] sm:text-sm">Total Income</p>
+            <p className="mt-2 text-[24px] font-extrabold leading-none tracking-tight text-[#1b1d32] sm:mt-3 sm:text-[28px] xl:text-[30px]">{inr(totalIncome)}</p>
           </div>
-          <div className="card p-5">
-            <p className="text-sm font-semibold text-[#7d86a8]">Total Expense</p>
-            <p className="mt-3 text-[30px] font-extrabold leading-none tracking-tight text-[#1b1d32]">{inr(totalExpense)}</p>
+          <div className="card p-4 sm:p-5">
+            <p className="text-xs font-semibold text-[#7d86a8] sm:text-sm">Total Expense</p>
+            <p className="mt-2 text-[24px] font-extrabold leading-none tracking-tight text-[#1b1d32] sm:mt-3 sm:text-[28px] xl:text-[30px]">{inr(totalExpense)}</p>
           </div>
-          <div className="card p-5">
-            <p className="text-sm font-semibold text-[#7d86a8]">Net</p>
-            <p className={`mt-3 text-[30px] font-extrabold leading-none tracking-tight ${totalNet >= 0 ? "text-[#14a762]" : "text-[#ed515d]"}`}>{inr(totalNet)}</p>
+          <div className="card p-4 sm:p-5">
+            <p className="text-xs font-semibold text-[#7d86a8] sm:text-sm">Net</p>
+            <p className={`mt-2 text-[24px] font-extrabold leading-none tracking-tight sm:mt-3 sm:text-[28px] xl:text-[30px] ${totalNet >= 0 ? "text-[#14a762]" : "text-[#ed515d]"}`}>{inr(totalNet)}</p>
           </div>
-          <div className="card p-5">
-            <p className="text-sm font-semibold text-[#7d86a8]">Closed Days</p>
-            <p className="mt-3 text-[30px] font-extrabold leading-none tracking-tight text-[#3033a1]">{Object.values(closingStatus).filter(Boolean).length} / {days.length}</p>
+          <div className="card p-4 sm:p-5">
+            <p className="text-xs font-semibold text-[#7d86a8] sm:text-sm">Closed Days</p>
+            <p className="mt-2 text-[24px] font-extrabold leading-none tracking-tight text-[#3033a1] sm:mt-3 sm:text-[28px] xl:text-[30px]">{Object.values(closingStatus).filter(Boolean).length} / {days.length}</p>
           </div>
         </div>
 
-        <div className="overflow-hidden rounded-2xl border border-[#e3e6f0] bg-white">
+        {/* Mobile: daily closing cards */}
+        <div className="space-y-3 md:hidden">
+          {loading ? (
+            <div className="card p-8 text-center text-sm text-stone-400">Loading…</div>
+          ) : days.length === 0 ? (
+            <div className="card p-8 text-center text-sm text-stone-400">No transactions for this period.</div>
+          ) : days.map((d) => {
+            const isClosed = closingStatus[d.date];
+            return (
+              <div key={d.date} className={`card p-4 ${isClosed ? "bg-[#f6faf6]" : ""}`}>
+                <div className="flex items-center justify-between">
+                  <span className="text-base font-bold text-[#303247]">{d.date}</span>
+                  <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-bold ${isClosed ? "bg-[#e6f8ef] text-[#14a762]" : "bg-[#fff4df] text-[#e29813]"}`}>
+                    {isClosed ? <Lock size={12} /> : <Unlock size={12} />}{isClosed ? "Closed" : "Open"}
+                  </span>
+                </div>
+                <dl className="mt-3 grid grid-cols-3 gap-2 text-center">
+                  <div><dt className="text-[10px] font-semibold uppercase text-stone-500">Income</dt><dd className="text-sm font-bold text-[#14a762]">{inr(d.income)}</dd></div>
+                  <div><dt className="text-[10px] font-semibold uppercase text-stone-500">Expense</dt><dd className="text-sm font-bold text-[#ed515d]">{inr(d.expense)}</dd></div>
+                  <div><dt className="text-[10px] font-semibold uppercase text-stone-500">Net</dt><dd className={`text-sm font-bold ${d.net >= 0 ? "text-[#14a762]" : "text-[#ed515d]"}`}>{inr(d.net)}</dd></div>
+                </dl>
+                {canClose && (
+                  <button onClick={() => toggleClose(d.date)} className={`mt-3 w-full rounded-lg py-2.5 text-sm font-bold transition ${isClosed ? "bg-[#ffebed] text-[#ed515d]" : "bg-[#e6f8ef] text-[#14a762]"}`}>
+                    {isClosed ? "Reopen day" : "Close day"}
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Desktop / tablet: table */}
+        <div className="hidden overflow-hidden rounded-2xl border border-[#e3e6f0] bg-white md:block">
           <div className="overflow-x-auto">
             <table className="w-full border-collapse text-left text-sm">
               <thead className="bg-[#f7f8fd]">

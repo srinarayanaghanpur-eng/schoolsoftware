@@ -1,6 +1,9 @@
+"use client";
+
 import { AdmissionApprovalSettings } from "@/components/AdmissionApprovalSettings";
 import { BackupErasePanel } from "@/components/BackupErasePanel";
 import { CampusGpsSettings } from "@/components/CampusGpsSettings";
+import { DeclareHolidayModal } from "@/components/DeclareHolidayModal";
 import { PageHeader } from "@/components/PageHeader";
 import { PaymentUpiSettings } from "@/components/PaymentUpiSettings";
 import { TeacherGpsSettings } from "@/components/TeacherGpsSettings";
@@ -11,6 +14,15 @@ export default function SettingsPage() {
     <>
       <PageHeader title="Settings" description="Locations, attendance rules, salary policy, backup, and data safety." />
       <section className="space-y-5 p-4 md:p-7">
+        <div className="card flex flex-wrap items-center justify-between gap-3 p-4">
+          <div>
+            <h2 className="font-semibold">Management Declared Holiday</h2>
+            <p className="text-sm font-medium text-[#7d86a8]">
+              Declare a sudden holiday (heavy rain, government order, emergency). Teacher check-in is blocked and payroll excludes the date from working days. Manage or cancel declared holidays on the Holidays page.
+            </p>
+          </div>
+          <DeclareHolidayModal />
+        </div>
         <div className="grid gap-4 xl:grid-cols-2">
           <CampusGpsSettings />
           <TeacherGpsSettings />

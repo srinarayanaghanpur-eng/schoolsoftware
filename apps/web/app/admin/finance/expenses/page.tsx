@@ -80,7 +80,36 @@ export default function ExpensesPage() {
           </form>
         )}
 
-        <div className="card overflow-x-auto">
+        {/* Mobile: expense cards */}
+        <div className="space-y-3 md:hidden">
+          {loading ? (
+            <div className="card p-8 text-center text-sm font-medium text-stone-400">Loading…</div>
+          ) : items.length === 0 ? (
+            <div className="card p-8 text-center text-sm font-medium text-stone-400">No expenses recorded yet</div>
+          ) : items.map((x) => (
+            <div key={x.id} className="card p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate text-base font-bold text-[#1f2136]">{x.description || "—"}</p>
+                  <p className="mt-0.5 text-xs font-medium text-stone-500"><span className="capitalize">{x.category}</span> · {x.date}</p>
+                </div>
+                <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-bold capitalize ${statusTone[x.status]}`}>{x.status}</span>
+              </div>
+              <div className="mt-3 flex items-center justify-between gap-3">
+                <span className="text-lg font-extrabold text-[#1b1d32]">{inr(x.amount)}</span>
+                {x.status === "pending" && canApprove && (
+                  <div className="flex gap-2">
+                    <button onClick={() => setStatus(x.id, "approved")} className="inline-flex items-center gap-1.5 rounded-lg bg-[#e6f8ef] px-3 py-2 text-sm font-bold text-[#14a762]" title="Approve"><Check size={16} /> Approve</button>
+                    <button onClick={() => setStatus(x.id, "rejected")} className="inline-flex items-center gap-1.5 rounded-lg bg-[#ffebed] px-3 py-2 text-sm font-bold text-[#ed515d]" title="Reject"><X size={16} /> Reject</button>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Desktop / tablet: table */}
+        <div className="card hidden overflow-x-auto md:block">
           <table className="w-full min-w-[720px] text-left text-sm">
             <thead className="bg-stone-50 text-xs uppercase text-stone-500"><tr><th className="px-4 py-3">Date</th><th className="px-4 py-3">Category</th><th className="px-4 py-3">Description</th><th className="px-4 py-3 text-right">Amount</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Action</th></tr></thead>
             <tbody>

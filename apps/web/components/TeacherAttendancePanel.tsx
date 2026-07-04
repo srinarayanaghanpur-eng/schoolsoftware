@@ -6,9 +6,10 @@ import {
   isWithinCheckInWindow,
   isWithinCheckOutWindow,
   type AttendanceEventType,
-  type EmploymentType
+  type EmploymentType,
+  type Holiday
 } from "@sri-narayana/shared";
-import { LogIn, LogOut, MapPin, ShieldCheck } from "lucide-react";
+import { CalendarOff, LogIn, LogOut, MapPin, ShieldCheck } from "lucide-react";
 import { useEffect, useState } from "react";
 
 function getBrowserLocation() {
@@ -23,11 +24,14 @@ function getBrowserLocation() {
 
 export function TeacherAttendancePanel({
   teacherId,
-  employmentType = "full_time"
+  employmentType = "full_time",
+  todayHoliday = null
 }: {
   teacherId: string;
   employmentType?: EmploymentType;
+  todayHoliday?: Holiday | null;
 }) {
+  const isManagementHoliday = todayHoliday?.type === "management_declared";
   const [loading, setLoading] = useState<AttendanceEventType | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [lastGps, setLastGps] = useState<{ latitude: number; longitude: number; accuracy?: number; distance?: number } | null>(null);
@@ -123,12 +127,20 @@ export function TeacherAttendancePanel({
         </span>
       </div>
 
+      {isManagementHoliday && (
+        <div className="mt-4 rounded-xl border border-[#ffd35b]/40 bg-[#f7c548]/15 px-4 py-3.5">
+          <p className="flex items-center gap-2 text-sm font-extrabold text-[#ffd35b]"><CalendarOff size={17} /> Today is a Management Declared Holiday</p>
+          <p className="mt-1 text-sm font-semibold text-[#eef0ff]">Reason: {todayHoliday?.reason || todayHoliday?.title}</p>
+          <p className="mt-0.5 text-sm font-medium text-[#d7dcff]">No attendance required today.</p>
+        </div>
+      )}
+
       <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-        <button className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#f7c548] px-4 py-3.5 text-sm font-extrabold text-[#292b7f] transition hover:-translate-y-0.5 hover:bg-[#ffd35b] disabled:cursor-not-allowed disabled:opacity-50" disabled={Boolean(loading) || !canCheckIn} onClick={() => markAttendance("checkin")}>
-          <LogIn size={18} /> {loading === "checkin" ? "Checking location…" : canCheckIn ? "Check in" : "Check-in closed"}
+        <button className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#f7c548] px-4 py-3.5 text-sm font-extrabold text-[#292b7f] transition hover:-translate-y-0.5 hover:bg-[#ffd35b] disabled:cursor-not-allowed disabled:opacity-50" disabled={Boolean(loading) || !canCheckIn || isManagementHoliday} onClick={() => markAttendance("checkin")}>
+          <LogIn size={18} /> {isManagementHoliday ? "Holiday Declared" : loading === "checkin" ? "Checking location…" : canCheckIn ? "Check in" : "Check-in closed"}
         </button>
-        <button className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-white/20 bg-white/10 px-4 py-3.5 text-sm font-extrabold text-white transition hover:-translate-y-0.5 hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-50" disabled={Boolean(loading) || !canCheckOut} onClick={() => markAttendance("checkout")}>
-          <LogOut size={18} /> {loading === "checkout" ? "Checking location…" : canCheckOut ? "Check out" : "Check-out closed"}
+        <button className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-white/20 bg-white/10 px-4 py-3.5 text-sm font-extrabold text-white transition hover:-translate-y-0.5 hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-50" disabled={Boolean(loading) || !canCheckOut || isManagementHoliday} onClick={() => markAttendance("checkout")}>
+          <LogOut size={18} /> {isManagementHoliday ? "Holiday Declared" : loading === "checkout" ? "Checking location…" : canCheckOut ? "Check out" : "Check-out closed"}
         </button>
       </div>
       {message && <p className="mt-4 rounded-xl border border-white/10 bg-white/10 px-3 py-2.5 text-sm font-medium text-[#eef0ff]">{message}</p>}

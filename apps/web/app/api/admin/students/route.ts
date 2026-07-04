@@ -45,6 +45,13 @@ export async function GET(request: NextRequest) {
       return scoped;
     };
 
+    // count=1 → return only an aggregate count for the current scope (1 read
+    // per 1000 docs instead of reading every matching document).
+    if (searchParams.get("count") === "1") {
+      const countSnap = await applyScope(db.collection('students')).count().get();
+      return NextResponse.json({ success: true, count: Number(countSnap.data().count || 0) });
+    }
+
     let query: any = applyScope(db.collection('students'));
     let appliedLimit = pageSize;
 
