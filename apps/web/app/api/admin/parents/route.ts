@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { FieldValue } from "firebase-admin/firestore";
 import { parentCreateSchema } from "@sri-narayana/shared";
 import { adminAuth, adminDb } from "@/lib/firebaseAdmin";
-import { requireAdmin } from "@/lib/apiUtils";
+import { errorMessage, requireAdmin } from "@/lib/apiUtils";
 import { employeeIdToInternalEmail } from "@sri-narayana/shared";
 import { writeAuditLog } from "@/lib/auditLog";
 
@@ -109,7 +109,6 @@ export async function POST(req: Request) {
     if (createdUid) {
       await adminAuth().deleteUser(createdUid).catch(() => undefined);
     }
-    const message = error instanceof Error ? error.message : "Unable to create parent";
-    return NextResponse.json({ ok: false, error: message }, { status: 400 });
+    return NextResponse.json({ ok: false, error: errorMessage(error, "Unable to create parent") }, { status: 400 });
   }
 }

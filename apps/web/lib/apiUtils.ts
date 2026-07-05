@@ -86,6 +86,25 @@ export async function requirePermission(req: Request, permission: Permission): P
   return decodedToken;
 }
 
+/**
+ * Turn any thrown value into a human-readable message.
+ *
+ * Zod validation errors are `Error`s whose `.message` is a raw JSON array of
+ * issues (e.g. `[{"code":"too_small",...}]`). Surfacing that to users dumps
+ * unreadable JSON on screen, so we detect Zod errors (duck-typed via `issues`,
+ * to survive multiple zod copies across the monorepo) and return the first
+ * issue's friendly message instead — "Password must be at least 8 characters".
+ */
+export function errorMessage(error: unknown, fallback = "Something went wrong"): string {
+  if (error && typeof error === "object" && "issues" in error) {
+    const issues = (error as { issues?: Array<{ message?: string }> }).issues;
+    if (Array.isArray(issues) && issues.length > 0 && issues[0]?.message) {
+      return issues[0].message;
+    }
+  }
+  return error instanceof Error && error.message ? error.message : fallback;
+}
+
 function normalizeFirestoreValue(value: unknown): unknown {
   if (!value || typeof value !== "object") return value;
   if ("toDate" in value && typeof value.toDate === "function") {

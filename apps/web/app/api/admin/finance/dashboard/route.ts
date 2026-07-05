@@ -99,12 +99,22 @@ export async function GET(req: Request) {
       .aggregate({ todayCollected: AggregateField.sum("amountPaid") })
       .get()
       .catch(() => null),
-    db.collection("payments").where("createdAt", ">=", fromDate).where("createdAt", "<=", toDate).orderBy("createdAt", "desc").limit(300).get(),
-    db.collection("incomes").where("createdAt", ">=", fromDate).where("createdAt", "<=", toDate).orderBy("createdAt", "desc").limit(300).get(),
-    db.collection("expenses").where("status", "==", "approved").where("createdAt", ">=", fromDate).where("createdAt", "<=", toDate).orderBy("createdAt", "desc").limit(300).get(),
-    db.collection("salary_reports").where("paid", "==", true).where("paidAt", ">=", fromDate).where("paidAt", "<=", toDate).orderBy("paidAt", "desc").limit(300).get(),
-    db.collection("salary_advances").where("createdAt", ">=", fromDate).where("createdAt", "<=", toDate).orderBy("createdAt", "desc").limit(300).get()
+    // Each list query is independently fault-tolerant: a missing composite
+    // index (or transient error) on one collection degrades that section to
+    // empty instead of failing the whole dashboard with "Request failed".
+    db.collection("payments").where("createdAt", ">=", fromDate).where("createdAt", "<=", toDate).orderBy("createdAt", "desc").limit(300).get().catch(() => null),
+    db.collection("incomes").where("createdAt", ">=", fromDate).where("createdAt", "<=", toDate).orderBy("createdAt", "desc").limit(300).get().catch(() => null),
+    db.collection("expenses").where("status", "==", "approved").where("createdAt", ">=", fromDate).where("createdAt", "<=", toDate).orderBy("createdAt", "desc").limit(300).get().catch(() => null),
+    db.collection("salary_reports").where("paid", "==", true).where("paidAt", ">=", fromDate).where("paidAt", "<=", toDate).orderBy("paidAt", "desc").limit(300).get().catch(() => null),
+    db.collection("salary_advances").where("createdAt", ">=", fromDate).where("createdAt", "<=", toDate).orderBy("createdAt", "desc").limit(300).get().catch(() => null)
   ]);
+
+  const EMPTY_DOCS: FirebaseFirestore.QueryDocumentSnapshot[] = [];
+  const paymentsDocs = paymentsSnap?.docs ?? EMPTY_DOCS;
+  const incomesDocs = incomesSnap?.docs ?? EMPTY_DOCS;
+  const expensesDocs = expensesSnap?.docs ?? EMPTY_DOCS;
+  const salaryDocs = salarySnap?.docs ?? EMPTY_DOCS;
+  const advancesDocs = advancesSnap?.docs ?? EMPTY_DOCS;
 
   logFirestoreAggregateRead("FinanceDashboardAPI", "studentFeeSummaries", { operation: "sum-total-and-due" });
   logFirestoreAggregateRead("FinanceDashboardAPI", "payments", { operation: "today-sum" });
@@ -126,7 +136,7 @@ export async function GET(req: Request) {
   const byWeek = new Map<string, { name: string; income: number; expense: number }>();
   const transactions: MoneyEntry[] = [];
 
-  paymentsSnap.docs.forEach((doc) => {
+  paymentsDocs.forEach((doc) => {
     const data = doc.data();
     if (String(data.status || "").toLowerCase() === "cancelled") return;
     const date = docDateKey(data, "paymentDate");
@@ -144,7 +154,7 @@ export async function GET(req: Request) {
     });
   });
 
-  incomesSnap.docs.forEach((doc) => {
+  incomesDocs.forEach((doc) => {
     const data = doc.data();
     const date = docDateKey(data);
     if (!inRange(date, from, to)) return;
@@ -161,7 +171,7 @@ export async function GET(req: Request) {
     });
   });
 
-  expensesSnap.docs.forEach((doc) => {
+  expensesDocs.forEach((doc) => {
     const data = doc.data();
     const date = docDateKey(data);
     if (!inRange(date, from, to)) return;
@@ -178,7 +188,7 @@ export async function GET(req: Request) {
     });
   });
 
-  salarySnap.docs.forEach((doc) => {
+  salaryDocs.forEach((doc) => {
     const data = doc.data();
     const date = docDateKey(data, "paidAt", "month");
     if (!inRange(date, from, to)) return;
@@ -195,7 +205,7 @@ export async function GET(req: Request) {
     });
   });
 
-  advancesSnap.docs.forEach((doc) => {
+  advancesDocs.forEach((doc) => {
     const data = doc.data();
     const date = docDateKey(data);
     if (!inRange(date, from, to)) return;
@@ -235,7 +245,7 @@ export async function GET(req: Request) {
       outstandingDues,
       studentsPending,
       todayCollected,
-      paymentCount: paymentsSnap.size
+      paymentCount: paymentsDocs.length
     },
     feeCollection: [
       {

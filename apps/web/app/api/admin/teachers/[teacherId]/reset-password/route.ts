@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { FieldValue } from "firebase-admin/firestore";
 import { passwordResetSchema } from "@sri-narayana/shared";
 import { adminAuth, adminDb } from "@/lib/firebaseAdmin";
-import { requireAdmin } from "@/lib/apiUtils";
+import { errorMessage, requireAdmin } from "@/lib/apiUtils";
 
 export async function POST(req: Request, { params }: { params: { teacherId: string } }) {
   try {
@@ -61,7 +61,6 @@ export async function POST(req: Request, { params }: { params: { teacherId: stri
 
     return NextResponse.json({ ok: true, message: "Teacher password reset successfully." });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unable to reset password";
-    return NextResponse.json({ ok: false, error: message }, { status: 400 });
+    return NextResponse.json({ ok: false, error: errorMessage(error, "Unable to reset password") }, { status: 400 });
   }
 }

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { errorMessage } from "./apiUtils";
 
 const DEFAULT_QUOTA_COOLDOWN_MS = 5 * 60 * 1000;
 
@@ -50,6 +51,5 @@ export function firestoreErrorResponse(error: unknown, fallbackMessage: string, 
     return firestoreQuotaResponse();
   }
 
-  const message = error instanceof Error ? error.message : fallbackMessage;
-  return NextResponse.json({ ok: false, error: message }, { status: fallbackStatus });
+  return NextResponse.json({ ok: false, error: errorMessage(error, fallbackMessage) }, { status: fallbackStatus });
 }
