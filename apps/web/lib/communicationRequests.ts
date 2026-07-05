@@ -21,6 +21,9 @@ export type NormalizedRequest = {
   deletedAt: string | null;
   // Extra fields the UI needs for actions (e.g. password reset targets a teacher).
   teacherId?: string;
+  userId?: string;
+  userRole?: string;
+  targetType?: string;
   loginId?: string;
   employeeId?: string;
 };
@@ -113,8 +116,8 @@ export function normalizeRequest(source: SourceConfig, doc: QueryDocumentSnapsho
   let message = "";
 
   if (source.type === "password_reset") {
-    name = String(data.teacherName || data.loginId || "Unknown");
-    roleOrClass = String(data.employeeId || "Teacher");
+    name = String(data.teacherName || data.userName || data.loginId || "Unknown");
+    roleOrClass = String(data.employeeId || data.userRole || "Account");
     message = String(data.adminNote || "Password reset requested");
   } else if (source.type === "leave") {
     name = String(data.teacherName || "Unknown");
@@ -139,6 +142,9 @@ export function normalizeRequest(source: SourceConfig, doc: QueryDocumentSnapsho
     archived: data.archived === true,
     deletedAt: data.deletedAt ? asIso(data.deletedAt) : null,
     teacherId: data.teacherId ? String(data.teacherId) : undefined,
+    userId: data.userId ? String(data.userId) : undefined,
+    userRole: data.userRole ? String(data.userRole) : undefined,
+    targetType: data.targetType ? String(data.targetType) : undefined,
     loginId: data.loginId ? String(data.loginId) : undefined,
     employeeId: data.employeeId ? String(data.employeeId) : undefined
   };
@@ -146,7 +152,7 @@ export function normalizeRequest(source: SourceConfig, doc: QueryDocumentSnapsho
 
 /** Lowercased haystack for in-memory search over a normalized request. */
 export function searchHaystack(request: NormalizedRequest): string {
-  return [request.name, request.roleOrClass, request.message, request.teacherId, request.loginId, request.employeeId, request.id]
+  return [request.name, request.roleOrClass, request.message, request.teacherId, request.userId, request.userRole, request.loginId, request.employeeId, request.id]
     .filter(Boolean)
     .join(" ")
     .toLowerCase();

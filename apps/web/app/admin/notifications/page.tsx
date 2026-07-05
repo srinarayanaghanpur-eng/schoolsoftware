@@ -32,6 +32,9 @@ type CommRequest = {
   archived: boolean;
   deletedAt: string | null;
   teacherId?: string;
+  userId?: string;
+  userRole?: string;
+  targetType?: string;
   loginId?: string;
   employeeId?: string;
 };
@@ -216,15 +219,15 @@ export default function NotificationsPage() {
 
   const submitPasswordReset = async (event: FormEvent) => {
     event.preventDefault();
-    if (!resetTarget?.teacherId) {
-      notify("err", "This request is not linked to a teacher profile.");
+    if (!resetTarget?.id) {
+      notify("err", "This password request is missing its request ID.");
       return;
     }
     setBusy(true);
     try {
-      const result = await adminApiRequest<{ message?: string }>(`/api/admin/teachers/${resetTarget.teacherId}/reset-password`, {
+      const result = await adminApiRequest<{ message?: string }>(`/api/admin/password-reset-requests/${resetTarget.id}/reset-password`, {
         method: "POST",
-        body: JSON.stringify({ ...resetForm, requestId: resetTarget.id })
+        body: JSON.stringify(resetForm)
       });
       setResetTarget(null);
       setResetForm(emptyResetForm);
@@ -468,8 +471,8 @@ export default function NotificationsPage() {
           <form onSubmit={submitPasswordReset} className="card w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h2 className="font-bold text-[#1f2136]">Reset teacher password</h2>
-                <p className="text-sm font-medium text-[#7d86a8]">{resetTarget.name} · {resetTarget.employeeId || resetTarget.loginId}</p>
+                <h2 className="font-bold text-[#1f2136]">Reset account password</h2>
+                <p className="text-sm font-medium text-[#7d86a8]">{resetTarget.name} · {resetTarget.employeeId || resetTarget.loginId || resetTarget.userId || resetTarget.teacherId}</p>
               </div>
               <button type="button" className="grid h-9 w-9 place-items-center rounded-xl text-[#7d86a8] hover:bg-[#f4f5fb]" onClick={() => setResetTarget(null)}>
                 <XCircle size={18} />
@@ -505,6 +508,8 @@ export default function NotificationsPage() {
               <DetailRow label="Message" value={details.message || "--"} />
               {details.employeeId && <DetailRow label="Employee ID" value={details.employeeId} />}
               {details.teacherId && <DetailRow label="Teacher ID" value={details.teacherId} />}
+              {details.userId && <DetailRow label="User ID" value={details.userId} />}
+              {details.userRole && <DetailRow label="User Role" value={details.userRole} />}
             </dl>
           </div>
         </div>
@@ -573,7 +578,7 @@ function RowActions({
         </button>
       )}
       {canResetPassword && (
-        <button className={`${btn} bg-[#eef0ff] text-[#3033a1] hover:bg-[#e3e5ff]`} onClick={onReset} disabled={busy || !request.teacherId}>
+        <button className={`${btn} bg-[#eef0ff] text-[#3033a1] hover:bg-[#e3e5ff]`} onClick={onReset} disabled={busy}>
           <KeyRound size={14} /> Reset
         </button>
       )}

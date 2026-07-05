@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { passwordResetRequestCreateSchema } from "@sri-narayana/shared";
+import { employeeIdToInternalEmail, isValidRole, passwordResetRequestCreateSchema } from "@sri-narayana/shared";
 import { adminDb } from "@/lib/firebaseAdmin";
 
 export async function POST(req: Request) {
@@ -31,6 +31,17 @@ export async function POST(req: Request) {
       .get();
     const teacherDoc = teacherSnapshot.docs[0];
     const teacher = teacherDoc?.data();
+
+    const userSnapshot = teacherDoc
+      ? null
+      : await db
+          .collection("users")
+          .where("employeeId", "==", normalizedLoginId)
+          .limit(1)
+          .get();
+    const userDoc = userSnapshot?.docs[0];
+    const user = userDoc?.data();
+    const internalEmail = employeeIdToInternalEmail(normalizedLoginId);
     const requestedAt = new Date().toISOString();
     const requestRef = db.collection("password_reset_requests").doc();
 
@@ -39,8 +50,13 @@ export async function POST(req: Request) {
         loginId: normalizedLoginId,
         loginIdLower,
         employeeId: typeof teacher?.employeeId === "string" ? teacher.employeeId : normalizedLoginId,
+        internalEmail,
         teacherId: teacherDoc?.id ?? "",
         teacherName: typeof teacher?.fullName === "string" ? teacher.fullName : "",
+        userId: !teacherDoc && userDoc ? userDoc.id : "",
+        userName: !teacherDoc && typeof user?.displayName === "string" ? user.displayName : "",
+        userRole: !teacherDoc && isValidRole(user?.role) ? user.role : "",
+        targetType: teacherDoc ? "teacher" : userDoc ? "user" : "unknown",
         status: "open",
         requestedAt
       });
