@@ -53,6 +53,7 @@ const TYPE_LABEL: Record<RequestType, string> = {
 };
 
 const PAGE_SIZE = 25;
+const COMMUNICATION_BADGE_COUNT_EVENT = "snhs-communication-pending-count";
 
 function rowKey(request: CommRequest) {
   return `${request.type}:${request.id}`;
@@ -144,6 +145,7 @@ export default function NotificationsPage() {
     try {
       const data = await adminApiRequest<{ ok: boolean; pendingCount: number }>("/api/admin/communication/requests?count=1");
       setPendingCount(data.pendingCount);
+      window.dispatchEvent(new CustomEvent(COMMUNICATION_BADGE_COUNT_EVENT, { detail: { pendingCount: data.pendingCount } }));
     } catch {
       setPendingCount(null);
     }

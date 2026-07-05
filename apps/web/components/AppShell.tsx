@@ -96,6 +96,8 @@ type SubSidebarToggleEdge = "top" | "left" | "right";
 type SubSidebarTogglePosition = { edge: SubSidebarToggleEdge; x: number; y: number };
 
 const APPROVAL_BADGE_POLL_MS = 5 * 60 * 1000;
+const COMMUNICATION_BADGE_POLL_MS = 5 * 60 * 1000;
+const COMMUNICATION_BADGE_COUNT_EVENT = "snhs-communication-pending-count";
 const APPROVAL_BADGE_QUOTA_PAUSE_MS = 10 * 60 * 1000;
 const APPROVAL_BADGE_QUOTA_PAUSE_KEY = "sriNarayana.approvalBadgeQuotaPauseUntil";
 
@@ -1126,6 +1128,64 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     };
   }, [role]);
 
+  const [pendingCommunicationRequests, setPendingCommunicationRequests] = useState(0);
+  useEffect(() => {
+    const handlePendingCountUpdate = (event: Event) => {
+      const count = Number((event as CustomEvent<{ pendingCount?: unknown }>).detail?.pendingCount ?? 0);
+      setPendingCommunicationRequests(Number.isFinite(count) ? count : 0);
+    };
+
+    window.addEventListener(COMMUNICATION_BADGE_COUNT_EVENT, handlePendingCountUpdate);
+    return () => window.removeEventListener(COMMUNICATION_BADGE_COUNT_EVENT, handlePendingCountUpdate);
+  }, []);
+
+  useEffect(() => {
+    if (
+      !isFirebaseConfigured ||
+      !role ||
+      (role !== "admin" && role !== "super_admin") ||
+      !canAccessModule(role, "communication") ||
+      !isRoleAllowedForPath("/admin/notifications", role)
+    ) {
+      setPendingCommunicationRequests(0);
+      return;
+    }
+
+    let stopped = false;
+    let interval: ReturnType<typeof setInterval> | undefined;
+    const fetchCount = async () => {
+      if (stopped) return;
+      try {
+        const token = await auth.currentUser?.getIdToken();
+        if (!token) {
+          setPendingCommunicationRequests(0);
+          return;
+        }
+
+        const res = await fetch("/api/admin/communication/requests?count=1", {
+          headers: { authorization: `Bearer ${token}` }
+        });
+        const data = (await res.json().catch(() => null)) as { ok?: boolean; pendingCount?: unknown } | null;
+        if (!res.ok) {
+          setPendingCommunicationRequests(0);
+          return;
+        }
+
+        const count = Number(data?.pendingCount ?? 0);
+        setPendingCommunicationRequests(data?.ok && Number.isFinite(count) ? count : 0);
+      } catch {
+        setPendingCommunicationRequests(0);
+      }
+    };
+
+    void fetchCount();
+    interval = setInterval(fetchCount, COMMUNICATION_BADGE_POLL_MS);
+    return () => {
+      stopped = true;
+      if (interval) clearInterval(interval);
+    };
+  }, [role, pathname]);
+
   // Mobile slide-in nav drawer. Closes automatically on navigation.
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   useEffect(() => setMobileNavOpen(false), [pathname]);
@@ -1218,6 +1278,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     ((Boolean(currentModule) && (!role || !canAccessModule(role, currentModule!))) ||
       !isRoleAllowedForPath(pathname, role));
   const roleLabel = role ? ROLE_LABELS[role] : "Loading...";
+  const notificationLabel =
+    pendingCommunicationRequests > 0
+      ? `Communication & notifications, ${pendingCommunicationRequests} pending`
+      : "Communication & notifications";
 
   const toggleSubSidebar = () => {
     setMobileNavOpen(false);
@@ -1438,9 +1502,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <LiveClock className="hidden sm:inline-flex" />
           <DarkModeToggle />
           {role && canAccessModule(role, "communication") && (
-            <Link href="/admin/notifications" aria-label="Communication & notifications" className="relative grid h-10 w-10 place-items-center rounded-lg bg-accent text-accent-foreground transition hover:bg-muted md:h-11 md:w-11">
+            <Link
+              href="/admin/notifications"
+              aria-label={notificationLabel}
+              title={pendingCommunicationRequests > 0 ? `${pendingCommunicationRequests} pending request${pendingCommunicationRequests === 1 ? "" : "s"}` : "No pending requests"}
+              className="relative grid h-10 w-10 place-items-center rounded-lg bg-accent text-accent-foreground transition hover:bg-muted md:h-11 md:w-11"
+            >
               <BellRing size={19} />
-              <span className="absolute right-2.5 top-2.5 h-1.5 w-1.5 rounded-full bg-destructive ring-2 ring-card md:right-3 md:top-3" />
+              {pendingCommunicationRequests > 0 && (
+                <span className="absolute right-2.5 top-2.5 h-1.5 w-1.5 rounded-full bg-destructive ring-2 ring-card md:right-3 md:top-3" />
+              )}
             </Link>
           )}
           <button
