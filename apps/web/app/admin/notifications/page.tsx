@@ -12,7 +12,6 @@ import {
   ClipboardCheck,
   Eye,
   KeyRound,
-  Search,
   Trash2,
   XCircle
 } from "lucide-react";
@@ -45,13 +44,6 @@ const TABS: { key: Tab; label: string }[] = [
   { key: "rejected", label: "Rejected" },
   { key: "archived", label: "Archived" },
   { key: "all", label: "All" }
-];
-
-const TYPE_FILTERS: { key: RequestType | "all"; label: string }[] = [
-  { key: "all", label: "All types" },
-  { key: "password_reset", label: "Password Reset" },
-  { key: "leave", label: "Leave" },
-  { key: "attendance_edit", label: "Attendance Edit" }
 ];
 
 const TYPE_LABEL: Record<RequestType, string> = {
@@ -91,11 +83,11 @@ const emptyResetForm: ResetForm = { password: "", confirmPassword: "", adminNote
 
 export default function NotificationsPage() {
   const [tab, setTab] = useState<Tab>("pending");
-  const [typeFilter, setTypeFilter] = useState<RequestType | "all">("all");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
-  const [search, setSearch] = useState("");
-  const [searchInput, setSearchInput] = useState("");
+  // Filter bar was removed from this page; requests always load unfiltered.
+  const typeFilter: RequestType | "all" = "all";
+  const startDate = "";
+  const endDate = "";
+  const search = "";
 
   const [requests, setRequests] = useState<CommRequest[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
@@ -309,49 +301,6 @@ export default function NotificationsPage() {
         <p className="text-xs font-medium text-[#8a91b4]">
           Auto-cleanup: archived requests are permanently deleted after 5 days; approved/rejected requests auto-delete after 10 days. Audit logs are never auto-deleted.
         </p>
-
-        {/* Filters */}
-        <div className="card flex flex-wrap items-end gap-3 p-4">
-          <label className="text-xs font-semibold text-[#7d86a8]">
-            Type
-            <select className="field mt-1" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value as RequestType | "all")}>
-              {TYPE_FILTERS.map((t) => (
-                <option key={t.key} value={t.key}>{t.label}</option>
-              ))}
-            </select>
-          </label>
-          <label className="text-xs font-semibold text-[#7d86a8]">
-            From
-            <input type="date" className="field mt-1" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
-          </label>
-          <label className="text-xs font-semibold text-[#7d86a8]">
-            To
-            <input type="date" className="field mt-1" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
-          </label>
-          <label className="min-w-[180px] flex-1 text-xs font-semibold text-[#7d86a8]">
-            Search
-            <div className="relative mt-1">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8490b9]" />
-              <input
-                className="field pl-9"
-                placeholder="Name, employee ID, user id..."
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") setSearch(searchInput.trim()); }}
-              />
-            </div>
-          </label>
-          <button type="button" className="btn-secondary" onClick={() => setSearch(searchInput.trim())}>Apply</button>
-          {(startDate || endDate || search || typeFilter !== "all") && (
-            <button
-              type="button"
-              className="btn-secondary"
-              onClick={() => { setStartDate(""); setEndDate(""); setSearch(""); setSearchInput(""); setTypeFilter("all"); }}
-            >
-              Clear filters
-            </button>
-          )}
-        </div>
 
         {/* Bulk actions */}
         <div className="flex flex-wrap items-center gap-2">

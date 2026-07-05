@@ -18,7 +18,6 @@ import {
   CalendarRange,
   ChevronDown,
   ChevronLeft,
-  ChevronRight,
   Circle,
   ClipboardCheck,
   FileStack,
@@ -50,7 +49,8 @@ import {
 import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { CSSProperties, MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from "react";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import {
@@ -92,6 +92,8 @@ type ContextSubnav = {
   matchPrefixes: string[];
   items: ContextSubnavItem[];
 };
+type SubSidebarToggleEdge = "top" | "left" | "right";
+type SubSidebarTogglePosition = { edge: SubSidebarToggleEdge; x: number; y: number };
 
 const APPROVAL_BADGE_POLL_MS = 5 * 60 * 1000;
 const APPROVAL_BADGE_QUOTA_PAUSE_MS = 10 * 60 * 1000;
@@ -114,6 +116,15 @@ function pauseApprovalBadgeAfterQuota() {
 }
 
 const CONTEXT_SUBNAV_COLLAPSED_KEY = "snhs-context-subnav-collapsed";
+const SUB_SIDEBAR_TOGGLE_POSITION_KEY = "snhs-sub-sidebar-toggle-position";
+const SUB_SIDEBAR_TOGGLE_SIZE = 44;
+const SUB_SIDEBAR_TOGGLE_SAFE_GAP = 12;
+const SUB_SIDEBAR_TOGGLE_DRAG_THRESHOLD = 5;
+const SUB_SIDEBAR_TOGGLE_LONG_PRESS_MS = 650;
+const MAIN_SIDEBAR_WIDTH = 248;
+const SUB_SIDEBAR_WIDTH = 224;
+const SUB_SIDEBAR_DRAWER_WIDTH = 280;
+const SUB_SIDEBAR_COMPACT_QUERY = "(max-width: 1023px)";
 const FallbackIcon = Circle;
 
 const primaryNav: NavItem[] = [
@@ -367,6 +378,138 @@ function isPathActive(pathname: string, href: string, prefixes: string[] = []) {
   return pathname === href || pathname.startsWith(`${href}/`) || prefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
 }
 
+function clampNumber(value: number, min: number, max: number) {
+  if (max < min) return min;
+  return Math.min(Math.max(value, min), max);
+}
+
+function isSubSidebarCompactViewport() {
+  return typeof window !== "undefined" && window.matchMedia(SUB_SIDEBAR_COMPACT_QUERY).matches;
+}
+
+function getSubSidebarToggleMetrics() {
+  const viewportWidth = Math.max(window.innerWidth, SUB_SIDEBAR_TOGGLE_SIZE + SUB_SIDEBAR_TOGGLE_SAFE_GAP * 2);
+  const viewportHeight = Math.max(window.innerHeight, SUB_SIDEBAR_TOGGLE_SIZE + SUB_SIDEBAR_TOGGLE_SAFE_GAP * 2);
+  const compact = isSubSidebarCompactViewport();
+  const panelLeft = compact && viewportWidth < 768 ? 0 : MAIN_SIDEBAR_WIDTH;
+  const panelWidth = compact ? Math.min(SUB_SIDEBAR_DRAWER_WIDTH, Math.floor(viewportWidth * 0.86)) : SUB_SIDEBAR_WIDTH;
+  const left = clampNumber(panelLeft, 0, Math.max(0, viewportWidth - SUB_SIDEBAR_TOGGLE_SAFE_GAP - SUB_SIDEBAR_TOGGLE_SIZE));
+  const right = clampNumber(left + panelWidth, left + SUB_SIDEBAR_TOGGLE_SIZE, viewportWidth - SUB_SIDEBAR_TOGGLE_SAFE_GAP);
+
+  return {
+    compact,
+    left,
+    right,
+    minX: SUB_SIDEBAR_TOGGLE_SAFE_GAP,
+    maxX: viewportWidth - SUB_SIDEBAR_TOGGLE_SIZE - SUB_SIDEBAR_TOGGLE_SAFE_GAP,
+    minY: SUB_SIDEBAR_TOGGLE_SAFE_GAP,
+    maxY: viewportHeight - SUB_SIDEBAR_TOGGLE_SIZE - SUB_SIDEBAR_TOGGLE_SAFE_GAP
+  };
+}
+
+function getSubSidebarTopSnapBounds(metrics = getSubSidebarToggleMetrics()) {
+  const compactStartGap = metrics.compact ? SUB_SIDEBAR_TOGGLE_SIZE + SUB_SIDEBAR_TOGGLE_SAFE_GAP * 2 : SUB_SIDEBAR_TOGGLE_SAFE_GAP;
+  const minX = clampNumber(metrics.left + compactStartGap, metrics.minX, metrics.maxX);
+  const maxX = clampNumber(metrics.right - SUB_SIDEBAR_TOGGLE_SIZE - SUB_SIDEBAR_TOGGLE_SAFE_GAP, minX, metrics.maxX);
+  return { minX, maxX };
+}
+
+function getDefaultSubSidebarTogglePosition(): SubSidebarTogglePosition {
+  const metrics = getSubSidebarToggleMetrics();
+  if (metrics.compact) {
+    const topBounds = getSubSidebarTopSnapBounds(metrics);
+    return { edge: "top", x: topBounds.maxX, y: metrics.minY };
+  }
+
+  return {
+    edge: "left",
+    x: clampNumber(metrics.left - SUB_SIDEBAR_TOGGLE_SIZE / 2, metrics.minX, metrics.maxX),
+    y: clampNumber(92, metrics.minY, metrics.maxY)
+  };
+}
+
+function clampSubSidebarToggleToViewport(x: number, y: number) {
+  const metrics = getSubSidebarToggleMetrics();
+  return {
+    x: clampNumber(x, metrics.minX, metrics.maxX),
+    y: clampNumber(y, metrics.minY, metrics.maxY)
+  };
+}
+
+function normalizeSubSidebarTogglePosition(position?: SubSidebarTogglePosition | null): SubSidebarTogglePosition {
+  const metrics = getSubSidebarToggleMetrics();
+  const fallback = getDefaultSubSidebarTogglePosition();
+  const edge = metrics.compact ? "top" : position?.edge ?? fallback.edge;
+
+  if (edge === "top") {
+    const topBounds = getSubSidebarTopSnapBounds(metrics);
+    return {
+      edge,
+      x: clampNumber(position?.x ?? fallback.x, topBounds.minX, topBounds.maxX),
+      y: metrics.minY
+    };
+  }
+
+  const edgeX = edge === "right" ? metrics.right - SUB_SIDEBAR_TOGGLE_SIZE / 2 : metrics.left - SUB_SIDEBAR_TOGGLE_SIZE / 2;
+  return {
+    edge,
+    x: clampNumber(edgeX, metrics.minX, metrics.maxX),
+    y: clampNumber(position?.y ?? fallback.y, metrics.minY, metrics.maxY)
+  };
+}
+
+function snapSubSidebarTogglePosition(position: SubSidebarTogglePosition): SubSidebarTogglePosition {
+  const metrics = getSubSidebarToggleMetrics();
+  const clamped = clampSubSidebarToggleToViewport(position.x, position.y);
+
+  if (metrics.compact) {
+    return normalizeSubSidebarTogglePosition({ ...position, edge: "top", ...clamped });
+  }
+
+  const leftX = metrics.left - SUB_SIDEBAR_TOGGLE_SIZE / 2;
+  const rightX = metrics.right - SUB_SIDEBAR_TOGGLE_SIZE / 2;
+  const distances: Array<{ edge: SubSidebarToggleEdge; distance: number }> = [
+    { edge: "top", distance: Math.abs(clamped.y - metrics.minY) },
+    { edge: "left", distance: Math.abs(clamped.x - leftX) },
+    { edge: "right", distance: Math.abs(clamped.x - rightX) }
+  ];
+  distances.sort((a, b) => a.distance - b.distance);
+
+  return normalizeSubSidebarTogglePosition({ ...position, edge: distances[0]?.edge ?? "left", ...clamped });
+}
+
+function isSavedSubSidebarToggleEdge(edge: unknown): edge is SubSidebarToggleEdge {
+  return edge === "top" || edge === "left" || edge === "right";
+}
+
+function readSavedSubSidebarTogglePosition() {
+  try {
+    const raw = window.localStorage.getItem(SUB_SIDEBAR_TOGGLE_POSITION_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<SubSidebarTogglePosition>;
+    if (!isSavedSubSidebarToggleEdge(parsed.edge) || !Number.isFinite(parsed.x) || !Number.isFinite(parsed.y)) return null;
+    return parsed as SubSidebarTogglePosition;
+  } catch {
+    return null;
+  }
+}
+
+function saveSubSidebarTogglePosition(position: SubSidebarTogglePosition) {
+  try {
+    window.localStorage.setItem(SUB_SIDEBAR_TOGGLE_POSITION_KEY, JSON.stringify(position));
+  } catch {
+    // Local storage can be blocked; the current session position still works.
+  }
+}
+
+function resetSavedSubSidebarTogglePosition() {
+  try {
+    window.localStorage.removeItem(SUB_SIDEBAR_TOGGLE_POSITION_KEY);
+  } catch {
+    // ignore
+  }
+}
+
 function NavEntry({ item, pathname }: { item: NavItem; pathname: string }) {
   const active = isPathActive(pathname, item.href, item.activePrefixes);
   const childActive = item.children?.some((child) => isPathActive(pathname, child.href)) ?? false;
@@ -430,19 +573,281 @@ function NavEntry({ item, pathname }: { item: NavItem; pathname: string }) {
   );
 }
 
+function SubSidebarToggleButton({
+  title,
+  collapsed,
+  drawerOpen,
+  onToggle
+}: {
+  title: string;
+  collapsed: boolean;
+  drawerOpen: boolean;
+  onToggle: () => void;
+}) {
+  const [position, setPosition] = useState<SubSidebarTogglePosition | null>(null);
+  const [compactViewport, setCompactViewport] = useState(false);
+  const [dragging, setDragging] = useState(false);
+  const [snapAnimating, setSnapAnimating] = useState(false);
+  const positionRef = useRef<SubSidebarTogglePosition | null>(null);
+  const dragRef = useRef<{
+    pointerId: number;
+    startX: number;
+    startY: number;
+    originX: number;
+    originY: number;
+    originEdge: SubSidebarToggleEdge;
+    dragging: boolean;
+  } | null>(null);
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const snapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const suppressClickRef = useRef(false);
+  const longPressTriggeredRef = useRef(false);
+
+  useEffect(() => {
+    positionRef.current = position;
+  }, [position]);
+
+  const clearLongPressTimer = useCallback(() => {
+    if (!longPressTimerRef.current) return;
+    clearTimeout(longPressTimerRef.current);
+    longPressTimerRef.current = null;
+  }, []);
+
+  const animateSnap = useCallback(() => {
+    if (snapTimerRef.current) clearTimeout(snapTimerRef.current);
+    setSnapAnimating(true);
+    snapTimerRef.current = setTimeout(() => {
+      setSnapAnimating(false);
+      snapTimerRef.current = null;
+    }, 240);
+  }, []);
+
+  const restorePosition = useCallback(() => {
+    const next = normalizeSubSidebarTogglePosition(readSavedSubSidebarTogglePosition());
+    positionRef.current = next;
+    setCompactViewport(isSubSidebarCompactViewport());
+    setPosition(next);
+  }, []);
+
+  const resetPosition = useCallback(() => {
+    clearLongPressTimer();
+    resetSavedSubSidebarTogglePosition();
+    const next = getDefaultSubSidebarTogglePosition();
+    positionRef.current = next;
+    dragRef.current = null;
+    setDragging(false);
+    setPosition(next);
+    animateSnap();
+  }, [animateSnap, clearLongPressTimer]);
+
+  useEffect(() => {
+    restorePosition();
+
+    const handleViewportChange = () => restorePosition();
+    window.addEventListener("resize", handleViewportChange);
+    const compactMedia = window.matchMedia(SUB_SIDEBAR_COMPACT_QUERY);
+    compactMedia.addEventListener("change", handleViewportChange);
+
+    return () => {
+      window.removeEventListener("resize", handleViewportChange);
+      compactMedia.removeEventListener("change", handleViewportChange);
+    };
+  }, [restorePosition]);
+
+  useEffect(() => {
+    return () => {
+      clearLongPressTimer();
+      if (snapTimerRef.current) clearTimeout(snapTimerRef.current);
+    };
+  }, [clearLongPressTimer]);
+
+  const handlePointerDown = useCallback((event: ReactPointerEvent<HTMLButtonElement>) => {
+    if (event.button !== 0 || !positionRef.current) return;
+    if (snapTimerRef.current) clearTimeout(snapTimerRef.current);
+    setSnapAnimating(false);
+    event.currentTarget.setPointerCapture(event.pointerId);
+    const currentPosition = positionRef.current;
+    longPressTriggeredRef.current = false;
+    dragRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      originX: currentPosition.x,
+      originY: currentPosition.y,
+      originEdge: currentPosition.edge,
+      dragging: false
+    };
+    setDragging(false);
+    clearLongPressTimer();
+    longPressTimerRef.current = setTimeout(() => {
+      longPressTriggeredRef.current = true;
+      suppressClickRef.current = true;
+      resetPosition();
+    }, SUB_SIDEBAR_TOGGLE_LONG_PRESS_MS);
+  }, [clearLongPressTimer, resetPosition]);
+
+  const handlePointerMove = useCallback((event: ReactPointerEvent<HTMLButtonElement>) => {
+    const dragState = dragRef.current;
+    if (!dragState || dragState.pointerId !== event.pointerId) return;
+
+    const deltaX = event.clientX - dragState.startX;
+    const deltaY = event.clientY - dragState.startY;
+    if (!dragState.dragging && Math.hypot(deltaX, deltaY) >= SUB_SIDEBAR_TOGGLE_DRAG_THRESHOLD) {
+      dragState.dragging = true;
+      setDragging(true);
+      clearLongPressTimer();
+    }
+
+    if (!dragState.dragging) return;
+    event.preventDefault();
+    const nextPoint = clampSubSidebarToggleToViewport(dragState.originX + deltaX, dragState.originY + deltaY);
+    const nextPosition = { edge: dragState.originEdge, ...nextPoint };
+    positionRef.current = nextPosition;
+    setPosition(nextPosition);
+  }, [clearLongPressTimer]);
+
+  const suppressNextClickBriefly = useCallback(() => {
+    suppressClickRef.current = true;
+    setTimeout(() => {
+      suppressClickRef.current = false;
+    }, 350);
+  }, []);
+
+  const handlePointerUp = useCallback((event: ReactPointerEvent<HTMLButtonElement>) => {
+    if (longPressTriggeredRef.current) {
+      longPressTriggeredRef.current = false;
+      clearLongPressTimer();
+      try {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+      } catch {
+        // Pointer capture may already be released by the browser.
+      }
+      suppressNextClickBriefly();
+      return;
+    }
+
+    const dragState = dragRef.current;
+    if (!dragState || dragState.pointerId !== event.pointerId) return;
+
+    clearLongPressTimer();
+    dragRef.current = null;
+    try {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    } catch {
+      // Pointer capture may already be released by the browser.
+    }
+
+    if (!dragState.dragging) {
+      setDragging(false);
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    const nextPoint = clampSubSidebarToggleToViewport(
+      dragState.originX + event.clientX - dragState.startX,
+      dragState.originY + event.clientY - dragState.startY
+    );
+    const snappedPosition = snapSubSidebarTogglePosition({ edge: dragState.originEdge, ...nextPoint });
+    positionRef.current = snappedPosition;
+    setDragging(false);
+    setPosition(snappedPosition);
+    saveSubSidebarTogglePosition(snappedPosition);
+    animateSnap();
+    suppressNextClickBriefly();
+  }, [animateSnap, clearLongPressTimer, suppressNextClickBriefly]);
+
+  const handlePointerCancel = useCallback((event: ReactPointerEvent<HTMLButtonElement>) => {
+    if (longPressTriggeredRef.current) {
+      longPressTriggeredRef.current = false;
+      clearLongPressTimer();
+      suppressNextClickBriefly();
+      return;
+    }
+
+    const dragState = dragRef.current;
+    if (!dragState || dragState.pointerId !== event.pointerId) return;
+
+    clearLongPressTimer();
+    dragRef.current = null;
+    setDragging(false);
+    if (!dragState.dragging || !positionRef.current) return;
+
+    const snappedPosition = snapSubSidebarTogglePosition(positionRef.current);
+    positionRef.current = snappedPosition;
+    setPosition(snappedPosition);
+    saveSubSidebarTogglePosition(snappedPosition);
+    animateSnap();
+    suppressNextClickBriefly();
+  }, [animateSnap, clearLongPressTimer, suppressNextClickBriefly]);
+
+  const handleClick = useCallback((event: ReactMouseEvent<HTMLButtonElement>) => {
+    if (suppressClickRef.current) {
+      event.preventDefault();
+      event.stopPropagation();
+      suppressClickRef.current = false;
+      return;
+    }
+
+    onToggle();
+  }, [onToggle]);
+
+  const handleContextMenu = useCallback((event: ReactMouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    suppressNextClickBriefly();
+    resetPosition();
+  }, [resetPosition, suppressNextClickBriefly]);
+
+  if (!position) return null;
+
+  const expanded = compactViewport ? drawerOpen : !collapsed;
+  const ToggleIcon = expanded ? ChevronLeft : Menu;
+  const actionLabel = expanded ? `Hide ${title} navigation` : `Show ${title} navigation`;
+  const style: CSSProperties = {
+    transform: `translate3d(${position.x}px, ${position.y}px, 0)`
+  };
+
+  return (
+    <button
+      type="button"
+      aria-label={actionLabel}
+      aria-expanded={expanded}
+      title={`${actionLabel}. Drag to move. Long press or right-click to reset.`}
+      data-sub-sidebar-toggle-button
+      onClick={handleClick}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerCancel}
+      onContextMenu={handleContextMenu}
+      style={style}
+      className={clsx(
+        "fixed left-0 top-0 z-[60] grid h-11 w-11 touch-none select-none place-items-center rounded-lg border border-border bg-card/95 text-primary shadow-lg outline-none backdrop-blur transition-[transform,background-color,border-color,box-shadow] duration-200 ease-out hover:bg-accent focus:ring-2 focus:ring-ring/30 print:hidden",
+        position.edge === "top" && "rounded-t-none",
+        position.edge === "left" && "rounded-l-none",
+        position.edge === "right" && "rounded-r-none",
+        dragging ? "cursor-grabbing shadow-2xl ring-2 ring-primary/25 transition-none" : "cursor-grab",
+        snapAnimating && "will-change-transform"
+      )}
+    >
+      <ToggleIcon size={20} strokeWidth={2.55} />
+      <span className="sr-only">{actionLabel}</span>
+    </button>
+  );
+}
+
 function ContextualSubnav({
   subnav,
   pathname,
   collapsed,
   drawerOpen,
-  onCollapse,
   onCloseDrawer
 }: {
   subnav: ContextSubnav;
   pathname: string;
   collapsed: boolean;
   drawerOpen: boolean;
-  onCollapse: () => void;
   onCloseDrawer: () => void;
 }) {
   const items = (subnav.items ?? []).filter((item): item is ContextSubnavItem => Boolean(item?.href && item.label));
@@ -476,22 +881,12 @@ function ContextualSubnav({
     </nav>
   );
 
-  const header = (expanded: boolean, interactive = true) => (
-    <div className="flex items-start gap-3 border-b border-border px-5 py-5">
+  const header = () => (
+    <div className="border-b border-border px-5 py-5">
       <div className="min-w-0 flex-1">
         <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-muted-foreground">{subnav.eyebrow}</p>
         <h2 className="mt-1 truncate text-lg font-extrabold tracking-tight text-foreground">{subnav.title}</h2>
       </div>
-      <button
-        type="button"
-        aria-label="Hide module navigation"
-        aria-expanded={expanded}
-        onClick={onCollapse}
-        tabIndex={interactive ? undefined : -1}
-        className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-accent text-accent-foreground shadow-sm ring-1 ring-border transition hover:bg-muted focus:outline-none focus:ring-2 focus:ring-ring/30"
-      >
-        <ChevronLeft size={17} strokeWidth={2.4} />
-      </button>
     </div>
   );
 
@@ -504,7 +899,7 @@ function ContextualSubnav({
           collapsed ? "pointer-events-none -translate-x-full opacity-0" : "translate-x-0 opacity-100"
         )}
       >
-        {header(!collapsed, !collapsed)}
+        {header()}
         {renderLinks(undefined, !collapsed)}
       </aside>
 
@@ -523,7 +918,7 @@ function ContextualSubnav({
           drawerOpen ? "translate-x-0" : "pointer-events-none -translate-x-full md:-translate-x-[calc(100%+248px)]"
         )}
       >
-        {header(drawerOpen, drawerOpen)}
+        {header()}
         {renderLinks(onCloseDrawer, drawerOpen)}
       </aside>
     </>
@@ -824,13 +1219,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       !isRoleAllowedForPath(pathname, role));
   const roleLabel = role ? ROLE_LABELS[role] : "Loading...";
 
-  const hideContextualSubnav = () => {
-    setContextSubnavCollapsed(true);
-    setContextSubnavDrawerOpen(false);
-  };
-
-  const showContextualSubnav = () => {
+  const toggleSubSidebar = () => {
     setMobileNavOpen(false);
+    if (!isSubSidebarCompactViewport()) {
+      setContextSubnavDrawerOpen(false);
+      setContextSubnavCollapsed((value) => !value);
+      return;
+    }
+
+    if (contextSubnavDrawerOpen) {
+      setContextSubnavDrawerOpen(false);
+      return;
+    }
+
     setContextSubnavCollapsed(false);
     setContextSubnavDrawerOpen(true);
   };
@@ -997,27 +1398,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           pathname={pathname}
           collapsed={contextSubnavCollapsed}
           drawerOpen={contextSubnavDrawerOpen}
-          onCollapse={hideContextualSubnav}
           onCloseDrawer={() => setContextSubnavDrawerOpen(false)}
         />
       )}
 
-      {contextualSubnav && !contextSubnavDrawerOpen && (
-        <button
-          type="button"
-          aria-label={`Show ${contextualSubnav.title} navigation`}
-          aria-expanded={false}
-          onClick={showContextualSubnav}
-          className={clsx(
-            "fixed left-0 top-[92px] z-30 items-center gap-1 rounded-r-xl border border-l-0 border-border bg-card/95 px-1.5 py-3 text-primary shadow-lg backdrop-blur transition hover:bg-accent focus:outline-none focus:ring-2 focus:ring-ring/30 md:left-[248px] print:hidden",
-            contextSubnavCollapsed ? "flex" : "flex lg:hidden"
-          )}
-        >
-          <ChevronRight size={16} strokeWidth={2.5} />
-          <span className="text-[10px] font-extrabold uppercase tracking-[0.14em]" style={{ writingMode: "vertical-rl" }}>
-            Menu
-          </span>
-        </button>
+      {contextualSubnav && !mobileNavOpen && (
+        <SubSidebarToggleButton
+          title={contextualSubnav.title}
+          collapsed={contextSubnavCollapsed}
+          drawerOpen={contextSubnavDrawerOpen}
+          onToggle={toggleSubSidebar}
+        />
       )}
 
       <main
