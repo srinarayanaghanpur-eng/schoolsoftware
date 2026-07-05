@@ -155,7 +155,7 @@ export async function POST(request: NextRequest) {
     await db.runTransaction(async (tx) => {
       const snap = await tx.get(counterRef);
       const next = Number(snap.data()?.nextAdmission ?? 1);
-      admissionNumber = `SNS${String(next).padStart(5, "0")}`;
+      admissionNumber = `SNHS${String(next).padStart(3, "0")}`;
       tx.set(counterRef, { nextAdmission: next + 1, updatedAt: new Date() }, { merge: true });
     });
 
