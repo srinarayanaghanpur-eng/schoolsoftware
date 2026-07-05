@@ -648,6 +648,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   // the Firebase Auth display name / email).
   const [profile, setProfile] = useState<Profile | null>(null);
   const [sessionLoading, setSessionLoading] = useState(true);
+  const [signingOut, setSigningOut] = useState(false);
   useEffect(() => {
     if (!isFirebaseConfigured) {
       setSessionLoading(false);
@@ -766,7 +767,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     }
   }, [sessionLoading, role, pathname, router]);
 
-  const sessionValue = useMemo(() => ({ profile, role, loading: sessionLoading }), [profile, role, sessionLoading]);
+  const sessionValue = useMemo(() => ({ profile, role, loading: sessionLoading || signingOut }), [profile, role, sessionLoading, signingOut]);
   const isPortalRole = role === "parent" || role === "student";
   const mainNav = useMemo(
     () => navForRole(
@@ -820,6 +821,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   // settings, users, roles) that the coarse module check alone would let through.
   const routeDenied =
     !sessionLoading &&
+    !signingOut &&
     ((Boolean(currentModule) && (!role || !canAccessModule(role, currentModule!))) ||
       !isRoleAllowedForPath(pathname, role));
   const roleLabel = role ? ROLE_LABELS[role] : "Loading...";
@@ -835,7 +837,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     setContextSubnavDrawerOpen(true);
   };
 
-  const handleSignOut = () => {
+  const handleSignOut = async () => {
+    if (signingOut) return;
+    setSigningOut(true);
     clearPayrollSessionId();
     try {
       window.sessionStorage.removeItem("erp-auth-role");
@@ -846,7 +850,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       router.replace("/login");
       return;
     }
-    signOut(auth).then(() => router.replace("/login"));
+    try {
+      await signOut(auth);
+    } finally {
+      router.replace("/login");
+    }
   };
 
   const [refreshing, setRefreshing] = useState(false);
@@ -970,8 +978,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <button
           type="button"
           onClick={handleSignOut}
-          className="mt-auto flex items-center gap-3 border-t border-white/10 px-4 py-4 text-left transition hover:bg-white/5"
-          title="Sign out"
+          disabled={signingOut}
+          className="mt-auto flex items-center gap-3 border-t border-white/10 px-4 py-4 text-left transition hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-70"
+          title={signingOut ? "Signing out" : "Sign out"}
         >
           <span className="grid h-9 w-9 place-items-center rounded-full bg-[#ffc73d] text-xs font-extrabold text-[#2a2c87]">
             {profile ? initialsOf(profile.name) : "··"}
@@ -1058,9 +1067,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </header>
         <div key={pathname} className="page-enter flex-1 overflow-y-auto pb-[76px] md:pb-0 print:overflow-visible print:pb-0 print:opacity-100">
           <ErrorBoundary resetKey={pathname}>
-            {sessionLoading ? <BrandLoader message="Loading secure workspace…" /> : routeDenied ? <AccessDeniedState module={currentModule} /> : (<>{!contextualSubnav && <SectionTabs />}{children}</>)}
+            {sessionLoading || signingOut ? <BrandLoader message={signingOut ? "Signing out…" : "Loading secure workspace…"} /> : routeDenied ? <AccessDeniedState module={currentModule} /> : (<>{!contextualSubnav && <SectionTabs />}{children}</>)}
           </ErrorBoundary>
-          {isPortalRole && !sessionLoading && (
+          {isPortalRole && !sessionLoading && !signingOut && (
             <footer className="mt-6 border-t border-border bg-card/60 px-4 py-6 text-center md:px-7">
               <p className="text-sm font-extrabold tracking-tight text-foreground">{SCHOOL_CONTACT.name}</p>
               <div className="mt-2 flex flex-col items-center justify-center gap-1.5 text-xs font-medium text-muted-foreground sm:flex-row sm:gap-4">
