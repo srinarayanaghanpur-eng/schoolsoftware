@@ -14,7 +14,6 @@ import {
   ReceiptIndianRupee,
   RefreshCw,
   Send,
-  Tag,
   TrendingDown,
   TrendingUp,
   Wallet
@@ -51,7 +50,6 @@ const actions = [
   { label: "Add Expense", href: "/admin/finance/expenses", icon: Plus },
   { label: "Send Reminder", href: "/admin/finance/reminders", icon: Send },
   { label: "Generate Invoice", href: "/admin/finance/invoices", icon: FileText },
-  { label: "Add Concession", href: "/admin/fee-concessions", icon: Tag },
   { label: "Export Report", href: "/admin/fee-reports", icon: Download }
 ];
 

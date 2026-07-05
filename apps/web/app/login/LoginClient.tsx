@@ -18,7 +18,6 @@ import {
   EyeOff,
   LockKeyhole,
   LogIn,
-  ShieldCheck,
   UserRound,
   UsersRound,
   WalletCards
@@ -37,24 +36,24 @@ type Feature = {
 
 const featureCards: Feature[] = [
   {
-    title: "Attendance Tracking",
-    description: "Track teacher and staff attendance easily",
-    icon: CalendarCheck
+    title: "Student Management",
+    description: "Admissions, records and class-wise lists",
+    icon: UsersRound
   },
   {
-    title: "Salary Management",
-    description: "Manage salaries and payroll seamlessly",
+    title: "Fees & Finance",
+    description: "Collect fees, track dues and accounts",
     icon: WalletCards
   },
   {
-    title: "Staff Dashboard",
-    description: "Insights and reports at your fingertips",
-    icon: BarChart3
+    title: "Attendance & Payroll",
+    description: "Staff attendance and salary payroll",
+    icon: CalendarCheck
   },
   {
-    title: "Secure & Reliable",
-    description: "Your data is safe and fully protected",
-    icon: ShieldCheck
+    title: "Reports & Insights",
+    description: "Live dashboards and reports",
+    icon: BarChart3
   }
 ];
 
@@ -93,6 +92,47 @@ async function signInAndResolveRole(loginId: string, password: string, rememberM
   }
 
   return role;
+}
+
+function destinationForRole(role: string): string {
+  if (role === "teacher") return "/teacher";
+  if (role === "parent" || role === "student") return "/portal";
+  return "/admin/dashboard";
+}
+
+// If "remember me" kept a Firebase session alive, resolve that user's role so
+// the login screen can skip straight to their workspace instead of asking them
+// to sign in again. Returns null when there is no valid remembered session.
+async function resolveRememberedRole(): Promise<string | null> {
+  const [{ onAuthStateChanged }, { doc, getDoc }, firebaseClient] = await Promise.all([
+    import("firebase/auth"),
+    import("firebase/firestore"),
+    import("@sri-narayana/shared/firebase/client")
+  ]);
+  const { auth, db, isFirebaseConfigured } = firebaseClient;
+  if (!isFirebaseConfigured) return null;
+
+  const user = await new Promise<typeof auth.currentUser>((resolve) => {
+    const unsubscribe = onAuthStateChanged(auth, (current) => {
+      unsubscribe();
+      resolve(current);
+    });
+  });
+  if (!user) return null;
+
+  const claims = await refreshClaims(auth.currentUser);
+  let role = isValidRole(claims?.role) ? claims?.role : undefined;
+
+  try {
+    const snapshot = await getDoc(doc(db, "users", user.uid));
+    const data = snapshot.exists() ? (snapshot.data() as { role?: unknown; status?: string }) : undefined;
+    if (isValidRole(data?.role)) role = data.role;
+    if (data?.status && data.status !== "active") return null;
+  } catch {
+    // Keep the token role if the profile lookup is temporarily unavailable.
+  }
+
+  return isValidRole(role) ? role : null;
 }
 
 function getLoginErrorMessage(error: unknown) {
@@ -362,6 +402,22 @@ function useTeacherLoginController() {
     void import("@sri-narayana/shared/firebase/client");
   }, [router]);
 
+  // "Remember me" keeps the Firebase session across browser restarts. If a valid
+  // session is still present when the login screen loads, skip the form and send
+  // the user straight to their workspace. Skipped when we were bounced here for
+  // an inactive account (there is no valid session to resume in that case).
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("reason") === "inactive") return;
+    let cancelled = false;
+    void resolveRememberedRole().then((role) => {
+      if (cancelled || !role) return;
+      router.replace(destinationForRole(role));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [router]);
+
   useEffect(() => {
     const normalizedLoginId = normalizeEmployeeId(loginId);
     const initialStatus = loginIdInitialStatus(normalizedLoginId);
@@ -414,13 +470,7 @@ function useTeacherLoginController() {
       } catch {
         // sessionStorage may be unavailable; navigation still works.
       }
-      if (role === "teacher") {
-        router.replace("/teacher");
-      } else if (role === "parent" || role === "student") {
-        router.replace("/portal");
-      } else {
-        router.replace("/admin/dashboard");
-      }
+      router.replace(destinationForRole(role));
     } catch (err) {
       setError(getLoginErrorMessage(err));
     } finally {

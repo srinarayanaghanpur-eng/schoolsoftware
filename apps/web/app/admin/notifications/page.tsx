@@ -2,7 +2,6 @@
 
 import { PageHeader } from "@/components/PageHeader";
 import { PasswordInput } from "@/components/PasswordInput";
-import { useAdminSession } from "@/components/AdminSessionContext";
 import { adminApiRequest, AdminApiError } from "@/lib/adminApiClient";
 import { useRefreshOnFocus } from "@/lib/useRefreshOnFocus";
 import {
@@ -91,9 +90,6 @@ type ResetForm = { password: string; confirmPassword: string; adminNote: string 
 const emptyResetForm: ResetForm = { password: "", confirmPassword: "", adminNote: "" };
 
 export default function NotificationsPage() {
-  const { role } = useAdminSession();
-  const isSuperAdmin = role === "super_admin";
-
   const [tab, setTab] = useState<Tab>("pending");
   const [typeFilter, setTypeFilter] = useState<RequestType | "all">("all");
   const [startDate, setStartDate] = useState("");
@@ -194,27 +190,6 @@ export default function NotificationsPage() {
     [fetchRequests, fetchPendingCount, notify]
   );
 
-  const deleteRequest = useCallback(
-    async (request: CommRequest, hard: boolean) => {
-      setBusy(true);
-      try {
-        const params = new URLSearchParams({ type: request.type });
-        if (hard) params.set("hard", "1");
-        const result = await adminApiRequest<{ message?: string }>(
-          `/api/admin/communication/requests/${request.id}?${params.toString()}`,
-          { method: "DELETE" }
-        );
-        notify("ok", result.message ?? "Removed.");
-        await Promise.all([fetchRequests(), fetchPendingCount()]);
-      } catch (err) {
-        notify("err", err instanceof AdminApiError ? err.message : "Delete failed.");
-      } finally {
-        setBusy(false);
-      }
-    },
-    [fetchRequests, fetchPendingCount, notify]
-  );
-
   const runBulk = useCallback(
     async (action: "archive" | "delete" | "clearRejected" | "clearApprovedOld") => {
       setBusy(true);
@@ -287,18 +262,6 @@ export default function NotificationsPage() {
     });
   };
 
-  const askDelete = (request: CommRequest, hard: boolean) => {
-    setConfirmState({
-      text: hard
-        ? `Permanently delete this ${TYPE_LABEL[request.type]} request? This cannot be undone.`
-        : `Remove this ${TYPE_LABEL[request.type]} request from the list?`,
-      onConfirm: () => {
-        setConfirmState(null);
-        void deleteRequest(request, hard);
-      }
-    });
-  };
-
   const selectedCount = useMemo(() => requests.filter((r) => selected.has(rowKey(r))).length, [requests, selected]);
 
   return (
@@ -342,6 +305,10 @@ export default function NotificationsPage() {
             </button>
           ))}
         </div>
+
+        <p className="text-xs font-medium text-[#8a91b4]">
+          Auto-cleanup: archived requests are permanently deleted after 5 days; approved/rejected requests auto-delete after 10 days. Audit logs are never auto-deleted.
+        </p>
 
         {/* Filters */}
         <div className="card flex flex-wrap items-end gap-3 p-4">
@@ -475,13 +442,11 @@ export default function NotificationsPage() {
                           <RowActions
                             request={request}
                             busy={busy}
-                            isSuperAdmin={isSuperAdmin}
                             onApprove={() => void runAction(request, "approve")}
                             onReject={() => void runAction(request, "reject")}
                             onReset={() => { setResetTarget(request); setResetForm(emptyResetForm); }}
                             onArchive={() => void runAction(request, "archive")}
                             onRestore={() => void runAction(request, "restore")}
-                            onDelete={(hard) => askDelete(request, hard)}
                             onView={() => setDetails(request)}
                           />
                         </td>
@@ -523,13 +488,11 @@ export default function NotificationsPage() {
                       request={request}
                       busy={busy}
                       compact
-                      isSuperAdmin={isSuperAdmin}
                       onApprove={() => void runAction(request, "approve")}
                       onReject={() => void runAction(request, "reject")}
                       onReset={() => { setResetTarget(request); setResetForm(emptyResetForm); }}
                       onArchive={() => void runAction(request, "archive")}
                       onRestore={() => void runAction(request, "restore")}
-                      onDelete={(hard) => askDelete(request, hard)}
                       onView={() => setDetails(request)}
                     />
                   </div>
@@ -626,25 +589,21 @@ function RowActions({
   request,
   busy,
   compact,
-  isSuperAdmin,
   onApprove,
   onReject,
   onReset,
   onArchive,
   onRestore,
-  onDelete,
   onView
 }: {
   request: CommRequest;
   busy: boolean;
   compact?: boolean;
-  isSuperAdmin: boolean;
   onApprove: () => void;
   onReject: () => void;
   onReset: () => void;
   onArchive: () => void;
   onRestore: () => void;
-  onDelete: (hard: boolean) => void;
   onView: () => void;
 }) {
   const isPending = request.status === "pending" && !request.archived;
@@ -684,14 +643,6 @@ function RowActions({
       <button className={`${btn} bg-[#f3f4fb] text-[#5f6888] hover:bg-[#e9ebf5]`} onClick={onView}>
         <Eye size={14} /> {compact ? "" : "View"}
       </button>
-      <button className={`${btn} bg-[#fff0f1] text-[#c83f4d] hover:bg-[#ffe0e3]`} onClick={() => onDelete(false)} disabled={busy}>
-        <Trash2 size={14} /> {compact ? "" : "Delete"}
-      </button>
-      {isSuperAdmin && request.type !== "attendance_edit" && (
-        <button className={`${btn} bg-[#ffe0e3] text-[#a3242f] hover:bg-[#ffd0d5]`} onClick={() => onDelete(true)} disabled={busy} title="Permanent delete (super admin)">
-          <Trash2 size={14} /> {compact ? "!" : "Hard delete"}
-        </button>
-      )}
     </div>
   );
 }

@@ -3,6 +3,7 @@ import { adminDb } from "@/lib/firebaseAdmin";
 import { requireAdmin } from "@/lib/apiUtils";
 import { firestoreErrorResponse, isFirestoreQuotaPaused, firestoreQuotaResponse } from "@/lib/firebaseErrors";
 import { readLimit } from "@/lib/firestoreReadLogger";
+import { runCommunicationAutoCleanup } from "@/lib/communicationCleanup";
 import {
   ALL_TYPES,
   REQUEST_SOURCES,
@@ -27,6 +28,10 @@ export async function GET(req: Request) {
   if (!token) return NextResponse.json({ ok: false, error: "Admin access required" }, { status: 403 });
 
   if (isFirestoreQuotaPaused()) return firestoreQuotaResponse();
+
+  // Enforce the retention policy (archived→5d, decided→10d). Throttled to once
+  // per hour internally, so this is a no-op on almost every request.
+  await runCommunicationAutoCleanup().catch(() => {});
 
   const { searchParams } = new URL(req.url);
 

@@ -94,11 +94,20 @@ async function main() {
 
   console.log(`Load-test run id: "${RUN_ID}"${dryRun ? "  (DRY RUN)" : ""}\n`);
 
-  // Collect teacher auth emails BEFORE deleting the teacher docs.
-  const teacherSnap = await db.collection("teachers").where("loadTestRunId", "==", RUN_ID).get();
-  const teacherEmails = teacherSnap.docs
-    .map((doc) => doc.data().internalEmail)
-    .filter((email): email is string => typeof email === "string" && email.length > 0);
+  // Collect teacher auth emails BEFORE deleting the docs. The seed writes the
+  // internalEmail onto both the teachers and users collections; gather from both
+  // so we still find the auth accounts if one collection was already cleaned.
+  const [teacherSnap, userSnap] = await Promise.all([
+    db.collection("teachers").where("loadTestRunId", "==", RUN_ID).get(),
+    db.collection("users").where("loadTestRunId", "==", RUN_ID).get()
+  ]);
+  const teacherEmails = Array.from(
+    new Set(
+      [...teacherSnap.docs, ...userSnap.docs]
+        .map((doc) => doc.data().internalEmail)
+        .filter((email): email is string => typeof email === "string" && email.length > 0)
+    )
+  );
 
   const collectionCounts: Record<string, number> = {};
   const collectionSnaps: Record<string, FirebaseFirestore.QuerySnapshot> = {};

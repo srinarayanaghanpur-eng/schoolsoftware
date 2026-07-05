@@ -1,4 +1,5 @@
 import { SCHOOL_CONTACT } from "@sri-narayana/shared";
+import StudentDetailsReveal from "./StudentDetailsReveal";
 
 type StudentQrDetails = {
   name?: unknown;
@@ -65,28 +66,15 @@ export default function StudentQrPage({
         </div>
 
         {details ? (
-          <dl className="divide-y divide-[#edf0f7]">
-            <div className="px-5 py-4">
-              <dt className="text-xs font-bold uppercase tracking-wide text-[#7d86a8]">Name</dt>
-              <dd className="mt-1 text-lg font-extrabold">{text(details.name)}</dd>
-            </div>
-            <div className="px-5 py-4">
-              <dt className="text-xs font-bold uppercase tracking-wide text-[#7d86a8]">Father Name</dt>
-              <dd className="mt-1 text-base font-bold">{text(details.fatherName)}</dd>
-            </div>
-            <div className="px-5 py-4">
-              <dt className="text-xs font-bold uppercase tracking-wide text-[#7d86a8]">Mother Name</dt>
-              <dd className="mt-1 text-base font-bold">{text(details.motherName)}</dd>
-            </div>
-            <div className="px-5 py-4">
-              <dt className="text-xs font-bold uppercase tracking-wide text-[#7d86a8]">Phone No.</dt>
-              <dd className="mt-1 text-base font-bold">{text(details.phone)}</dd>
-            </div>
-            <div className="px-5 py-4">
-              <dt className="text-xs font-bold uppercase tracking-wide text-[#7d86a8]">Address</dt>
-              <dd className="mt-1 whitespace-pre-wrap text-base font-bold leading-6">{text(details.address)}</dd>
-            </div>
-          </dl>
+          <StudentDetailsReveal
+            details={{
+              name: text(details.name),
+              fatherName: text(details.fatherName),
+              motherName: text(details.motherName),
+              phone: text(details.phone),
+              address: text(details.address)
+            }}
+          />
         ) : (
           <div className="px-5 py-8 text-center">
             <h2 className="text-lg font-extrabold">Invalid QR code</h2>

@@ -2,13 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Banknote, BarChart3, Bell, BookOpen, Building2, CalendarCheck, Circle, DollarSign, FileStack, FileText, Landmark, Layers, ReceiptIndianRupee, ScrollText, Tag, TrendingDown, TrendingUp, Users, Wallet } from "lucide-react";
+import { Banknote, BarChart3, Bell, BookOpen, Building2, CalendarCheck, Circle, DollarSign, FileStack, FileText, Landmark, Layers, ReceiptIndianRupee, ScrollText, TrendingDown, TrendingUp, Users, Wallet } from "lucide-react";
 
 const TABS = [
   { href: "/admin/finance", label: "Dashboard", icon: BarChart3 },
   { href: "/admin/payments", label: "Collect Fee", icon: ReceiptIndianRupee },
   { href: "/admin/fee-structures", label: "Fee Structures", icon: Layers },
-  { href: "/admin/fee-concessions", label: "Concessions", icon: Tag },
   { href: "/admin/finance/expenses", label: "Expenses", icon: Wallet },
   { href: "/admin/finance/income", label: "Income", icon: Banknote },
   { href: "/admin/finance/dues", label: "Dues", icon: FileStack },
