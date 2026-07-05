@@ -9,9 +9,27 @@ type ForceRefreshUser = {
   getIdTokenResult(forceRefresh?: boolean): Promise<{ claims: Record<string, unknown> }>;
 };
 
-/** Force-refreshes the token (to pick up updated custom claims) and returns the claims. */
+/**
+ * Returns the user's custom claims, preferring a force-refreshed token (to pick
+ * up role changes) but resilient to network failure.
+ *
+ * A forced refresh hits the network, which frequently fails on flaky mobile
+ * connections. When that happens we fall back to the locally cached token — it
+ * is still a valid, signed token and its claims are almost always current
+ * (roles change rarely). Without this fallback the forced refresh throws, the
+ * caller can't resolve the role, and the user is wrongly bounced to
+ * "access denied" / a stuck "Loading secure workspace…" screen.
+ */
 export async function refreshClaims(user: unknown): Promise<Record<string, unknown> | undefined> {
   if (!user) return undefined;
-  const result = await (user as ForceRefreshUser).getIdTokenResult(true);
-  return result.claims;
+  const u = user as ForceRefreshUser;
+  try {
+    return (await u.getIdTokenResult(true)).claims;
+  } catch {
+    try {
+      return (await u.getIdTokenResult(false)).claims;
+    } catch {
+      return undefined;
+    }
+  }
 }

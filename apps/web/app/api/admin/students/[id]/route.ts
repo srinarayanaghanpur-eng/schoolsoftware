@@ -99,6 +99,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       sectionId: body.sectionId || section,
       branchId: body.branchId || existing.branchId || "default-branch",
       academicYearId: body.academicYearId ?? existing.academicYearId ?? "",
+      schoolId: body.schoolId !== undefined ? String(body.schoolId).trim() : (existing.schoolId ?? ""),
       status: body.status || existing.status || "active",
       rollNo: Number(body.rollNo ?? existing.rollNo ?? String(existing.admissionNumber ?? "").replace(/\D/g, "") ?? 0),
       gender: gender ?? existing.gender ?? '',

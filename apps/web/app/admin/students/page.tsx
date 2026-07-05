@@ -797,6 +797,7 @@ export default function StudentsPage() {
 
   const [formData, setFormData] = useState({
     admissionNumber: "",
+    schoolId: "",
     studentName: "",
     class: "1",
     section: "A",
@@ -864,6 +865,8 @@ export default function StudentsPage() {
     } catch { /* silently ignore */ }
   };
 
+  // Students are scoped by academic year + class + section. All student docs
+  // are backfilled with academicYearId, so this filter is safe.
   const buildStudentQuery = (cursor?: string | null) => {
     const params = new URLSearchParams();
     params.set("pageSize", String(STUDENTS_PAGE_SIZE));
@@ -948,7 +951,9 @@ export default function StudentsPage() {
 
     try {
       const payload: Record<string, unknown> = {
-        admissionNumber: formData.admissionNumber,
+        // admissionNumber is auto-generated server-side on create and immutable
+        // on edit — never sent from the form.
+        schoolId: formData.schoolId,
         studentName: formData.studentName,
         class: formData.class,
         classId: formData.class,
@@ -1077,6 +1082,7 @@ export default function StudentsPage() {
     setEditingId(null);
     setFormData({
       admissionNumber: "",
+      schoolId: "",
       studentName: "",
       class: "1",
       section: "A",
@@ -1122,6 +1128,7 @@ export default function StudentsPage() {
     const emergContact = student.emergencyContact as { name?: string; phone?: string; relation?: string } | null | undefined;
     setFormData({
       admissionNumber: student.admissionNumber,
+      schoolId: (student as { schoolId?: string }).schoolId ?? "",
       studentName: student.studentName ?? "",
       class: student.class,
       section: student.section ?? "A",
@@ -1251,17 +1258,29 @@ export default function StudentsPage() {
                 <SectionDivider label="Basic Information" />
 
                 <div>
-                  <label className="block text-sm font-semibold text-[#303247]">Admission Number *</label>
+                  <label className="block text-sm font-semibold text-[#303247]">Admission Number</label>
                   <input
                     type="text"
-                    name="admissionNumber"
-                    value={formData.admissionNumber}
-                    readOnly={Boolean(editingId)}
-                    onChange={handleChange}
-                    required
-                    className={`field mt-1 ${editingId ? "cursor-not-allowed bg-[#f4f5fb] text-[#5a6488]" : ""}`}
+                    value={editingId ? formData.admissionNumber : "Auto-generated on save"}
+                    readOnly
+                    disabled
+                    className="field mt-1 cursor-not-allowed bg-[#f4f5fb] text-[#5a6488]"
                   />
-                  <p className="mt-1 text-xs font-medium text-[#7d86a8]">{editingId ? "Admission number cannot be changed." : "Enter a unique admission number."}</p>
+                  <p className="mt-1 text-xs font-medium text-[#7d86a8]">
+                    {editingId ? "Admission number cannot be changed." : "Assigned automatically — no manual entry."}
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-[#303247]">School ID <span className="font-normal text-[#7d86a8]">(optional)</span></label>
+                  <input
+                    type="text"
+                    name="schoolId"
+                    value={formData.schoolId}
+                    onChange={handleChange}
+                    placeholder="e.g. govt / SATS id"
+                    className="field mt-1"
+                  />
                 </div>
 
                 <div>

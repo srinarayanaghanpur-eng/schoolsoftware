@@ -116,7 +116,6 @@ export async function POST(request: NextRequest) {
     const db = adminDb();
     const body = await request.json();
     const {
-      admissionNumber,
       studentName,
       class: classStr,
       section,
@@ -138,26 +137,27 @@ export async function POST(request: NextRequest) {
       transportFee
     } = body;
 
-    // Validation
-    if (!admissionNumber || !studentName || !classStr || !section) {
+    // Validation — admission number is auto-generated, never client-supplied.
+    if (!studentName || !classStr || !section) {
       return NextResponse.json(
         { success: false, error: 'Missing required fields' },
         { status: 400 }
       );
     }
 
-    // Check if admission number already exists
-    const existingSnapshot = await db
-      .collection('students')
-      .where('admissionNumber', '==', admissionNumber)
-      .get();
+    // Optional external/reference id the school may keep (e.g. govt SATS id).
+    const schoolId = String(body.schoolId ?? "").trim();
 
-    if (!existingSnapshot.empty) {
-      return NextResponse.json(
-        { success: false, error: 'Admission number already exists' },
-        { status: 400 }
-      );
-    }
+    // Auto-generate a unique sequential admission number from a counter doc.
+    // Prefix avoids collisions with legacy free-typed numbers ("2", "u98"...).
+    const counterRef = db.collection("counters").doc("students");
+    let admissionNumber = "";
+    await db.runTransaction(async (tx) => {
+      const snap = await tx.get(counterRef);
+      const next = Number(snap.data()?.nextAdmission ?? 1);
+      admissionNumber = `SNS${String(next).padStart(5, "0")}`;
+      tx.set(counterRef, { nextAdmission: next + 1, updatedAt: new Date() }, { merge: true });
+    });
 
     // Whether new admissions require admin approval. Controlled by the
     // settings/admissions doc (default true), overridable per-request.
@@ -182,6 +182,7 @@ export async function POST(request: NextRequest) {
     const studentData: Record<string, unknown> = {
       admissionNumber,
       admissionNo: admissionNumber,
+      schoolId,
       studentName,
       studentNameLower: normalizeText(studentName),
       class: classStr,
