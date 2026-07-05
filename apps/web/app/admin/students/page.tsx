@@ -745,6 +745,9 @@ export default function StudentsPage() {
   const canDeleteStudent = Boolean(role && hasPermission(role, "students.delete"));
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [confirmBulk, setConfirmBulk] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [classFilter, setClassFilter] = useState("1");
@@ -904,6 +907,7 @@ export default function StudentsPage() {
         `/api/admin/students?${buildStudentQuery(targetCursor)}`
       );
       setStudents(data.data ?? []);
+      setSelectedIds(new Set());
       setNextCursor(data.nextCursor ?? null);
       setHasMore(Boolean(data.hasMore));
       setCurrentPage(targetPage);
@@ -1172,6 +1176,47 @@ export default function StudentsPage() {
     } catch (err) {
       setError(err instanceof AdminApiError ? err.message : "Failed to delete student");
     }
+  };
+
+  const bulkDelete = async () => {
+    if (!canDeleteStudent || selectedIds.size === 0) return;
+    setError("");
+    setSuccess("");
+    setBulkDeleting(true);
+    try {
+      const result = await adminApiRequest<{ success?: boolean; deleted?: number }>("/api/admin/students/bulk-delete", {
+        method: "POST",
+        body: JSON.stringify({ ids: Array.from(selectedIds) })
+      });
+      setSuccess(`${result.deleted ?? selectedIds.size} student(s) permanently deleted.`);
+      setSelectedIds(new Set());
+      setConfirmBulk(false);
+      fetchStudents();
+      fetchSectionCount();
+    } catch (err) {
+      setError(err instanceof AdminApiError ? err.message : "Failed to delete students");
+    } finally {
+      setBulkDeleting(false);
+    }
+  };
+
+  const toggleSelectOne = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const allVisibleSelected = students.length > 0 && students.every((s) => selectedIds.has(s.id));
+  const toggleSelectAllVisible = () => {
+    setSelectedIds((prev) => {
+      if (allVisibleSelected) return new Set();
+      const next = new Set(prev);
+      students.forEach((s) => next.add(s.id));
+      return next;
+    });
   };
 
   const closeForm = () => {
@@ -1581,6 +1626,21 @@ export default function StudentsPage() {
         </button>
         </div>
 
+        {canDeleteStudent && selectedIds.size > 0 && (
+          <div className="card flex flex-wrap items-center gap-3 border-[#ffd5da] bg-[#fff6f7] p-3">
+            <span className="text-sm font-bold text-[#c83f4d]">{selectedIds.size} selected</span>
+            <button type="button" className="btn-secondary" onClick={() => setSelectedIds(new Set())}>Clear</button>
+            <button
+              type="button"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-[#ed515d] px-3 py-2 text-sm font-bold text-white hover:bg-[#d8434f] disabled:opacity-60"
+              onClick={() => setConfirmBulk(true)}
+              disabled={bulkDeleting}
+            >
+              <Trash2 size={15} /> Delete selected
+            </button>
+          </div>
+        )}
+
         <div className="card overflow-hidden">
         {loading ? (
             <div className="p-6 text-center text-sm font-medium text-[#7d86a8]">Loading students...</div>
@@ -1591,7 +1651,16 @@ export default function StudentsPage() {
             {/* Mobile: card list */}
             <ul className="divide-y divide-[#edf0f7] md:hidden">
               {students.map((student) => (
-                <li key={student.id} className="flex items-start gap-3 p-4">
+                <li key={student.id} className={`flex items-start gap-3 p-4 ${selectedIds.has(student.id) ? "bg-[#fff6f7]" : ""}`}>
+                  {canDeleteStudent && (
+                    <input
+                      type="checkbox"
+                      className="mt-3"
+                      checked={selectedIds.has(student.id)}
+                      onChange={() => toggleSelectOne(student.id)}
+                      aria-label={`Select ${student.studentName}`}
+                    />
+                  )}
                   <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#eef0ff] text-xs font-extrabold text-[#3033a1]">
                     {student.class}{student.section}
                   </span>
@@ -1630,6 +1699,11 @@ export default function StudentsPage() {
               <table className="w-full min-w-[860px]">
                 <thead className="border-b border-[#edf0f7] bg-[#f7f8fd]">
                 <tr>
+                    {canDeleteStudent && (
+                      <th className="px-4 py-3 text-left">
+                        <input type="checkbox" checked={allVisibleSelected} onChange={toggleSelectAllVisible} aria-label="Select all visible students" />
+                      </th>
+                    )}
                     <th className="px-6 py-3 text-left text-xs font-bold uppercase tracking-[0.03em] text-[#6f7898]">Admission No.</th>
                     <th className="px-6 py-3 text-left text-xs font-bold uppercase tracking-[0.03em] text-[#6f7898]">Name</th>
                     <th className="px-6 py-3 text-left text-xs font-bold uppercase tracking-[0.03em] text-[#6f7898]">Class</th>
@@ -1640,7 +1714,12 @@ export default function StudentsPage() {
               </thead>
               <tbody>
                 {students.map((student) => (
-                    <tr key={student.id} className="border-b border-[#edf0f7] transition last:border-b-0 hover:bg-[#fafbff]">
+                    <tr key={student.id} className={`border-b border-[#edf0f7] transition last:border-b-0 hover:bg-[#fafbff] ${selectedIds.has(student.id) ? "bg-[#fff6f7]" : ""}`}>
+                      {canDeleteStudent && (
+                        <td className="px-4 py-4">
+                          <input type="checkbox" checked={selectedIds.has(student.id)} onChange={() => toggleSelectOne(student.id)} aria-label={`Select ${student.studentName}`} />
+                        </td>
+                      )}
                       <td className="px-6 py-4 text-sm font-bold text-[#303247]">{student.admissionNumber}</td>
                       <td className="px-6 py-4 text-sm font-semibold text-[#303247]">{student.studentName}</td>
                       <td className="px-6 py-4 text-sm font-medium text-[#7d86a8]">{student.class}-{student.section}</td>
@@ -1707,6 +1786,29 @@ export default function StudentsPage() {
             <p className="mt-3 text-[32px] font-extrabold leading-none text-[#1b1d32]">{[...new Set(students.map((s) => s.class))].length}</p>
           </div>
         </div>
+
+        {/* Bulk delete confirm modal */}
+        {confirmBulk && (
+          <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" onClick={() => setConfirmBulk(false)}>
+            <div className="card w-full max-w-sm p-6" onClick={(e) => e.stopPropagation()}>
+              <h3 className="text-lg font-bold text-[#c83f4d]">Delete {selectedIds.size} student(s)?</h3>
+              <p className="mt-2 text-sm font-medium text-[#5f6888]">
+                This permanently removes the selected students and their fee summaries from the database. This cannot be undone.
+              </p>
+              <div className="mt-5 flex justify-end gap-2">
+                <button type="button" className="btn-secondary" onClick={() => setConfirmBulk(false)} disabled={bulkDeleting}>Cancel</button>
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-[#ed515d] px-4 py-2 text-sm font-bold text-white hover:bg-[#d8434f] disabled:opacity-60"
+                  onClick={bulkDelete}
+                  disabled={bulkDeleting}
+                >
+                  <Trash2 size={15} /> {bulkDeleting ? "Deleting..." : "Delete permanently"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* QR Code Modal */}
         {showQrModal && qrCanvas[showQrModal] && (
