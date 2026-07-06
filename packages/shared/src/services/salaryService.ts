@@ -355,6 +355,23 @@ export function calculateMonthlySalary(input: SalaryCalculationInput): SalaryRep
   const grossEarnedSalary = earnedPaidDays * dailyRate;
   const netPayable = Math.max(0, grossEarnedSalary + bonus - manualDeduction);
 
+  // Development-only calculation trace (never runs in production builds).
+  if (typeof process !== "undefined" && process.env?.NODE_ENV === "development") {
+    console.debug("[salaryCalc]", {
+      teacher: input.teacher.fullName,
+      month: input.month,
+      baseSalary: input.teacher.baseSalary,
+      totalWorkingDays: totalWorkingDates.length,
+      workingDaysElapsed: workingDatesElapsed.length,
+      presentDays: presentDates.length,
+      approvedPaidCLDays,
+      unpaidAbsentDays,
+      dailyRate: roundMoney(dailyRate),
+      deduction: roundMoney(salaryDeduction),
+      netPayable: roundMoney(netPayable)
+    });
+  }
+
   const timestamp = nowIso();
   const roundedPerDaySalary = roundMoney(dailyRate);
   const roundedSalaryDeduction = roundMoney(salaryDeduction);

@@ -1,6 +1,16 @@
 import { NextResponse } from "next/server";
 import { FieldValue } from "firebase-admin/firestore";
-import { calculateMonthlySalary, type AttendanceRecord, type Holiday, type LeaveRequest, type SalaryReport, type Teacher } from "@sri-narayana/shared";
+import {
+  calculateMonthlySalary,
+  getSalarySafetyTotals,
+  normalizeSalaryReport,
+  ATTENDANCE_MISSING_WARNING,
+  type AttendanceRecord,
+  type Holiday,
+  type LeaveRequest,
+  type SalaryReport,
+  type Teacher
+} from "@sri-narayana/shared";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { serializeDoc, startTimer } from "@/lib/apiUtils";
 import { getSchoolSettings } from "@/lib/firestoreServer";
@@ -35,8 +45,13 @@ export async function GET(req: Request) {
     const snapshot = await adminDb().collection("salary_reports").where("month", "==", month).get();
     const dbMs = dbTimer();
 
+    // normalizeSalaryReport recomputes deduction/netPayable from the safety
+    // formula. This protects against legacy stored docs where a teacher had
+    // 0 present days but netPayable was saved as full base salary — those now
+    // display with the correct deduction (or "Attendance Missing"/"Invalid"
+    // status) instead of the stored wrong number.
     const reports = snapshot.docs
-      .map((doc) => serializeDoc<SalaryReport>(doc))
+      .map((doc) => normalizeSalaryReport(serializeDoc<SalaryReport>(doc)))
       .sort((a, b) => a.teacherName.localeCompare(b.teacherName));
 
     const totalMs = totalTimer();
@@ -111,10 +126,16 @@ export async function POST(req: Request) {
       recordsByTeacherId.get(record.teacherId)!.push(record);
     });
 
+    // Attendance-missing guard: if the attendance collection has ZERO records
+    // for this month (device not synced / import failed), we must NOT treat
+    // every teacher as absent OR pay full salary. Reports are flagged
+    // "Attendance Missing" with netPayable 0 and payment blocked.
+    const attendanceAvailable = attendanceSnapshot.size > 0;
+
     const batch = db.batch();
     const reports = teachers.map((teacher) => {
       const previousDoc = db.collection("salary_reports").doc(salaryDocId(month, teacher.id));
-      const report = calculateMonthlySalary({
+      const calculated = calculateMonthlySalary({
         teacher,
         records: recordsByTeacherId.get(teacher.id) || [], // O(1) lookup vs O(n) filter
         holidays,
@@ -122,6 +143,13 @@ export async function POST(req: Request) {
         month,
         settings,
         payrollFinalized
+      });
+      // normalizeSalaryReport enforces the safety formula (deduction =
+      // unpaidAbsentDays × dailyRate, netPayable never defaults to base
+      // salary) and zeroes netPayable when attendance data is missing.
+      const report = normalizeSalaryReport({
+        ...calculated,
+        attendanceDataAvailable: attendanceAvailable
       });
       batch.set(previousDoc, { ...withoutUndefined(report), updatedAt: FieldValue.serverTimestamp(), generatedAt: FieldValue.serverTimestamp() }, { merge: true });
       
@@ -146,7 +174,10 @@ export async function POST(req: Request) {
     const totalMs = totalTimer();
     console.log(`[API] /api/admin/salary POST - DB: ${dbMs}ms, Batch: ${batchMs}ms, Total: ${totalMs}ms, Reports: ${reports.length}`);
 
-    return NextResponse.json({ ok: true, reports, message: `Generated salary for ${reports.length} teacher(s).`, _metrics: { dbMs, batchMs, totalMs } });
+    const message = attendanceAvailable
+      ? `Generated salary for ${reports.length} teacher(s).`
+      : `${ATTENDANCE_MISSING_WARNING} (${reports.length} report(s) flagged, payment blocked.)`;
+    return NextResponse.json({ ok: true, reports, attendanceAvailable, message, _metrics: { dbMs, batchMs, totalMs } });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to generate salary";
     return NextResponse.json({ ok: false, error: message }, { status: 400 });
@@ -164,7 +195,24 @@ export async function PATCH(req: Request) {
     const paid = Boolean(body.paid);
     if (!month || !teacherId) throw new Error("Month and teacher are required.");
 
-    await adminDb().collection("salary_reports").doc(salaryDocId(month, teacherId)).set(
+    // Validation before marking paid: recompute safety totals from the stored
+    // report. Blocks payment when attendance data is missing, or when the
+    // totals are inconsistent (e.g. 0 present + 0 CL + 0 unpaid absent while
+    // working days have elapsed — the exact bug that showed full salary for a
+    // fully-absent teacher).
+    const reportRef = adminDb().collection("salary_reports").doc(salaryDocId(month, teacherId));
+    if (paid) {
+      const reportSnap = await reportRef.get();
+      if (!reportSnap.exists) {
+        return NextResponse.json({ ok: false, error: "Salary report not found. Generate salary first." }, { status: 400 });
+      }
+      const totals = getSalarySafetyTotals(reportSnap.data() as Partial<SalaryReport>);
+      if (totals.paymentBlocked) {
+        return NextResponse.json({ ok: false, error: totals.paymentBlockedReason }, { status: 400 });
+      }
+    }
+
+    await reportRef.set(
       {
         paid,
         paidAt: paid ? new Date().toISOString() : "",

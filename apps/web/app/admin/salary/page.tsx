@@ -5,7 +5,14 @@ import { DateRangeFilter } from "@/components/DateRangeFilter";
 import { PageHeader } from "@/components/PageHeader";
 import { SalaryAdvancesPanel } from "@/components/SalaryAdvancesPanel";
 import { auth } from "@sri-narayana/shared/firebase/client";
-import type { SalaryReport } from "@sri-narayana/shared";
+import {
+  getApprovedPaidCLDays,
+  getSalaryPaymentBlockedReason,
+  getUnpaidAbsentDays,
+  isSalaryPaymentBlocked,
+  normalizeSalaryReport,
+  type SalaryReport
+} from "@sri-narayana/shared";
 import { AlertCircle, Check, CheckCircle2, Download, LockKeyhole, RotateCw, X } from "lucide-react";
 import { useEffect, useState } from "react";
 // xlsx is ~400KB — loaded on demand inside exportToExcel instead of at page
@@ -65,12 +72,16 @@ function money(value?: number) {
   return (value ?? 0).toLocaleString("en-IN", { maximumFractionDigits: 2 });
 }
 
+// Salary numbers always come from the shared safety helpers — never from
+// raw `?? 0` fallbacks. A missing unpaidAbsentDays is recomputed as
+// workingDaysElapsed − (present + paid CL + paid holidays), so a stored
+// report can never display 0 deduction for a fully-absent teacher.
 function approvedPaidCLDays(report: SalaryReport) {
-  return report.approvedPaidCLDays ?? report.paidCLDays ?? report.paidLeaveDays ?? report.clDays ?? 0;
+  return getApprovedPaidCLDays(report);
 }
 
 function unpaidAbsentDays(report: SalaryReport) {
-  return report.unpaidAbsentDays ?? report.unpaidDeductionDays ?? report.absentDays ?? 0;
+  return getUnpaidAbsentDays(report);
 }
 
 export default function SalaryPage() {
@@ -144,7 +155,9 @@ export default function SalaryPage() {
     setError(null);
     try {
       const result = await apiRequest<{ reports: SalaryReport[] }>(`/api/admin/salary?month=${encodeURIComponent(targetMonth)}`, undefined, isAccountant);
-      setReports(result.reports);
+      // Defense in depth: re-run the safety formula client-side too, so even a
+      // stale/legacy report can never render full salary with 0 present days.
+      setReports(result.reports.map(normalizeSalaryReport));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to load salary");
     } finally {
@@ -184,7 +197,7 @@ export default function SalaryPage() {
         method: "POST",
         body: JSON.stringify({ month })
       }, isAccountant);
-      setReports(result.reports);
+      setReports(result.reports.map(normalizeSalaryReport));
       setMessage(result.message ?? "Salary generated.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to generate salary");
@@ -195,6 +208,12 @@ export default function SalaryPage() {
 
   const togglePaid = async (report: SalaryReport) => {
     if (isAccountant && payrollAccess?.access !== "approved") return;
+    // Client-side payment block (server enforces the same rule in PATCH):
+    // attendance missing or inconsistent totals must never be marked paid.
+    if (!report.paid && isSalaryPaymentBlocked(report)) {
+      setError(getSalaryPaymentBlockedReason(report) ?? "Salary payment is blocked for this report.");
+      return;
+    }
     setLoading(true);
     setError(null);
     setMessage(null);
@@ -239,7 +258,9 @@ export default function SalaryPage() {
       "Leave Requests": report.approvedLeaveInfo || "-",
       "Management Holidays": report.managementHolidayDays ?? 0,
       "Management Holiday Details": report.managementHolidayInfo || "-",
-      Status: report.paid ? "Paid" : "Unpaid"
+      Status: report.salaryStatus && report.salaryStatus !== "Ready"
+        ? report.salaryStatus
+        : report.paid ? "Paid" : "Unpaid"
     }));
     const worksheet = XLSX.utils.json_to_sheet(rows);
     worksheet["!cols"] = [
@@ -429,10 +450,21 @@ export default function SalaryPage() {
                   <p className="truncate text-base font-bold text-[#1f2136]">{report.teacherName}</p>
                   <p className="mt-0.5 text-xs font-medium text-[#7d86a8]">Base ₹{money(report.baseSalary)} · Daily ₹{money(report.perDaySalary)}</p>
                 </div>
-                <button className="btn-secondary shrink-0" disabled={loading} onClick={() => togglePaid(report)}>
+                <button
+                  className="btn-secondary shrink-0"
+                  disabled={loading || (!report.paid && isSalaryPaymentBlocked(report))}
+                  title={!report.paid ? getSalaryPaymentBlockedReason(report) : undefined}
+                  onClick={() => togglePaid(report)}
+                >
                   <CheckCircle2 size={15} /> {report.paid ? "Paid" : "Mark paid"}
                 </button>
               </div>
+              {isSalaryPaymentBlocked(report) && (
+                <p className="mt-2 flex items-start gap-1.5 text-xs font-semibold text-[#ed515d]">
+                  <AlertCircle size={14} className="mt-0.5 shrink-0" />
+                  {getSalaryPaymentBlockedReason(report)}
+                </p>
+              )}
               <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2.5">
                 <div>
                   <dt className="text-[11px] font-semibold uppercase tracking-wide text-[#8490b9]">Present Days</dt>
@@ -503,9 +535,19 @@ export default function SalaryPage() {
                   <td className="px-4 py-3">₹{money(report.bonus)}</td>
                   <td className="px-4 py-3 font-semibold">₹{money(report.netPayable)}</td>
                   <td className="px-4 py-3">
-                    <button className="btn-secondary" disabled={loading} onClick={() => togglePaid(report)}>
+                    <button
+                      className="btn-secondary"
+                      disabled={loading || (!report.paid && isSalaryPaymentBlocked(report))}
+                      title={!report.paid ? getSalaryPaymentBlockedReason(report) : undefined}
+                      onClick={() => togglePaid(report)}
+                    >
                       <CheckCircle2 size={15} /> {report.paid ? "Paid" : "Mark paid"}
                     </button>
+                    {isSalaryPaymentBlocked(report) && (
+                      <p className="mt-1 max-w-[180px] text-[11px] font-semibold leading-snug text-[#ed515d]">
+                        {report.salaryStatus === "Attendance Missing" ? "Attendance Missing" : "Invalid calculation"}
+                      </p>
+                    )}
                   </td>
                 </tr>
               ))}

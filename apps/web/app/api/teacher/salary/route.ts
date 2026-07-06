@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { serializeDoc, requireTeacher } from "@/lib/apiUtils";
 import { adminDb } from "@/lib/firebaseAdmin";
-import type { SalaryReport } from "@sri-narayana/shared";
+import { normalizeSalaryReport, type SalaryReport } from "@sri-narayana/shared";
 
 export async function GET(req: Request) {
   try {
@@ -20,7 +20,9 @@ export async function GET(req: Request) {
       .where("month", "==", month)
       .get();
 
-    const reports = snapshot.docs.map((doc) => serializeDoc<SalaryReport>(doc));
+    // Safety formula re-applied so legacy stored reports can never show a
+    // fully-absent month as full salary (see salaryService safety totals).
+    const reports = snapshot.docs.map((doc) => normalizeSalaryReport(serializeDoc<SalaryReport>(doc)));
 
     return NextResponse.json({ ok: true, reports });
   } catch (error) {

@@ -1,5 +1,14 @@
 import assert from "node:assert/strict";
-import { calculateMonthlySalary, type SalaryCalculationInput } from "../services/salaryService";
+import {
+  ATTENDANCE_MISSING_WARNING,
+  INVALID_SALARY_CALCULATION_ERROR,
+  calculateMonthlySalary,
+  getSalaryPaymentBlockedReason,
+  getSalarySafetyTotals,
+  isSalaryPaymentBlocked,
+  normalizeSalaryReport,
+  type SalaryCalculationInput
+} from "../services/salaryService";
 import type { AttendanceRecord, Holiday, LeaveRequest, SchoolSettings, Teacher } from "../types/models";
 import { daysInMonth } from "../utils/date";
 
@@ -413,6 +422,88 @@ runTest("cancelled management holiday keeps the date as a working day", () => {
   assert.equal(report.totalWorkingDaysInMonth, 27);
   assert.equal(report.presentDays, 27);
   assert.equal(report.managementHolidayDays, 0);
+});
+
+// ---------------------------------------------------------------------------
+// Safety-formula tests (normalizeSalaryReport / getSalarySafetyTotals)
+// ---------------------------------------------------------------------------
+
+runTest("full present month pays full salary", () => {
+  const dates = workingDates();
+  const report = calculate({ records: dates.map((date) => attendance(date)) });
+  assert.equal(report.presentDays, 27);
+  assert.equal(report.unpaidAbsentDays, 0);
+  assertMoney(report.netPayable, 32500, "full month net payable");
+});
+
+runTest("0 present days and 0 CL pays 0 with full deduction", () => {
+  const report = calculate({ records: [] });
+  assert.equal(report.presentDays, 0);
+  assert.equal(report.unpaidAbsentDays, 27);
+  assertMoney(report.salaryDeduction, 32500, "full deduction");
+  assertMoney(report.netPayable, 0, "zero net payable");
+});
+
+runTest("20 present + 2 paid CL deducts remaining absent days", () => {
+  const dates = workingDates(); // 27 working days
+  const report = calculate({
+    records: dates.slice(0, 20).map((date) => attendance(date)),
+    leaveRequests: [leave(dates[20], dates[21])] // 2 approved CL days
+  });
+  assert.equal(report.presentDays, 20);
+  assert.equal(report.approvedPaidCLDays, 2);
+  assert.equal(report.unpaidAbsentDays, 5);
+  const dailyRate = 32500 / 27;
+  assertMoney(report.salaryDeduction, dailyRate * 5, "deduct 5 unpaid days");
+  assertMoney(report.netPayable, dailyRate * 22, "pay 22 earned days");
+});
+
+runTest("attendance missing zeroes net payable and blocks payment", () => {
+  const dates = workingDates();
+  const calculated = calculate({ records: dates.map((date) => attendance(date)) });
+  const normalized = normalizeSalaryReport({ ...calculated, attendanceDataAvailable: false });
+  assert.equal(normalized.salaryStatus, "Attendance Missing");
+  assert.equal(normalized.netPayable, 0);
+  assert.equal(normalized.paid, false);
+  assert.equal(isSalaryPaymentBlocked(normalized), true);
+  assert.equal(getSalaryPaymentBlockedReason(normalized), ATTENDANCE_MISSING_WARNING);
+});
+
+runTest("legacy report with 0 present / 0 CL / 0 unpaid absent cannot show full salary", () => {
+  // Reproduces the original bug: stored doc claimed netPayable = baseSalary
+  // while all attendance totals were zero for a fully-elapsed month.
+  const legacy = normalizeSalaryReport({
+    teacherId: "T001",
+    teacherName: "Test Teacher",
+    month: TEST_MONTH,
+    baseSalary: 32500,
+    totalWorkingDaysInMonth: 31,
+    workingDaysElapsed: 31,
+    presentDays: 0,
+    approvedPaidCLDays: 0,
+    unpaidAbsentDays: 0,
+    netPayable: 32500,
+    payrollFinalized: true
+  } as any);
+  assert.equal(legacy.unpaidAbsentDays, 31, "unpaid absent recomputed from working days");
+  assertMoney(legacy.netPayable, 0, "net payable forced to 0");
+  assert.equal(legacy.salaryStatus, "Invalid");
+  assert.equal(isSalaryPaymentBlocked(legacy), true);
+  assert.equal(getSalaryPaymentBlockedReason(legacy), INVALID_SALARY_CALCULATION_ERROR);
+});
+
+runTest("deduction is never 0 when present + paid CL < working days elapsed", () => {
+  const totals = getSalarySafetyTotals({
+    baseSalary: 31000,
+    totalWorkingDaysInMonth: 31,
+    workingDaysElapsed: 31,
+    presentDays: 25,
+    approvedPaidCLDays: 3,
+    unpaidAbsentDays: 0 // dangerous stored fallback — must be recomputed
+  });
+  assert.equal(totals.unpaidAbsentDays, 3);
+  assert.ok(totals.salaryDeduction > 0, "deduction must be positive");
+  assertMoney(totals.salaryDeduction, 3000, "3 days at 1000/day");
 });
 
 console.log("All salary calculation tests passed.");
