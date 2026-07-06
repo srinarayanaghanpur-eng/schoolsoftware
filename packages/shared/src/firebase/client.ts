@@ -1,6 +1,12 @@
 import { initializeApp, getApps } from "firebase/app";
 import { getAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+import {
+  getFirestore,
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager,
+  type Firestore
+} from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
 const firebaseConfig = {
@@ -17,5 +23,24 @@ export const isFirebaseConfigured = Object.values(firebaseConfig).every(Boolean)
 
 export const firebaseApp = isFirebaseConfigured ? (getApps().length ? getApps()[0] : initializeApp(firebaseConfig)) : undefined;
 export const auth = firebaseApp ? getAuth(firebaseApp) : ({ currentUser: null } as ReturnType<typeof getAuth>);
-export const db = firebaseApp ? getFirestore(firebaseApp) : ({} as ReturnType<typeof getFirestore>);
+// Offline persistence: cache Firestore data in IndexedDB so reloads and
+// network/quota failures serve local data instead of a blank screen.
+// Browser-only (IndexedDB check) — React Native/Expo and SSR fall back to the
+// default in-memory Firestore.
+function createDb(): Firestore {
+  if (!firebaseApp) return {} as Firestore;
+  if (typeof window !== "undefined" && typeof indexedDB !== "undefined") {
+    try {
+      return initializeFirestore(firebaseApp, {
+        localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
+      });
+    } catch {
+      // Already initialized (e.g. HMR) — reuse existing instance.
+      return getFirestore(firebaseApp);
+    }
+  }
+  return getFirestore(firebaseApp);
+}
+
+export const db = createDb();
 export const storage = firebaseApp ? getStorage(firebaseApp) : ({} as ReturnType<typeof getStorage>);

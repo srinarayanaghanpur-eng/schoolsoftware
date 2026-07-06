@@ -10,6 +10,11 @@ import { useAdminSession } from "@/components/AdminSessionContext";
 type AcademicYearContextValue = {
   years: AcademicYear[];
   activeYear: AcademicYear | null;
+  /** The per-login selected year (chosen on the login screen). Pages should
+   * scope their queries to this, not to activeYear. */
+  selectedYear: AcademicYear | null;
+  selectedYearId: string | null;
+  setSelectedYear: (id: string) => void;
   loading: boolean;
   error: string | null;
   accessDenied: boolean;
@@ -21,6 +26,18 @@ type AcademicYearContextValue = {
 const AcademicYearContext = createContext<AcademicYearContextValue | null>(null);
 const ACADEMIC_YEARS_CLIENT_CACHE_MS = 5 * 60 * 1000;
 const ACADEMIC_YEARS_CLIENT_CACHE_KEY = "sriNarayana.academicYears";
+export const SELECTED_ACADEMIC_YEAR_STORAGE_KEY = "sriNarayana.selectedAcademicYear";
+
+function readStoredSelectedYearId(): string | null {
+  try {
+    const raw = window.localStorage.getItem(SELECTED_ACADEMIC_YEAR_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { id?: unknown };
+    return typeof parsed.id === "string" && parsed.id ? parsed.id : null;
+  } catch {
+    return null;
+  }
+}
 
 function readCachedAcademicYears(): AcademicYear[] | null {
   try {
@@ -55,8 +72,34 @@ export function AcademicYearProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const [accessDenied, setAccessDenied] = useState(false);
 
+  const [selectedYearId, setSelectedYearId] = useState<string | null>(() =>
+    typeof window === "undefined" ? null : readStoredSelectedYearId()
+  );
+
   const canSwitchYear = Boolean(role && hasPermission(role, "academic_years.view") && (role === "admin" || role === "principal" || role === "super_admin"));
   const activeYear = useMemo(() => years.find((year) => year.isActive) ?? null, [years]);
+  // Fall back to the active year when nothing was selected at login (e.g.
+  // remembered sessions or roles that skip the login dropdown).
+  const selectedYear = useMemo(
+    () => (selectedYearId ? years.find((year) => year.id === selectedYearId) ?? null : null) ?? activeYear,
+    [years, selectedYearId, activeYear]
+  );
+
+  const setSelectedYear = useCallback(
+    (id: string) => {
+      setSelectedYearId(id);
+      try {
+        const year = years.find((item) => item.id === id);
+        window.localStorage.setItem(
+          SELECTED_ACADEMIC_YEAR_STORAGE_KEY,
+          JSON.stringify({ id, name: year?.name ?? "" })
+        );
+      } catch {
+        // localStorage may be unavailable; in-memory selection still applies.
+      }
+    },
+    [years]
+  );
 
   const refreshYears = useCallback(async (options?: { force?: boolean }) => {
     if (!isFirebaseConfigured) {
@@ -118,7 +161,7 @@ export function AcademicYearProvider({ children }: { children: ReactNode }) {
 
   return (
     <AcademicYearContext.Provider
-      value={{ years, activeYear, loading, error, accessDenied, canSwitchYear, refreshYears, activateYear }}
+      value={{ years, activeYear, selectedYear, selectedYearId: selectedYear?.id ?? null, setSelectedYear, loading, error, accessDenied, canSwitchYear, refreshYears, activateYear }}
     >
       {children}
     </AcademicYearContext.Provider>

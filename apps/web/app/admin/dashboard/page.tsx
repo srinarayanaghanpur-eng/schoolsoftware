@@ -89,7 +89,22 @@ type DashboardData = {
   notices: { title: string; meta: string }[];
 };
 
+// Server-side TTL cache: the dashboard is `force-dynamic`, so without this
+// every navigation re-runs every aggregate/list query. 60s staleness is fine
+// for overview stats and cuts Firestore reads for repeat visits to zero.
+const DASHBOARD_CACHE_MS = 60_000;
+let dashboardCache: { data: DashboardData; at: number } | null = null;
+
 async function loadDashboard(): Promise<DashboardData> {
+  if (dashboardCache && Date.now() - dashboardCache.at < DASHBOARD_CACHE_MS) {
+    return dashboardCache.data;
+  }
+  const data = await loadDashboardUncached();
+  dashboardCache = { data, at: Date.now() };
+  return data;
+}
+
+async function loadDashboardUncached(): Promise<DashboardData> {
   const db = adminDb();
   const now = new Date();
   const today = istDateKey(now);
@@ -132,7 +147,9 @@ async function loadDashboard(): Promise<DashboardData> {
     studentsPendingQuery.get().catch(() => null),
     feesCollectedQuery.get().catch(() => null),
     feesCollectedTodayQuery.get().catch(() => null),
-    db.collection("attendance").where("date", ">=", weekAgo).where("date", "<=", today).get(),
+    // Bounded: 7 days of attendance; the limit guards against runaway reads
+    // if the collection ever mixes student + staff records.
+    db.collection("attendance").where("date", ">=", weekAgo).where("date", "<=", today).limit(2000).get(),
     db.collection("notifications").orderBy("createdAt", "desc").limit(3).get().catch(() => null),
     db.collection("students").orderBy("createdAt", "desc").limit(3).get().catch(() => null)
   ]);

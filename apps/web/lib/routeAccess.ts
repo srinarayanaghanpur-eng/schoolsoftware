@@ -31,6 +31,9 @@ export const routePermissions: RoutePermission[] = [
   // Sensitive sub-areas (more specific than /admin, so they win the prefix match)
   { path: "/admin/finance", roles: ["super_admin", "admin", "accountant"] },
   { path: "/admin/settings", roles: ["super_admin"] },
+  // Academic-year management is super_admin only (explicit for clarity; also
+  // covered by the /admin/settings rule above).
+  { path: "/admin/settings/academic-years", roles: ["super_admin"] },
   { path: "/admin/users", roles: ["super_admin", "admin"] },
   { path: "/admin/roles", roles: ["super_admin"] },
 

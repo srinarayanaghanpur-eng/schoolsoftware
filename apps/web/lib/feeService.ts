@@ -2,6 +2,8 @@ import {
   collection,
   query,
   where,
+  orderBy,
+  limit,
   getDocs,
   getDoc,
   addDoc,
@@ -72,7 +74,10 @@ export const feeService = {
    * Get dashboard statistics
    */
   async getDashboardStats(): Promise<DashboardStats> {
-    const studentsSnapshot = await getDocs(collection(db, 'students'));
+    // NOTE: prefer the server endpoint /api/admin/reports/dashboard-stats,
+    // which uses aggregate queries (1 read per 1000 docs). This client-side
+    // fallback is bounded to avoid reading the entire collection.
+    const studentsSnapshot = await getDocs(query(collection(db, 'students'), limit(1000)));
     const students = studentsSnapshot.docs.map((d: any) => d.data());
     const totalStudents = students.length;
 
@@ -124,13 +129,16 @@ export const feeService = {
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
-    const paymentsSnapshot = await getDocs(collection(db, 'payments'));
-    const monthlyPayments = paymentsSnapshot.docs
-      .map((d: any) => d.data())
-      .filter((p: any) => {
-        const paymentDate = new Date(p.paymentDate);
-        return paymentDate >= monthStart && paymentDate <= monthEnd;
-      });
+    // Filter by date at Firestore level instead of downloading every payment.
+    const paymentsSnapshot = await getDocs(
+      query(
+        collection(db, 'payments'),
+        where('createdAt', '>=', monthStart),
+        where('createdAt', '<=', monthEnd),
+        limit(2000)
+      )
+    );
+    const monthlyPayments = paymentsSnapshot.docs.map((d: any) => d.data());
 
     const monthlyCollection = monthlyPayments.reduce(
       (sum, p: any) => sum + p.amountPaid,
@@ -255,29 +263,28 @@ export const feeService = {
   /**
    * Get fee due students (for follow-up)
    */
-  async getFeeDueStudents(threshold: number = 0): Promise<any[]> {
-    const studentsSnapshot = await getDocs(collection(db, 'students'));
-    const students = studentsSnapshot.docs.map((d) => ({
-      id: d.id,
-      ...d.data()
-    }));
-
-    return students
-      .filter((s) => (s.totalFeesDue || 0) > threshold)
-      .sort((a, b) => (b.totalFeesDue || 0) - (a.totalFeesDue || 0));
+  async getFeeDueStudents(threshold: number = 0, max: number = 200): Promise<any[]> {
+    // Server-side filter + order + limit: reads only defaulters, biggest first.
+    const studentsSnapshot = await getDocs(
+      query(
+        collection(db, 'students'),
+        where('totalFeesDue', '>', threshold),
+        orderBy('totalFeesDue', 'desc'),
+        limit(max)
+      )
+    );
+    return studentsSnapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
   },
 
   /**
    * Get fully paid students
    */
-  async getFullyPaidStudents(): Promise<any[]> {
-    const studentsSnapshot = await getDocs(collection(db, 'students'));
-    const students = studentsSnapshot.docs.map((d) => ({
-      id: d.id,
-      ...d.data()
-    }));
-
-    return students.filter((s) => (s.totalFeesDue || 0) === 0);
+  async getFullyPaidStudents(max: number = 500): Promise<any[]> {
+    // Equality filter at Firestore level instead of full-collection scan.
+    const studentsSnapshot = await getDocs(
+      query(collection(db, 'students'), where('totalFeesDue', '==', 0), limit(max))
+    );
+    return studentsSnapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
   }
 };
 

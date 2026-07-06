@@ -44,8 +44,23 @@ export async function GET(req: Request) {
           const source = REQUEST_SOURCES[type];
           const native = nativeStatusFor(source, "pending");
           if (!native) return 0;
-          const snap = await adminDb().collection(source.collection).where("status", "==", native).count().get();
-          return Number(snap.data().count || 0);
+          // Count only ACTIONABLE items: pending status AND not archived AND not
+          // soft-deleted — matching the default list view (which filters out
+          // `archived`/`deletedAt`). A plain aggregate on status alone would keep
+          // the header badge lit for requests that were archived/deleted while
+          // still marked "open", and those are hidden from the list so they can
+          // never be resolved from the UI. Reading the (small) open set lets us
+          // apply the same filters; bounded by a limit to cap reads.
+          const snap = await adminDb()
+            .collection(source.collection)
+            .where("status", "==", native)
+            .select("archived", "deletedAt")
+            .limit(500)
+            .get();
+          return snap.docs.filter((doc) => {
+            const data = doc.data();
+            return !data.archived && !data.deletedAt;
+          }).length;
         })
       );
       return NextResponse.json({ ok: true, pendingCount: counts.reduce((a, b) => a + b, 0) });

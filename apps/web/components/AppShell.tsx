@@ -71,6 +71,7 @@ import { DarkModeToggle } from "@/components/DarkModeToggle";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { SectionTabs } from "@/components/SectionTabs";
 import { clearPayrollSessionId } from "@/lib/payrollSessionClient";
+import { clearAdminApiCacheForSignOut } from "@/lib/adminApiClient";
 import { refreshClaims } from "@/lib/authClaims";
 import { isRoleAllowedForPath } from "@/lib/routeAccess";
 import { lazyLoad } from "@/lib/lazyLoad";
@@ -148,7 +149,7 @@ const primaryNav: NavItem[] = [
     label: "Exams & Marks",
     module: "exams",
     icon: BookOpenCheck,
-    activePrefixes: ["/admin/exams", "/admin/calendar", "/admin/holidays", "/admin/academic-years", "/admin/promotions"]
+    activePrefixes: ["/admin/exams", "/admin/calendar", "/admin/holidays", "/admin/promotions"]
   },
   { href: "/admin/notices", label: "Communication", module: "communication", icon: Megaphone, activePrefixes: ["/admin/notices", "/admin/messages", "/admin/notifications"] },
   { href: "/admin/reports", label: "Reports", module: "reports", icon: BarChart3, activePrefixes: ["/admin/reports"] },
@@ -240,12 +241,11 @@ const contextSubnavs: ContextSubnav[] = [
   {
     title: "Exams & Marks",
     eyebrow: "Academics",
-    matchPrefixes: ["/admin/exams", "/admin/calendar", "/admin/holidays", "/admin/academic-years", "/admin/promotions"],
+    matchPrefixes: ["/admin/exams", "/admin/calendar", "/admin/holidays", "/admin/promotions"],
     items: [
       { href: "/admin/exams", label: "Exams", icon: BookOpenCheck, module: "exams" },
       { href: "/admin/calendar", label: "Timetable", icon: CalendarDays, module: "academics" },
       { href: "/admin/holidays", label: "Holidays", icon: CalendarRange, module: "academics" },
-      { href: "/admin/academic-years", label: "Academic Years", icon: CalendarRange, module: "academic_years" },
       { href: "/admin/promotions", label: "Promotions", icon: GraduationCap, module: "promotions" }
     ]
   },
@@ -305,7 +305,7 @@ const pageTitles: Record<string, string> = {
   "/admin/messages": "Parent Messages",
   "/admin/calendar": "Timetable",
   "/admin/holidays": "Holidays",
-  "/admin/academic-years": "Academic Years",
+  "/admin/settings/academic-years": "Academic Years",
   "/admin/promotions": "Promotion",
   "/admin/users": "Users & Roles",
   "/admin/approvals": "Approvals",
@@ -328,7 +328,7 @@ const routeModules: Array<{ prefix: string; module: Module }> = [
   { prefix: "/admin/fee-concessions", module: "fees" },
   { prefix: "/admin/fee-structures", module: "fees" },
   { prefix: "/admin/fee-reports", module: "fees" },
-  { prefix: "/admin/academic-years", module: "academic_years" },
+  { prefix: "/admin/settings/academic-years", module: "academic_years" },
   { prefix: "/admin/teachers", module: "staff" },
   { prefix: "/admin/attendance", module: "attendance" },
   { prefix: "/admin/reports", module: "reports" },
@@ -942,7 +942,7 @@ function initialsOf(name: string) {
 }
 
 function HeaderDateLabel({ now }: { now: Date | null }) {
-  const { activeYear } = useAcademicYears();
+  const { selectedYear } = useAcademicYears();
   if (!now) return <>{"\u00a0"}</>;
 
   const dateText = now.toLocaleDateString(undefined, {
@@ -951,53 +951,20 @@ function HeaderDateLabel({ now }: { now: Date | null }) {
     month: "long",
     year: "numeric"
   });
-  return <>{dateText} · Academic Year {activeYear?.name ?? academicYearLabel(now)}</>;
+  return <>{dateText} · Academic Year {selectedYear?.name ?? academicYearLabel(now)}</>;
 }
 
-function AcademicYearSwitcher() {
-  const { years, activeYear, loading, error, canSwitchYear, activateYear } = useAcademicYears();
-  const [changing, setChanging] = useState(false);
-  const [localError, setLocalError] = useState<string | null>(null);
-
-  const value = activeYear?.id ?? "";
-  const disabled = loading || changing || years.length === 0 || !canSwitchYear;
-
-  const handleChange = async (yearId: string) => {
-    if (!yearId || yearId === activeYear?.id) return;
-    setChanging(true);
-    setLocalError(null);
-    try {
-      await activateYear(yearId);
-    } catch (err) {
-      setLocalError(err instanceof Error ? err.message : "Unable to switch academic year");
-    } finally {
-      setChanging(false);
-    }
-  };
+// Read-only badge: the academic year is chosen at login (per-login scope), so
+// the top bar only DISPLAYS the selection — global switching was removed.
+function AcademicYearBadge() {
+  const { selectedYear, loading } = useAcademicYears();
 
   return (
-    <div className="relative hidden min-w-[172px] md:block" title={localError ?? error ?? undefined}>
-      <CalendarRange size={17} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[#8490b9]" />
-      <select
-        aria-label="Academic year"
-        className="h-11 w-full appearance-none rounded-lg border border-border bg-input pl-10 pr-4 text-sm font-bold text-foreground outline-none transition focus:border-ring focus:ring-4 focus:ring-ring/10 disabled:cursor-not-allowed disabled:text-muted-foreground"
-        value={value}
-        disabled={disabled}
-        onChange={(event) => void handleChange(event.target.value)}
-      >
-        {years.length === 0 ? (
-          <option value="">{loading ? "Loading..." : "No academic year"}</option>
-        ) : (
-          <>
-            {!activeYear && <option value="">No active year</option>}
-            {years.map((year) => (
-              <option key={year.id ?? year.name} value={year.id ?? ""}>
-                {year.isActive ? `${year.name} (Active)` : year.name}
-              </option>
-            ))}
-          </>
-        )}
-      </select>
+    <div className="hidden min-w-[172px] items-center gap-2.5 rounded-lg border border-border bg-input px-3.5 py-2.5 md:flex" title="Academic year (selected at login)">
+      <CalendarRange size={17} className="shrink-0 text-[#8490b9]" />
+      <span className="truncate text-sm font-bold text-foreground">
+        {selectedYear?.name ?? (loading ? "Loading..." : "No academic year")}
+      </span>
     </div>
   );
 }
@@ -1021,6 +988,34 @@ function AccessDeniedState({ module }: { module?: Module }) {
 }
 
 type Profile = { uid: string; name: string; email?: string; role?: Role };
+
+/**
+ * Global connectivity banner. Shown fixed at the top when the browser goes
+ * offline; pages keep rendering cached data (adminApiClient localStorage
+ * fallback + Firestore IndexedDB persistence) instead of a blank screen.
+ */
+function OfflineBanner() {
+  const [offline, setOffline] = useState(false);
+  useEffect(() => {
+    const update = () => setOffline(typeof navigator !== "undefined" && !navigator.onLine);
+    update();
+    window.addEventListener("online", update);
+    window.addEventListener("offline", update);
+    return () => {
+      window.removeEventListener("online", update);
+      window.removeEventListener("offline", update);
+    };
+  }, []);
+  if (!offline) return null;
+  return (
+    <div
+      role="status"
+      className="fixed inset-x-0 top-0 z-[100] bg-amber-500 px-4 py-1.5 text-center text-xs font-extrabold text-white shadow-md print:hidden"
+    >
+      Offline — showing saved data. Changes will not sync until you reconnect.
+    </div>
+  );
+}
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -1304,8 +1299,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     if (signingOut) return;
     setSigningOut(true);
     clearPayrollSessionId();
+    // Wipe cached API responses so the next account on this device
+    // can't see this user's data.
+    clearAdminApiCacheForSignOut();
     try {
       window.sessionStorage.removeItem("erp-auth-role");
+    } catch {
+      // ignore
+    }
+    try {
+      // The academic year is a per-login choice; clear it so the next login
+      // starts from the default (active) year.
+      window.localStorage.removeItem("sriNarayana.selectedAcademicYear");
     } catch {
       // ignore
     }
@@ -1352,6 +1357,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <AdminSessionProvider value={sessionValue}>
       <AcademicYearProvider>
     <div className="erp-app min-h-screen bg-background text-foreground md:flex print:block print:bg-white">
+      <OfflineBanner />
       {/* Mobile backdrop */}
       {mobileNavOpen && (
         <div
@@ -1498,7 +1504,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <h1 className="truncate text-lg font-extrabold tracking-tight text-foreground md:text-xl">{title}</h1>
             <p className="truncate text-xs font-medium text-muted-foreground"><HeaderDateLabel now={now} /></p>
           </div>
-          <AcademicYearSwitcher />
+          <AcademicYearBadge />
           <LiveClock className="hidden sm:inline-flex" />
           <DarkModeToggle />
           {role && canAccessModule(role, "communication") && (

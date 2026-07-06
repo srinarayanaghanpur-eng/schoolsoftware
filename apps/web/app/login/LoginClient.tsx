@@ -28,6 +28,10 @@ const SCHOOL_LOGO_SRC = "/sri-narayana-high-school-logo.jpg";
 
 type LoginIdCheckStatus = "empty" | "checking" | "matched" | "unknown";
 
+type PublicAcademicYear = { id: string; name: string; isActive: boolean };
+
+export const SELECTED_ACADEMIC_YEAR_STORAGE_KEY = "sriNarayana.selectedAcademicYear";
+
 type Feature = {
   title: string;
   description: string;
@@ -385,6 +389,9 @@ function useTeacherLoginController() {
   const [loading, setLoading] = useState(false);
   const [forgotLoading, setForgotLoading] = useState(false);
   const [inactiveReason, setInactiveReason] = useState(false);
+  const [academicYears, setAcademicYears] = useState<PublicAcademicYear[]>([]);
+  const [selectedYearId, setSelectedYearId] = useState("");
+  const [yearsLoading, setYearsLoading] = useState(true);
   const router = useRouter();
   const setUppercaseLoginId = (value: string) => {
     setLoginId(value.toUpperCase());
@@ -401,6 +408,37 @@ function useTeacherLoginController() {
     void import("firebase/firestore");
     void import("@sri-narayana/shared/firebase/client");
   }, [router]);
+
+  // Load academic years for the required login-time selection. Default to the
+  // school's active year so most users just confirm and sign in.
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/academic-years/public")
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Unable to load academic years");
+        return (await response.json()) as { ok?: boolean; years?: PublicAcademicYear[] };
+      })
+      .then((result) => {
+        if (cancelled) return;
+        const years = Array.isArray(result.years) ? result.years : [];
+        setAcademicYears(years);
+        setSelectedYearId((current) => {
+          if (current && years.some((year) => year.id === current)) return current;
+          const active = years.find((year) => year.isActive);
+          return active?.id ?? years[0]?.id ?? "";
+        });
+      })
+      .catch(() => {
+        // Years unavailable (offline/quota). Login stays usable; selection is
+        // simply skipped downstream and the app falls back to the active year.
+      })
+      .finally(() => {
+        if (!cancelled) setYearsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // "Remember me" keeps the Firebase session across browser restarts. If a valid
   // session is still present when the login screen loads, skip the form and send
@@ -459,10 +497,30 @@ function useTeacherLoginController() {
   const onSubmit = async (event: FormEvent) => {
     event.preventDefault();
 
+    // Require a year selection whenever the list loaded (the choice scopes the
+    // back-office session; teacher/parent logins simply ignore it downstream).
+    if (academicYears.length > 0 && !selectedYearId) {
+      setError("Please select an academic year.");
+      return;
+    }
+
     setLoading(true);
     setError(null);
     try {
       const role = await signInAndResolveRole(loginId, password, rememberMe);
+      // Persist the chosen academic year for the session before navigating so
+      // AcademicYearContext can pick it up on first render.
+      try {
+        const selectedYear = academicYears.find((year) => year.id === selectedYearId);
+        if (selectedYear) {
+          window.localStorage.setItem(
+            SELECTED_ACADEMIC_YEAR_STORAGE_KEY,
+            JSON.stringify({ id: selectedYear.id, name: selectedYear.name })
+          );
+        }
+      } catch {
+        // localStorage may be unavailable; the app falls back to the active year.
+      }
       // Store a short-lived hint so the destination's AuthGate can render
       // instantly instead of re-running the token/Firestore checks first.
       try {
@@ -523,9 +581,82 @@ function useTeacherLoginController() {
     forgotLoading,
     loginIdCheckStatus,
     inactiveReason,
+    academicYears,
+    selectedYearId,
+    setSelectedYearId,
+    yearsLoading,
     onSubmit,
     onForgotPassword
   };
+}
+
+function AcademicYearSelect({
+  years,
+  selectedYearId,
+  onChange,
+  loading,
+  variant
+}: {
+  years: PublicAcademicYear[];
+  selectedYearId: string;
+  onChange: (id: string) => void;
+  loading: boolean;
+  variant: "desktop" | "mobile";
+}) {
+  if (!loading && years.length === 0) return null;
+
+  const select = (
+    <select
+      className={
+        variant === "desktop"
+          ? `h-[52px] w-full appearance-none rounded-[14px] border bg-white/85 pl-[54px] pr-[52px] text-[16px] font-semibold text-stone-950 shadow-[0_10px_24px_rgba(15,23,42,0.04)] outline-none transition duration-300 focus:border-[#3033a1] focus:bg-white focus:shadow-[0_16px_32px_rgba(48,51,161,0.12)] focus:ring-4 focus:ring-[#3033a1]/10 ${
+              selectedYearId ? "border-[#6f78c4]" : "border-stone-300"
+            }`
+          : "h-full min-w-0 flex-1 appearance-none bg-transparent pl-3 pr-2 text-base font-semibold text-slate-950 outline-none"
+      }
+      value={selectedYearId}
+      onChange={(event) => onChange(event.target.value)}
+      required
+      aria-label="Academic year"
+      disabled={loading}
+    >
+      <option value="" disabled>
+        {loading ? "Loading academic years..." : "Select academic year"}
+      </option>
+      {years.map((year) => (
+        <option key={year.id} value={year.id}>
+          {year.name}
+          {year.isActive ? " (current)" : ""}
+        </option>
+      ))}
+    </select>
+  );
+
+  if (variant === "desktop") {
+    return (
+      <label className="group relative block">
+        <CalendarCheck className="pointer-events-none absolute left-5 top-1/2 h-5 w-5 -translate-y-1/2 text-stone-500 transition group-focus-within:text-[#3033a1]" />
+        {select}
+        <div className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2">
+          {selectedYearId ? <Check className="h-6 w-6 text-[#3033a1]" strokeWidth={3} /> : null}
+        </div>
+      </label>
+    );
+  }
+
+  return (
+    <label className="block">
+      <span className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Academic Year</span>
+      <div
+        className={`mt-2 flex h-14 items-center rounded-2xl border bg-white px-4 shadow-[0_12px_28px_rgba(15,23,42,0.06)] transition focus-within:border-[#3033a1] focus-within:ring-4 focus-within:ring-[#3033a1]/10 ${
+          selectedYearId ? "border-[#6f78c4]" : "border-stone-200"
+        }`}
+      >
+        <CalendarCheck className="h-5 w-5 shrink-0 text-slate-500" />
+        {select}
+      </div>
+    </label>
+  );
 }
 
 function DesktopLoginExperience() {
@@ -543,6 +674,10 @@ function DesktopLoginExperience() {
     forgotLoading,
     loginIdCheckStatus,
     inactiveReason,
+    academicYears,
+    selectedYearId,
+    setSelectedYearId,
+    yearsLoading,
     onSubmit,
     onForgotPassword
   } = useTeacherLoginController();
@@ -595,6 +730,13 @@ function DesktopLoginExperience() {
                     {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                   </button>
                 }
+              />
+              <AcademicYearSelect
+                years={academicYears}
+                selectedYearId={selectedYearId}
+                onChange={setSelectedYearId}
+                loading={yearsLoading}
+                variant="desktop"
               />
             </div>
             <div className="mt-4 flex items-center justify-between gap-4">
@@ -692,6 +834,10 @@ function MobileLoginExperience() {
     forgotLoading,
     loginIdCheckStatus,
     inactiveReason,
+    academicYears,
+    selectedYearId,
+    setSelectedYearId,
+    yearsLoading,
     onSubmit,
     onForgotPassword
   } = useTeacherLoginController();
@@ -758,6 +904,13 @@ function MobileLoginExperience() {
                   {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                 </button>
               }
+            />
+            <AcademicYearSelect
+              years={academicYears}
+              selectedYearId={selectedYearId}
+              onChange={setSelectedYearId}
+              loading={yearsLoading}
+              variant="mobile"
             />
           </div>
 
