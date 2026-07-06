@@ -25,6 +25,14 @@ export async function GET(request: NextRequest) {
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
 
+    // Fee aggregates scoped to the active academic year so old-year summary
+    // docs can't skew the stats (matches admin + finance dashboards).
+    const activeYearSnap = await db.collection("academic_years").where("isActive", "==", true).limit(1).get().catch(() => null);
+    const activeYearId = activeYearSnap?.docs[0]?.id ?? "";
+    const scopedSummaries = activeYearId
+      ? db.collection("studentFeeSummaries").where("academicYearId", "==", activeYearId)
+      : db.collection("studentFeeSummaries");
+
     const [
       studentsCountSnap,
       feeTotalsSnap,
@@ -35,18 +43,21 @@ export async function GET(request: NextRequest) {
       monthlyCollectionSnap
     ] = await Promise.all([
       db.collection("students").count().get(),
-      db.collection("studentFeeSummaries").aggregate({
+      scopedSummaries.aggregate({
         totalFeeAmount: AggregateField.sum("totalFee"),
         totalFeeDue: AggregateField.sum("dueAmount"),
         totalPaid: AggregateField.sum("totalPaid")
       }).get().catch(() => null),
-      db.collection("studentFeeSummaries").where("dueAmount", ">", 0).count().get().catch(() => null),
+      scopedSummaries.where("dueAmount", ">", 0).count().get().catch(() => null),
       db.collection("concessions").where("status", "==", "approved").where("isActive", "==", true).aggregate({
         studentsWithConcession: AggregateField.count(),
         totalConcessionAmount: AggregateField.sum("concessionAmount")
       }).get().catch(() => null),
       db.collection("concessions").where("status", "==", "pending").count().get(),
-      db.collection("financeSummaries").aggregate({
+      (activeYearId
+        ? db.collection("financeSummaries").where("academicYearId", "==", activeYearId)
+        : db.collection("financeSummaries")
+      ).aggregate({
         totalFeeCollected: AggregateField.sum("totalIncome")
       }).get().catch(() => null),
       db.collection("payments")

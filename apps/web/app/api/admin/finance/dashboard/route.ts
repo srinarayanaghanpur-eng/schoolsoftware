@@ -86,12 +86,21 @@ export async function GET(req: Request) {
   const todayStart = new Date(`${today}T00:00:00`);
   const todayEnd = new Date(`${today}T23:59:59.999`);
 
+  // Scope fee summaries to the active academic year so old-year/leftover
+  // summary docs don't inflate the totals (keeps this page in sync with the
+  // admin dashboard).
+  const activeYearSnap = await db.collection("academic_years").where("isActive", "==", true).limit(1).get().catch(() => null);
+  const activeYearId = activeYearSnap?.docs[0]?.id ?? "";
+  const scopedSummaries = activeYearId
+    ? db.collection("studentFeeSummaries").where("academicYearId", "==", activeYearId)
+    : db.collection("studentFeeSummaries");
+
   const [feeTotalsSnap, studentsPendingSnap, todayCollectedSnap, paymentsSnap, incomesSnap, expensesSnap, salarySnap, advancesSnap] = await Promise.all([
-    db.collection("studentFeeSummaries").aggregate({
+    scopedSummaries.aggregate({
       totalFeeAmount: AggregateField.sum("totalFee"),
       outstandingDues: AggregateField.sum("dueAmount")
     }).get().catch(() => null),
-    db.collection("studentFeeSummaries").where("dueAmount", ">", 0).count().get().catch(() => null),
+    scopedSummaries.where("dueAmount", ">", 0).count().get().catch(() => null),
     db.collection("payments")
       .where("status", "==", "completed")
       .where("createdAt", ">=", todayStart)

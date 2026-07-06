@@ -92,19 +92,38 @@ type DashboardData = {
 // every navigation re-runs every aggregate/list query. 60s staleness is fine
 // for overview stats and cuts Firestore reads for repeat visits to zero.
 const DASHBOARD_CACHE_MS = 60_000;
-let dashboardCache: { data: DashboardData; at: number } | null = null;
+let dashboardCache: { key: string; data: DashboardData; at: number } | null = null;
+
+/** Active academic year id — money figures are scoped to it so old-year or
+ *  leftover summary docs can't inflate the dashboard. */
+async function getActiveAcademicYearId(db: FirebaseFirestore.Firestore): Promise<string> {
+  try {
+    const snap = await db.collection("academic_years").where("isActive", "==", true).limit(1).get();
+    return snap.docs[0]?.id ?? "";
+  } catch {
+    return "";
+  }
+}
 
 async function loadDashboard(): Promise<DashboardData> {
-  if (dashboardCache && Date.now() - dashboardCache.at < DASHBOARD_CACHE_MS) {
+  const db = adminDb();
+  const yearId = await getActiveAcademicYearId(db);
+  if (dashboardCache && dashboardCache.key === yearId && Date.now() - dashboardCache.at < DASHBOARD_CACHE_MS) {
     return dashboardCache.data;
   }
-  const data = await loadDashboardUncached();
-  dashboardCache = { data, at: Date.now() };
+  const data = await loadDashboardUncached(yearId);
+  dashboardCache = { key: yearId, data, at: Date.now() };
   return data;
 }
 
-async function loadDashboardUncached(): Promise<DashboardData> {
+async function loadDashboardUncached(yearId: string): Promise<DashboardData> {
   const db = adminDb();
+
+  // Scope financial aggregates to the active academic year (when one is
+  // configured). Without this, sums span every year and erased/test leftovers,
+  // producing impossible numbers like ₹62L collected with 1 student.
+  const scoped = <T extends FirebaseFirestore.Query>(query: T): T =>
+    (yearId ? (query.where("academicYearId", "==", yearId) as T) : query);
   const now = new Date();
   const today = istDateKey(now);
   const weekAgo = istDateKey(new Date(Date.now() - 6 * 24 * 60 * 60 * 1000));
@@ -115,12 +134,12 @@ async function loadDashboardUncached(): Promise<DashboardData> {
 
   const studentsCountQuery = db.collection("students").count();
   const activeTeachersCountQuery = db.collection("teachers").where("status", "==", "active").count();
-  const feeTotalsQuery = db.collection("studentFeeSummaries").aggregate({
+  const feeTotalsQuery = scoped(db.collection("studentFeeSummaries")).aggregate({
     totalFeeAmount: AggregateField.sum("totalFee"),
     feesOutstanding: AggregateField.sum("dueAmount")
   });
-  const studentsPendingQuery = db.collection("studentFeeSummaries").where("dueAmount", ">", 0).count();
-  const feesCollectedQuery = db.collection("financeSummaries").aggregate({
+  const studentsPendingQuery = scoped(db.collection("studentFeeSummaries")).where("dueAmount", ">", 0).count();
+  const feesCollectedQuery = scoped(db.collection("financeSummaries")).aggregate({
     feesCollected: AggregateField.sum("totalIncome")
   });
   const feesCollectedTodayQuery = db.collection("payments")
