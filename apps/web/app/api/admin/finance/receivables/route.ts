@@ -19,7 +19,7 @@ export async function GET(req: Request) {
   let query: FirebaseFirestore.Query = db.collection("studentFeeSummaries");
   if (academicYearId) query = query.where("academicYearId", "==", academicYearId);
   else if (schoolId) query = query.where("schoolId", "==", schoolId);
-  const summarySnap = await query.get();
+  const summarySnap = await query.limit(1000).get();
   logFirestoreRead("FinanceReceivablesAPI", "studentFeeSummaries", summarySnap, { schoolId, academicYearId, classFilter, sectionFilter, pageSize });
   const filteredDocs = summarySnap.docs
     .filter((doc) => {
