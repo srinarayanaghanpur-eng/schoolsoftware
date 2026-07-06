@@ -75,7 +75,7 @@ export default function ForgotPasswordPage({ searchParams }: ForgotPasswordPageP
               <div className="mt-7 rounded-[18px] border border-blue-100 bg-blue-50/80 px-5 py-4">
                 <div className="flex gap-3">
                   <BellRing className="mt-0.5 h-5 w-5 shrink-0 text-blue-700" />
-                  <p className="text-sm font-semibold leading-6 text-blue-900">
+                  <p className="text-sm font-semibold leading-6 text-blue-800 dark:text-blue-100">
                     {hasLoginId
                       ? `${requestId ? `Request ID: ${requestId}. ` : ""}Login ID: ${loginId}. Please wait for the admin notification before trying to sign in again.`
                       : "The request will only be sent after a login ID is entered."}

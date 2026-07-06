@@ -1055,8 +1055,8 @@ export default function StudentsPage() {
         getStudentPhotoPath(formData.admissionNumber || "new", file.name)
       );
       setFormData((prev) => ({ ...prev, photoURL: url }));
-    } catch {
-      setError("Failed to upload photo");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to upload photo");
     } finally {
       setUploading(false);
     }
@@ -1071,12 +1071,19 @@ export default function StudentsPage() {
         file,
         getDocumentPath(formData.admissionNumber || "new", file.name)
       );
+      // Files are stored inside the student's Firestore document (no Firebase
+      // Storage on the free plan). Firestore caps a document at ~1MB, so keep
+      // the combined size of all stored documents under a safe budget.
+      const existingBytes = formData.documentURLs.reduce((sum, docItem) => sum + (docItem.url?.length ?? 0), 0);
+      if (existingBytes + url.length > 700_000) {
+        throw new Error("Document storage is full for this student (max ~700KB total). Remove an existing document or upload a smaller/compressed scan.");
+      }
       setFormData((prev) => ({
         ...prev,
         documentURLs: [...prev.documentURLs, { name: file.name, url }]
       }));
-    } catch {
-      setError("Failed to upload document");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to upload document");
     } finally {
       setUploading(false);
     }

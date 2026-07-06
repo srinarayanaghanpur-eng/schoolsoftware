@@ -45,6 +45,18 @@ const XAxisAny = XAxis as unknown as ComponentType<any>;
 const YAxisAny = YAxis as unknown as ComponentType<any>;
 const TooltipAny = Tooltip as unknown as ComponentType<any>;
 
+const chartLabelColor = "hsl(var(--chart-label))";
+const chartGridColor = "hsl(var(--chart-grid))";
+const chartTooltipStyle = {
+  border: "1px solid hsl(var(--border))",
+  borderRadius: "12px",
+  background: "hsl(var(--chart-tooltip))",
+  color: "hsl(var(--chart-tooltip-foreground))",
+  boxShadow: "0 14px 34px rgb(0 0 0 / 0.18)"
+};
+const chartTooltipTextStyle = { color: "hsl(var(--chart-tooltip-foreground))" };
+const chartCursorFill = "hsl(var(--muted) / 0.72)";
+
 const actions = [
   { label: "Collect Fee", href: "/admin/payments", icon: ReceiptIndianRupee },
   { label: "Add Expense", href: "/admin/finance/expenses", icon: Plus },
@@ -137,10 +149,10 @@ export default function FinanceDashboardPage() {
   const kpis = useMemo(() => {
     const values = data?.kpis;
     return [
-      { label: "Total Income", value: formatINR(values?.totalIncome ?? 0), delta: "Fees and other income", tone: "bg-[#edf7ff] text-[#246bfe]", icon: TrendingUp },
-      { label: "Total Expense", value: formatINR(values?.totalExpense ?? 0), delta: "Approved expenses, salary, advances", tone: "bg-[#fff3e8] text-[#c96a10]", icon: TrendingDown },
-      { label: "Net Balance", value: formatINR(values?.netBalance ?? 0), delta: values && values.netBalance >= 0 ? "Surplus for selected range" : "Deficit for selected range", tone: "bg-[#edfdf4] text-[#0a9255]", icon: Wallet },
-      { label: "Outstanding Dues", value: formatINR(values?.outstandingDues ?? 0), delta: `${values?.studentsPending ?? 0} pending student${values?.studentsPending === 1 ? "" : "s"}`, tone: "bg-[#f1edff] text-[#6547d2]", icon: AlertCircle }
+      { label: "Total Income", value: formatINR(values?.totalIncome ?? 0), delta: "Fees and other income", tone: "bg-[#edf7ff] text-[#246bfe] dark:bg-blue-500/15 dark:text-blue-300", icon: TrendingUp },
+      { label: "Total Expense", value: formatINR(values?.totalExpense ?? 0), delta: "Approved expenses, salary, advances", tone: "bg-[#fff3e8] text-[#c96a10] dark:bg-yellow-400/15 dark:text-yellow-300", icon: TrendingDown },
+      { label: "Net Balance", value: formatINR(values?.netBalance ?? 0), delta: values && values.netBalance >= 0 ? "Surplus for selected range" : "Deficit for selected range", tone: "bg-[#edfdf4] text-[#0a9255] dark:bg-emerald-500/15 dark:text-emerald-300", icon: Wallet },
+      { label: "Outstanding Dues", value: formatINR(values?.outstandingDues ?? 0), delta: `${values?.studentsPending ?? 0} pending student${values?.studentsPending === 1 ? "" : "s"}`, tone: "bg-[#f1edff] text-[#6547d2] dark:bg-indigo-500/15 dark:text-indigo-200", icon: AlertCircle }
     ];
   }, [data]);
 
@@ -184,12 +196,12 @@ export default function FinanceDashboardPage() {
     return (
       <section className="p-4 md:p-7">
         <div className="card flex max-w-2xl items-start gap-4 p-5">
-          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[#ffebed] text-[#d84d5b]">
+          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[#ffebed] text-[#d84d5b] dark:bg-rose-500/15 dark:text-rose-300">
             <AlertCircle size={22} />
           </span>
           <div>
-            <h2 className="text-lg font-extrabold text-[#1f2136]">Access denied</h2>
-            <p className="mt-1 text-sm font-medium text-[#7d86a8]">Your role cannot view finance.</p>
+            <h2 className="text-lg font-extrabold text-foreground dark:text-white">Access denied</h2>
+            <p className="mt-1 text-sm font-medium text-muted-foreground">Your role cannot view finance.</p>
           </div>
         </div>
       </section>
@@ -197,12 +209,12 @@ export default function FinanceDashboardPage() {
   }
 
   return (
-    <section className="min-h-full bg-[#f6f8ff] p-4 md:p-6 xl:p-7">
+    <section className="min-h-full bg-background p-4 md:p-6 xl:p-7">
       <div className="mx-auto max-w-[1500px] space-y-5">
-        <div className="flex flex-col gap-4 rounded-2xl border border-[#e3e8f6] bg-white px-5 py-4 shadow-[0_14px_38px_rgba(31,41,100,0.07)] lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex flex-col gap-4 rounded-2xl border border-border bg-card px-5 py-4 text-card-foreground shadow-[0_14px_38px_rgba(31,41,100,0.07)] dark:bg-slate-900 dark:shadow-black/20 lg:flex-row lg:items-center lg:justify-between">
           <div className="min-w-0">
-            <h1 className="text-2xl font-extrabold tracking-tight text-[#171931] md:text-[28px]">Fees & Finance Dashboard</h1>
-            <p className="mt-1 text-sm font-semibold text-[#7d86a8]">{formatRange(range.from, range.to)}</p>
+            <h1 className="text-2xl font-extrabold tracking-tight text-foreground dark:text-white md:text-[28px]">Fees & Finance Dashboard</h1>
+            <p className="mt-1 text-sm font-semibold text-muted-foreground">{formatRange(range.from, range.to)}</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <select className="field h-10 w-[142px] py-0 text-sm" value={rangeMode} onChange={(event) => setRangeMode(event.target.value as RangeMode)} aria-label="Time range">
@@ -217,7 +229,7 @@ export default function FinanceDashboardPage() {
         </div>
 
         {error && (
-          <div className="rounded-2xl border border-[#ffd5da] bg-[#ffebed] px-4 py-3 text-sm font-semibold text-[#c83f4d]">
+          <div className="rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm font-semibold text-destructive dark:text-rose-300">
             {error}
           </div>
         )}
@@ -226,30 +238,30 @@ export default function FinanceDashboardPage() {
           {kpis.filter(Boolean).map(({ label, value, delta, tone, icon }) => {
             const Icon = icon ?? Circle;
             return (
-              <article key={label} className="rounded-2xl border border-[#e3e8f6] bg-white p-5 shadow-[0_12px_30px_rgba(31,41,100,0.06)]">
+              <article key={label} className="rounded-2xl border border-border bg-card p-5 text-card-foreground shadow-[0_12px_30px_rgba(31,41,100,0.06)] dark:bg-slate-900 dark:shadow-black/20">
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <p className="text-xs font-extrabold uppercase tracking-[0.08em] text-[#8a94b6]">{label}</p>
-                    <p className="mt-2 text-[28px] font-extrabold tracking-tight text-[#171931]">{value}</p>
+                    <p className="text-xs font-extrabold uppercase tracking-[0.08em] text-muted-foreground">{label}</p>
+                    <p className="mt-2 text-[28px] font-extrabold tracking-tight text-foreground dark:text-white">{value}</p>
                   </div>
                   <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl ${tone}`}>
                     <Icon size={20} />
                   </span>
                 </div>
-                <p className="mt-3 text-xs font-bold text-[#7d86a8]">{delta}</p>
+                <p className="mt-3 text-xs font-bold text-muted-foreground">{delta}</p>
               </article>
             );
           })}
         </div>
 
         <div className="grid gap-5 xl:grid-cols-[0.95fr_1.35fr]">
-          <article className="rounded-2xl border border-[#e3e8f6] bg-white p-5 shadow-[0_12px_30px_rgba(31,41,100,0.06)]">
+          <article className="rounded-2xl border border-border bg-card p-5 text-card-foreground shadow-[0_12px_30px_rgba(31,41,100,0.06)] dark:bg-slate-900 dark:shadow-black/20">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h2 className="text-base font-extrabold text-[#171931]">Fee Collection Overview</h2>
-                <p className="mt-1 text-xs font-semibold text-[#8a94b6]">Total target: {targetLabel}</p>
+                <h2 className="text-base font-extrabold text-foreground dark:text-slate-100">Fee Collection Overview</h2>
+                <p className="mt-1 text-xs font-semibold text-muted-foreground">Total target: {targetLabel}</p>
               </div>
-              <span className="rounded-full bg-[#eef0ff] px-3 py-1 text-xs font-extrabold text-[#3033a1]">{loading ? "Syncing" : "Live"}</span>
+              <span className="rounded-full bg-accent px-3 py-1 text-xs font-extrabold text-accent-foreground dark:bg-indigo-500/15 dark:text-indigo-200">{loading ? "Syncing" : "Live"}</span>
             </div>
 
             <div className="mt-5 grid gap-5 md:grid-cols-[220px_1fr] md:items-center">
@@ -263,43 +275,43 @@ export default function FinanceDashboardPage() {
                             <CellAny key={item.name} fill={item.color} />
                           ))}
                         </PieAny>
-                        <TooltipAny formatter={(value: number) => [formatINR(Number(value)), "Amount"]} />
+                        <TooltipAny formatter={(value: number) => [formatINR(Number(value)), "Amount"]} contentStyle={chartTooltipStyle} labelStyle={chartTooltipTextStyle} itemStyle={chartTooltipTextStyle} />
                       </PieChartAny>
                     </ResponsiveContainerAny>
                     <div className="pointer-events-none absolute inset-0 grid place-items-center text-center">
                       <div>
-                        <p className="text-xs font-bold text-[#8a94b6]">Collected</p>
-                        <p className="text-2xl font-extrabold text-[#171931]">{collectedPercent}%</p>
+                        <p className="text-xs font-bold text-muted-foreground">Collected</p>
+                        <p className="text-2xl font-extrabold text-foreground dark:text-white">{collectedPercent}%</p>
                       </div>
                     </div>
                   </>
                 ) : (
-                  <div className="grid h-full place-items-center rounded-xl bg-[#f7f9ff] text-sm font-semibold text-[#7d86a8]">
+                  <div className="grid h-full place-items-center rounded-xl bg-muted text-sm font-semibold text-muted-foreground">
                     No data available yet
                   </div>
                 )}
               </div>
               <div className="space-y-3">
                 {feeCollection.map((item) => (
-                  <div key={item.name} className="flex items-center justify-between rounded-xl bg-[#f7f9ff] px-4 py-3">
+                  <div key={item.name} className="flex items-center justify-between rounded-xl bg-muted px-4 py-3">
                     <div className="flex items-center gap-3">
                       <span className="h-3 w-3 rounded-full" style={{ backgroundColor: item.color }} />
-                      <span className="text-sm font-bold text-[#303247]">{item.name}</span>
+                      <span className="text-sm font-bold text-foreground dark:text-white">{item.name}</span>
                     </div>
-                    <span className="text-sm font-extrabold text-[#171931]">{item.label}</span>
+                    <span className="text-sm font-extrabold text-foreground dark:text-white">{item.label}</span>
                   </div>
                 ))}
               </div>
             </div>
           </article>
 
-          <article className="rounded-2xl border border-[#e3e8f6] bg-white p-5 shadow-[0_12px_30px_rgba(31,41,100,0.06)]">
+          <article className="rounded-2xl border border-border bg-card p-5 text-card-foreground shadow-[0_12px_30px_rgba(31,41,100,0.06)] dark:bg-slate-900 dark:shadow-black/20">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h2 className="text-base font-extrabold text-[#171931]">Income vs Expense</h2>
-                <p className="mt-1 text-xs font-semibold text-[#8a94b6]">Weekly movement for selected range</p>
+                <h2 className="text-base font-extrabold text-foreground dark:text-slate-100">Income vs Expense</h2>
+                <p className="mt-1 text-xs font-semibold text-muted-foreground">Weekly movement for selected range</p>
               </div>
-              <div className="flex gap-3 text-xs font-bold text-[#7d86a8]">
+              <div className="flex gap-3 text-xs font-bold text-muted-foreground">
                 <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-[#4f63f6]" /> Income</span>
                 <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-[#f97373]" /> Expense</span>
               </div>
@@ -308,16 +320,16 @@ export default function FinanceDashboardPage() {
               {bars.length > 0 ? (
                 <ResponsiveContainerAny width="100%" height="100%">
                   <BarChartAny data={bars} barGap={8}>
-                    <CartesianGridAny stroke="#edf1fb" vertical={false} />
-                    <XAxisAny dataKey="name" axisLine={false} tickLine={false} tick={{ fill: "#7d86a8", fontSize: 12, fontWeight: 700 }} />
-                    <YAxisAny axisLine={false} tickLine={false} tick={{ fill: "#9aa3bd", fontSize: 12 }} tickFormatter={(value: number) => `${value}L`} />
-                    <TooltipAny formatter={(value: number) => `₹${Number(value).toFixed(2)}L`} cursor={{ fill: "#f6f8ff" }} />
+                    <CartesianGridAny stroke={chartGridColor} vertical={false} />
+                    <XAxisAny dataKey="name" axisLine={false} tickLine={false} tick={{ fill: chartLabelColor, fontSize: 12, fontWeight: 700 }} />
+                    <YAxisAny axisLine={false} tickLine={false} tick={{ fill: chartLabelColor, fontSize: 12 }} tickFormatter={(value: number) => `${value}L`} />
+                    <TooltipAny formatter={(value: number) => `₹${Number(value).toFixed(2)}L`} cursor={{ fill: chartCursorFill }} contentStyle={chartTooltipStyle} labelStyle={chartTooltipTextStyle} itemStyle={chartTooltipTextStyle} />
                     <BarAny dataKey="incomeLakhs" fill="#4f63f6" radius={[8, 8, 0, 0]} maxBarSize={42} name="Income" />
                     <BarAny dataKey="expenseLakhs" fill="#f97373" radius={[8, 8, 0, 0]} maxBarSize={42} name="Expense" />
                   </BarChartAny>
                 </ResponsiveContainerAny>
               ) : (
-                <div className="grid h-full place-items-center rounded-xl bg-[#f7f9ff] text-sm font-semibold text-[#7d86a8]">
+                <div className="grid h-full place-items-center rounded-xl bg-muted text-sm font-semibold text-muted-foreground">
                   No data available yet
                 </div>
               )}
@@ -326,17 +338,17 @@ export default function FinanceDashboardPage() {
         </div>
 
         <div className="grid gap-5 xl:grid-cols-[1fr_320px]">
-          <article className="overflow-hidden rounded-2xl border border-[#e3e8f6] bg-white shadow-[0_12px_30px_rgba(31,41,100,0.06)]">
-            <div className="flex items-center justify-between gap-3 border-b border-[#edf1fb] px-5 py-4">
+          <article className="overflow-hidden rounded-2xl border border-border bg-card text-card-foreground shadow-[0_12px_30px_rgba(31,41,100,0.06)] dark:bg-slate-900 dark:shadow-black/20">
+            <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-4">
               <div>
-                <h2 className="text-base font-extrabold text-[#171931]">Recent Transactions</h2>
-                <p className="mt-1 text-xs font-semibold text-[#8a94b6]">Latest fee, expense, and invoice activity</p>
+                <h2 className="text-base font-extrabold text-foreground dark:text-slate-100">Recent Transactions</h2>
+                <p className="mt-1 text-xs font-semibold text-muted-foreground">Latest fee, expense, and invoice activity</p>
               </div>
-              <Link href="/admin/finance/ledger" className="text-sm font-extrabold text-[#3033a1] hover:underline">View all</Link>
+              <Link href="/admin/finance/ledger" className="text-sm font-extrabold text-accent-number hover:underline">View all</Link>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full min-w-[780px] text-left text-sm">
-                <thead>
+                <thead className="bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
                   <tr>
                     <th className="px-5 py-3">Date</th>
                     <th className="px-5 py-3">Type</th>
@@ -348,26 +360,26 @@ export default function FinanceDashboardPage() {
                 </thead>
                 <tbody>
                   {transactions.map((tx) => (
-                    <tr key={`${tx.date}-${tx.type}-${tx.description}-${tx.amount}`} className="border-t border-[#edf1fb]">
-                      <td className="px-5 py-4 font-semibold text-[#65708f]">{formatDate(tx.date)}</td>
+                    <tr key={`${tx.date}-${tx.type}-${tx.description}-${tx.amount}`} className="border-t border-border">
+                      <td className="px-5 py-4 font-semibold text-muted-foreground">{formatDate(tx.date)}</td>
                       <td className="px-5 py-4">
-                        <span className={`rounded-full px-2.5 py-1 text-xs font-extrabold ${tx.type === "Income" ? "bg-[#edfdf4] text-[#0a9255]" : "bg-[#fff1f1] text-[#d84d5b]"}`}>
+                        <span className={`rounded-full px-2.5 py-1 text-xs font-extrabold ${tx.type === "Income" ? "bg-[#edfdf4] text-[#0a9255] dark:bg-emerald-500/15 dark:text-emerald-300" : "bg-[#fff1f1] text-[#d84d5b] dark:bg-rose-500/15 dark:text-rose-300"}`}>
                           {tx.type}
                         </span>
                       </td>
-                      <td className="px-5 py-4 font-bold text-[#303247]">{tx.description}</td>
-                      <td className="px-5 py-4 text-[#65708f]">{tx.category}</td>
-                      <td className={`px-5 py-4 text-right font-extrabold ${tx.type === "Income" ? "text-[#0a9255]" : "text-[#d84d5b]"}`}>
+                      <td className="px-5 py-4 font-bold text-foreground dark:text-white">{tx.description}</td>
+                      <td className="px-5 py-4 text-muted-foreground">{tx.category}</td>
+                      <td className={`px-5 py-4 text-right font-extrabold ${tx.type === "Income" ? "text-success dark:text-emerald-300" : "text-destructive dark:text-rose-300"}`}>
                         {tx.type === "Income" ? "+" : "-"}{formatINR(tx.amount)}
                       </td>
                       <td className="px-5 py-4">
-                        <span className="rounded-full bg-[#eef0ff] px-2.5 py-1 text-xs font-extrabold text-[#3033a1]">{tx.status}</span>
+                        <span className="rounded-full bg-accent px-2.5 py-1 text-xs font-extrabold text-accent-foreground dark:bg-indigo-500/15 dark:text-indigo-200">{tx.status}</span>
                       </td>
                     </tr>
                   ))}
                   {!transactions.length && (
-                    <tr className="border-t border-[#edf1fb]">
-                      <td className="px-5 py-8 text-center text-sm font-semibold text-[#7d86a8]" colSpan={6}>
+                    <tr className="border-t border-border">
+                      <td className="px-5 py-8 text-center text-sm font-semibold text-muted-foreground" colSpan={6}>
                         {loading ? "Loading transactions..." : "No transactions for this range."}
                       </td>
                     </tr>
@@ -377,8 +389,8 @@ export default function FinanceDashboardPage() {
             </div>
           </article>
 
-          <article className="rounded-2xl border border-[#e3e8f6] bg-white p-5 shadow-[0_12px_30px_rgba(31,41,100,0.06)]">
-            <h2 className="text-base font-extrabold text-[#171931]">Quick Actions</h2>
+          <article className="rounded-2xl border border-border bg-card p-5 text-card-foreground shadow-[0_12px_30px_rgba(31,41,100,0.06)] dark:bg-slate-900 dark:shadow-black/20">
+            <h2 className="text-base font-extrabold text-foreground dark:text-slate-100">Quick Actions</h2>
             <div className="mt-4 grid gap-3">
               {actions.filter(Boolean).map(({ label, href, icon }) => {
                 const Icon = icon ?? Circle;
@@ -386,9 +398,9 @@ export default function FinanceDashboardPage() {
                   <Link
                     key={label}
                     href={href}
-                    className="flex h-12 items-center gap-3 rounded-xl border border-[#e5e9f7] bg-[#f9fbff] px-3 text-sm font-extrabold text-[#303247] transition hover:border-[#cfd6ff] hover:bg-white hover:text-[#3033a1] hover:shadow-[0_10px_22px_rgba(44,48,143,0.08)]"
+                    className="flex h-12 items-center gap-3 rounded-xl border border-border bg-muted px-3 text-sm font-extrabold text-foreground transition hover:border-ring/40 hover:bg-card hover:text-accent-number hover:shadow-[0_10px_22px_rgba(44,48,143,0.08)] dark:text-slate-100"
                   >
-                    <span className="grid h-8 w-8 place-items-center rounded-lg bg-[#eef0ff] text-[#3033a1]">
+                    <span className="grid h-8 w-8 place-items-center rounded-lg bg-accent text-accent-foreground dark:bg-indigo-500/15 dark:text-indigo-200">
                       <Icon size={16} />
                     </span>
                     {label}
@@ -432,7 +444,7 @@ function IconButton({
       title={label}
       disabled={disabled}
       onClick={onClick}
-      className="grid h-10 w-10 place-items-center rounded-xl border border-[#e3e8f6] bg-[#f8faff] text-[#3033a1] transition hover:bg-white hover:shadow-[0_8px_18px_rgba(44,48,143,0.10)] disabled:cursor-not-allowed disabled:opacity-50"
+      className="grid h-10 w-10 place-items-center rounded-xl border border-border bg-muted text-accent-number transition hover:bg-card hover:shadow-[0_8px_18px_rgba(44,48,143,0.10)] disabled:cursor-not-allowed disabled:opacity-50"
     >
       {children}
     </button>

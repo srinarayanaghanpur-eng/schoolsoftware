@@ -17,6 +17,7 @@ import { DatabaseBackup, Download, RotateCcw, ShieldCheck, Trash2, Upload, Usb }
 import { useMemo, useState } from "react";
 
 const CONFIRMATION_PHRASE = "ERASE SCHOOL DATA";
+const RESET_PHRASE = "RESET APP DATA";
 
 async function sha256Hex(value: string) {
   const buffer = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
@@ -60,8 +61,9 @@ export function BackupErasePanel() {
   const [restoreBackup, setRestoreBackup] = useState<unknown>(null);
   const [savedToUsb, setSavedToUsb] = useState(false);
   const [confirmationPhrase, setConfirmationPhrase] = useState("");
-  const [loading, setLoading] = useState<"backup" | "restore" | "erase" | null>(null);
+  const [loading, setLoading] = useState<"backup" | "restore" | "erase" | "reset" | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [resetPhrase, setResetPhrase] = useState("");
 
   const canErase = useMemo(
     () => Boolean(savedToUsb && backupChecksum && confirmationPhrase === CONFIRMATION_PHRASE),
@@ -130,6 +132,38 @@ export function BackupErasePanel() {
       setMessage(`Erase completed. Deleted counts: ${JSON.stringify(result.deletedCounts)}`);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Erase failed");
+    } finally {
+      setLoading(null);
+    }
+  };
+
+  const resetAppData = async () => {
+    setLoading("reset");
+    setMessage(null);
+    try {
+      if (!isFirebaseConfigured) {
+        setMessage("Firebase is not configured. No data was reset.");
+        return;
+      }
+      if (!auth.currentUser) throw new Error("Please sign in again as admin.");
+      const token = await auth.currentUser.getIdToken();
+      const response = await fetch("/api/admin/reset-app", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ confirmationPhrase: resetPhrase })
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error ?? "Reset failed");
+      const total = Object.values(result.deletedCounts as Record<string, number>).reduce((sum, n) => sum + n, 0);
+      setMessage(
+        `Reset complete — ${total} document(s) removed. Kept: logins/roles, teachers & drivers, salary, attendance, leave, holidays, academic years, settings, fee structures, transport routes/vehicles.`
+      );
+      setResetPhrase("");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Reset failed");
     } finally {
       setLoading(null);
     }
@@ -285,6 +319,38 @@ export function BackupErasePanel() {
             <Trash2 size={16} />
             {loading === "erase" ? "Erasing..." : "Erase data after USB backup"}
           </button>
+        </div>
+
+        <div className="card border-amber-200 p-4">
+          <div className="mb-3 flex items-center gap-2 font-semibold text-amber-700">
+            <RotateCcw size={18} />
+            Reset app data (fresh start)
+          </div>
+          <p className="text-sm font-medium text-[#5f6888]">
+            Removes students, parents, payments, receipts, finance, exams, notices and other operational data.
+            Keeps logins &amp; roles, teachers &amp; drivers, salary &amp; attendance, and school configuration
+            (academic years, settings, fee structures, transport routes/vehicles).
+          </p>
+          <label className="mt-4 block text-sm">
+            Type <span className="font-mono font-bold">{RESET_PHRASE}</span> to confirm
+            <input
+              className="field mt-1"
+              placeholder={RESET_PHRASE}
+              value={resetPhrase}
+              onChange={(event) => setResetPhrase(event.target.value)}
+            />
+          </label>
+          <button
+            className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-amber-500 px-3 py-2.5 text-sm font-bold text-white transition hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={resetPhrase !== RESET_PHRASE || loading === "reset"}
+            onClick={resetAppData}
+          >
+            <RotateCcw size={16} />
+            {loading === "reset" ? "Resetting..." : "Reset app data"}
+          </button>
+          <p className="mt-2 text-xs font-medium text-[#7d86a8]">
+            Tip: download a backup first — this cannot be undone.
+          </p>
         </div>
 
         <div className="card p-4">

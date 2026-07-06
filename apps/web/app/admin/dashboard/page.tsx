@@ -252,7 +252,7 @@ function MetricCard({
   helper,
   icon: Icon,
   tone,
-  helperTone = "text-[#5f6b8d]"
+  helperTone = "text-muted-foreground"
 }: {
   label: string;
   value: string;
@@ -404,13 +404,13 @@ export default async function AdminDashboardPage() {
       title: "New student admission",
       meta: student.name,
       icon: UserPlus,
-      tone: "bg-[#edf1ff] text-[#2e38a4]"
+      tone: "bg-[#edf1ff] text-[#2e38a4] dark:bg-indigo-500/15 dark:text-indigo-200"
     })),
     ...d.notices.map((notice) => ({
       title: notice.title,
       meta: `Notice · ${notice.meta}`,
       icon: Megaphone,
-      tone: "bg-[#fff4df] text-[#c67711]"
+      tone: "bg-[#fff4df] text-[#c67711] dark:bg-yellow-400/15 dark:text-yellow-300"
     }))
   ].slice(0, 5);
 
@@ -422,29 +422,29 @@ export default async function AdminDashboardPage() {
           value={d.totalStudents.toLocaleString("en-IN")}
           helper={d.totalStudents ? "Active student records" : "No students yet"}
           icon={UsersRound}
-          tone="bg-[#edf1ff] text-[#2e38a4]"
+          tone="bg-[#edf1ff] text-[#2e38a4] dark:bg-indigo-500/15 dark:text-indigo-200"
         />
         <MetricCard
           label="Staff Attendance"
           value={`${attendancePct}%`}
           helper={`${d.presentToday}/${d.totalTeachers} present today`}
           icon={ClipboardCheck}
-          tone="bg-[#e9f8f0] text-[#0d8f5b]"
+          tone="bg-[#e9f8f0] text-[#0d8f5b] dark:bg-emerald-500/15 dark:text-emerald-300"
         />
         <MetricCard
           label="Fee Collection"
           value={formatINR(d.feesCollected)}
           helper={`${collectedPct}% of ${formatINR(d.totalFeeAmount)}`}
           icon={IndianRupee}
-          tone="bg-[#fff4df] text-[#c67711]"
+          tone="bg-[#fff4df] text-[#c67711] dark:bg-yellow-400/15 dark:text-yellow-300"
         />
         <MetricCard
           label="Outstanding Dues"
           value={formatINR(d.feesOutstanding)}
           helper={`${d.studentsPending} pending account${d.studentsPending === 1 ? "" : "s"}`}
-          helperTone="text-[#d1485c]"
+          helperTone="text-destructive dark:text-rose-300"
           icon={BellRing}
-          tone="bg-[#fff0f2] text-[#d1485c]"
+          tone="bg-[#fff0f2] text-[#d1485c] dark:bg-rose-500/15 dark:text-rose-300"
         />
       </div>
 
@@ -452,31 +452,31 @@ export default async function AdminDashboardPage() {
         <Panel className="p-5">
           <div className="flex items-center justify-between gap-4">
             <div>
-              <h2 className="text-base font-extrabold text-[#20233f]">Staff Attendance · Last 7 Days</h2>
-              <p className="mt-1 text-xs font-semibold text-[#7d86a8]">Daily present and late staff count as attendance coverage.</p>
+              <h2 className="text-base font-extrabold text-foreground dark:text-slate-100">Staff Attendance · Last 7 Days</h2>
+              <p className="mt-1 text-xs font-semibold text-muted-foreground">Daily present and late staff count as attendance coverage.</p>
             </div>
-            <span className="rounded-full bg-[#edf1ff] px-3 py-1.5 text-xs font-extrabold text-[#3540c0]">Average {weekAvg}%</span>
+            <span className="rounded-full bg-accent px-3 py-1.5 text-xs font-extrabold text-accent-foreground dark:bg-indigo-500/15 dark:text-indigo-200">Average {weekAvg}%</span>
           </div>
           <AttendanceTrend data={d.weekAttendance} />
         </Panel>
 
         <Panel className="p-5">
-          <h2 className="text-base font-extrabold text-[#20233f]">Fee Collection Overview</h2>
+          <h2 className="text-base font-extrabold text-foreground dark:text-slate-100">Fee Collection Overview</h2>
           <div className="mt-6 flex flex-col items-center gap-5">
-            <div className="grid h-36 w-36 place-items-center rounded-full" style={{ background: `conic-gradient(#3137b7 0 ${collectedPct}%, #e7ebf6 ${collectedPct}% 100%)` }}>
-              <div className="grid h-[102px] w-[102px] place-items-center rounded-full bg-white text-center shadow-inner">
-                <span className="text-3xl font-extrabold text-[#252a87]">{collectedPct}%</span>
-                <span className="-mt-7 text-xs font-bold text-[#7d86a8]">Collected</span>
+            <div className="grid h-36 w-36 place-items-center rounded-full" style={{ background: `conic-gradient(hsl(var(--accent-number)) 0 ${collectedPct}%, hsl(var(--muted)) ${collectedPct}% 100%)` }}>
+              <div className="grid h-[102px] w-[102px] place-items-center rounded-full bg-card text-center shadow-inner dark:bg-slate-950">
+                <span className="text-3xl font-extrabold text-accent-number dark:text-indigo-200">{collectedPct}%</span>
+                <span className="-mt-7 text-xs font-bold text-muted-foreground">Collected</span>
               </div>
             </div>
             <div className="grid w-full gap-3 text-sm">
-              <div className="flex items-center justify-between rounded-lg bg-[#f8faff] px-3 py-2">
-                <span className="flex items-center gap-2 font-bold text-[#657092]"><span className="h-2.5 w-2.5 rounded-sm bg-[#3137b7]" />Collected</span>
-                <strong className="text-[#20233f]">{formatINR(d.feesCollected)}</strong>
+              <div className="flex items-center justify-between rounded-lg bg-muted px-3 py-2">
+                <span className="flex items-center gap-2 font-bold text-muted-foreground"><span className="h-2.5 w-2.5 rounded-sm bg-accent-number" />Collected</span>
+                <strong className="text-foreground dark:text-white">{formatINR(d.feesCollected)}</strong>
               </div>
-              <div className="flex items-center justify-between rounded-lg bg-[#f8faff] px-3 py-2">
-                <span className="flex items-center gap-2 font-bold text-[#657092]"><span className="h-2.5 w-2.5 rounded-sm bg-[#e7ebf6]" />Pending</span>
-                <strong className="text-[#20233f]">{formatINR(d.feesOutstanding)}</strong>
+              <div className="flex items-center justify-between rounded-lg bg-muted px-3 py-2">
+                <span className="flex items-center gap-2 font-bold text-muted-foreground"><span className="h-2.5 w-2.5 rounded-sm bg-border" />Pending</span>
+                <strong className="text-foreground dark:text-white">{formatINR(d.feesOutstanding)}</strong>
               </div>
             </div>
           </div>
@@ -484,12 +484,12 @@ export default async function AdminDashboardPage() {
 
         <Panel className="p-5">
           <div className="flex items-center justify-between">
-            <h2 className="text-base font-extrabold text-[#20233f]">Recent Activity</h2>
-            <Link href="/admin/notifications" className="text-xs font-extrabold text-[#3540c0] hover:underline">View all</Link>
+            <h2 className="text-base font-extrabold text-foreground dark:text-slate-100">Recent Activity</h2>
+            <Link href="/admin/notifications" className="text-xs font-extrabold text-accent-number hover:underline">View all</Link>
           </div>
           <div className="mt-4 space-y-1">
             {recentActivities.length === 0 ? (
-              <div className="rounded-lg bg-[#f8faff] px-4 py-8 text-center text-sm font-semibold text-[#7d86a8]">No recent activity yet</div>
+              <div className="rounded-lg bg-muted px-4 py-8 text-center text-sm font-semibold text-muted-foreground">No recent activity yet</div>
             ) : (
               recentActivities.map((activity, index) => (
                 <ActivityItem key={`${activity.title}-${index}`} {...activity} />
@@ -502,8 +502,8 @@ export default async function AdminDashboardPage() {
       <Panel className="p-4">
         <div className="flex flex-wrap items-center justify-between gap-3 px-1">
           <div>
-            <h2 className="text-base font-extrabold text-[#20233f]">Quick Actions</h2>
-            <p className="mt-1 text-xs font-semibold text-[#7d86a8]">Common super-admin workflows in one tap.</p>
+            <h2 className="text-base font-extrabold text-foreground dark:text-slate-100">Quick Actions</h2>
+            <p className="mt-1 text-xs font-semibold text-muted-foreground">Common super-admin workflows in one tap.</p>
           </div>
         </div>
         <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-8">
@@ -516,41 +516,41 @@ export default async function AdminDashboardPage() {
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Panel className="p-4">
           <div className="flex items-center gap-3">
-            <span className="grid h-10 w-10 place-items-center rounded-lg bg-[#edf1ff] text-[#2e38a4]"><ClipboardCheck size={20} /></span>
+            <span className="grid h-10 w-10 place-items-center rounded-lg bg-[#edf1ff] text-[#2e38a4] dark:bg-indigo-500/15 dark:text-indigo-200"><ClipboardCheck size={20} /></span>
             <div>
-              <p className="text-xs font-bold text-[#7d86a8]">Today&apos;s Attendance</p>
-              <p className="mt-1 text-sm font-extrabold text-[#20233f]">Present: {d.presentToday}</p>
-              <p className="text-xs font-bold text-[#d1485c]">Pending: {Math.max(0, d.totalTeachers - d.presentToday)}</p>
+              <p className="text-xs font-bold text-muted-foreground">Today&apos;s Attendance</p>
+              <p className="mt-1 text-sm font-extrabold text-foreground dark:text-white">Present: {d.presentToday}</p>
+              <p className="text-xs font-bold text-destructive dark:text-rose-300">Pending: {Math.max(0, d.totalTeachers - d.presentToday)}</p>
             </div>
           </div>
         </Panel>
         <Panel className="p-4">
           <div className="flex items-center gap-3">
-            <span className="grid h-10 w-10 place-items-center rounded-lg bg-[#e9f8f0] text-[#0d8f5b]"><Wallet size={20} /></span>
+            <span className="grid h-10 w-10 place-items-center rounded-lg bg-[#e9f8f0] text-[#0d8f5b] dark:bg-emerald-500/15 dark:text-emerald-300"><Wallet size={20} /></span>
             <div>
-              <p className="text-xs font-bold text-[#7d86a8]">Today&apos;s Collections</p>
-              <p className="mt-1 text-sm font-extrabold text-[#20233f]">{formatINR(d.feesCollectedToday)}</p>
-              <p className="text-xs font-bold text-[#657092]">Recorded today</p>
+              <p className="text-xs font-bold text-muted-foreground">Today&apos;s Collections</p>
+              <p className="mt-1 text-sm font-extrabold text-foreground dark:text-white">{formatINR(d.feesCollectedToday)}</p>
+              <p className="text-xs font-bold text-muted-foreground">Recorded today</p>
             </div>
           </div>
         </Panel>
         <Panel className="p-4">
           <div className="flex items-center gap-3">
-            <span className="grid h-10 w-10 place-items-center rounded-lg bg-[#fff0f2] text-[#d1485c]"><ShieldCheck size={20} /></span>
+            <span className="grid h-10 w-10 place-items-center rounded-lg bg-[#fff0f2] text-[#d1485c] dark:bg-rose-500/15 dark:text-rose-300"><ShieldCheck size={20} /></span>
             <div>
-              <p className="text-xs font-bold text-[#7d86a8]">Pending Approvals</p>
-              <p className="mt-1 text-sm font-extrabold text-[#20233f]">{d.studentsPending}</p>
-              <p className="text-xs font-bold text-[#657092]">Review fee follow-ups</p>
+              <p className="text-xs font-bold text-muted-foreground">Pending Approvals</p>
+              <p className="mt-1 text-sm font-extrabold text-foreground dark:text-white">{d.studentsPending}</p>
+              <p className="text-xs font-bold text-muted-foreground">Review fee follow-ups</p>
             </div>
           </div>
         </Panel>
         <Panel className="p-4">
           <div className="flex items-center gap-3">
-            <span className="grid h-10 w-10 place-items-center rounded-lg bg-[#fff4df] text-[#c67711]"><CalendarDays size={20} /></span>
+            <span className="grid h-10 w-10 place-items-center rounded-lg bg-[#fff4df] text-[#c67711] dark:bg-yellow-400/15 dark:text-yellow-300"><CalendarDays size={20} /></span>
             <div>
-              <p className="text-xs font-bold text-[#7d86a8]">Upcoming Events</p>
-              <p className="mt-1 text-sm font-extrabold text-[#20233f]">{d.notices.length}</p>
-              <p className="text-xs font-bold text-[#657092]">Recent notices</p>
+              <p className="text-xs font-bold text-muted-foreground">Upcoming Events</p>
+              <p className="mt-1 text-sm font-extrabold text-foreground dark:text-white">{d.notices.length}</p>
+              <p className="text-xs font-bold text-muted-foreground">Recent notices</p>
             </div>
           </div>
         </Panel>
@@ -559,8 +559,8 @@ export default async function AdminDashboardPage() {
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1.5fr)_minmax(280px,0.8fr)]">
         <section>
           <div className="mb-3">
-            <h2 className="text-base font-extrabold text-[#20233f]">More Powerful Modules</h2>
-            <p className="mt-1 text-xs font-semibold text-[#7d86a8]">Everything the office team needs, organized by task.</p>
+            <h2 className="text-base font-extrabold text-foreground dark:text-slate-100">More Powerful Modules</h2>
+            <p className="mt-1 text-xs font-semibold text-muted-foreground">Everything the office team needs, organized by task.</p>
           </div>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5">
             {moduleShortcuts.filter(Boolean).map((module) => (
@@ -571,25 +571,25 @@ export default async function AdminDashboardPage() {
 
         <section>
           <div className="mb-3">
-            <h2 className="text-base font-extrabold text-[#20233f]">System Management</h2>
-            <p className="mt-1 text-xs font-semibold text-[#7d86a8]">Safety checks and control settings.</p>
+            <h2 className="text-base font-extrabold text-foreground dark:text-slate-100">System Management</h2>
+            <p className="mt-1 text-xs font-semibold text-muted-foreground">Safety checks and control settings.</p>
           </div>
           <div className="grid gap-3">
-            <Link href="/admin/settings" className="dashboard-animate rounded-lg border border-[#e1e7f4] bg-white p-4 shadow-[0_8px_18px_rgba(31,42,116,0.04)] transition hover:-translate-y-0.5 hover:border-[#c7d1ec]">
+            <Link href="/admin/settings" className="dashboard-animate rounded-lg border border-border bg-card p-4 text-card-foreground shadow-[0_8px_18px_rgba(31,42,116,0.04)] transition hover:-translate-y-0.5 hover:border-ring/40 dark:bg-slate-900 dark:shadow-black/20">
               <span className="flex items-center gap-3">
-                <span className="grid h-10 w-10 place-items-center rounded-lg bg-[#edf1ff] text-[#2e38a4]"><Settings size={20} /></span>
+                <span className="grid h-10 w-10 place-items-center rounded-lg bg-[#edf1ff] text-[#2e38a4] dark:bg-indigo-500/15 dark:text-indigo-200"><Settings size={20} /></span>
                 <span>
-                  <span className="block text-sm font-extrabold text-[#20233f]">Settings</span>
-                  <span className="text-xs font-semibold text-[#7d86a8]">Role access, rules, and school setup</span>
+                  <span className="block text-sm font-extrabold text-foreground dark:text-white">Settings</span>
+                  <span className="text-xs font-semibold text-muted-foreground">Role access, rules, and school setup</span>
                 </span>
               </span>
             </Link>
-            <Link href="/admin/backup" className="dashboard-animate rounded-lg border border-[#e1e7f4] bg-white p-4 shadow-[0_8px_18px_rgba(31,42,116,0.04)] transition hover:-translate-y-0.5 hover:border-[#c7d1ec]">
+            <Link href="/admin/backup" className="dashboard-animate rounded-lg border border-border bg-card p-4 text-card-foreground shadow-[0_8px_18px_rgba(31,42,116,0.04)] transition hover:-translate-y-0.5 hover:border-ring/40 dark:bg-slate-900 dark:shadow-black/20">
               <span className="flex items-center gap-3">
-                <span className="grid h-10 w-10 place-items-center rounded-lg bg-[#e9f8f0] text-[#0d8f5b]"><ShieldCheck size={20} /></span>
+                <span className="grid h-10 w-10 place-items-center rounded-lg bg-[#e9f8f0] text-[#0d8f5b] dark:bg-emerald-500/15 dark:text-emerald-300"><ShieldCheck size={20} /></span>
                 <span>
-                  <span className="block text-sm font-extrabold text-[#20233f]">Backup & Restore</span>
-                  <span className="text-xs font-semibold text-[#7d86a8]">Keep critical records protected</span>
+                  <span className="block text-sm font-extrabold text-foreground dark:text-white">Backup & Restore</span>
+                  <span className="text-xs font-semibold text-muted-foreground">Keep critical records protected</span>
                 </span>
               </span>
             </Link>

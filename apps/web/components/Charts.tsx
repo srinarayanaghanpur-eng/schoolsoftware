@@ -50,9 +50,9 @@ function SalaryTrendChartInner({ data }: { data: Array<Record<string, number | s
   return (
     <div className="h-[260px] rounded-xl bg-muted p-4">
       <svg className="h-[220px] w-full overflow-visible" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" role="img" aria-label="Salary payable trend">
-        <path d={path} fill="none" stroke="#047857" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+        <path d={path} fill="none" stroke="hsl(var(--success))" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
         {points.map((point) => (
-          <circle key={`${point.label}-${point.value}`} cx={point.x} cy={point.y} r="5" fill="#233128" />
+          <circle key={`${point.label}-${point.value}`} cx={point.x} cy={point.y} r="5" fill="hsl(var(--success))" />
         ))}
       </svg>
       <div className="grid grid-flow-col justify-between gap-3 text-xs font-semibold text-muted-foreground">

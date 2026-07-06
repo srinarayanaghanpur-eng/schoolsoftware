@@ -16,14 +16,25 @@ type ExamData = {
   subjectPerformance: { subject: string; total: number; obtained: number; percentage: number; exams: number }[];
 };
 
+const chartLabelColor = "hsl(var(--chart-label))";
+const chartGridColor = "hsl(var(--chart-grid))";
+const chartTooltipStyle = {
+  border: "1px solid hsl(var(--border))",
+  borderRadius: "12px",
+  background: "hsl(var(--chart-tooltip))",
+  color: "hsl(var(--chart-tooltip-foreground))",
+  fontSize: "13px",
+};
+const chartTooltipTextStyle = { color: "hsl(var(--chart-tooltip-foreground))" };
+
 function statusBadge(status: string) {
   const map: Record<string, string> = {
-    published: "bg-[#e6f8ef] text-[#0f8d52]",
-    completed: "bg-[#eef0ff] text-[#3033a1]",
-    ongoing: "bg-[#fff4df] text-[#b87d0e]",
-    scheduled: "bg-[#f0f2f8] text-[#7d86a8]",
+    published: "bg-[#e6f8ef] text-[#0f8d52] dark:bg-emerald-500/15 dark:text-emerald-300",
+    completed: "bg-[#eef0ff] text-[#3033a1] dark:bg-indigo-500/15 dark:text-indigo-200",
+    ongoing: "bg-[#fff4df] text-[#b87d0e] dark:bg-yellow-400/15 dark:text-yellow-300",
+    scheduled: "bg-muted text-muted-foreground",
   };
-  return map[status] || "bg-[#f0f2f8] text-[#7d86a8]";
+  return map[status] || "bg-muted text-muted-foreground";
 }
 
 function Examinations() {
@@ -51,7 +62,7 @@ function Examinations() {
   }, [selectedChildId]);
 
   if (childrenLoading) {
-    return <section className="p-4 md:p-7"><div className="card p-8 text-center text-sm font-semibold text-[#7d86a8]">Loading...</div></section>;
+    return <section className="p-4 md:p-7"><div className="card p-8 text-center text-sm font-semibold text-muted-foreground">Loading...</div></section>;
   }
 
   return (
@@ -68,26 +79,26 @@ function Examinations() {
         }
       />
       <section className="space-y-5 p-4 md:p-7">
-        {error && <div className="rounded-2xl border border-[#ffd5da] bg-[#ffebed] px-4 py-3 text-sm font-semibold text-[#c83f4d]">{error}</div>}
+        {error && <div className="rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm font-semibold text-destructive dark:text-rose-300">{error}</div>}
 
         {loading ? (
-          <div className="card p-8 text-center text-sm font-semibold text-[#7d86a8]">Loading exam data...</div>
+          <div className="card p-8 text-center text-sm font-semibold text-muted-foreground">Loading exam data...</div>
         ) : data ? (
           <>
             {data.subjectPerformance.length > 0 && (
               <div className="card p-5">
                 <div className="mb-4 flex items-center gap-3">
-                  <TrendingUp size={20} className="text-[#3033a1]" />
-                  <h2 className="font-extrabold text-[#1f2136]">Overall Performance</h2>
+                  <TrendingUp size={20} className="text-accent-number" />
+                  <h2 className="font-extrabold text-foreground dark:text-white">Overall Performance</h2>
                 </div>
                 <div className="h-72 min-h-[280px] w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={data.subjectPerformance} margin={{ top: 10, right: 30, left: 0, bottom: 5 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#eef0f7" />
-                      <XAxis dataKey="subject" tick={{ fontSize: 12, fill: "#7d86a8" }} />
-                      <YAxis domain={[0, 100]} tick={{ fontSize: 12, fill: "#7d86a8" }} />
-                      <Tooltip contentStyle={{ borderRadius: "12px", border: "1px solid #e3e6f0", fontSize: "13px" }} />
-                      <Bar dataKey="percentage" fill="#3033a1" radius={[6, 6, 0, 0]} name="Percentage" />
+                      <CartesianGrid strokeDasharray="3 3" stroke={chartGridColor} />
+                      <XAxis dataKey="subject" tick={{ fontSize: 12, fill: chartLabelColor }} />
+                      <YAxis domain={[0, 100]} tick={{ fontSize: 12, fill: chartLabelColor }} />
+                      <Tooltip contentStyle={chartTooltipStyle} labelStyle={chartTooltipTextStyle} itemStyle={chartTooltipTextStyle} cursor={{ fill: "hsl(var(--muted) / 0.72)" }} />
+                      <Bar dataKey="percentage" fill="hsl(var(--accent-number))" radius={[6, 6, 0, 0]} name="Percentage" />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -96,13 +107,13 @@ function Examinations() {
 
             {data.marks.length > 0 && (
               <div className="card overflow-hidden">
-                <div className="flex items-center gap-3 border-b border-[#edf0f7] px-5 py-4">
-                  <Award size={20} className="text-[#3033a1]" />
-                  <h2 className="font-extrabold text-[#1f2136]">Marks & Grades</h2>
+                <div className="flex items-center gap-3 border-b border-border px-5 py-4">
+                  <Award size={20} className="text-accent-number" />
+                  <h2 className="font-extrabold text-foreground dark:text-white">Marks & Grades</h2>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[640px] text-left text-sm">
-                    <thead className="bg-[#f7f8fd] text-xs uppercase text-[#6f7898]">
+                    <thead className="bg-slate-100 text-xs uppercase text-slate-700 dark:bg-slate-800 dark:text-slate-300">
                       <tr>
                         <th className="px-4 py-3">Exam</th>
                         <th className="px-4 py-3">Subject</th>
@@ -113,12 +124,12 @@ function Examinations() {
                     </thead>
                     <tbody>
                       {data.marks.map((m, i) => (
-                        <tr key={m.id || i} className="border-t border-[#edf0f7]">
-                          <td className="px-4 py-3 font-semibold text-[#303247]">{m.examName}</td>
-                          <td className="px-4 py-3 text-[#7d86a8]">{m.subject}</td>
-                          <td className="px-4 py-3 font-bold text-[#303247]">{m.marksObtained}/{m.maxMarks}</td>
+                        <tr key={m.id || i} className="border-t border-border">
+                          <td className="px-4 py-3 font-semibold text-foreground dark:text-white">{m.examName}</td>
+                          <td className="px-4 py-3 text-muted-foreground">{m.subject}</td>
+                          <td className="px-4 py-3 font-bold text-foreground dark:text-white">{m.marksObtained}/{m.maxMarks}</td>
                           <td className="px-4 py-3">{m.grade || "--"}</td>
-                          <td className="px-4 py-3 text-sm text-[#7d86a8]">{m.remarks || "--"}</td>
+                          <td className="px-4 py-3 text-sm text-muted-foreground">{m.remarks || "--"}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -128,21 +139,21 @@ function Examinations() {
             )}
 
             {data.marks.length === 0 && (
-              <div className="card p-8 text-center text-sm font-semibold text-[#7d86a8]">
-                <BookOpenCheck className="mx-auto mb-3 text-[#3033a1]" size={32} />
+              <div className="card p-8 text-center text-sm font-semibold text-muted-foreground">
+                <BookOpenCheck className="mx-auto mb-3 text-accent-number" size={32} />
                 No exam results published yet.
               </div>
             )}
 
             {data.timetable.length > 0 && (
               <div className="card overflow-hidden">
-                <div className="flex items-center gap-3 border-b border-[#edf0f7] px-5 py-4">
-                  <BookOpenCheck size={20} className="text-[#3033a1]" />
-                  <h2 className="font-extrabold text-[#1f2136]">Exam Schedule</h2>
+                <div className="flex items-center gap-3 border-b border-border px-5 py-4">
+                  <BookOpenCheck size={20} className="text-accent-number" />
+                  <h2 className="font-extrabold text-foreground dark:text-white">Exam Schedule</h2>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[500px] text-left text-sm">
-                    <thead className="bg-[#f7f8fd] text-xs uppercase text-[#6f7898]">
+                    <thead className="bg-slate-100 text-xs uppercase text-slate-700 dark:bg-slate-800 dark:text-slate-300">
                       <tr>
                         <th className="px-4 py-3">Exam</th>
                         <th className="px-4 py-3">Type</th>
@@ -153,11 +164,11 @@ function Examinations() {
                     </thead>
                     <tbody>
                       {data.timetable.map((exam) => (
-                        <tr key={exam.id} className="border-t border-[#edf0f7]">
-                          <td className="px-4 py-3 font-semibold text-[#303247]">{exam.name}</td>
-                          <td className="px-4 py-3 capitalize text-[#7d86a8]">{exam.examType.replace(/_/g, " ")}</td>
-                          <td className="px-4 py-3 text-[#7d86a8]">{exam.startDate}</td>
-                          <td className="px-4 py-3 text-[#7d86a8]">{exam.endDate || "--"}</td>
+                        <tr key={exam.id} className="border-t border-border">
+                          <td className="px-4 py-3 font-semibold text-foreground dark:text-white">{exam.name}</td>
+                          <td className="px-4 py-3 capitalize text-muted-foreground">{exam.examType.replace(/_/g, " ")}</td>
+                          <td className="px-4 py-3 text-muted-foreground">{exam.startDate}</td>
+                          <td className="px-4 py-3 text-muted-foreground">{exam.endDate || "--"}</td>
                           <td className="px-4 py-3">
                             <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold ${statusBadge(exam.status)}`}>
                               {exam.status}
@@ -172,8 +183,8 @@ function Examinations() {
             )}
           </>
         ) : (
-          <div className="card p-8 text-center text-sm font-semibold text-[#7d86a8]">
-            <BookOpenCheck className="mx-auto mb-3 text-[#3033a1]" size={32} />
+          <div className="card p-8 text-center text-sm font-semibold text-muted-foreground">
+            <BookOpenCheck className="mx-auto mb-3 text-accent-number" size={32} />
             No exam data available.
           </div>
         )}

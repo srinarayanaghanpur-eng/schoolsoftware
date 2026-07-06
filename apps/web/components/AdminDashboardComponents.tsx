@@ -34,6 +34,18 @@ const LegendAny = Legend as unknown as React.ComponentType<any>;
 const LineAny = Line as unknown as React.ComponentType<any>;
 const PieAny = Pie as unknown as React.ComponentType<any>;
 const CellAny = Cell as unknown as React.ComponentType<any>;
+
+const chartLabelColor = 'hsl(var(--chart-label))';
+const chartGridColor = 'hsl(var(--chart-grid))';
+const chartTooltipStyle = {
+  border: '1px solid hsl(var(--border))',
+  borderRadius: '12px',
+  background: 'hsl(var(--chart-tooltip))',
+  color: 'hsl(var(--chart-tooltip-foreground))',
+  boxShadow: '0 14px 34px rgb(0 0 0 / 0.18)',
+};
+const chartTooltipTextStyle = { color: 'hsl(var(--chart-tooltip-foreground))' };
+
 // ============================================================================
 // Dashboard Overview Component
 // ============================================================================
@@ -73,66 +85,66 @@ const DashboardOverviewInner: React.FC<{ stats: DashboardStats }> = ({ stats }) 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
       {/* Total Teachers Card */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <h3 className="text-gray-500 text-sm font-semibold mb-2">Total Teachers</h3>
-        <p className="text-3xl font-bold text-gray-900">{stats.totalTeachers}</p>
+      <div className="rounded-lg border border-border bg-card p-6 text-card-foreground shadow dark:bg-slate-900">
+        <h3 className="mb-2 text-sm font-semibold text-muted-foreground">Total Teachers</h3>
+        <p className="text-3xl font-bold text-foreground dark:text-white">{stats.totalTeachers}</p>
       </div>
 
       {/* Present Today Card */}
-      <div className="bg-white rounded-lg shadow p-6 border-l-4 border-green-500">
-        <h3 className="text-gray-500 text-sm font-semibold mb-2">Present Today</h3>
-        <p className="text-3xl font-bold text-green-600">{stats.today.present}</p>
-        <p className="text-xs text-gray-500 mt-2">
+      <div className="rounded-lg border border-border border-l-4 border-green-500 bg-card p-6 text-card-foreground shadow dark:bg-slate-900">
+        <h3 className="mb-2 text-sm font-semibold text-muted-foreground">Present Today</h3>
+        <p className="text-3xl font-bold text-success dark:text-green-300">{stats.today.present}</p>
+        <p className="mt-2 text-xs text-muted-foreground">
           {((stats.today.present / stats.today.totalMarked) * 100).toFixed(1)}% of marked
         </p>
       </div>
 
       {/* Late Today Card */}
-      <div className="bg-white rounded-lg shadow p-6 border-l-4 border-yellow-500">
-        <h3 className="text-gray-500 text-sm font-semibold mb-2">Late Today</h3>
-        <p className="text-3xl font-bold text-yellow-600">{stats.today.late}</p>
-        <p className="text-xs text-gray-500 mt-2">
+      <div className="rounded-lg border border-border border-l-4 border-yellow-500 bg-card p-6 text-card-foreground shadow dark:bg-slate-900">
+        <h3 className="mb-2 text-sm font-semibold text-muted-foreground">Late Today</h3>
+        <p className="text-3xl font-bold text-warning dark:text-yellow-300">{stats.today.late}</p>
+        <p className="mt-2 text-xs text-muted-foreground">
           {((stats.today.late / stats.today.totalMarked) * 100).toFixed(1)}% of marked
         </p>
       </div>
 
       {/* Absent Today Card */}
-      <div className="bg-white rounded-lg shadow p-6 border-l-4 border-red-500">
-        <h3 className="text-gray-500 text-sm font-semibold mb-2">Absent Today</h3>
-        <p className="text-3xl font-bold text-red-600">{stats.today.absent}</p>
-        <p className="text-xs text-gray-500 mt-2">
+      <div className="rounded-lg border border-border border-l-4 border-red-500 bg-card p-6 text-card-foreground shadow dark:bg-slate-900">
+        <h3 className="mb-2 text-sm font-semibold text-muted-foreground">Absent Today</h3>
+        <p className="text-3xl font-bold text-destructive dark:text-rose-300">{stats.today.absent}</p>
+        <p className="mt-2 text-xs text-muted-foreground">
           {((stats.today.absent / stats.today.totalMarked) * 100).toFixed(1)}% of marked
         </p>
       </div>
 
       {/* Average Attendance Card */}
-      <div className="bg-white rounded-lg shadow p-6 border-l-4 border-blue-500">
-        <h3 className="text-gray-500 text-sm font-semibold mb-2">Monthly Avg Attendance</h3>
-        <p className="text-3xl font-bold text-blue-600">{stats.monthly.averageAttendance}%</p>
-        <p className="text-xs text-gray-500 mt-2">For {stats.monthly.month}</p>
+      <div className="rounded-lg border border-border border-l-4 border-blue-500 bg-card p-6 text-card-foreground shadow dark:bg-slate-900">
+        <h3 className="mb-2 text-sm font-semibold text-muted-foreground">Monthly Avg Attendance</h3>
+        <p className="text-3xl font-bold text-accent-number dark:text-indigo-200">{stats.monthly.averageAttendance}%</p>
+        <p className="mt-2 text-xs text-muted-foreground">For {stats.monthly.month}</p>
       </div>
 
       {/* CL Balance Card */}
-      <div className="bg-white rounded-lg shadow p-6 border-l-4 border-purple-500">
-        <h3 className="text-gray-500 text-sm font-semibold mb-2">Avg CL Balance</h3>
-        <p className="text-3xl font-bold text-purple-600">{stats.casualLeave.averageBalance}</p>
-        <p className="text-xs text-red-500 mt-2">
+      <div className="rounded-lg border border-border border-l-4 border-purple-500 bg-card p-6 text-card-foreground shadow dark:bg-slate-900">
+        <h3 className="mb-2 text-sm font-semibold text-muted-foreground">Avg CL Balance</h3>
+        <p className="text-3xl font-bold text-accent-number dark:text-indigo-200">{stats.casualLeave.averageBalance}</p>
+        <p className="mt-2 text-xs text-destructive dark:text-rose-300">
           {stats.casualLeave.criticalCount} critical
         </p>
       </div>
 
       {/* Highest Late Count Card */}
-      <div className="bg-white rounded-lg shadow p-6 border-l-4 border-orange-500">
-        <h3 className="text-gray-500 text-sm font-semibold mb-2">Highest Late Count</h3>
-        <p className="text-3xl font-bold text-orange-600">{stats.monthly.highestLateCount}</p>
-        <p className="text-xs text-gray-500 mt-2">This month</p>
+      <div className="rounded-lg border border-border border-l-4 border-orange-500 bg-card p-6 text-card-foreground shadow dark:bg-slate-900">
+        <h3 className="mb-2 text-sm font-semibold text-muted-foreground">Highest Late Count</h3>
+        <p className="text-3xl font-bold text-warning dark:text-yellow-300">{stats.monthly.highestLateCount}</p>
+        <p className="mt-2 text-xs text-muted-foreground">This month</p>
       </div>
 
       {/* Not Marked Card */}
-      <div className="bg-white rounded-lg shadow p-6 border-l-4 border-gray-500">
-        <h3 className="text-gray-500 text-sm font-semibold mb-2">Not Marked Today</h3>
-        <p className="text-3xl font-bold text-gray-600">{stats.today.notMarked}</p>
-        <p className="text-xs text-gray-500 mt-2">
+      <div className="rounded-lg border border-border border-l-4 border-gray-500 bg-card p-6 text-card-foreground shadow dark:bg-slate-900">
+        <h3 className="mb-2 text-sm font-semibold text-muted-foreground">Not Marked Today</h3>
+        <p className="text-3xl font-bold text-foreground dark:text-white">{stats.today.notMarked}</p>
+        <p className="mt-2 text-xs text-muted-foreground">
           Pending attendance
         </p>
       </div>
@@ -157,18 +169,18 @@ const AttendanceTrendChartInner: React.FC<{
   data: AttendanceTrendData[];
 }> = ({ data }) => {
   return (
-    <div className="bg-white rounded-lg shadow p-6 mb-8">
-      <h2 className="text-lg font-semibold text-gray-900 mb-4">
+    <div className="mb-8 rounded-lg border border-border bg-card p-6 text-card-foreground shadow dark:bg-slate-900">
+      <h2 className="mb-4 text-lg font-semibold text-foreground dark:text-white">
         Attendance Trend (Last 7 Days)
       </h2>
       <div className="h-72 min-h-[280px] w-full">
         {data.length > 0 ? (
           <ResponsiveContainerAny width="100%" height="100%">
             <LineChartAny data={data}>
-              <CartesianGridAny strokeDasharray="3 3" />
-              <XAxisAny dataKey="date" />
-              <YAxisAny />
-              <TooltipAny />
+              <CartesianGridAny strokeDasharray="3 3" stroke={chartGridColor} />
+              <XAxisAny dataKey="date" tick={{ fill: chartLabelColor, fontSize: 12, fontWeight: 600 }} />
+              <YAxisAny tick={{ fill: chartLabelColor, fontSize: 12 }} />
+              <TooltipAny contentStyle={chartTooltipStyle} labelStyle={chartTooltipTextStyle} itemStyle={chartTooltipTextStyle} />
               <LegendAny />
               <LineAny
                 type="monotone"
@@ -194,7 +206,7 @@ const AttendanceTrendChartInner: React.FC<{
             </LineChartAny>
           </ResponsiveContainerAny>
         ) : (
-          <div className="grid h-full place-items-center rounded-lg bg-gray-50 text-sm font-semibold text-gray-500">
+          <div className="grid h-full place-items-center rounded-lg bg-muted text-sm font-semibold text-muted-foreground">
             No data available yet
           </div>
         )}
@@ -220,9 +232,9 @@ const CLBalanceStatusInner: React.FC<{ teachers: CLStatus[] }> = ({
   teachers,
 }) => {
   const statusColors = {
-    safe: 'bg-green-100 text-green-800',
-    warning: 'bg-yellow-100 text-yellow-800',
-    critical: 'bg-red-100 text-red-800',
+    safe: 'bg-green-100 text-green-800 dark:bg-green-500/15 dark:text-green-300',
+    warning: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-400/15 dark:text-yellow-300',
+    critical: 'bg-red-100 text-red-800 dark:bg-rose-500/15 dark:text-rose-300',
   };
 
   const statusIcons = {
@@ -232,8 +244,8 @@ const CLBalanceStatusInner: React.FC<{ teachers: CLStatus[] }> = ({
   };
 
   return (
-    <div className="bg-white rounded-lg shadow p-6 mb-8">
-      <h2 className="text-lg font-semibold text-gray-900 mb-4">
+    <div className="mb-8 rounded-lg border border-border bg-card p-6 text-card-foreground shadow dark:bg-slate-900">
+      <h2 className="mb-4 text-lg font-semibold text-foreground dark:text-white">
         Casual Leave Balance Status
       </h2>
 
@@ -241,19 +253,19 @@ const CLBalanceStatusInner: React.FC<{ teachers: CLStatus[] }> = ({
         {teachers.map((teacher) => (
           <div
             key={teacher.teacherId}
-            className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition"
+            className="flex items-center justify-between rounded-lg bg-muted p-3 transition hover:bg-muted/80"
           >
             <div className="flex-1">
-              <p className="font-medium text-gray-900">{teacher.teacherName}</p>
-              <p className="text-xs text-gray-500">{teacher.teacherId}</p>
+              <p className="font-medium text-foreground dark:text-white">{teacher.teacherName}</p>
+              <p className="text-xs text-muted-foreground">{teacher.teacherId}</p>
             </div>
 
             <div className="flex items-center gap-3">
               <div className="text-right">
-                <p className="text-2xl font-bold text-gray-900">
+                <p className="text-2xl font-bold text-foreground dark:text-white">
                   {teacher.balance}
                 </p>
-                <p className="text-xs text-gray-500">CL days</p>
+                <p className="text-xs text-muted-foreground">CL days</p>
               </div>
 
               <div
@@ -292,51 +304,51 @@ const LateAttendanceReportInner: React.FC<{
   );
 
   return (
-    <div className="bg-white rounded-lg shadow p-6 mb-8">
-      <h2 className="text-lg font-semibold text-gray-900 mb-4">
+    <div className="mb-8 rounded-lg border border-border bg-card p-6 text-card-foreground shadow dark:bg-slate-900">
+      <h2 className="mb-4 text-lg font-semibold text-foreground dark:text-white">
         Late Attendance Report
       </h2>
 
       <div className="overflow-x-auto">
         <table className="w-full">
-          <thead className="bg-gray-50 border-b">
+          <thead className="border-b border-border bg-muted text-slate-700 dark:text-slate-300">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600">
+              <th className="px-6 py-3 text-left text-xs font-semibold">
                 Teacher Name
               </th>
-              <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600">
+              <th className="px-6 py-3 text-left text-xs font-semibold">
                 Late Days
               </th>
-              <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600">
+              <th className="px-6 py-3 text-left text-xs font-semibold">
                 Avg Late Minutes
               </th>
-              <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600">
+              <th className="px-6 py-3 text-left text-xs font-semibold">
                 This Month Dates
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y">
+          <tbody className="divide-y divide-border">
             {sortedRecords.map((record) => (
-              <tr key={record.teacherId} className="hover:bg-gray-50">
+              <tr key={record.teacherId} className="hover:bg-muted/70">
                 <td className="px-6 py-4">
                   <div>
-                    <p className="font-medium text-gray-900">
+                    <p className="font-medium text-foreground dark:text-white">
                       {record.teacherName}
                     </p>
-                    <p className="text-xs text-gray-500">{record.teacherId}</p>
+                    <p className="text-xs text-muted-foreground">{record.teacherId}</p>
                   </div>
                 </td>
                 <td className="px-6 py-4">
-                  <span className="inline-flex px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full font-semibold">
+                  <span className="inline-flex rounded-full bg-yellow-100 px-3 py-1 font-semibold text-yellow-800 dark:bg-yellow-400/15 dark:text-yellow-300">
                     {record.lateDaysCount}
                   </span>
                 </td>
                 <td className="px-6 py-4">
-                  <span className="text-gray-600">
+                  <span className="text-muted-foreground">
                     {record.averageLateMinutes.toFixed(1)} min
                   </span>
                 </td>
-                <td className="px-6 py-4 text-sm text-gray-600">
+                <td className="px-6 py-4 text-sm text-muted-foreground">
                   {record.thisMonthDates.slice(0, 3).join(', ')}
                   {record.thisMonthDates.length > 3 &&
                     ` +${record.thisMonthDates.length - 3} more`}
@@ -348,7 +360,7 @@ const LateAttendanceReportInner: React.FC<{
       </div>
 
       {sortedRecords.length === 0 && (
-        <div className="text-center py-8 text-gray-500">
+        <div className="py-8 text-center text-muted-foreground">
           No late attendance records found
         </div>
       )}
@@ -382,56 +394,56 @@ const SalarySummaryInner: React.FC<{ records: SalaryRecord[] }> = ({
   const hasSalaryData = totalNetSalary > 0 || totalDeduction > 0;
 
   const statusBadges = {
-    calculated: 'bg-blue-100 text-blue-800',
-    approved: 'bg-green-100 text-green-800',
-    paid: 'bg-purple-100 text-purple-800',
+    calculated: 'bg-blue-100 text-blue-800 dark:bg-blue-500/15 dark:text-blue-300',
+    approved: 'bg-green-100 text-green-800 dark:bg-green-500/15 dark:text-green-300',
+    paid: 'bg-purple-100 text-purple-800 dark:bg-indigo-500/15 dark:text-indigo-200',
   };
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
       {/* Summary Cards */}
       <div className="space-y-4">
-        <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-gray-500 text-sm font-semibold mb-2">
+        <div className="rounded-lg border border-border bg-card p-6 text-card-foreground shadow dark:bg-slate-900">
+          <h3 className="mb-2 text-sm font-semibold text-muted-foreground">
             Total Base Salary
           </h3>
-          <p className="text-3xl font-bold text-gray-900">
+          <p className="text-3xl font-bold text-foreground dark:text-white">
             ₹{(totalBaseSalary / 100000).toFixed(2)}L
           </p>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-gray-500 text-sm font-semibold mb-2">
+        <div className="rounded-lg border border-border bg-card p-6 text-card-foreground shadow dark:bg-slate-900">
+          <h3 className="mb-2 text-sm font-semibold text-muted-foreground">
             Total Deductions
           </h3>
-          <p className="text-3xl font-bold text-red-600">
+          <p className="text-3xl font-bold text-destructive dark:text-rose-300">
             ₹{(totalDeduction / 100000).toFixed(2)}L
           </p>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-gray-500 text-sm font-semibold mb-2">
+        <div className="rounded-lg border border-border bg-card p-6 text-card-foreground shadow dark:bg-slate-900">
+          <h3 className="mb-2 text-sm font-semibold text-muted-foreground">
             Total Net Salary
           </h3>
-          <p className="text-3xl font-bold text-green-600">
+          <p className="text-3xl font-bold text-success dark:text-green-300">
             ₹{(totalNetSalary / 100000).toFixed(2)}L
           </p>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-gray-500 text-sm font-semibold mb-2">
+        <div className="rounded-lg border border-border bg-card p-6 text-card-foreground shadow dark:bg-slate-900">
+          <h3 className="mb-2 text-sm font-semibold text-muted-foreground">
             Paid Salaries
           </h3>
-          <p className="text-3xl font-bold text-purple-600">{paidCount}</p>
-          <p className="text-xs text-gray-500 mt-2">
+          <p className="text-3xl font-bold text-accent-number dark:text-indigo-200">{paidCount}</p>
+          <p className="mt-2 text-xs text-muted-foreground">
             out of {records.length} teachers
           </p>
         </div>
       </div>
 
       {/* Salary Distribution Chart */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">
+      <div className="rounded-lg border border-border bg-card p-6 text-card-foreground shadow dark:bg-slate-900">
+        <h3 className="mb-4 text-lg font-semibold text-foreground dark:text-white">
           Salary Distribution
         </h3>
         <div className="h-64 min-h-[240px] w-full">
@@ -456,11 +468,11 @@ const SalarySummaryInner: React.FC<{ records: SalaryRecord[] }> = ({
                     <CellAny fill="#10b981" />
                     <CellAny fill="#ef4444" />
                 </PieAny>
-                  <TooltipAny formatter={(value: any) => `₹${value}`} />
+                  <TooltipAny formatter={(value: any) => `₹${value}`} contentStyle={chartTooltipStyle} labelStyle={chartTooltipTextStyle} itemStyle={chartTooltipTextStyle} />
               </PieChartAny>
             </ResponsiveContainerAny>
           ) : (
-            <div className="grid h-full place-items-center rounded-lg bg-gray-50 text-sm font-semibold text-gray-500">
+            <div className="grid h-full place-items-center rounded-lg bg-muted text-sm font-semibold text-muted-foreground">
               No data available yet
             </div>
           )}
@@ -468,13 +480,13 @@ const SalarySummaryInner: React.FC<{ records: SalaryRecord[] }> = ({
       </div>
 
       {/* Salary Table */}
-      <div className="lg:col-span-2 bg-white rounded-lg shadow p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">
+      <div className="rounded-lg border border-border bg-card p-6 text-card-foreground shadow dark:bg-slate-900 lg:col-span-2">
+        <h3 className="mb-4 text-lg font-semibold text-foreground dark:text-white">
           Teacher Salary Details
         </h3>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b">
+            <thead className="border-b border-border bg-muted text-slate-700 dark:text-slate-300">
               <tr>
                 <th className="px-4 py-2 text-left text-xs font-semibold">
                   Teacher
@@ -493,14 +505,14 @@ const SalarySummaryInner: React.FC<{ records: SalaryRecord[] }> = ({
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y">
+            <tbody className="divide-y divide-border">
               {records.slice(0, 5).map((record) => (
-                <tr key={record.teacherId} className="hover:bg-gray-50">
+                <tr key={record.teacherId} className="hover:bg-muted/70">
                   <td className="px-4 py-2">{record.teacherName}</td>
                   <td className="px-4 py-2 text-right">
                     ₹{(record.baseSalary / 1000).toFixed(1)}K
                   </td>
-                  <td className="px-4 py-2 text-right text-red-600">
+                  <td className="px-4 py-2 text-right text-destructive dark:text-rose-300">
                     ₹{(record.totalDeduction / 1000).toFixed(1)}K
                   </td>
                   <td className="px-4 py-2 text-right font-semibold">
@@ -519,7 +531,7 @@ const SalarySummaryInner: React.FC<{ records: SalaryRecord[] }> = ({
           </table>
         </div>
         {records.length > 5 && (
-          <p className="text-xs text-gray-500 mt-2">
+          <p className="mt-2 text-xs text-muted-foreground">
             +{records.length - 5} more records
           </p>
         )}
