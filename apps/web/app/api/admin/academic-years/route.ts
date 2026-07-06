@@ -22,7 +22,7 @@ export async function GET(req: Request) {
   if (!token) return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
 
   const url = new URL(req.url);
-  const canBypassCache = token.role === "admin" || token.role === "principal" || token.role === "super_admin" || token.role === "settings_manager";
+  const canBypassCache = token.role === "principal" || token.role === "super_admin" || token.role === "settings_manager";
   const bypassCache = canBypassCache && url.searchParams.get("refresh") === "1";
 
   if (!bypassCache && academicYearsCache && academicYearsCache.expiresAt > Date.now()) {

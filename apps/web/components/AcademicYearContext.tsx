@@ -76,7 +76,7 @@ export function AcademicYearProvider({ children }: { children: ReactNode }) {
     typeof window === "undefined" ? null : readStoredSelectedYearId()
   );
 
-  const canSwitchYear = Boolean(role && hasPermission(role, "academic_years.view") && (role === "admin" || role === "principal" || role === "super_admin"));
+  const canSwitchYear = Boolean(role && hasPermission(role, "academic_years.view") && (role === "principal" || role === "super_admin"));
   const activeYear = useMemo(() => years.find((year) => year.isActive) ?? null, [years]);
   // Fall back to the active year when nothing was selected at login (e.g.
   // remembered sessions or roles that skip the login dropdown).

@@ -21,25 +21,23 @@ export type RoutePermission = { path: string; roles: readonly UserRole[] };
  *  still governed by the module RBAC matrix (modulesForRole) + the rules below. */
 export const BACK_OFFICE_ROLES: readonly UserRole[] = [
   "super_admin",
-  "admin",
   "principal",
   "accountant",
-  "receptionist",
   "settings_manager"
 ];
 
 export const routePermissions: RoutePermission[] = [
   // Sensitive sub-areas (more specific than /admin, so they win the prefix match)
-  { path: "/admin/finance", roles: ["super_admin", "admin", "accountant"] },
+  { path: "/admin/finance", roles: ["super_admin", "accountant"] },
   { path: "/admin/settings", roles: ["super_admin", "settings_manager"] },
   // Academic-year management is super_admin / settings_manager only.
   { path: "/admin/settings/academic-years", roles: ["super_admin", "settings_manager"] },
-  { path: "/admin/users", roles: ["super_admin", "admin", "settings_manager"] },
+  { path: "/admin/users", roles: ["super_admin", "settings_manager"] },
   { path: "/admin/roles", roles: ["super_admin", "settings_manager"] },
 
   // Portals
   { path: "/teacher", roles: ["teacher"] },
-  { path: "/portal", roles: ["parent", "student"] },
+  { path: "/portal", roles: ["parent"] },
 
   // Back-office catch-all (least specific)
   { path: "/admin", roles: BACK_OFFICE_ROLES }

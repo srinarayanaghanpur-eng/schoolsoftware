@@ -1,5 +1,6 @@
 "use client";
 
+import { DatePicker } from "@/components/DatePicker";
 import { auth, isFirebaseConfigured } from "@sri-narayana/shared/firebase/client";
 import { demoLeaveRequests, type LeaveRequest } from "@sri-narayana/shared";
 import { ClipboardCheck, Send } from "lucide-react";
@@ -89,8 +90,8 @@ export function TeacherLeaveRequestPanel({ teacherId }: { teacherId: string }) {
         <ClipboardCheck size={18} /> Leave request
       </div>
       <form onSubmit={submitLeave} className="grid gap-3 md:grid-cols-[1fr_1fr_2fr_auto]">
-        <input className="field" type="date" value={form.startDate} onChange={(event) => setForm({ ...form, startDate: event.target.value })} required />
-        <input className="field" type="date" value={form.endDate} onChange={(event) => setForm({ ...form, endDate: event.target.value })} required />
+        <DatePicker value={form.startDate} onChange={(event) => setForm({ ...form, startDate: event.target.value })} required />
+        <DatePicker value={form.endDate} onChange={(event) => setForm({ ...form, endDate: event.target.value })} required />
         <input className="field" placeholder="Reason" value={form.reason} onChange={(event) => setForm({ ...form, reason: event.target.value })} required />
         <button className="btn-primary" disabled={loading}>
           <Send size={16} /> {loading ? "Sending..." : "Send"}

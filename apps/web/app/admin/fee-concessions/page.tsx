@@ -13,7 +13,7 @@ import { adminApiRequest } from "@/lib/adminApiClient";
 export default function ConcessionsPage() {
   const { role } = useAdminSession();
   const { selectedYear } = useAcademicYears();
-  const canCreateConcession = role === "admin" || role === "super_admin";
+  const canCreateConcession = role === "super_admin";
   const [concessions, setConcessions] = useState<Concession[]>([]);
   const [filteredConcessions, setFilteredConcessions] = useState<Concession[]>([]);
   const [loading, setLoading] = useState(true);

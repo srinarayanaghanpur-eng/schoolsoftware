@@ -87,7 +87,7 @@ function unpaidAbsentDays(report: SalaryReport) {
 export default function SalaryPage() {
   const { role } = useAdminSession();
   const isAccountant = role === "accountant";
-  const canReviewPayrollAccess = role === "super_admin" || role === "admin";
+  const canReviewPayrollAccess = role === "super_admin";
   const [month, setMonth] = useState(currentMonth());
   const [dateRange, setDateRange] = useState(() => monthRange(currentMonth()));
   const [reports, setReports] = useState<SalaryReport[]>([]);

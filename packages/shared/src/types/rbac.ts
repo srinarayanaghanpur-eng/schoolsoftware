@@ -4,18 +4,15 @@
  * frontend nav/route gating.
  */
 
-export const ROLES = ["super_admin", "admin", "principal", "accountant", "teacher", "receptionist", "parent", "student", "settings_manager"] as const;
+export const ROLES = ["super_admin", "principal", "accountant", "teacher", "parent", "settings_manager"] as const;
 export type Role = (typeof ROLES)[number];
 
 export const ROLE_LABELS: Record<Role, string> = {
   super_admin: "Super Admin",
-  admin: "Administrator",
   principal: "Principal",
   accountant: "Accountant",
   teacher: "Teacher",
-  receptionist: "Receptionist",
   parent: "Parent",
-  student: "Student",
   settings_manager: "Settings Manager"
 };
 
@@ -60,7 +57,6 @@ const ALL = "*" as const;
  */
 export const ROLE_PERMISSIONS: Record<Role, readonly (Permission | typeof ALL)[]> = {
   super_admin: [ALL],
-  admin: [ALL],
   principal: [
     "dashboard.view",
     "students.view", "students.export",
@@ -96,15 +92,6 @@ export const ROLE_PERMISSIONS: Record<Role, readonly (Permission | typeof ALL)[]
     "communication.view",
     "academic_years.view"
   ],
-  receptionist: [
-    "dashboard.view",
-    "students.view", "students.create", "students.edit",
-    "attendance.view",
-    "communication.view", "communication.create",
-    "transport.view",
-    "academic_years.view",
-    "sms.view", "sms.compose", "sms.copy", "sms.export", "sms.mark_sent"
-  ],
   settings_manager: [
     "dashboard.view",
     "settings.view", "settings.create", "settings.edit", "settings.delete",
@@ -112,8 +99,7 @@ export const ROLE_PERMISSIONS: Record<Role, readonly (Permission | typeof ALL)[]
     "academic_years.view", "academic_years.create", "academic_years.edit", "academic_years.delete",
     "sms.view", "sms.templates"
   ],
-  parent: ["portal.view"],
-  student: ["portal.view"]
+  parent: ["portal.view"]
 };
 
 export function hasPermission(role: Role | undefined, permission: Permission): boolean {

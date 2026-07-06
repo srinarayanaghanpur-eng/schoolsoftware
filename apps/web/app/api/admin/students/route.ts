@@ -88,15 +88,45 @@ export async function GET(request: NextRequest) {
 
     query = query.limit(canUseCursorPaging ? pageSize + 1 : appliedLimit);
 
-    const snapshot = await query.get();
+    let snapshot: FirebaseFirestore.QuerySnapshot;
+    let sortedInMemory = false;
+    try {
+      snapshot = await query.get();
+    } catch (queryError: any) {
+      // FAILED_PRECONDITION (code 9) → composite index missing for this
+      // filter+orderBy combination. Retry without orderBy and sort in memory
+      // so the page keeps working while the index is created.
+      if (queryError?.code === 9 || /FAILED_PRECONDITION|requires an index/i.test(String(queryError?.message))) {
+        let fallback: any = applyScope(db.collection('students'));
+        if (q) {
+          const normalized = normalizeText(q);
+          if (/^\d{6,}$/.test(normalized)) fallback = fallback.where("phone", "==", normalized);
+          else if (/^[a-z]*[-/]?\d+$/i.test(q) || /^\d+$/.test(q)) fallback = fallback.where("admissionNumber", "==", q);
+        }
+        snapshot = await fallback.limit(500).get();
+        sortedInMemory = true;
+      } else {
+        throw queryError;
+      }
+    }
     logFirestoreRead("StudentsAPI", "students", snapshot, { schoolId, branchId, academicYearId, classId, sectionId, status, q: q || "none", pageSize });
-    const pageDocs = canUseCursorPaging ? snapshot.docs.slice(0, pageSize) : snapshot.docs;
+    let docs = snapshot.docs;
+    if (sortedInMemory) {
+      const key = q && !/^\d{6,}$/.test(normalizeText(q)) && !(/^[a-z]*[-/]?\d+$/i.test(q) || /^\d+$/.test(q))
+        ? "studentNameLower" : "admissionNumber";
+      docs = [...docs].sort((a, b) => String(a.data()[key] ?? "").localeCompare(String(b.data()[key] ?? "")));
+      if (q && key === "studentNameLower") {
+        const normalized = normalizeText(q);
+        docs = docs.filter((d) => String(d.data().studentNameLower ?? "").startsWith(normalized));
+      }
+    }
+    const pageDocs = canUseCursorPaging && !sortedInMemory ? docs.slice(0, pageSize) : docs.slice(0, sortedInMemory ? pageSize : docs.length);
     const students = pageDocs.map((doc: { id: string; data: () => any }) => ({
       id: doc.id,
       ...doc.data()
     }));
 
-    const nextCursor = canUseCursorPaging && snapshot.docs.length > pageSize && pageDocs.length > 0
+    const nextCursor = canUseCursorPaging && !sortedInMemory && snapshot.docs.length > pageSize && pageDocs.length > 0
       ? pageDocs[pageDocs.length - 1].id
       : null;
 

@@ -5,11 +5,33 @@ import { useAcademicYears } from "@/components/AcademicYearContext";
 import { useAdminSession } from "@/components/AdminSessionContext";
 import { AdminApiError, adminApiRequest } from "@/lib/adminApiClient";
 import { hasPermission } from "@sri-narayana/shared";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronRight, MessageCircle, MessageSquare } from "lucide-react";
 import { useEffect, useState } from "react";
 
-type ClassDues = { className: string; studentCount: number; totalDue: number; students: { id: string; name: string; due: number }[] };
+type DueStudent = { id: string; name: string; phone?: string; parentName?: string; due: number };
+type ClassDues = { className: string; studentCount: number; totalDue: number; students: DueStudent[] };
 function inr(n: number) { return `₹${(n || 0).toLocaleString("en-IN")}`; }
+
+function sanitizePhone(phone: string): string {
+  return phone.replace(/\D/g, "").replace(/^0+/, "");
+}
+
+function reminderText(s: DueStudent, className: string): string {
+  return `Dear ${s.parentName || "Parent"}, this is a reminder from Sri Narayana High School. Fee of ${inr(s.due)} is outstanding for ${s.name} (Class ${className}). Kindly pay at the earliest. Thank you.`;
+}
+
+function openWhatsApp(s: DueStudent, className: string) {
+  const cleaned = sanitizePhone(s.phone || "");
+  if (!cleaned) return;
+  const number = cleaned.length === 10 ? `91${cleaned}` : cleaned;
+  window.open(`https://wa.me/${number}?text=${encodeURIComponent(reminderText(s, className))}`, "_blank");
+}
+
+function openSms(s: DueStudent, className: string) {
+  const cleaned = sanitizePhone(s.phone || "");
+  if (!cleaned) return;
+  window.open(`sms:${encodeURIComponent(cleaned)}?body=${encodeURIComponent(reminderText(s, className))}`, "_blank");
+}
 
 export default function DuesPage() {
   const { role } = useAdminSession();
@@ -60,7 +82,25 @@ export default function DuesPage() {
               </button>
               {open === c.className && (
                 <div className="divide-y divide-stone-100 border-t border-stone-100">
-                  {c.students.map((s) => (<div key={s.id} className="flex items-center justify-between px-5 py-2.5 text-sm"><span className="text-[#303247]">{s.name}</span><span className="font-semibold text-[#ed515d]">{inr(s.due)}</span></div>))}
+                  {c.students.map((s) => (
+                    <div key={s.id} className="flex items-center justify-between gap-3 px-5 py-2.5 text-sm">
+                      <div className="min-w-0 flex-1">
+                        <span className="block truncate text-[#303247]">{s.name}</span>
+                        {s.phone && <span className="block truncate text-xs text-stone-400">{s.parentName ? `${s.parentName} · ` : ""}{s.phone}</span>}
+                      </div>
+                      <span className="font-semibold text-[#ed515d]">{inr(s.due)}</span>
+                      {s.phone && (
+                        <div className="flex shrink-0 items-center gap-1">
+                          <button onClick={() => openWhatsApp(s, c.className)} title="Send WhatsApp reminder" className="grid h-8 w-8 place-items-center rounded-lg text-[#25D366] transition hover:bg-[#25D366]/10">
+                            <MessageCircle size={16} />
+                          </button>
+                          <button onClick={() => openSms(s, c.className)} title="Send SMS reminder" className="grid h-8 w-8 place-items-center rounded-lg text-[#4c6fff] transition hover:bg-[#4c6fff]/10">
+                            <MessageSquare size={16} />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
                 </div>
               )}
             </div>

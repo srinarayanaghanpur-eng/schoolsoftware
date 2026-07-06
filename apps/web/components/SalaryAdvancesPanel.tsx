@@ -1,6 +1,7 @@
 "use client";
 
 import { AdminApiError, adminApiRequest } from "@/lib/adminApiClient";
+import { DatePicker } from "@/components/DatePicker";
 import { useAdminSession } from "@/components/AdminSessionContext";
 import { hasPermission } from "@sri-narayana/shared";
 import { HandCoins, Plus, X } from "lucide-react";
@@ -76,7 +77,7 @@ export function SalaryAdvancesPanel() {
             {staff.map((s) => <option key={s.id} value={s.id}>{s.fullName}{s.employeeId ? ` (${s.employeeId})` : ""}</option>)}
           </select>
           <input className="field" type="number" min="1" placeholder="Amount ₹" required value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} />
-          <input className="field" type="date" required value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
+          <DatePicker required value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
           <input className="field" placeholder="Reason (optional)" value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} />
           <button className="btn-primary sm:col-span-2 xl:col-span-4" disabled={saving}>{saving ? "Saving..." : "Record advance"}</button>
         </form>

@@ -130,6 +130,22 @@
       "collectionGroup": "students",
       "queryScope": "COLLECTION",
       "fields": [
+        { "fieldPath": "academicYearId", "order": "ASCENDING" },
+        { "fieldPath": "admissionNumber", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "students",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "academicYearId", "order": "ASCENDING" },
+        { "fieldPath": "studentNameLower", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "students",
+      "queryScope": "COLLECTION",
+      "fields": [
         { "fieldPath": "class", "order": "ASCENDING" },
         { "fieldPath": "admissionNumber", "order": "ASCENDING" }
       ]

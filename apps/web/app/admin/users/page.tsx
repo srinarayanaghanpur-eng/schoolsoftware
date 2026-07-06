@@ -69,7 +69,7 @@ export default function UsersRolesPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const isAdmin = role === "admin" || role === "super_admin" || role === "settings_manager";
+  const isAdmin = role === "super_admin" || role === "settings_manager";
 
   const filteredUsers = useMemo(() => {
     const term = query.trim().toLowerCase();
@@ -359,7 +359,7 @@ export default function UsersRolesPage() {
                         </div>
                       </td>
                       <td className="px-5 py-4 text-right">
-                        {user.role === "parent" || user.role === "student" ? (
+                        {user.role === "parent" ? (
                           <button className="btn-secondary" type="button" onClick={() => openLinkStudents(user)}>
                             <Link2 size={15} /> {user.studentIds?.length ? `${user.studentIds.length} linked` : "Link students"}
                           </button>

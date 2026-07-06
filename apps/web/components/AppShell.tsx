@@ -935,7 +935,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, [sessionLoading, role, pathname, router]);
 
   const sessionValue = useMemo(() => ({ profile, role, loading: sessionLoading || signingOut }), [profile, role, sessionLoading, signingOut]);
-  const isPortalRole = role === "parent" || role === "student";
+  const isPortalRole = role === "parent";
   const mainNav = useMemo(
     () => navForRole(
       (isPortalRole ? portalNav : primaryNav).map((item) => {

@@ -1,9 +1,10 @@
 "use client";
 
-import { CalendarDays, Search } from "lucide-react";
+import { Search } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { useAcademicYears } from "@/components/AcademicYearContext";
+import { DatePicker } from "@/components/DatePicker";
 
 type DateRange = { from: string; to: string };
 
@@ -216,12 +217,11 @@ function DateTextField({
             if (parsed) onTextChange(displayFromIso(parsed));
           }}
         />
-        <span className="absolute right-1.5 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-lg text-muted-foreground hover:bg-accent hover:text-accent-foreground">
-          <CalendarDays size={16} />
-          <input
-            aria-label={`${label} calendar`}
-            type="date"
-            className="absolute inset-0 cursor-pointer opacity-0"
+        <span className="absolute right-1.5 top-1/2 -translate-y-1/2">
+          <DatePicker
+            iconOnly
+            ariaLabel={`${label} calendar`}
+            value={parseDisplayDate(value) || ""}
             onChange={(event) => {
               if (event.target.value) onIsoChange(event.target.value);
             }}

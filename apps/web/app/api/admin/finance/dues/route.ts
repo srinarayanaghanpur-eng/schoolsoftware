@@ -38,8 +38,20 @@ export async function GET(req: Request) {
   const pageDocs = filteredDocs.slice(startIndex, startIndex + pageSize);
   const nextCursor = startIndex + pageSize < filteredDocs.length && pageDocs.length > 0 ? pageDocs[pageDocs.length - 1].id : null;
 
-  const byClass = new Map<string, { className: string; studentCount: number; totalDue: number; students: { id: string; name: string; due: number }[] }>();
+  const byClass = new Map<string, { className: string; studentCount: number; totalDue: number; students: { id: string; name: string; phone: string; parentName: string; due: number }[] }>();
   let grandTotalDue = 0;
+
+  // Legacy summaries may lack phone — backfill from student docs in one batch.
+  const missingIds = pageDocs
+    .filter((doc) => !doc.data().phone)
+    .map((doc) => String(doc.data().studentId || doc.id))
+    .filter(Boolean);
+  const studentById = new Map<string, FirebaseFirestore.DocumentData>();
+  for (let i = 0; i < missingIds.length; i += 30) {
+    const refs = missingIds.slice(i, i + 30).map((id) => db.collection("students").doc(id));
+    const snaps = await db.getAll(...refs);
+    snaps.forEach((s) => { if (s.exists) studentById.set(s.id, s.data() || {}); });
+  }
 
   pageDocs.forEach((d) => {
     const s = d.data();
@@ -48,9 +60,16 @@ export async function GET(req: Request) {
     grandTotalDue += due;
     const cls = String(s.className || s.classId || "—");
     const entry = byClass.get(cls) ?? { className: cls, studentCount: 0, totalDue: 0, students: [] };
+    const student = studentById.get(String(s.studentId || d.id)) || {};
     entry.studentCount += 1;
     entry.totalDue += due;
-    entry.students.push({ id: String(s.studentId || d.id), name: String(s.studentName || ""), due });
+    entry.students.push({
+      id: String(s.studentId || d.id),
+      name: String(s.studentName || student.studentName || ""),
+      phone: String(s.phone || student.phone || student.fatherPhone || ""),
+      parentName: String(s.fatherName || student.fatherName || student.motherName || ""),
+      due
+    });
     byClass.set(cls, entry);
   });
 

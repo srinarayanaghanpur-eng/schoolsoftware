@@ -1,5 +1,6 @@
 "use client";
 
+import { DatePicker } from "@/components/DatePicker";
 import { auth } from "@sri-narayana/shared/firebase/client";
 import { AlertTriangle, CalendarOff, X } from "lucide-react";
 import type { FormEvent } from "react";
@@ -110,28 +111,28 @@ export function DeclareHolidayModal({ onDeclared }: { onDeclared?: () => void })
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="block text-sm font-semibold text-[#303247]">
                 From date
-                <input
-                  className="field mt-1 w-full"
-                  type="date"
-                  value={fromDate}
-                  onChange={(event) => {
-                    const value = event.target.value;
-                    setFromDate(value);
-                    if (toDate < value) setToDate(value);
-                  }}
-                  required
-                />
+                <div className="mt-1">
+                  <DatePicker
+                    value={fromDate}
+                    onChange={(event) => {
+                      const value = event.target.value;
+                      setFromDate(value);
+                      if (toDate < value) setToDate(value);
+                    }}
+                    required
+                  />
+                </div>
               </label>
               <label className="block text-sm font-semibold text-[#303247]">
                 To date
-                <input
-                  className="field mt-1 w-full"
-                  type="date"
-                  value={toDate}
-                  min={fromDate}
-                  onChange={(event) => setToDate(event.target.value)}
-                  required
-                />
+                <div className="mt-1">
+                  <DatePicker
+                    value={toDate}
+                    min={fromDate}
+                    onChange={(event) => setToDate(event.target.value)}
+                    required
+                  />
+                </div>
               </label>
             </div>
 

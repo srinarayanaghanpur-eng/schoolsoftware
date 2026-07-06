@@ -7,7 +7,7 @@ import { requireRole } from "@/lib/apiUtils";
 // PATCH /api/admin/users/[uid]/students — link a parent/student user to student record(s).
 // The portal reads these ids to scope what the user can see.
 export async function PATCH(req: Request, { params }: { params: { uid: string } }) {
-  const token = await requireRole(req, ["admin", "principal", "receptionist"]);
+  const token = await requireRole(req, ["principal"]);
   if (!token) return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
 
   try {

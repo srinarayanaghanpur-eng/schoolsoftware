@@ -44,7 +44,7 @@ export function getPayrollRole(token: DecodedIdToken | null): Role | undefined {
 }
 
 export function canOpenPayrollDirectly(role: Role | undefined) {
-  return Boolean(role && (role === "super_admin" || role === "admin" || role === "principal") && hasPermission(role, "payroll.view"));
+  return Boolean(role && (role === "super_admin" || role === "principal") && hasPermission(role, "payroll.view"));
 }
 
 export function istDateKey(date = new Date()) {

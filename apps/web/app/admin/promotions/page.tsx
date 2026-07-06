@@ -105,7 +105,7 @@ export default function PromotionsPage() {
   const { years, selectedYear } = useAcademicYears();
 
   const canView = Boolean(role && hasPermission(role, "promotions.view"));
-  const canCreate = Boolean(canView && (role === "admin" || role === "principal" || role === "super_admin"));
+  const canCreate = Boolean(canView && (role === "principal" || role === "super_admin"));
 
   const [tab, setTab] = useState<Tab>("promote");
   const [loading, setLoading] = useState(false);
