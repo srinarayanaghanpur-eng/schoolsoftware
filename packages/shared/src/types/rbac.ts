@@ -37,13 +37,12 @@ export const MODULES = [
   "academic_years",
   "users",
   "portal",
-  "promotions",
-  "sms"
+  "promotions"
 ] as const;
 export type Module = (typeof MODULES)[number];
 
 /** Actions a permission can grant. Permission string format: `${module}.${action}`. */
-export const ACTIONS = ["view", "create", "edit", "delete", "approve", "export", "compose", "copy", "mark_sent", "templates"] as const;
+export const ACTIONS = ["view", "create", "edit", "delete", "approve", "export"] as const;
 export type Action = (typeof ACTIONS)[number];
 
 export type Permission = `${Module}.${Action}`;
@@ -71,8 +70,7 @@ export const ROLE_PERMISSIONS: Record<Role, readonly (Permission | typeof ALL)[]
     "reports.view", "reports.export",
     "academic_years.view",
     "promotions.view", "promotions.create", "promotions.approve",
-    "settings.view",
-    "sms.view", "sms.compose", "sms.copy", "sms.export", "sms.mark_sent", "sms.templates"
+    "settings.view"
   ],
   accountant: [
     "dashboard.view",
@@ -96,8 +94,7 @@ export const ROLE_PERMISSIONS: Record<Role, readonly (Permission | typeof ALL)[]
     "dashboard.view",
     "settings.view", "settings.create", "settings.edit", "settings.delete",
     "users.view", "users.create", "users.edit", "users.delete",
-    "academic_years.view", "academic_years.create", "academic_years.edit", "academic_years.delete",
-    "sms.view", "sms.templates"
+    "academic_years.view", "academic_years.create", "academic_years.edit", "academic_years.delete"
   ],
   parent: ["portal.view"]
 };

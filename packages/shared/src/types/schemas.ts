@@ -147,7 +147,7 @@ export const examMarksBulkSchema = z.object({
   marks: z.array(examMarkEntrySchema).min(1)
 });
 
-export const noticeChannelSchema = z.enum(["app", "sms", "whatsapp", "email"]);
+export const noticeChannelSchema = z.enum(["app", "whatsapp", "email"]);
 export const noticeCategorySchema = z.enum(["school", "branch", "class", "holiday", "exam", "event", "fee", "emergency"]);
 
 export const noticeCreateSchema = z.object({

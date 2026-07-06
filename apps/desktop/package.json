@@ -1,0 +1,53 @@
+{
+  "name": "@sri-narayana/desktop",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Sri Narayana High School ERP – Desktop App",
+  "main": "main.js",
+  "scripts": {
+    "dev": "electron .",
+    "build:web": "node scripts/build-web.js",
+    "dist": "npm run build:web && electron-builder --win",
+    "dist:portable": "npm run build:web && electron-builder --win portable"
+  },
+  "build": {
+    "appId": "com.sri-narayana.high-school.erp",
+    "productName": "Sri Narayana ERP",
+    "copyright": "Copyright © 2026 Sri Narayana High School",
+    "electronVersion": "33.0.0",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js"
+    ],
+    "extraResources": [
+      {
+        "from": "resources/",
+        "to": "web",
+        "filter": ["**/*"]
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Sri Narayana ERP",
+      "uninstallDisplayName": "Sri Narayana ERP"
+    }
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.0.0"
+  }
+}

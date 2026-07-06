@@ -17,8 +17,6 @@ export async function GET(req: Request) {
 }
 
 // POST /api/admin/notices — create a notice/circular.
-// "app" channel is delivered in-app immediately. sms/whatsapp/email are recorded as
-// requested channels and left for the messaging-provider integration (Phase 3+).
 export async function POST(req: Request) {
   const token = await requirePermission(req, "communication.create");
   if (!token) return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });

@@ -24,3 +24,8 @@ serviceAccount*.json
 
 # ESSL bridge local config
 tools/essl-bridge/.env
+
+# Desktop app build outputs
+apps/desktop/resources/
+apps/desktop/dist/
+

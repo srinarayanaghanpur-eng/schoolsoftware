@@ -68,7 +68,7 @@ export async function GET(req: Request) {
   return NextResponse.json({ ok: true, reminders, count: reminders.length, pageSize, nextCursor, hasMore: Boolean(nextCursor) });
 }
 
-// POST /api/admin/finance/reminders — record reminders as "sent" (queued for SMS/WhatsApp provider).
+// POST /api/admin/finance/reminders — record reminders as "sent" (queued for WhatsApp/Email provider).
 export async function POST(req: Request) {
   const token = await requirePermission(req, "fees.create");
   if (!token) return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
@@ -76,7 +76,7 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
     const studentIds: string[] = Array.isArray(body?.studentIds) ? body.studentIds : [];
-    const channel: string = body?.channel || "sms";
+    const channel: string = body?.channel || "whatsapp";
     const academicYearId = String(body?.academicYearId ?? "").trim();
     const schoolId = String(body?.schoolId ?? getSchoolId(token));
     if (studentIds.length === 0) return NextResponse.json({ ok: false, error: "No students selected" }, { status: 400 });
@@ -86,7 +86,7 @@ export async function POST(req: Request) {
     const batch = db.batch();
     studentIds.forEach((sid) => {
       const ref = db.collection("fee_reminders").doc();
-      // delivery is left to the SMS/WhatsApp provider integration; we record the intent.
+      // delivery is left to the WhatsApp/Email provider integration; we record the intent.
       batch.set(ref, { studentId: sid, academicYearId, schoolId, channel, status: "queued", sentBy: token.uid, createdAt: now });
     });
     await batch.commit();

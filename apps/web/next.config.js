@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: process.env.STANDALONE ? "standalone" : undefined,
   reactStrictMode: true,
   transpilePackages: ["@sri-narayana/shared"],
   experimental: {

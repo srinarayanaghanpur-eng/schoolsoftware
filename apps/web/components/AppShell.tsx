@@ -141,7 +141,6 @@ const primaryNav: NavItem[] = [
     activePrefixes: ["/admin/exams", "/admin/calendar", "/admin/holidays", "/admin/promotions"]
   },
   { href: "/admin/notices", label: "Communication", module: "communication", icon: Megaphone, activePrefixes: ["/admin/notices", "/admin/messages", "/admin/notifications"] },
-  { href: "/admin/sms", label: "Manual SMS", module: "sms", icon: MessageSquare, activePrefixes: ["/admin/sms"] },
   { href: "/admin/reports", label: "Reports", module: "reports", icon: BarChart3, activePrefixes: ["/admin/reports"] },
   { href: "/admin/settings", label: "Settings", module: "settings", icon: Settings, activePrefixes: ["/admin/settings", "/admin/users", "/admin/approvals", "/admin/branches", "/admin/biometric", "/admin/backup"] }
 ];
@@ -182,7 +181,6 @@ const desktopNavSections: Array<{ label: string; hrefs: string[] }> = [
       "/admin/salary",
       "/admin/exams",
       "/admin/notices",
-      "/admin/sms",
       "/admin/reports",
       "/admin/settings"
     ]
@@ -214,16 +212,6 @@ const contextSubnavs: ContextSubnav[] = [
       { href: "/admin/notices", label: "Notices", icon: Megaphone, module: "communication" },
       { href: "/admin/messages", label: "Parent Messages", icon: MessageSquare, module: "communication" },
       { href: "/admin/notifications", label: "Requests & Logs", icon: Bell, module: "communication" }
-    ]
-  },
-  {
-    title: "Manual SMS",
-    eyebrow: "Communication",
-    matchPrefixes: ["/admin/sms"],
-    items: [
-      { href: "/admin/sms", label: "Compose SMS", icon: MessageSquare, module: "sms" },
-      { href: "/admin/sms/templates", label: "Templates", icon: FileText, module: "sms" },
-      { href: "/admin/sms/history", label: "History", icon: Clock, module: "sms" }
     ]
   },
   {
@@ -321,10 +309,7 @@ const pageTitles: Record<string, string> = {
   "/admin/branches": "Branches",
   "/admin/settings": "Settings",
   "/admin/biometric": "Biometric Devices",
-  "/admin/backup": "Backup & Restore",
-  "/admin/sms": "Manual SMS",
-  "/admin/sms/templates": "SMS Templates",
-  "/admin/sms/history": "SMS History"
+  "/admin/backup": "Backup & Restore"
 };
 
 const routeModules: Array<{ prefix: string; module: Module }> = [
@@ -353,8 +338,7 @@ const routeModules: Array<{ prefix: string; module: Module }> = [
   { prefix: "/admin/approvals", module: "settings" },
   { prefix: "/admin/users", module: "users" },
   { prefix: "/portal", module: "portal" },
-  { prefix: "/admin/dashboard", module: "dashboard" },
-  { prefix: "/admin/sms", module: "sms" }
+  { prefix: "/admin/dashboard", module: "dashboard" }
 ];
 
 function moduleForPath(pathname: string): Module | undefined {

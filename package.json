@@ -12,7 +12,11 @@
     "build:web": "npm --workspace @sri-narayana/web run build",
     "typecheck:web": "npm --workspace @sri-narayana/web run typecheck",
     "check:admin-api-auth": "node scripts/check-admin-api-auth.js",
-    "seed": "npm --workspace @sri-narayana/shared run seed"
+    "seed": "npm --workspace @sri-narayana/shared run seed",
+    "dev:desktop": "npm --workspace @sri-narayana/desktop run dev",
+    "build:desktop": "npm --workspace @sri-narayana/desktop run build:web",
+    "dist:desktop": "npm --workspace @sri-narayana/desktop run dist",
+    "dist:portable": "npm --workspace @sri-narayana/desktop run dist:portable"
   },
   "dependencies": {
     "@expo/config-plugins": "^55.0.9",

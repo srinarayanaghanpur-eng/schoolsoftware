@@ -31,7 +31,7 @@ export default function RemindersPage() {
   const canSend = hasPermission(role, "fees.create");
   const [list, setList] = useState<Reminder[]>([]);
   const [sel, setSel] = useState<Set<string>>(new Set());
-  const [channel, setChannel] = useState("sms");
+  const [channel, setChannel] = useState("whatsapp");
   const [error, setError] = useState("");
   const [msg, setMsg] = useState("");
   const [loading, setLoading] = useState(true);
@@ -98,7 +98,7 @@ export default function RemindersPage() {
               <RefreshCw size={16} className={syncing ? "animate-spin" : ""} /> {syncing ? "Syncing…" : "Sync dues"}
             </button>
           )}
-          <select className="field ml-auto max-w-[160px]" value={channel} onChange={(e) => setChannel(e.target.value)}><option value="sms">SMS</option><option value="whatsapp">WhatsApp</option><option value="email">Email</option></select>
+          <select className="field ml-auto max-w-[160px]" value={channel} onChange={(e) => setChannel(e.target.value)}><option value="whatsapp">WhatsApp</option><option value="email">Email</option></select>
           <button className="btn-primary" disabled={sel.size === 0 || !canSend} onClick={send}><Send size={16} /> Send reminders</button>
           {sel.size > 0 && (
             <span className="flex gap-2 border-l border-stone-300 pl-3">

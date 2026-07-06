@@ -9,7 +9,7 @@ import { ArrowLeft, Megaphone, Plus, Trash2, X } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 
 type Notice = { id: string; title: string; body: string; category: string; audienceRoles: string[]; audienceClasses?: string[]; branch?: string; channels: string[]; createdAt?: string };
-const CHANNELS = ["app", "sms", "whatsapp", "email"] as const;
+const CHANNELS = ["app", "whatsapp", "email"] as const;
 const CATEGORIES = ["school", "branch", "class", "holiday", "exam", "event", "fee", "emergency"] as const;
 
 export default function CircularsPage() {
@@ -91,7 +91,7 @@ export default function CircularsPage() {
             <div>
               <p className="mb-2 text-sm font-semibold text-[#303247]">Channels</p>
               <div className="flex flex-wrap gap-2">{CHANNELS.map((c) => <button type="button" key={c} onClick={() => toggle(channels, c, setChannels)} className={`rounded-full px-3 py-1.5 text-xs font-semibold capitalize ${channels.has(c) ? "bg-[#14a762] text-white" : "bg-white text-[#475067] ring-1 ring-[#e3e6f0]"}`}>{c}</button>)}</div>
-              <p className="mt-1 text-xs text-stone-400">App is delivered instantly; SMS/WhatsApp/Email are queued for the provider integration.</p>
+              <p className="mt-1 text-xs text-stone-400">App is delivered instantly; WhatsApp/Email are queued for the provider integration.</p>
             </div>
             <button className="btn-primary"><Megaphone size={16} /> Post notice</button>
           </form>

@@ -429,7 +429,7 @@ export type ExamMark = {
 };
 
 // ===== Phase 2: Communication (notices / circulars) =====
-export type NoticeChannel = "app" | "sms" | "whatsapp" | "email";
+export type NoticeChannel = "app" | "whatsapp" | "email";
 export type NoticeCategory = "school" | "branch" | "class" | "holiday" | "exam" | "event" | "fee" | "emergency";
 
 export type Notice = {

@@ -5,7 +5,7 @@ import { useAcademicYears } from "@/components/AcademicYearContext";
 import { useAdminSession } from "@/components/AdminSessionContext";
 import { AdminApiError, adminApiRequest } from "@/lib/adminApiClient";
 import { hasPermission } from "@sri-narayana/shared";
-import { ChevronDown, ChevronRight, MessageCircle, MessageSquare } from "lucide-react";
+import { ChevronDown, ChevronRight, MessageCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 
 type DueStudent = { id: string; name: string; phone?: string; parentName?: string; due: number };
@@ -25,12 +25,6 @@ function openWhatsApp(s: DueStudent, className: string) {
   if (!cleaned) return;
   const number = cleaned.length === 10 ? `91${cleaned}` : cleaned;
   window.open(`https://wa.me/${number}?text=${encodeURIComponent(reminderText(s, className))}`, "_blank");
-}
-
-function openSms(s: DueStudent, className: string) {
-  const cleaned = sanitizePhone(s.phone || "");
-  if (!cleaned) return;
-  window.open(`sms:${encodeURIComponent(cleaned)}?body=${encodeURIComponent(reminderText(s, className))}`, "_blank");
 }
 
 export default function DuesPage() {
@@ -93,9 +87,6 @@ export default function DuesPage() {
                         <div className="flex shrink-0 items-center gap-1">
                           <button onClick={() => openWhatsApp(s, c.className)} title="Send WhatsApp reminder" className="grid h-8 w-8 place-items-center rounded-lg text-[#25D366] transition hover:bg-[#25D366]/10">
                             <MessageCircle size={16} />
-                          </button>
-                          <button onClick={() => openSms(s, c.className)} title="Send SMS reminder" className="grid h-8 w-8 place-items-center rounded-lg text-[#4c6fff] transition hover:bg-[#4c6fff]/10">
-                            <MessageSquare size={16} />
                           </button>
                         </div>
                       )}
