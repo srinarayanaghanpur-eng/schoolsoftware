@@ -1,5 +1,6 @@
 "use client";
 
+import { DatePicker } from "@/components/DatePicker";
 import { PageHeader } from "@/components/PageHeader";
 import { ResponsiveTable, type Column } from "@/components/ResponsiveTable";
 import { useAdminSession } from "@/components/AdminSessionContext";
@@ -56,7 +57,7 @@ export default function IncomePage() {
           <form onSubmit={submit} className="card grid gap-4 p-5 sm:grid-cols-2">
             <label className="text-sm font-semibold text-[#303247]">Category<select className="field mt-1" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>{CATEGORIES.map((c) => <option key={c}>{c}</option>)}</select></label>
             <label className="text-sm font-semibold text-[#303247]">Amount (₹)<input className="field mt-1" type="number" min="1" required value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} /></label>
-            <label className="text-sm font-semibold text-[#303247]">Date<input className="field mt-1" type="date" required value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} /></label>
+            <label className="text-sm font-semibold text-[#303247]">Date<div className="mt-1"><DatePicker required value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} /></div></label>
             <label className="text-sm font-semibold text-[#303247]">Payment method<select className="field mt-1" value={form.paymentMethod} onChange={(e) => setForm({ ...form, paymentMethod: e.target.value })}>{METHODS.map((m) => <option key={m}>{m}</option>)}</select></label>
             <label className="text-sm font-semibold text-[#303247] sm:col-span-2">Description<input className="field mt-1" required value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></label>
             <div className="sm:col-span-2"><button className="btn-primary" disabled={saving}>{saving ? "Saving…" : "Save income"}</button></div>

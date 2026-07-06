@@ -21,13 +21,13 @@ export async function GET(req: Request) {
   const db = adminDb();
 
   const [paymentsSnap, incomesSnap, expensesSnap] = await Promise.all([
-    db.collection("payments").where("paymentMethod", "==", "cash").where("createdAt", ">=", fromDate).where("createdAt", "<=", toDate).orderBy("createdAt", "desc").limit(500).get(),
-    db.collection("incomes").where("paymentMethod", "==", "cash").where("createdAt", ">=", fromDate).where("createdAt", "<=", toDate).orderBy("createdAt", "desc").limit(500).get(),
-    db.collection("expenses").where("status", "==", "approved").where("paymentMethod", "==", "cash").where("createdAt", ">=", fromDate).where("createdAt", "<=", toDate).orderBy("createdAt", "desc").limit(500).get()
+    db.collection("payments").where("createdAt", ">=", fromDate).where("createdAt", "<=", toDate).orderBy("createdAt", "desc").limit(500).get(),
+    db.collection("incomes").where("createdAt", ">=", fromDate).where("createdAt", "<=", toDate).orderBy("createdAt", "desc").limit(500).get(),
+    db.collection("expenses").where("createdAt", ">=", fromDate).where("createdAt", "<=", toDate).orderBy("createdAt", "desc").limit(500).get()
   ]);
-  logFirestoreRead("FinanceCashBookAPI", "payments", paymentsSnap, { from, to, paymentMethod: "cash", limit: 500 });
-  logFirestoreRead("FinanceCashBookAPI", "incomes", incomesSnap, { from, to, paymentMethod: "cash", limit: 500 });
-  logFirestoreRead("FinanceCashBookAPI", "expenses", expensesSnap, { from, to, status: "approved", paymentMethod: "cash", limit: 500 });
+  logFirestoreRead("FinanceCashBookAPI", "payments", paymentsSnap, { from, to, paymentMethodFilter: "cash", limit: 500 });
+  logFirestoreRead("FinanceCashBookAPI", "incomes", incomesSnap, { from, to, paymentMethodFilter: "cash", limit: 500 });
+  logFirestoreRead("FinanceCashBookAPI", "expenses", expensesSnap, { from, to, statusFilter: "approved", paymentMethodFilter: "cash", limit: 500 });
 
   const entries: CashEntry[] = [];
   const push = (snap: FirebaseFirestore.QuerySnapshot, map: (d: Record<string, unknown>, id: string) => CashEntry | null) => {
@@ -40,9 +40,9 @@ export async function GET(req: Request) {
     });
   };
 
-  push(paymentsSnap, (d, id) => ({ date: "", type: "income", category: "fee", description: `Fee · ${d.paymentType || "Payment"}`, amount: Number(d.amountPaid) || 0, balance: 0, source: "fee", refId: id }));
-  push(incomesSnap, (d, id) => ({ date: "", type: "income", category: String(d.category || "income"), description: String(d.description || ""), amount: Number(d.amount) || 0, balance: 0, source: "income", refId: id }));
-  push(expensesSnap, (d, id) => ({ date: "", type: "expense", category: String(d.category || "expense"), description: String(d.description || ""), amount: Number(d.amount) || 0, balance: 0, source: "expense", refId: id }));
+  push(paymentsSnap, (d, id) => String(d.paymentMethod || "").toLowerCase() === "cash" ? { date: "", type: "income", category: "fee", description: `Fee · ${d.paymentType || "Payment"}`, amount: Number(d.amountPaid) || 0, balance: 0, source: "fee", refId: id } : null);
+  push(incomesSnap, (d, id) => String(d.paymentMethod || "").toLowerCase() === "cash" ? { date: "", type: "income", category: String(d.category || "income"), description: String(d.description || ""), amount: Number(d.amount) || 0, balance: 0, source: "income", refId: id } : null);
+  push(expensesSnap, (d, id) => String(d.status || "").toLowerCase() === "approved" && String(d.paymentMethod || "").toLowerCase() === "cash" ? { date: "", type: "expense", category: String(d.category || "expense"), description: String(d.description || ""), amount: Number(d.amount) || 0, balance: 0, source: "expense", refId: id } : null);
 
   entries.sort((a, b) => a.date.localeCompare(b.date));
   let balance = 0;

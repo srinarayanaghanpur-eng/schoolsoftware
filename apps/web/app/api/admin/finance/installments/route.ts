@@ -3,10 +3,17 @@ import { FieldValue } from "firebase-admin/firestore";
 import { installmentPlanCreateSchema } from "@sri-narayana/shared";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { requirePermission, serializeDoc } from "@/lib/apiUtils";
-import { docCursor, logFirestoreRead, readLimit } from "@/lib/firestoreReadLogger";
+import { logFirestoreRead, readLimit } from "@/lib/firestoreReadLogger";
 import { getSchoolId } from "@/lib/schoolScope";
 
 const COLLECTION = "installment_plans";
+
+function timeValue(value: unknown) {
+  if (value && typeof value === "object" && "toMillis" in value && typeof value.toMillis === "function") return value.toMillis();
+  if (value instanceof Date) return value.getTime();
+  const parsed = new Date(String(value ?? "")).getTime();
+  return Number.isFinite(parsed) ? parsed : 0;
+}
 
 // GET /api/admin/finance/installments?studentId=
 export async function GET(req: Request) {
@@ -20,22 +27,25 @@ export async function GET(req: Request) {
   const academicYearId = searchParams.get("academicYearId") || "";
   const schoolId = searchParams.get("schoolId") || "";
   const pageSize = readLimit(searchParams.get("pageSize") ?? searchParams.get("limit"), 25, 100);
-  const cursor = docCursor(searchParams.get("cursor"));
-  if (studentId) query = query.where("studentId", "==", studentId);
+  const cursor = searchParams.get("cursor")?.trim() || "";
   if (academicYearId) query = query.where("academicYearId", "==", academicYearId);
-  if (schoolId) query = query.where("schoolId", "==", schoolId);
-  query = query.orderBy("createdAt", "desc");
+  else if (studentId) query = query.where("studentId", "==", studentId);
+  else if (schoolId) query = query.where("schoolId", "==", schoolId);
 
-  if (cursor) {
-    const cursorDoc = await db.collection(COLLECTION).doc(cursor).get();
-    if (cursorDoc.exists) query = query.startAfter(cursorDoc);
-  }
-
-  const snap = await query.limit(pageSize + 1).get();
+  const snap = await query.limit(500).get();
   logFirestoreRead("FinanceInstallmentsAPI", COLLECTION, snap, { studentId, academicYearId, schoolId, pageSize });
-  const pageDocs = snap.docs.slice(0, pageSize);
+  const filteredDocs = snap.docs
+    .filter((doc) => {
+      const data = doc.data();
+      return (!studentId || String(data.studentId || "") === studentId)
+        && (!academicYearId || String(data.academicYearId || "") === academicYearId)
+        && (!schoolId || String(data.schoolId || "") === schoolId);
+    })
+    .sort((left, right) => timeValue(right.data().createdAt) - timeValue(left.data().createdAt));
+  const startIndex = cursor ? Math.max(0, filteredDocs.findIndex((doc) => doc.id === cursor) + 1) : 0;
+  const pageDocs = filteredDocs.slice(startIndex, startIndex + pageSize);
   const plans = pageDocs.map((d) => serializeDoc(d));
-  const nextCursor = snap.docs.length > pageSize && pageDocs.length > 0 ? pageDocs[pageDocs.length - 1].id : null;
+  const nextCursor = startIndex + pageSize < filteredDocs.length && pageDocs.length > 0 ? pageDocs[pageDocs.length - 1].id : null;
   return NextResponse.json({ ok: true, plans, pageSize, nextCursor, hasMore: Boolean(nextCursor) });
 }
 

@@ -24,18 +24,18 @@ export const BACK_OFFICE_ROLES: readonly UserRole[] = [
   "admin",
   "principal",
   "accountant",
-  "receptionist"
+  "receptionist",
+  "settings_manager"
 ];
 
 export const routePermissions: RoutePermission[] = [
   // Sensitive sub-areas (more specific than /admin, so they win the prefix match)
   { path: "/admin/finance", roles: ["super_admin", "admin", "accountant"] },
-  { path: "/admin/settings", roles: ["super_admin"] },
-  // Academic-year management is super_admin only (explicit for clarity; also
-  // covered by the /admin/settings rule above).
-  { path: "/admin/settings/academic-years", roles: ["super_admin"] },
-  { path: "/admin/users", roles: ["super_admin", "admin"] },
-  { path: "/admin/roles", roles: ["super_admin"] },
+  { path: "/admin/settings", roles: ["super_admin", "settings_manager"] },
+  // Academic-year management is super_admin / settings_manager only.
+  { path: "/admin/settings/academic-years", roles: ["super_admin", "settings_manager"] },
+  { path: "/admin/users", roles: ["super_admin", "admin", "settings_manager"] },
+  { path: "/admin/roles", roles: ["super_admin", "settings_manager"] },
 
   // Portals
   { path: "/teacher", roles: ["teacher"] },

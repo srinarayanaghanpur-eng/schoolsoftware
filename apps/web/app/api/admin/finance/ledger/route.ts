@@ -24,14 +24,14 @@ export async function GET(req: Request) {
   const [paymentsSnap, incomesSnap, expensesSnap, salarySnap, advancesSnap] = await Promise.all([
     db.collection("payments").where("createdAt", ">=", fromDate).where("createdAt", "<=", toDate).orderBy("createdAt", "desc").limit(500).get(),
     db.collection("incomes").where("createdAt", ">=", fromDate).where("createdAt", "<=", toDate).orderBy("createdAt", "desc").limit(500).get(),
-    db.collection("expenses").where("status", "==", "approved").where("createdAt", ">=", fromDate).where("createdAt", "<=", toDate).orderBy("createdAt", "desc").limit(500).get(),
-    db.collection("salary_reports").where("paid", "==", true).where("paidAt", ">=", fromDate).where("paidAt", "<=", toDate).orderBy("paidAt", "desc").limit(500).get(),
+    db.collection("expenses").where("createdAt", ">=", fromDate).where("createdAt", "<=", toDate).orderBy("createdAt", "desc").limit(500).get(),
+    db.collection("salary_reports").where("paidAt", ">=", fromDate).where("paidAt", "<=", toDate).orderBy("paidAt", "desc").limit(500).get(),
     db.collection("salary_advances").where("createdAt", ">=", fromDate).where("createdAt", "<=", toDate).orderBy("createdAt", "desc").limit(500).get()
   ]);
   logFirestoreRead("FinanceLedgerAPI", "payments", paymentsSnap, { from, to, limit: 500 });
   logFirestoreRead("FinanceLedgerAPI", "incomes", incomesSnap, { from, to, limit: 500 });
-  logFirestoreRead("FinanceLedgerAPI", "expenses", expensesSnap, { from, to, status: "approved", limit: 500 });
-  logFirestoreRead("FinanceLedgerAPI", "salary_reports", salarySnap, { from, to, paid: true, limit: 500 });
+  logFirestoreRead("FinanceLedgerAPI", "expenses", expensesSnap, { from, to, statusFilter: "approved", limit: 500 });
+  logFirestoreRead("FinanceLedgerAPI", "salary_reports", salarySnap, { from, to, paidFilter: true, limit: 500 });
   logFirestoreRead("FinanceLedgerAPI", "salary_advances", advancesSnap, { from, to, limit: 500 });
 
   const entries: Entry[] = [];
@@ -47,8 +47,8 @@ export async function GET(req: Request) {
 
   push(paymentsSnap, (d, id) => ({ date: "", type: "income", category: "fee", description: `Fee · ${d.paymentType || ""}`, amount: Number(d.amountPaid) || 0, source: "fee", refId: id }));
   push(incomesSnap, (d, id) => ({ date: "", type: "income", category: String(d.category || "income"), description: String(d.description || ""), amount: Number(d.amount) || 0, source: "income", refId: id }));
-  push(expensesSnap, (d, id) => ({ date: "", type: "expense", category: String(d.category || "expense"), description: String(d.description || ""), amount: Number(d.amount) || 0, source: "expense", refId: id }));
-  push(salarySnap, (d, id) => ({ date: "", type: "expense", category: "salary", description: `Salary · ${d.teacherName || ""} ${d.month || ""}`, amount: Number(d.netPayable) || 0, source: "salary", refId: id }), ["paidAt", "month"]);
+  push(expensesSnap, (d, id) => String(d.status || "").toLowerCase() === "approved" ? { date: "", type: "expense", category: String(d.category || "expense"), description: String(d.description || ""), amount: Number(d.amount) || 0, source: "expense", refId: id } : null);
+  push(salarySnap, (d, id) => d.paid === true ? { date: "", type: "expense", category: "salary", description: `Salary · ${d.teacherName || ""} ${d.month || ""}`, amount: Number(d.netPayable) || 0, source: "salary", refId: id } : null, ["paidAt", "month"]);
   push(advancesSnap, (d, id) => ({ date: "", type: "expense", category: "salary_advance", description: `Advance · ${d.teacherName || ""}`, amount: Number(d.amount) || 0, source: "advance", refId: id }));
 
   // oldest → newest to compute running balance, then return newest first

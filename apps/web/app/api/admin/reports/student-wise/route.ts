@@ -31,16 +31,22 @@ export async function GET(request: NextRequest) {
 
     let query: FirebaseFirestore.Query = db.collection('studentFeeSummaries');
     if (academicYearId) query = query.where("academicYearId", "==", academicYearId);
-    if (classFilter) query = query.where('classId', '==', classFilter);
-    if (sectionFilter) query = query.where("sectionId", "==", sectionFilter);
-    query = query.orderBy("studentName", "asc").limit(pageSize);
+    query = query.limit(500);
 
     const snapshot = await query.get();
     logFirestoreRead("StudentWiseReportAPI", "studentFeeSummaries", snapshot, { academicYearId, classFilter, sectionFilter, pageSize });
-    const students = snapshot.docs.map((d) => ({
-      id: d.id,
-      ...d.data()
-    }));
+    const students = snapshot.docs
+      .map((d) => ({
+        id: d.id,
+        ...d.data()
+      }))
+      .filter((student: any) => {
+        if (classFilter && student.classId !== classFilter && student.className !== classFilter && student.class !== classFilter) return false;
+        if (sectionFilter && student.sectionId !== sectionFilter && student.sectionName !== sectionFilter && student.section !== sectionFilter) return false;
+        return true;
+      })
+      .sort((a: any, b: any) => String(a.studentName || "").localeCompare(String(b.studentName || "")))
+      .slice(0, pageSize);
 
     const report = students.map((student: any) => {
       const totalPaid = Number(student.totalPaid) || 0;

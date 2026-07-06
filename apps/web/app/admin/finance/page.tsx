@@ -45,6 +45,8 @@ const XAxisAny = XAxis as unknown as ComponentType<any>;
 const YAxisAny = YAxis as unknown as ComponentType<any>;
 const TooltipAny = Tooltip as unknown as ComponentType<any>;
 
+const TRANSACTIONS_PER_PAGE = 25;
+
 const chartLabelColor = "hsl(var(--chart-label))";
 const chartGridColor = "hsl(var(--chart-grid))";
 const chartTooltipStyle = {
@@ -138,11 +140,16 @@ export default function FinanceDashboardPage() {
   const [data, setData] = useState<FinanceDashboardPayload | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [transactionPage, setTransactionPage] = useState(1);
 
   const range = useMemo(() => rangeForMode(rangeMode), [rangeMode]);
   const feeCollection = data?.feeCollection ?? [];
   const bars = data?.bars ?? [];
   const transactions = data?.transactions ?? [];
+  const transactionPageCount = Math.max(1, Math.ceil(transactions.length / TRANSACTIONS_PER_PAGE));
+  const currentTransactionPage = Math.min(transactionPage, transactionPageCount);
+  const transactionStart = (currentTransactionPage - 1) * TRANSACTIONS_PER_PAGE;
+  const pagedTransactions = transactions.slice(transactionStart, transactionStart + TRANSACTIONS_PER_PAGE);
   const collectedPercent = feeCollection.find((item) => item.name === "Collected")?.percent ?? 0;
   const targetLabel = formatINR(data?.collectionTarget ?? 0);
 
@@ -164,6 +171,7 @@ export default function FinanceDashboardPage() {
         `/api/admin/finance/dashboard?from=${encodeURIComponent(range.from)}&to=${encodeURIComponent(range.to)}`
       );
       setData(result);
+      setTransactionPage(1);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to load finance dashboard");
     } finally {
@@ -359,8 +367,8 @@ export default function FinanceDashboardPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {transactions.map((tx) => (
-                    <tr key={`${tx.date}-${tx.type}-${tx.description}-${tx.amount}`} className="border-t border-border">
+                  {pagedTransactions.map((tx, index) => (
+                    <tr key={`${transactionStart + index}-${tx.date}-${tx.type}-${tx.description}-${tx.amount}`} className="border-t border-border">
                       <td className="px-5 py-4 font-semibold text-muted-foreground">{formatDate(tx.date)}</td>
                       <td className="px-5 py-4">
                         <span className={`rounded-full px-2.5 py-1 text-xs font-extrabold ${tx.type === "Income" ? "bg-[#edfdf4] text-[#0a9255] dark:bg-emerald-500/15 dark:text-emerald-300" : "bg-[#fff1f1] text-[#d84d5b] dark:bg-rose-500/15 dark:text-rose-300"}`}>
@@ -387,6 +395,34 @@ export default function FinanceDashboardPage() {
                 </tbody>
               </table>
             </div>
+            {transactions.length > TRANSACTIONS_PER_PAGE && (
+              <div className="flex flex-col gap-3 border-t border-border px-5 py-4 text-sm font-bold text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+                <span>
+                  Showing {transactionStart + 1}-{Math.min(transactionStart + TRANSACTIONS_PER_PAGE, transactions.length)} of {transactions.length}
+                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    className="rounded-xl border border-border bg-muted px-3 py-2 text-xs font-extrabold text-foreground transition hover:bg-card disabled:cursor-not-allowed disabled:opacity-50"
+                    disabled={currentTransactionPage <= 1}
+                    onClick={() => setTransactionPage((page) => Math.max(1, page - 1))}
+                  >
+                    Previous
+                  </button>
+                  <span className="px-2 text-xs font-extrabold">
+                    Page {currentTransactionPage} of {transactionPageCount}
+                  </span>
+                  <button
+                    type="button"
+                    className="rounded-xl border border-border bg-muted px-3 py-2 text-xs font-extrabold text-foreground transition hover:bg-card disabled:cursor-not-allowed disabled:opacity-50"
+                    disabled={currentTransactionPage >= transactionPageCount}
+                    onClick={() => setTransactionPage((page) => Math.min(transactionPageCount, page + 1))}
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
           </article>
 
           <article className="rounded-2xl border border-border bg-card p-5 text-card-foreground shadow-[0_12px_30px_rgba(31,41,100,0.06)] dark:bg-slate-900 dark:shadow-black/20">

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { DatePicker } from "@/components/DatePicker";
 import { PageHeader } from "@/components/PageHeader";
 import { useAcademicYears } from "@/components/AcademicYearContext";
 import { useAdminSession } from "@/components/AdminSessionContext";
@@ -244,27 +245,27 @@ export default function CreateConcessionPage() {
                 <label className="block text-sm font-semibold text-[#303247]">
                   Valid From *
                 </label>
-                <input
-                  type="date"
-                  name="validFrom"
-                  value={formData.validFrom}
-                  onChange={handleChange}
-                  required
-                  className="field mt-2"
-                />
+                <div className="mt-2">
+                  <DatePicker
+                    name="validFrom"
+                    value={formData.validFrom}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, validFrom: e.target.value }))}
+                    required
+                  />
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-semibold text-[#303247]">
                   Valid Upto *
                 </label>
-                <input
-                  type="date"
-                  name="validUpto"
-                  value={formData.validUpto}
-                  onChange={handleChange}
-                  required
-                  className="field mt-2"
-                />
+                <div className="mt-2">
+                  <DatePicker
+                    name="validUpto"
+                    value={formData.validUpto}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, validUpto: e.target.value }))}
+                    required
+                  />
+                </div>
               </div>
             </div>
 

@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Sri Narayana Staff Attendance",
-    "slug": "sri-narayana-staff-attendance",
+    "name": "Sri Narayana High School – School ERP",
+    "slug": "sri-narayana-school-erp",
     "scheme": "sna",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -11,13 +11,13 @@
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "Allow Sri Narayana Staff Attendance to use your location for campus attendance."
+          "locationAlwaysAndWhenInUsePermission": "Allow Sri Narayana School ERP to use your location for campus attendance."
         }
       ],
       [
         "expo-camera",
         {
-          "cameraPermission": "Allow Sri Narayana Staff Attendance to use your camera."
+          "cameraPermission": "Allow Sri Narayana School ERP to use your camera."
         }
       ]
     ],

@@ -1,5 +1,6 @@
 "use client";
 
+import { DatePicker } from "@/components/DatePicker";
 import { DeclareHolidayModal } from "@/components/DeclareHolidayModal";
 import { PageHeader } from "@/components/PageHeader";
 import { useAdminSession } from "@/components/AdminSessionContext";
@@ -114,7 +115,7 @@ export default function HolidaysPage() {
         {showForm && (
           <form className="card grid gap-3 p-4 md:grid-cols-4" onSubmit={saveHoliday}>
             <input className="field" value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} placeholder="Holiday title" required />
-            <input className="field" type="date" value={form.date} onChange={(event) => setForm({ ...form, date: event.target.value })} required />
+            <DatePicker value={form.date} onChange={(event) => setForm({ ...form, date: event.target.value })} required />
             <select className="field" value={form.type} onChange={(event) => setForm({ ...form, type: event.target.value })}>
               <option value="school">School</option>
               <option value="public">Public</option>

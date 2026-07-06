@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, FileDown, Printer } from "lucide-react";
+import { DatePicker } from "@/components/DatePicker";
 import { PageHeader } from "@/components/PageHeader";
 import { useAdminSession } from "@/components/AdminSessionContext";
 import { useAcademicYears } from "@/components/AcademicYearContext";
@@ -123,7 +124,7 @@ export default function BusFinanceReportsPage() {
           {type === "monthly" && (
             <label className="block">
               <span className="text-xs font-semibold text-[#5b6478]">Month</span>
-              <input type="month" className="field mt-1" value={month} onChange={(e) => setMonth(e.target.value)} />
+              <div className="mt-1"><DatePicker type="month" value={month} onChange={(e) => setMonth(e.target.value)} /></div>
             </label>
           )}
           {type === "yearly" && (

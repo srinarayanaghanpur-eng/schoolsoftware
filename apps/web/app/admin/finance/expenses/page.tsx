@@ -1,5 +1,6 @@
 "use client";
 
+import { DatePicker } from "@/components/DatePicker";
 import { PageHeader } from "@/components/PageHeader";
 import { useAdminSession } from "@/components/AdminSessionContext";
 import { AdminApiError, adminApiRequest } from "@/lib/adminApiClient";
@@ -68,7 +69,7 @@ export default function ExpensesPage() {
               <input className="field mt-1" type="number" min="1" required value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} />
             </label>
             <label className="text-sm font-semibold text-[#303247]">Date
-              <input className="field mt-1" type="date" required value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
+              <div className="mt-1"><DatePicker required value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} /></div>
             </label>
             <label className="text-sm font-semibold text-[#303247]">Payment method
               <select className="field mt-1" value={form.paymentMethod} onChange={(e) => setForm({ ...form, paymentMethod: e.target.value })}>{METHODS.map((m) => <option key={m} value={m}>{m}</option>)}</select>

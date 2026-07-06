@@ -5,11 +5,25 @@ import { useAcademicYears } from "@/components/AcademicYearContext";
 import { useAdminSession } from "@/components/AdminSessionContext";
 import { AdminApiError, adminApiRequest } from "@/lib/adminApiClient";
 import { hasPermission } from "@sri-narayana/shared";
-import { Send } from "lucide-react";
+import { MessageCircle, Send } from "lucide-react";
 import { useEffect, useState } from "react";
 
 type Reminder = { studentId: string; name: string; className: string; phone: string; due: number };
 function inr(n: number) { return `₹${(n || 0).toLocaleString("en-IN")}`; }
+
+function sanitizePhone(raw: string): string {
+  return raw.replace(/[\s\-\(\)\.\+\#\*\[\]]/g, "").replace(/^0+/, "");
+}
+
+function whatsAppUrl(phone: string, text: string): string {
+  const cleaned = sanitizePhone(phone);
+  const number = cleaned.length === 10 ? `91${cleaned}` : cleaned;
+  return `https://wa.me/${number}?text=${encodeURIComponent(text)}`;
+}
+
+function openWhatsApp(phone: string, text: string) {
+  window.open(whatsAppUrl(phone, text), "_blank");
+}
 
 export default function RemindersPage() {
   const { role } = useAdminSession();
@@ -21,6 +35,7 @@ export default function RemindersPage() {
   const [error, setError] = useState("");
   const [msg, setMsg] = useState("");
   const [loading, setLoading] = useState(true);
+  const [waMessage, setWaMessage] = useState("");
 
   useEffect(() => {
     (async () => {
@@ -62,7 +77,15 @@ export default function RemindersPage() {
           <span className="text-sm font-semibold text-[#7d86a8]">{sel.size} selected of {list.length} with dues</span>
           <select className="field ml-auto max-w-[160px]" value={channel} onChange={(e) => setChannel(e.target.value)}><option value="sms">SMS</option><option value="whatsapp">WhatsApp</option><option value="email">Email</option></select>
           <button className="btn-primary" disabled={sel.size === 0 || !canSend} onClick={send}><Send size={16} /> Send reminders</button>
+          {sel.size > 0 && (
+            <span className="flex gap-2 border-l border-stone-300 pl-3">
+              <button className="btn-outline" onClick={() => { list.filter((r) => sel.has(r.studentId) && r.phone).forEach((r) => openWhatsApp(r.phone, waMessage || `Dear Parent, your child ${r.name} has a fee balance of ${inr(r.due)}. Please clear the dues at your earliest.`)); }} disabled={!waMessage.trim() && !sel.size}><MessageCircle size={16} /> Send WhatsApp One-by-One</button>
+              <button className="btn-outline" onClick={async () => { const links = list.filter((r) => sel.has(r.studentId) && r.phone).map((r) => whatsAppUrl(r.phone, waMessage || `Dear Parent, your child ${r.name} has a fee balance of ${inr(r.due)}. Please clear the dues at your earliest.`)); try { await navigator.clipboard.writeText(links.join("\n")); setMsg("WhatsApp links copied!"); } catch { setError("Failed to copy links"); } }} disabled={sel.size === 0}><MessageCircle size={16} /> Copy WhatsApp Links</button>
+              <button className="btn-outline" onClick={() => { const links = list.filter((r) => sel.has(r.studentId) && r.phone).map((r) => `${r.name}\t${r.phone}\t${whatsAppUrl(r.phone, waMessage || `Dear Parent, your child ${r.name} has a fee balance of ${inr(r.due)}. Please clear the dues at your earliest.`)}`).join("\n"); const blob = new Blob([`Name\tPhone\tWhatsApp Link\n${links}`], { type: "text/csv" }); const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = "whatsapp-links.csv"; a.click(); URL.revokeObjectURL(url); }} disabled={sel.size === 0}><MessageCircle size={16} /> Export WhatsApp Links</button>
+            </span>
+          )}
         </div>
+        <textarea className="field w-full max-w-2xl" rows={2} placeholder="Compose WhatsApp message… (optional — uses default if empty)" value={waMessage} onChange={(e) => setWaMessage(e.target.value)} />
 
         <div className="card overflow-x-auto">
           <table className="w-full min-w-[560px] text-left text-sm">
@@ -73,7 +96,7 @@ export default function RemindersPage() {
               : list.map((r) => (
                 <tr key={r.studentId} className="border-t border-stone-100">
                   <td className="px-4 py-3"><input type="checkbox" checked={sel.has(r.studentId)} onChange={() => toggle(r.studentId)} /></td>
-                  <td className="px-4 py-3 font-semibold text-[#303247]">{r.name}</td><td className="px-4 py-3">{r.className}</td><td className="px-4 py-3 text-stone-500">{r.phone || "—"}</td>
+                  <td className="px-4 py-3 font-semibold text-[#303247]">{r.name}</td><td className="px-4 py-3">{r.className}</td><td className="px-4 py-3 text-stone-500">{r.phone ? <span className="inline-flex items-center gap-2">{r.phone} <button className="btn-text text-xs" title="Send via WhatsApp" onClick={() => openWhatsApp(r.phone, waMessage || `Dear Parent, your child ${r.name} has a fee balance of ${inr(r.due)}. Please clear the dues at your earliest.`)}><MessageCircle size={14} /> WhatsApp</button></span> : "—"}</td>
                   <td className="px-4 py-3 text-right font-bold text-[#e29813]">{inr(r.due)}</td>
                 </tr>
               ))}

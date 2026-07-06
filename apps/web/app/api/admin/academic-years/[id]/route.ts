@@ -8,8 +8,8 @@ const COLLECTION = "academic_years";
 
 // PATCH /api/admin/academic-years/[id] — edit name/dates.
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
-  const token = await requireRole(req, ["super_admin"]);
-  if (!token) return NextResponse.json({ ok: false, error: "Super admin access required" }, { status: 403 });
+  const token = await requireRole(req, ["super_admin", "settings_manager"]);
+  if (!token) return NextResponse.json({ ok: false, error: "Super admin or settings manager access required" }, { status: 403 });
 
   try {
     const parsed = academicYearCreateSchema.partial().parse(await req.json());
@@ -27,7 +27,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 
 // DELETE /api/admin/academic-years/[id] — cannot delete the active year.
 export async function DELETE(req: Request, { params }: { params: { id: string } }) {
-  const token = await requireRole(req, ["super_admin"]);
+  const token = await requireRole(req, ["super_admin", "settings_manager"]);
   if (!token) return NextResponse.json({ ok: false, error: "Super admin access required" }, { status: 403 });
 
   const ref = adminDb().collection(COLLECTION).doc(params.id);

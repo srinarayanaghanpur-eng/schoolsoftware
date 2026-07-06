@@ -23,18 +23,21 @@ export async function GET(req: Request) {
   const [paymentsSnap, incomesSnap, expensesSnap, salarySnap, advancesSnap] = await Promise.all([
     db.collection("payments").where("createdAt", ">=", fromDate).where("createdAt", "<=", toDate).orderBy("createdAt", "desc").limit(1000).get(),
     db.collection("incomes").where("createdAt", ">=", fromDate).where("createdAt", "<=", toDate).orderBy("createdAt", "desc").limit(1000).get(),
-    db.collection("expenses").where("status", "==", "approved").where("createdAt", ">=", fromDate).where("createdAt", "<=", toDate).orderBy("createdAt", "desc").limit(1000).get(),
-    db.collection("salary_reports").where("paid", "==", true).where("paidAt", ">=", fromDate).where("paidAt", "<=", toDate).orderBy("paidAt", "desc").limit(1000).get(),
+    db.collection("expenses").where("createdAt", ">=", fromDate).where("createdAt", "<=", toDate).orderBy("createdAt", "desc").limit(1000).get(),
+    db.collection("salary_reports").where("paidAt", ">=", fromDate).where("paidAt", "<=", toDate).orderBy("paidAt", "desc").limit(1000).get(),
     db.collection("salary_advances").where("createdAt", ">=", fromDate).where("createdAt", "<=", toDate).orderBy("createdAt", "desc").limit(1000).get()
   ]);
   logFirestoreRead("FinanceProfitLossAPI", "payments", paymentsSnap, { from, to, limit: 1000 });
   logFirestoreRead("FinanceProfitLossAPI", "incomes", incomesSnap, { from, to, limit: 1000 });
-  logFirestoreRead("FinanceProfitLossAPI", "expenses", expensesSnap, { from, to, status: "approved", limit: 1000 });
-  logFirestoreRead("FinanceProfitLossAPI", "salary_reports", salarySnap, { from, to, paid: true, limit: 1000 });
+  logFirestoreRead("FinanceProfitLossAPI", "expenses", expensesSnap, { from, to, statusFilter: "approved", limit: 1000 });
+  logFirestoreRead("FinanceProfitLossAPI", "salary_reports", salarySnap, { from, to, paidFilter: true, limit: 1000 });
   logFirestoreRead("FinanceProfitLossAPI", "salary_advances", advancesSnap, { from, to, limit: 1000 });
 
-  const filterDocs = (snap: FirebaseFirestore.QuerySnapshot, prefer: string[] = []) =>
-    snap.docs.filter((d) => inRange(docDateKey(d.data(), ...prefer), from, to));
+  const filterDocs = (snap: FirebaseFirestore.QuerySnapshot, prefer: string[] = [], filter: (data: Record<string, unknown>) => boolean = () => true) =>
+    snap.docs.filter((d) => {
+      const data = d.data();
+      return filter(data) && inRange(docDateKey(data, ...prefer), from, to);
+    });
 
   const sumField = (docs: FirebaseFirestore.QueryDocumentSnapshot[], field: string) =>
     docs.reduce((acc, d) => acc + (Number(d.data()[field]) || 0), 0);
@@ -50,8 +53,8 @@ export async function GET(req: Request) {
 
   const fees = filterDocs(paymentsSnap);
   const otherIncome = filterDocs(incomesSnap);
-  const expenses = filterDocs(expensesSnap);
-  const salaries = filterDocs(salarySnap, ["paidAt", "month"]);
+  const expenses = filterDocs(expensesSnap, [], (data) => String(data.status || "").toLowerCase() === "approved");
+  const salaries = filterDocs(salarySnap, ["paidAt", "month"], (data) => data.paid === true);
   const advances = filterDocs(advancesSnap);
 
   const incomeBreakdown: Breakdown[] = [];

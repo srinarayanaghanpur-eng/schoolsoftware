@@ -1,5 +1,6 @@
 "use client";
 
+import { DatePicker } from "@/components/DatePicker";
 import { PageHeader } from "@/components/PageHeader";
 import { auth, isFirebaseConfigured } from "@sri-narayana/shared/firebase/client";
 import {
@@ -153,7 +154,7 @@ export default function TeacherSalaryPage() {
       <section className="space-y-6 p-4 md:p-6">
         {/* Month Selector */}
         <div className="card flex items-center gap-3 p-4">
-          <input className="field max-w-xs" type="month" value={month} onChange={(e) => setMonth(e.target.value)} />
+          <div className="w-full max-w-xs"><DatePicker type="month" value={month} onChange={(e) => setMonth(e.target.value)} /></div>
         </div>
         {report.calculationWarning && (
           <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">

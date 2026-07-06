@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import { DatePicker } from "@/components/DatePicker";
 import { PageHeader } from "@/components/PageHeader";
 import { useAdminSession } from "@/components/AdminSessionContext";
 import { useAcademicYears } from "@/components/AcademicYearContext";
@@ -111,8 +112,8 @@ export default function CreateBusFinancePage() {
           <Field label="Vehicle Number *"><input name="vehicleNumber" value={form.vehicleNumber} onChange={change} required className="field mt-1" /></Field>
           <Field label="Finance Company / Bank *"><input name="financeCompany" value={form.financeCompany} onChange={change} required className="field mt-1" /></Field>
           <Field label="Loan Account Number *"><input name="loanAccountNumber" value={form.loanAccountNumber} onChange={change} required className="field mt-1" /></Field>
-          <Field label="Loan Start Date *"><input type="date" name="loanStartDate" value={form.loanStartDate} onChange={change} required className="field mt-1" /></Field>
-          <Field label="Loan End Date *"><input type="date" name="loanEndDate" value={form.loanEndDate} onChange={change} required className="field mt-1" /></Field>
+          <Field label="Loan Start Date *"><div className="mt-1"><DatePicker name="loanStartDate" value={form.loanStartDate} onChange={(e) => setForm((prev) => ({ ...prev, loanStartDate: e.target.value }))} required /></div></Field>
+          <Field label="Loan End Date *"><div className="mt-1"><DatePicker name="loanEndDate" value={form.loanEndDate} onChange={(e) => setForm((prev) => ({ ...prev, loanEndDate: e.target.value }))} required /></div></Field>
           <Field label="Total Loan Amount (₹) *"><input type="number" min="0" name="totalLoanAmount" value={form.totalLoanAmount} onChange={change} required className="field mt-1" /></Field>
           <Field label="Down Payment (₹)"><input type="number" min="0" name="downPayment" value={form.downPayment} onChange={change} className="field mt-1" /></Field>
           <Field label="EMI Amount (₹) *"><input type="number" min="0" name="emiAmount" value={form.emiAmount} onChange={change} required className="field mt-1" /></Field>

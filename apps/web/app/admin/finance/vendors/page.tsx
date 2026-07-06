@@ -1,5 +1,6 @@
 "use client";
 
+import { DatePicker } from "@/components/DatePicker";
 import { PageHeader } from "@/components/PageHeader";
 import { useAdminSession } from "@/components/AdminSessionContext";
 import { AdminApiError, adminApiRequest } from "@/lib/adminApiClient";
@@ -67,7 +68,7 @@ export default function VendorsPage() {
               <form onSubmit={addPurchase} className="grid gap-2 border-t border-stone-100 p-4 sm:grid-cols-2">
                 <select className="field" required value={pForm.vendorId} onChange={(e) => setPForm({ ...pForm, vendorId: e.target.value })}><option value="">Select vendor</option>{vendors.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}</select>
                 <input className="field" type="number" min="1" placeholder="Amount ₹" required value={pForm.amount} onChange={(e) => setPForm({ ...pForm, amount: e.target.value })} />
-                <input className="field" type="date" value={pForm.date} onChange={(e) => setPForm({ ...pForm, date: e.target.value })} />
+                <DatePicker value={pForm.date} onChange={(e) => setPForm({ ...pForm, date: e.target.value })} />
                 <input className="field" placeholder="Category" value={pForm.category} onChange={(e) => setPForm({ ...pForm, category: e.target.value })} />
                 <button className="btn-primary sm:col-span-2">Add bill</button>
               </form>

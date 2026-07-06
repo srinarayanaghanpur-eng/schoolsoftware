@@ -4,8 +4,8 @@ import { ServiceWorkerInit, OfflineStatusIndicator } from "@/components/OfflineS
 import { ThemeProvider } from "@/components/ThemeProvider";
 
 export const metadata = {
-  title: "SRI NARAYANA HIGH SCHOOL",
-  description: "Teacher attendance, biometric sync, salary and reports for SRI NARAYANA HIGH SCHOOL",
+  title: "Sri Narayana High School – School ERP",
+  description: "School ERP – attendance, fee, finance, exams, and staff management for Sri Narayana High School",
   manifest: "/manifest.json",
   icons: {
     icon: "/sri-narayana-high-school-logo.jpg",
@@ -31,7 +31,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-        <meta name="apple-mobile-web-app-title" content="School ERP" />
+        <meta name="apple-mobile-web-app-title" content="SNHS ERP" />
         <script dangerouslySetInnerHTML={{
           __html: `(function(){try{var e=localStorage.getItem("erp-theme"),r=window.matchMedia("(prefers-color-scheme:dark)").matches;document.documentElement.classList.toggle("dark",e==="dark"||(!e&&r))}catch(e){}})()`
         }} />

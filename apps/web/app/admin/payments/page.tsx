@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { CheckCircle2, Plus, Printer, XCircle } from "lucide-react";
 import { Payment } from "@/types/fee.types";
+import { DatePicker } from "@/components/DatePicker";
 import { FeeStatusBadge, PaymentMethodBadge } from "@/components/FeeComponents";
 import { PageHeader } from "@/components/PageHeader";
 import { PaginationControls } from "@/components/PaginationControls";
@@ -251,11 +252,11 @@ export default function PaymentsPage() {
           </label>
           <label className="text-xs font-semibold text-[#7d86a8]">
             From
-            <input type="date" className="field mt-1" value={filterDateFrom} onChange={(e) => setFilterDateFrom(e.target.value)} />
+            <div className="mt-1"><DatePicker value={filterDateFrom} onChange={(e) => setFilterDateFrom(e.target.value)} /></div>
           </label>
           <label className="text-xs font-semibold text-[#7d86a8]">
             To
-            <input type="date" className="field mt-1" value={filterDateTo} onChange={(e) => setFilterDateTo(e.target.value)} />
+            <div className="mt-1"><DatePicker value={filterDateTo} onChange={(e) => setFilterDateTo(e.target.value)} /></div>
           </label>
           <span className="inline-flex h-10 items-center rounded-xl border border-[#dfe3f1] bg-[#f7f8fd] px-3 text-sm font-bold text-[#303247]">
             25 / page
@@ -711,7 +712,7 @@ function PaymentForm({
               </label>
               <label className="text-sm font-semibold text-[#303247]">
                 Date
-                <input className="field mt-1" type="date" value={chequeDate} onChange={(e) => setChequeDate(e.target.value)} />
+                <div className="mt-1"><DatePicker value={chequeDate} onChange={(e) => setChequeDate(e.target.value)} /></div>
               </label>
             </div>
           )}

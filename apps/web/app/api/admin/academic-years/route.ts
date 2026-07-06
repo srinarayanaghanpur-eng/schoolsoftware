@@ -22,7 +22,7 @@ export async function GET(req: Request) {
   if (!token) return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
 
   const url = new URL(req.url);
-  const canBypassCache = token.role === "admin" || token.role === "principal" || token.role === "super_admin";
+  const canBypassCache = token.role === "admin" || token.role === "principal" || token.role === "super_admin" || token.role === "settings_manager";
   const bypassCache = canBypassCache && url.searchParams.get("refresh") === "1";
 
   if (!bypassCache && academicYearsCache && academicYearsCache.expiresAt > Date.now()) {
@@ -53,8 +53,8 @@ export async function GET(req: Request) {
 // POST /api/admin/academic-years — create a year. Super admin only.
 export async function POST(req: Request) {
   const token = await requirePermission(req, "academic_years.view");
-  if (!token || token.role !== "super_admin") {
-    return NextResponse.json({ ok: false, error: "Super admin access required" }, { status: 403 });
+  if (!token || (token.role !== "super_admin" && token.role !== "settings_manager")) {
+    return NextResponse.json({ ok: false, error: "Super admin or settings manager access required" }, { status: 403 });
   }
 
   try {

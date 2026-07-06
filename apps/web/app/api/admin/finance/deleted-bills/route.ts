@@ -21,7 +21,6 @@ export async function GET(req: Request) {
   const db = adminDb();
 
   const auditSnap = await db.collection("audit_logs")
-    .where("action", "in", ["expense.deleted", "payment.cancelled", "income.deleted"])
     .where("createdAt", ">=", fromDate)
     .where("createdAt", "<=", toDate)
     .orderBy("createdAt", "desc")
@@ -30,12 +29,12 @@ export async function GET(req: Request) {
 
   // Also check for cancelled/rejected records in expenses
   const [expensesSnap, paymentsSnap] = await Promise.all([
-    db.collection("expenses").where("status", "==", "rejected").where("createdAt", ">=", fromDate).where("createdAt", "<=", toDate).orderBy("createdAt", "desc").limit(500).get(),
-    db.collection("payments").where("status", "==", "cancelled").where("createdAt", ">=", fromDate).where("createdAt", "<=", toDate).orderBy("createdAt", "desc").limit(500).get()
+    db.collection("expenses").where("createdAt", ">=", fromDate).where("createdAt", "<=", toDate).orderBy("createdAt", "desc").limit(500).get(),
+    db.collection("payments").where("createdAt", ">=", fromDate).where("createdAt", "<=", toDate).orderBy("createdAt", "desc").limit(500).get()
   ]);
-  logFirestoreRead("FinanceDeletedBillsAPI", "audit_logs", auditSnap, { from, to, limit: 500 });
-  logFirestoreRead("FinanceDeletedBillsAPI", "expenses", expensesSnap, { from, to, status: "rejected", limit: 500 });
-  logFirestoreRead("FinanceDeletedBillsAPI", "payments", paymentsSnap, { from, to, status: "cancelled", limit: 500 });
+  logFirestoreRead("FinanceDeletedBillsAPI", "audit_logs", auditSnap, { from, to, actionFilter: ["expense.deleted", "payment.cancelled", "income.deleted"], limit: 500 });
+  logFirestoreRead("FinanceDeletedBillsAPI", "expenses", expensesSnap, { from, to, statusFilter: "rejected", limit: 500 });
+  logFirestoreRead("FinanceDeletedBillsAPI", "payments", paymentsSnap, { from, to, statusFilter: "cancelled", limit: 500 });
 
   const bills: DeletedBill[] = [];
 
@@ -44,6 +43,7 @@ export async function GET(req: Request) {
     const key = docDateKey(data);
     if (!inRange(key, from, to)) return;
     const action = String(data.action || "");
+    if (!["expense.deleted", "payment.cancelled", "income.deleted"].includes(action)) return;
     bills.push({
       id: d.id,
       type: action.includes("expense") ? "expense" : action.includes("payment") || action.includes("fee") ? "payment" : "income",
@@ -61,6 +61,7 @@ export async function GET(req: Request) {
     const data = d.data();
     const key = docDateKey(data);
     if (!inRange(key, from, to)) return;
+    if (String(data.status || "").toLowerCase() !== "rejected") return;
     bills.push({
       id: d.id,
       type: "expense",
@@ -78,6 +79,7 @@ export async function GET(req: Request) {
     const data = d.data();
     const key = docDateKey(data);
     if (!inRange(key, from, to)) return;
+    if (String(data.status || "").toLowerCase() !== "cancelled") return;
     bills.push({
       id: d.id,
       type: "payment",

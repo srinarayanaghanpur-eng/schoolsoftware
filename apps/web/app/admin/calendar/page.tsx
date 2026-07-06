@@ -1,6 +1,7 @@
 "use client";
 
 import { AttendanceCalendar } from "@/components/AttendanceCalendar";
+import { DatePicker } from "@/components/DatePicker";
 import { useAcademicYears } from "@/components/AcademicYearContext";
 import { PageHeader } from "@/components/PageHeader";
 import { auth } from "@sri-narayana/shared/firebase/client";
@@ -85,7 +86,7 @@ export default function CalendarPage() {
               ))
             )}
           </select>
-          <input className="field max-w-xs" type="month" value={month} onChange={(event) => setMonth(event.target.value)} />
+          <div className="w-full max-w-xs"><DatePicker type="month" value={month} onChange={(event) => setMonth(event.target.value)} /></div>
         </div>
         {loading ? (
           <div className="card p-6 text-sm font-medium text-[#7d86a8]">Loading real teacher calendar...</div>

@@ -1,5 +1,6 @@
 "use client";
 
+import { DatePicker } from "@/components/DatePicker";
 import { PageHeader } from "@/components/PageHeader";
 import { useAcademicYears } from "@/components/AcademicYearContext";
 import { useAdminSession } from "@/components/AdminSessionContext";
@@ -100,7 +101,7 @@ export default function FeeRemindersPage() {
             </div>
             <div className="grid gap-4 sm:grid-cols-3">
               <label className="text-sm font-semibold text-[#303247]">Amount<input className="field mt-1" type="number" min="1" required value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} /></label>
-              <label className="text-sm font-semibold text-[#303247]">Due date<input className="field mt-1" type="date" required value={form.dueDate} onChange={(e) => setForm({ ...form, dueDate: e.target.value })} /></label>
+              <label className="text-sm font-semibold text-[#303247]">Due date<div className="mt-1"><DatePicker required value={form.dueDate} onChange={(e) => setForm({ ...form, dueDate: e.target.value })} /></div></label>
               <label className="text-sm font-semibold text-[#303247]">Note (optional)<input className="field mt-1" value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} /></label>
             </div>
             <button className="btn-primary"><Bell size={16} /> Create reminder</button>

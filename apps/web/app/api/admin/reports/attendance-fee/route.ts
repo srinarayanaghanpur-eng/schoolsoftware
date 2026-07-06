@@ -50,19 +50,25 @@ export async function GET(request: NextRequest) {
     const maxAttendance = searchParams.get('maxAttendance');
     const pageSize = readLimit(searchParams.get("pageSize") ?? searchParams.get("limit"), 100, 500);
 
-    let query: any = db.collection('students');
+    let query: FirebaseFirestore.Query = db.collection('students');
     if (classFilter) {
       query = query.where('class', '==', classFilter);
     }
-    if (sectionFilter) query = query.where("section", "==", sectionFilter);
-    query = query.orderBy("studentName", "asc").limit(pageSize);
+    query = query.limit(500);
 
     const studentsSnapshot = await query.get();
     logFirestoreRead("AttendanceFeeReportAPI", "students", studentsSnapshot, { classFilter, sectionFilter, pageSize });
-    let students = studentsSnapshot.docs.map((d: QueryDocumentSnapshot) => ({
-      id: d.id,
-      ...d.data()
-    }));
+    let students = studentsSnapshot.docs
+      .map((d: QueryDocumentSnapshot) => ({
+        id: d.id,
+        ...d.data()
+      }))
+      .filter((student: any) => {
+        if (sectionFilter && student.section !== sectionFilter && student.sectionId !== sectionFilter) return false;
+        return true;
+      })
+      .sort((a: any, b: any) => String(a.studentName || "").localeCompare(String(b.studentName || "")))
+      .slice(0, pageSize);
 
     let report = students.map((student: any) => {
       const totalPaid = paidForStudent(student);

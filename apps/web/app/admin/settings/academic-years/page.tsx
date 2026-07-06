@@ -1,5 +1,6 @@
 "use client";
 
+import { DatePicker } from "@/components/DatePicker";
 import { PageHeader } from "@/components/PageHeader";
 import { useAcademicYears } from "@/components/AcademicYearContext";
 import { useAdminSession } from "@/components/AdminSessionContext";
@@ -236,11 +237,11 @@ export default function AcademicYearsPage() {
                 </label>
                 <label className="space-y-1 text-sm font-semibold text-[#303247]">
                   <span>Start date</span>
-                  <input className="field" type="date" value={form.startDate} onChange={(event) => setForm({ ...form, startDate: event.target.value })} required />
+                  <DatePicker value={form.startDate} onChange={(event) => setForm({ ...form, startDate: event.target.value })} required />
                 </label>
                 <label className="space-y-1 text-sm font-semibold text-[#303247]">
                   <span>End date</span>
-                  <input className="field" type="date" value={form.endDate} onChange={(event) => setForm({ ...form, endDate: event.target.value })} required />
+                  <DatePicker value={form.endDate} onChange={(event) => setForm({ ...form, endDate: event.target.value })} required />
                 </label>
               </div>
 

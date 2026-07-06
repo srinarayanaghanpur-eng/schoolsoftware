@@ -1,8 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from "@/lib/firebaseAdmin";
 import { requirePermission } from "@/lib/apiUtils";
-import { docCursor, logFirestoreRead, readLimit } from "@/lib/firestoreReadLogger";
+import { logFirestoreRead, readLimit } from "@/lib/firestoreReadLogger";
 import { getSchoolId } from "@/lib/schoolScope";
+
+function timeValue(value: unknown) {
+  if (value && typeof value === "object" && "toMillis" in value && typeof value.toMillis === "function") return value.toMillis();
+  if (value instanceof Date) return value.getTime();
+  const parsed = new Date(String(value ?? "")).getTime();
+  return Number.isFinite(parsed) ? parsed : 0;
+}
 
 /**
  * GET /api/admin/concessions
@@ -21,41 +28,33 @@ export async function GET(request: NextRequest) {
     const academicYearId = searchParams.get("academicYearId") || "";
     const schoolId = searchParams.get("schoolId") || "";
     const pageSize = readLimit(searchParams.get("pageSize") ?? searchParams.get("limit"), 25, 100);
-    const cursor = docCursor(searchParams.get("cursor"));
+    const cursor = searchParams.get("cursor")?.trim() || "";
 
-    let query: any = db.collection('concessions');
+    let query: FirebaseFirestore.Query = db.collection('concessions');
+    if (academicYearId) query = query.where("academicYearId", "==", academicYearId);
+    else if (schoolId) query = query.where("schoolId", "==", schoolId);
+    else if (studentId) query = query.where("studentId", "==", studentId);
+    else if (status) query = query.where("status", "==", status);
 
-    if (status) {
-      query = query.where('status', '==', status);
-    }
-    if (studentId) {
-      query = query.where('studentId', '==', studentId);
-    }
-    if (classStr) {
-      query = query.where('class', '==', classStr);
-    }
-    if (academicYearId) {
-      query = query.where("academicYearId", "==", academicYearId);
-    }
-    if (schoolId) {
-      query = query.where("schoolId", "==", schoolId);
-    }
-
-    query = query.orderBy('createdAt', 'desc');
-
-    if (cursor) {
-      const cursorDoc = await db.collection("concessions").doc(cursor).get();
-      if (cursorDoc.exists) query = query.startAfter(cursorDoc);
-    }
-
-    const snapshot = await query.limit(pageSize + 1).get();
+    const snapshot = await query.limit(500).get();
     logFirestoreRead("ConcessionsAPI", "concessions", snapshot, { status, studentId, classStr, academicYearId, schoolId, pageSize });
-    const pageDocs = snapshot.docs.slice(0, pageSize);
+    const filteredDocs = snapshot.docs
+      .filter((doc) => {
+        const data = doc.data();
+        return (!status || String(data.status || "") === status)
+          && (!studentId || String(data.studentId || "") === studentId)
+          && (!classStr || String(data.class || "") === classStr)
+          && (!academicYearId || String(data.academicYearId || "") === academicYearId)
+          && (!schoolId || String(data.schoolId || "") === schoolId);
+      })
+      .sort((left, right) => timeValue(right.data().createdAt) - timeValue(left.data().createdAt));
+    const startIndex = cursor ? Math.max(0, filteredDocs.findIndex((doc) => doc.id === cursor) + 1) : 0;
+    const pageDocs = filteredDocs.slice(startIndex, startIndex + pageSize);
     const concessions = pageDocs.map((doc: { id: string; data: () => any }) => ({
       id: doc.id,
       ...doc.data()
     }));
-    const nextCursor = snapshot.docs.length > pageSize && pageDocs.length > 0 ? pageDocs[pageDocs.length - 1].id : null;
+    const nextCursor = startIndex + pageSize < filteredDocs.length && pageDocs.length > 0 ? pageDocs[pageDocs.length - 1].id : null;
 
     return NextResponse.json({ success: true, data: concessions, pageSize, nextCursor, hasMore: Boolean(nextCursor) });
   } catch (error) {

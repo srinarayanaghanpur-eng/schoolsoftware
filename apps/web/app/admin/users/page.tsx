@@ -69,7 +69,7 @@ export default function UsersRolesPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const isAdmin = role === "admin" || role === "super_admin";
+  const isAdmin = role === "admin" || role === "super_admin" || role === "settings_manager";
 
   const filteredUsers = useMemo(() => {
     const term = query.trim().toLowerCase();

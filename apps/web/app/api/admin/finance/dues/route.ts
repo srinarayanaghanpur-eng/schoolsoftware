@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { requirePermission } from "@/lib/apiUtils";
-import { docCursor, logFirestoreRead, readLimit } from "@/lib/firestoreReadLogger";
+import { logFirestoreRead, readLimit } from "@/lib/firestoreReadLogger";
 // GET /api/admin/finance/dues — outstanding fees grouped by class.
 export async function GET(req: Request) {
   const token = await requirePermission(req, "fees.view");
@@ -15,28 +15,28 @@ export async function GET(req: Request) {
   const sectionFilter = searchParams.get("sectionId") || searchParams.get("section") || "";
   // Default 25 for list views; exports/reports may request more explicitly (up to 1000).
   const pageSize = readLimit(searchParams.get("limit") ?? searchParams.get("pageSize"), 25, 1000);
-  const cursor = docCursor(searchParams.get("cursor"));
+  const cursor = searchParams.get("cursor")?.trim() || "";
 
   const db = adminDb();
-  let query: FirebaseFirestore.Query = db.collection("studentFeeSummaries").where("dueAmount", ">", 0);
-  if (schoolId) query = query.where("schoolId", "==", schoolId);
-  if (branchId) query = query.where("branchId", "==", branchId);
+  let query: FirebaseFirestore.Query = db.collection("studentFeeSummaries");
   if (academicYearId) query = query.where("academicYearId", "==", academicYearId);
-  if (classFilter) query = query.where("classId", "==", classFilter);
-  if (sectionFilter) query = query.where("sectionId", "==", sectionFilter);
-  query = query.orderBy("dueAmount", "desc");
-
-  if (cursor) {
-    const cursorDoc = await db.collection("studentFeeSummaries").doc(cursor).get();
-    if (cursorDoc.exists) query = query.startAfter(cursorDoc);
-  }
-
-  query = query.limit(pageSize + 1);
-
+  else if (schoolId) query = query.where("schoolId", "==", schoolId);
   const snap = await query.get();
   logFirestoreRead("FinanceDuesAPI", "studentFeeSummaries", snap, { schoolId, branchId, academicYearId, classFilter, sectionFilter, pageSize });
-  const pageDocs = snap.docs.slice(0, pageSize);
-  const nextCursor = snap.docs.length > pageSize && pageDocs.length > 0 ? pageDocs[pageDocs.length - 1].id : null;
+  const filteredDocs = snap.docs
+    .filter((doc) => {
+      const data = doc.data();
+      return (Number(data.dueAmount) || 0) > 0
+        && (!schoolId || String(data.schoolId || "") === schoolId)
+        && (!branchId || String(data.branchId || "") === branchId)
+        && (!academicYearId || String(data.academicYearId || "") === academicYearId)
+        && (!classFilter || String(data.classId || data.className || "") === classFilter)
+        && (!sectionFilter || String(data.sectionId || data.sectionName || "") === sectionFilter);
+    })
+    .sort((left, right) => (Number(right.data().dueAmount) || 0) - (Number(left.data().dueAmount) || 0));
+  const startIndex = cursor ? Math.max(0, filteredDocs.findIndex((doc) => doc.id === cursor) + 1) : 0;
+  const pageDocs = filteredDocs.slice(startIndex, startIndex + pageSize);
+  const nextCursor = startIndex + pageSize < filteredDocs.length && pageDocs.length > 0 ? pageDocs[pageDocs.length - 1].id : null;
 
   const byClass = new Map<string, { className: string; studentCount: number; totalDue: number; students: { id: string; name: string; due: number }[] }>();
   let grandTotalDue = 0;

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { requirePermission } from "@/lib/apiUtils";
-import { docCursor, logFirestoreRead, readLimit } from "@/lib/firestoreReadLogger";
+import { logFirestoreRead, readLimit } from "@/lib/firestoreReadLogger";
 export async function GET(req: Request) {
   const token = await requirePermission(req, "fees.view");
   if (!token) return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
@@ -13,27 +13,27 @@ export async function GET(req: Request) {
   const schoolId = searchParams.get("schoolId") || "";
   // Default 25 for list views; exports/reports may request more explicitly (up to 1000).
   const pageSize = readLimit(searchParams.get("pageSize") ?? searchParams.get("limit"), 25, 1000);
-  const cursor = docCursor(searchParams.get("cursor"));
+  const cursor = searchParams.get("cursor")?.trim() || "";
   const db = adminDb();
 
-  let query: FirebaseFirestore.Query = db.collection("studentFeeSummaries").where("dueAmount", ">", 0);
-  if (schoolId) query = query.where("schoolId", "==", schoolId);
+  let query: FirebaseFirestore.Query = db.collection("studentFeeSummaries");
   if (academicYearId) query = query.where("academicYearId", "==", academicYearId);
-  if (classFilter) query = query.where("classId", "==", classFilter);
-  if (sectionFilter) query = query.where("sectionId", "==", sectionFilter);
-  query = query.orderBy("dueAmount", "desc");
-
-  if (cursor) {
-    const cursorDoc = await db.collection("studentFeeSummaries").doc(cursor).get();
-    if (cursorDoc.exists) query = query.startAfter(cursorDoc);
-  }
-
-  query = query.limit(pageSize + 1);
-
+  else if (schoolId) query = query.where("schoolId", "==", schoolId);
   const summarySnap = await query.get();
   logFirestoreRead("FinanceReceivablesAPI", "studentFeeSummaries", summarySnap, { schoolId, academicYearId, classFilter, sectionFilter, pageSize });
-  const pageDocs = summarySnap.docs.slice(0, pageSize);
-  const nextCursor = summarySnap.docs.length > pageSize && pageDocs.length > 0 ? pageDocs[pageDocs.length - 1].id : null;
+  const filteredDocs = summarySnap.docs
+    .filter((doc) => {
+      const data = doc.data();
+      return (Number(data.dueAmount) || 0) > 0
+        && (!schoolId || String(data.schoolId || "") === schoolId)
+        && (!academicYearId || String(data.academicYearId || "") === academicYearId)
+        && (!classFilter || String(data.classId || data.className || "") === classFilter)
+        && (!sectionFilter || String(data.sectionId || data.sectionName || "") === sectionFilter);
+    })
+    .sort((left, right) => (Number(right.data().dueAmount) || 0) - (Number(left.data().dueAmount) || 0));
+  const startIndex = cursor ? Math.max(0, filteredDocs.findIndex((doc) => doc.id === cursor) + 1) : 0;
+  const pageDocs = filteredDocs.slice(startIndex, startIndex + pageSize);
+  const nextCursor = startIndex + pageSize < filteredDocs.length && pageDocs.length > 0 ? pageDocs[pageDocs.length - 1].id : null;
   const students = pageDocs.map((d) => ({ id: d.id, ...d.data() }));
 
   const receivables = students

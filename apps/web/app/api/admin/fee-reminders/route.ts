@@ -4,10 +4,17 @@ import { feeReminderCreateSchema } from "@sri-narayana/shared";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { requirePermission } from "@/lib/apiUtils";
 import { writeAuditLog } from "@/lib/auditLog";
-import { docCursor, logFirestoreRead, readLimit } from "@/lib/firestoreReadLogger";
+import { logFirestoreRead, readLimit } from "@/lib/firestoreReadLogger";
 import { getSchoolId } from "@/lib/schoolScope";
 
 const COLLECTION = "fee_reminders";
+
+function timeValue(value: unknown) {
+  if (value && typeof value === "object" && "toMillis" in value && typeof value.toMillis === "function") return value.toMillis();
+  if (value instanceof Date) return value.getTime();
+  const parsed = new Date(String(value ?? "")).getTime();
+  return Number.isFinite(parsed) ? parsed : 0;
+}
 
 export async function GET(req: Request) {
   try {
@@ -19,25 +26,28 @@ export async function GET(req: Request) {
     const academicYearId = url.searchParams.get("academicYearId") || "";
     const schoolId = url.searchParams.get("schoolId") || "";
     const pageSize = readLimit(url.searchParams.get("pageSize") ?? url.searchParams.get("limit"), 25, 100);
-    const cursor = docCursor(url.searchParams.get("cursor"));
+    const cursor = url.searchParams.get("cursor")?.trim() || "";
 
     const db = adminDb();
     let query: FirebaseFirestore.Query = db.collection(COLLECTION);
-    if (studentId) query = query.where("studentId", "==", studentId);
     if (academicYearId) query = query.where("academicYearId", "==", academicYearId);
-    if (schoolId) query = query.where("schoolId", "==", schoolId);
-    query = query.orderBy("createdAt", "desc");
+    else if (studentId) query = query.where("studentId", "==", studentId);
+    else if (schoolId) query = query.where("schoolId", "==", schoolId);
 
-    if (cursor) {
-      const cursorDoc = await db.collection(COLLECTION).doc(cursor).get();
-      if (cursorDoc.exists) query = query.startAfter(cursorDoc);
-    }
-
-    const snapshot = await query.limit(pageSize + 1).get();
+    const snapshot = await query.limit(500).get();
     logFirestoreRead("FeeRemindersAPI", COLLECTION, snapshot, { studentId, academicYearId, schoolId, pageSize });
-    const pageDocs = snapshot.docs.slice(0, pageSize);
+    const filteredDocs = snapshot.docs
+      .filter((doc) => {
+        const data = doc.data();
+        return (!studentId || String(data.studentId || "") === studentId)
+          && (!academicYearId || String(data.academicYearId || "") === academicYearId)
+          && (!schoolId || String(data.schoolId || "") === schoolId);
+      })
+      .sort((left, right) => timeValue(right.data().createdAt) - timeValue(left.data().createdAt));
+    const startIndex = cursor ? Math.max(0, filteredDocs.findIndex((doc) => doc.id === cursor) + 1) : 0;
+    const pageDocs = filteredDocs.slice(startIndex, startIndex + pageSize);
     const reminders = pageDocs.map((doc) => ({ id: doc.id, ...doc.data() }));
-    const nextCursor = snapshot.docs.length > pageSize && pageDocs.length > 0 ? pageDocs[pageDocs.length - 1].id : null;
+    const nextCursor = startIndex + pageSize < filteredDocs.length && pageDocs.length > 0 ? pageDocs[pageDocs.length - 1].id : null;
     return NextResponse.json({ ok: true, reminders, pageSize, nextCursor, hasMore: Boolean(nextCursor) });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to load reminders";

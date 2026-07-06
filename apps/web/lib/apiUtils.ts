@@ -36,7 +36,7 @@ export async function requireAdmin(req: Request): Promise<DecodedIdToken | null>
   const decodedToken = await verifyBearerToken(req);
   if (!decodedToken) return null;
   const role = await resolveRole(decodedToken);
-  if (role !== "admin" && role !== "super_admin") return null;
+  if (role !== "admin" && role !== "super_admin" && role !== "settings_manager") return null;
   return decodedToken;
 }
 

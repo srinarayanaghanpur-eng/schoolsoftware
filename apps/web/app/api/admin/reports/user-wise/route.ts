@@ -23,19 +23,19 @@ export async function GET(request: NextRequest) {
     const fromDate = new Date(`${from}T00:00:00`);
     const toDate = new Date(`${to}T23:59:59.999`);
     const paymentsSnap = await db.collection("payments")
-      .where("status", "==", "completed")
       .where("createdAt", ">=", fromDate)
       .where("createdAt", "<=", toDate)
       .orderBy("createdAt", "desc")
       .limit(1000)
       .get();
-    logFirestoreRead("UserWiseReportAPI", "payments", paymentsSnap, { from, to, status: "completed", limit: 1000 });
+    logFirestoreRead("UserWiseReportAPI", "payments", paymentsSnap, { from, to, statusFilter: "completed", limit: 1000 });
 
     // Fetch display names only for the uids that appear in payments and don't
     // already carry a paidByName (instead of reading the whole users collection).
     const uidsNeedingNames = new Set<string>();
     paymentsSnap.docs.forEach((doc: QueryDocumentSnapshot) => {
       const p = doc.data();
+      if (String(p.status || "").toLowerCase() !== "completed") return;
       const uid = p.paidBy as string;
       if (uid && !p.paidByName) uidsNeedingNames.add(uid);
     });
@@ -52,6 +52,7 @@ export async function GET(request: NextRequest) {
     const byUser: Record<string, { collectedBy: string; transactions: number; totalCollected: number }> = {};
     paymentsSnap.docs.forEach((doc: QueryDocumentSnapshot) => {
       const p = doc.data();
+      if (String(p.status || "").toLowerCase() !== "completed") return;
       const uid = (p.paidBy as string) || (p.paidByName as string) || "unknown";
       const label = (p.paidByName as string) || nameByUid[uid] || uid;
       if (!byUser[uid]) byUser[uid] = { collectedBy: label, transactions: 0, totalCollected: 0 };

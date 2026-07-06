@@ -7,7 +7,7 @@ import { requireRole } from "@/lib/apiUtils";
 // PATCH /api/admin/users/[uid]/role — assign a role (admin only).
 // Sets the Firebase custom claim AND the users/{uid} doc so login resolves it.
 export async function PATCH(req: Request, { params }: { params: { uid: string } }) {
-  const token = await requireRole(req, ["admin"]);
+  const token = await requireRole(req, ["admin", "settings_manager"]);
   if (!token) return NextResponse.json({ ok: false, error: "Admin access required" }, { status: 403 });
 
   try {

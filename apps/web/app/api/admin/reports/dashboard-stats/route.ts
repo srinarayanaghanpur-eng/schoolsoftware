@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { AggregateField } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { requirePermission } from "@/lib/apiUtils";
-import { logFirestoreAggregateRead } from "@/lib/firestoreReadLogger";
+import { logFirestoreAggregateRead, logFirestoreRead } from "@/lib/firestoreReadLogger";
 import { firestoreErrorResponse, firestoreQuotaResponse, isFirestoreQuotaPaused } from "@/lib/firebaseErrors";
 
 export const dynamic = "force-dynamic";
@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
       concessionsSnap,
       pendingConcessionsSnap,
       feeCollectedSnap,
-      monthlyCollectionSnap
+      monthlyPaymentsSnap
     ] = await Promise.all([
       db.collection("students").count().get(),
       scopedSummaries.aggregate({
@@ -49,11 +49,8 @@ export async function GET(request: NextRequest) {
         totalPaid: AggregateField.sum("totalPaid")
       }).get().catch(() => null),
       scopedSummaries.where("dueAmount", ">", 0).count().get().catch(() => null),
-      db.collection("concessions").where("status", "==", "approved").where("isActive", "==", true).aggregate({
-        studentsWithConcession: AggregateField.count(),
-        totalConcessionAmount: AggregateField.sum("concessionAmount")
-      }).get().catch(() => null),
-      db.collection("concessions").where("status", "==", "pending").count().get(),
+      db.collection("concessions").where("status", "==", "approved").limit(1000).get().catch(() => null),
+      db.collection("concessions").where("status", "==", "pending").limit(1000).get().catch(() => null),
       (activeYearId
         ? db.collection("financeSummaries").where("academicYearId", "==", activeYearId)
         : db.collection("financeSummaries")
@@ -61,31 +58,37 @@ export async function GET(request: NextRequest) {
         totalFeeCollected: AggregateField.sum("totalIncome")
       }).get().catch(() => null),
       db.collection("payments")
-        .where("status", "==", "completed")
         .where("createdAt", ">=", monthStart)
         .where("createdAt", "<=", monthEnd)
-        .aggregate({ monthlyCollection: AggregateField.sum("amountPaid") })
+        .orderBy("createdAt", "desc")
+        .limit(1000)
         .get()
         .catch(() => null)
     ]);
 
     logFirestoreAggregateRead("DashboardStatsAPI", "students", { operation: "count" });
     logFirestoreAggregateRead("DashboardStatsAPI", "studentFeeSummaries", { operation: "sum-total-due-paid" });
-    logFirestoreAggregateRead("DashboardStatsAPI", "payments", { operation: "monthly-sum" });
+    logFirestoreRead("DashboardStatsAPI", "concessions", concessionsSnap, { statusFilter: "approved", activeFilter: true, limit: 1000 });
+    logFirestoreRead("DashboardStatsAPI", "concessions", pendingConcessionsSnap, { statusFilter: "pending", limit: 1000 });
+    logFirestoreRead("DashboardStatsAPI", "payments", monthlyPaymentsSnap, { statusFilter: "completed", operation: "monthly-sum", limit: 1000 });
 
     const totalStudents = Number(studentsCountSnap.data().count || 0);
     const feeTotals = (feeTotalsSnap?.data() ?? {}) as Record<string, unknown>;
-    const concessionTotals = (concessionsSnap?.data() ?? {}) as Record<string, unknown>;
+    const activeApprovedConcessions = concessionsSnap?.docs.filter((doc) => doc.data().isActive === true) ?? [];
     const totalFeeAmount = Number(feeTotals.totalFeeAmount || 0);
     const totalFeeDue = Number(feeTotals.totalFeeDue || 0);
     const totalFeeCollected = Number(feeCollectedSnap?.data().totalFeeCollected || feeTotals.totalPaid || 0);
     const totalFeeOutstanding = totalFeeDue;
     const studentsWithOutstandingFees = Number(studentsWithOutstandingSnap?.data().count || 0);
     const averageAnnualFee = totalStudents > 0 ? totalFeeAmount / totalStudents : 0;
-    const studentsWithConcession = Number(concessionTotals.studentsWithConcession || 0);
-    const totalConcessionAmount = Number(concessionTotals.totalConcessionAmount || 0);
-    const pendingApprovals = Number(pendingConcessionsSnap.data().count || 0);
-    const monthlyCollection = Number(monthlyCollectionSnap?.data().monthlyCollection || 0);
+    const studentsWithConcession = activeApprovedConcessions.length;
+    const totalConcessionAmount = activeApprovedConcessions.reduce((sum, doc) => sum + (Number(doc.data().concessionAmount) || 0), 0);
+    const pendingApprovals = pendingConcessionsSnap?.size ?? 0;
+    const monthlyCollection = monthlyPaymentsSnap?.docs.reduce((sum, doc) => {
+      const data = doc.data();
+      if (String(data.status || "").toLowerCase() !== "completed") return sum;
+      return sum + (Number(data.amountPaid) || 0);
+    }, 0) ?? 0;
 
     const averageConcession =
       studentsWithConcession > 0

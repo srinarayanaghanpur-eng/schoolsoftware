@@ -67,8 +67,8 @@ export default function Login() {
           <View style={styles.hero}>
             <View style={styles.heroGlow} />
             <Text style={styles.kicker} allowFontScaling={false}>Sri Narayana High School</Text>
-            <Text style={styles.title} allowFontScaling={false}>Teacher Attendance</Text>
-            <Text style={styles.subtitle} allowFontScaling={false}>Sign in to mark GPS-secured attendance and view your monthly records.</Text>
+            <Text style={styles.title} allowFontScaling={false}>School ERP</Text>
+            <Text style={styles.subtitle} allowFontScaling={false}>Sign in to mark GPS-secured attendance and manage school operations.</Text>
           </View>
 
           <View style={styles.formCard}>

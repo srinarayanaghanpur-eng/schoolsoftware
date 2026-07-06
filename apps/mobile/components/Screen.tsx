@@ -29,7 +29,7 @@ export function Screen({
       <View style={styles.topBar}>
         <View>
           <Text style={styles.brand} allowFontScaling={false}>Sri Narayana</Text>
-          <Text style={styles.brandSubtext} allowFontScaling={false}>Teacher App</Text>
+          <Text style={styles.brandSubtext} allowFontScaling={false}>School ERP</Text>
         </View>
       </View>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} nestedScrollEnabled>

@@ -3,7 +3,7 @@ import { FieldValue } from "firebase-admin/firestore";
 import { invoiceCreateSchema } from "@sri-narayana/shared";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { requirePermission, serializeDoc } from "@/lib/apiUtils";
-import { docCursor, logFirestoreRead, readLimit } from "@/lib/firestoreReadLogger";
+import { logFirestoreRead, readLimit } from "@/lib/firestoreReadLogger";
 import { getSchoolId } from "@/lib/schoolScope";
 
 const COLLECTION = "invoices";
@@ -12,31 +12,38 @@ export async function GET(req: Request) {
   const token = await requirePermission(req, "fees.view");
   if (!token) return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
 
-  const db = adminDb();
-  const { searchParams } = new URL(req.url);
-  const studentId = searchParams.get("studentId") || "";
-  const academicYearId = searchParams.get("academicYearId") || "";
-  const schoolId = searchParams.get("schoolId") || "";
-  const pageSize = readLimit(searchParams.get("pageSize") ?? searchParams.get("limit"), 25, 100);
-  const cursor = docCursor(searchParams.get("cursor"));
+  try {
+    const db = adminDb();
+    const { searchParams } = new URL(req.url);
+    const studentId = searchParams.get("studentId") || "";
+    const academicYearId = searchParams.get("academicYearId") || "";
+    const schoolId = searchParams.get("schoolId") || "";
+    const pageSize = readLimit(searchParams.get("pageSize") ?? searchParams.get("limit"), 25, 100);
+    const cursor = searchParams.get("cursor")?.trim() || "";
 
-  let query: FirebaseFirestore.Query = db.collection(COLLECTION);
-  if (studentId) query = query.where("studentId", "==", studentId);
-  if (academicYearId) query = query.where("academicYearId", "==", academicYearId);
-  if (schoolId) query = query.where("schoolId", "==", schoolId);
-  query = query.orderBy("date", "desc");
+    let query: FirebaseFirestore.Query = db.collection(COLLECTION);
+    if (academicYearId) query = query.where("academicYearId", "==", academicYearId);
+    else if (studentId) query = query.where("studentId", "==", studentId);
+    else if (schoolId) query = query.where("schoolId", "==", schoolId);
 
-  if (cursor) {
-    const cursorDoc = await db.collection(COLLECTION).doc(cursor).get();
-    if (cursorDoc.exists) query = query.startAfter(cursorDoc);
+    const snap = await query.limit(500).get();
+    logFirestoreRead("FinanceInvoicesAPI", COLLECTION, snap, { studentId, academicYearId, schoolId, pageSize });
+
+    const filtered = snap.docs
+      .map((doc) => serializeDoc(doc))
+      .filter((invoice) => !academicYearId || String(invoice.academicYearId || "") === academicYearId)
+      .filter((invoice) => !studentId || String(invoice.studentId || "") === studentId)
+      .filter((invoice) => !schoolId || String(invoice.schoolId || "") === schoolId)
+      .sort((left, right) => String(right.date || "").localeCompare(String(left.date || "")));
+
+    const startIndex = cursor ? Math.max(0, filtered.findIndex((item) => item.id === cursor) + 1) : 0;
+    const invoices = filtered.slice(startIndex, startIndex + pageSize);
+    const nextCursor = startIndex + pageSize < filtered.length && invoices.length > 0 ? invoices[invoices.length - 1].id : null;
+    return NextResponse.json({ ok: true, invoices, pageSize, nextCursor, hasMore: Boolean(nextCursor) });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unable to load invoices";
+    return NextResponse.json({ ok: false, error: message }, { status: 400 });
   }
-
-  const snap = await query.limit(pageSize + 1).get();
-  logFirestoreRead("FinanceInvoicesAPI", COLLECTION, snap, { studentId, academicYearId, schoolId, pageSize });
-  const pageDocs = snap.docs.slice(0, pageSize);
-  const invoices = pageDocs.map((d) => serializeDoc(d));
-  const nextCursor = snap.docs.length > pageSize && pageDocs.length > 0 ? pageDocs[pageDocs.length - 1].id : null;
-  return NextResponse.json({ ok: true, invoices, pageSize, nextCursor, hasMore: Boolean(nextCursor) });
 }
 
 // POST — generate an invoice with a sequential number (INV-0001…).

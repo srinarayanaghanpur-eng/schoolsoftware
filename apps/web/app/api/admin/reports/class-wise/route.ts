@@ -23,8 +23,6 @@ export async function GET(request: NextRequest) {
 
     let query: FirebaseFirestore.Query = db.collection('studentFeeSummaries');
     if (academicYearId) query = query.where("academicYearId", "==", academicYearId);
-    if (classFilter) query = query.where('classId', '==', classFilter);
-    if (sectionFilter) query = query.where("sectionId", "==", sectionFilter);
     query = query.limit(pageSize);
 
     const summariesSnapshot = await query.get();
@@ -34,6 +32,8 @@ export async function GET(request: NextRequest) {
 
     summariesSnapshot.docs.forEach((doc) => {
       const student = doc.data();
+      if (classFilter && student.classId !== classFilter && student.className !== classFilter && student.class !== classFilter) return;
+      if (sectionFilter && student.sectionId !== sectionFilter && student.sectionName !== sectionFilter && student.section !== sectionFilter) return;
       const key = String(student.className || student.classId || "—");
       if (!byClass[key]) {
         byClass[key] = {

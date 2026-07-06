@@ -21,12 +21,12 @@ export async function GET(req: Request) {
   const [paymentsSnap, incomesSnap, expensesSnap, branchesSnap] = await Promise.all([
     db.collection("payments").where("createdAt", ">=", fromDate).where("createdAt", "<=", toDate).orderBy("createdAt", "desc").limit(1000).get(),
     db.collection("incomes").where("createdAt", ">=", fromDate).where("createdAt", "<=", toDate).orderBy("createdAt", "desc").limit(1000).get(),
-    db.collection("expenses").where("status", "==", "approved").where("createdAt", ">=", fromDate).where("createdAt", "<=", toDate).orderBy("createdAt", "desc").limit(1000).get(),
+    db.collection("expenses").where("createdAt", ">=", fromDate).where("createdAt", "<=", toDate).orderBy("createdAt", "desc").limit(1000).get(),
     db.collection("branches").get()
   ]);
   logFirestoreRead("FinanceBranchAccountsAPI", "payments", paymentsSnap, { from, to, limit: 1000 });
   logFirestoreRead("FinanceBranchAccountsAPI", "incomes", incomesSnap, { from, to, limit: 1000 });
-  logFirestoreRead("FinanceBranchAccountsAPI", "expenses", expensesSnap, { from, to, status: "approved", limit: 1000 });
+  logFirestoreRead("FinanceBranchAccountsAPI", "expenses", expensesSnap, { from, to, statusFilter: "approved", limit: 1000 });
   logFirestoreRead("FinanceBranchAccountsAPI", "branches", branchesSnap, { purpose: "branch-names" });
 
   const branches = branchesSnap.docs.map((d) => ({ id: d.id, name: String(d.data().name || "") }));
@@ -51,6 +51,7 @@ export async function GET(req: Request) {
   });
   expensesSnap.docs.forEach((d) => {
     const data = d.data();
+    if (String(data.status || "").toLowerCase() !== "approved") return;
     if (inRange(docDateKey(data), from, to)) addToBranch(String(data.branchId || "default"), "expense", Number(data.amount) || 0, byBranch);
   });
 

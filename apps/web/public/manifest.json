@@ -1,7 +1,7 @@
 {
-  "name": "Sri Narayana High School - Teacher ERP",
-  "short_name": "School ERP",
-  "description": "Teacher attendance, salary, and staff management system",
+  "name": "Sri Narayana High School – School ERP",
+  "short_name": "SNHS ERP",
+  "description": "School ERP – attendance, fee, finance, exams, and staff management",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
@@ -32,9 +32,9 @@
   "categories": ["education", "productivity"],
   "shortcuts": [
     {
-      "name": "My Attendance",
+      "name": "Attendance",
       "short_name": "Attendance",
-      "description": "Mark check-in / check-out",
+      "description": "Mark attendance",
       "url": "/teacher/dashboard",
       "icons": [
         {

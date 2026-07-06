@@ -95,17 +95,17 @@ export async function GET(req: Request) {
     ? db.collection("studentFeeSummaries").where("academicYearId", "==", activeYearId)
     : db.collection("studentFeeSummaries");
 
-  const [feeTotalsSnap, studentsPendingSnap, todayCollectedSnap, paymentsSnap, incomesSnap, expensesSnap, salarySnap, advancesSnap] = await Promise.all([
+  const [feeTotalsSnap, studentsPendingSnap, todayPaymentsSnap, paymentsSnap, incomesSnap, expensesSnap, salarySnap, advancesSnap] = await Promise.all([
     scopedSummaries.aggregate({
       totalFeeAmount: AggregateField.sum("totalFee"),
       outstandingDues: AggregateField.sum("dueAmount")
     }).get().catch(() => null),
     scopedSummaries.where("dueAmount", ">", 0).count().get().catch(() => null),
     db.collection("payments")
-      .where("status", "==", "completed")
       .where("createdAt", ">=", todayStart)
       .where("createdAt", "<=", todayEnd)
-      .aggregate({ todayCollected: AggregateField.sum("amountPaid") })
+      .orderBy("createdAt", "desc")
+      .limit(500)
       .get()
       .catch(() => null),
     // Each list query is independently fault-tolerant: a missing composite
@@ -113,8 +113,8 @@ export async function GET(req: Request) {
     // empty instead of failing the whole dashboard with "Request failed".
     db.collection("payments").where("createdAt", ">=", fromDate).where("createdAt", "<=", toDate).orderBy("createdAt", "desc").limit(300).get().catch(() => null),
     db.collection("incomes").where("createdAt", ">=", fromDate).where("createdAt", "<=", toDate).orderBy("createdAt", "desc").limit(300).get().catch(() => null),
-    db.collection("expenses").where("status", "==", "approved").where("createdAt", ">=", fromDate).where("createdAt", "<=", toDate).orderBy("createdAt", "desc").limit(300).get().catch(() => null),
-    db.collection("salary_reports").where("paid", "==", true).where("paidAt", ">=", fromDate).where("paidAt", "<=", toDate).orderBy("paidAt", "desc").limit(300).get().catch(() => null),
+    db.collection("expenses").where("createdAt", ">=", fromDate).where("createdAt", "<=", toDate).orderBy("createdAt", "desc").limit(300).get().catch(() => null),
+    db.collection("salary_reports").where("paidAt", ">=", fromDate).where("paidAt", "<=", toDate).orderBy("paidAt", "desc").limit(300).get().catch(() => null),
     db.collection("salary_advances").where("createdAt", ">=", fromDate).where("createdAt", "<=", toDate).orderBy("createdAt", "desc").limit(300).get().catch(() => null)
   ]);
 
@@ -126,11 +126,11 @@ export async function GET(req: Request) {
   const advancesDocs = advancesSnap?.docs ?? EMPTY_DOCS;
 
   logFirestoreAggregateRead("FinanceDashboardAPI", "studentFeeSummaries", { operation: "sum-total-and-due" });
-  logFirestoreAggregateRead("FinanceDashboardAPI", "payments", { operation: "today-sum" });
+  logFirestoreRead("FinanceDashboardAPI", "payments", todayPaymentsSnap, { from: today, to: today, statusFilter: "completed", purpose: "today-sum", limit: 500 });
   logFirestoreRead("FinanceDashboardAPI", "payments", paymentsSnap, { from, to, limit: 300 });
   logFirestoreRead("FinanceDashboardAPI", "incomes", incomesSnap, { from, to, limit: 300 });
-  logFirestoreRead("FinanceDashboardAPI", "expenses", expensesSnap, { from, to, status: "approved", limit: 300 });
-  logFirestoreRead("FinanceDashboardAPI", "salary_reports", salarySnap, { from, to, paid: true, limit: 300 });
+  logFirestoreRead("FinanceDashboardAPI", "expenses", expensesSnap, { from, to, statusFilter: "approved", limit: 300 });
+  logFirestoreRead("FinanceDashboardAPI", "salary_reports", salarySnap, { from, to, paidFilter: true, limit: 300 });
   logFirestoreRead("FinanceDashboardAPI", "salary_advances", advancesSnap, { from, to, limit: 300 });
 
   const feeTotals = (feeTotalsSnap?.data() ?? {}) as Record<string, unknown>;
@@ -141,7 +141,11 @@ export async function GET(req: Request) {
   let feeIncome = 0;
   let otherIncome = 0;
   let expenseTotal = 0;
-  const todayCollected = amount(todayCollectedSnap?.data().todayCollected);
+  const todayCollected = (todayPaymentsSnap?.docs ?? EMPTY_DOCS).reduce((sum, doc) => {
+    const data = doc.data();
+    if (String(data.status || "").toLowerCase() !== "completed") return sum;
+    return sum + amount(data.amountPaid);
+  }, 0);
   const byWeek = new Map<string, { name: string; income: number; expense: number }>();
   const transactions: MoneyEntry[] = [];
 
@@ -182,6 +186,7 @@ export async function GET(req: Request) {
 
   expensesDocs.forEach((doc) => {
     const data = doc.data();
+    if (String(data.status || "").toLowerCase() !== "approved") return;
     const date = docDateKey(data);
     if (!inRange(date, from, to)) return;
     const value = amount(data.amount);
@@ -199,6 +204,7 @@ export async function GET(req: Request) {
 
   salaryDocs.forEach((doc) => {
     const data = doc.data();
+    if (data.paid !== true) return;
     const date = docDateKey(data, "paidAt", "month");
     if (!inRange(date, from, to)) return;
     const value = amount(data.netPayable);
@@ -274,6 +280,6 @@ export async function GET(req: Request) {
     ],
     collectionTarget,
     bars,
-    transactions: transactions.sort(sortEntriesDesc).slice(0, 8)
+    transactions: transactions.sort(sortEntriesDesc)
   });
 }

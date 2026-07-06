@@ -4,7 +4,7 @@
  * frontend nav/route gating.
  */
 
-export const ROLES = ["super_admin", "admin", "principal", "accountant", "teacher", "receptionist", "parent", "student"] as const;
+export const ROLES = ["super_admin", "admin", "principal", "accountant", "teacher", "receptionist", "parent", "student", "settings_manager"] as const;
 export type Role = (typeof ROLES)[number];
 
 export const ROLE_LABELS: Record<Role, string> = {
@@ -15,7 +15,8 @@ export const ROLE_LABELS: Record<Role, string> = {
   teacher: "Teacher",
   receptionist: "Receptionist",
   parent: "Parent",
-  student: "Student"
+  student: "Student",
+  settings_manager: "Settings Manager"
 };
 
 /** Every feature area in the app. Frontend uses these to build the nav. */
@@ -39,12 +40,13 @@ export const MODULES = [
   "academic_years",
   "users",
   "portal",
-  "promotions"
+  "promotions",
+  "sms"
 ] as const;
 export type Module = (typeof MODULES)[number];
 
 /** Actions a permission can grant. Permission string format: `${module}.${action}`. */
-export const ACTIONS = ["view", "create", "edit", "delete", "approve", "export"] as const;
+export const ACTIONS = ["view", "create", "edit", "delete", "approve", "export", "compose", "copy", "mark_sent", "templates"] as const;
 export type Action = (typeof ACTIONS)[number];
 
 export type Permission = `${Module}.${Action}`;
@@ -73,13 +75,13 @@ export const ROLE_PERMISSIONS: Record<Role, readonly (Permission | typeof ALL)[]
     "reports.view", "reports.export",
     "academic_years.view",
     "promotions.view", "promotions.create", "promotions.approve",
-    "settings.view"
+    "settings.view",
+    "sms.view", "sms.compose", "sms.copy", "sms.export", "sms.mark_sent", "sms.templates"
   ],
   accountant: [
     "dashboard.view",
     "students.view",
     "fees.view", "fees.create", "fees.edit", "fees.approve", "fees.export",
-    "payroll.view", "payroll.create", "payroll.edit", "payroll.export",
     "inventory.view", "inventory.create", "inventory.edit",
     "bus_finance.view", "bus_finance.create", "bus_finance.edit", "bus_finance.export",
     "reports.view", "reports.export",
@@ -100,7 +102,15 @@ export const ROLE_PERMISSIONS: Record<Role, readonly (Permission | typeof ALL)[]
     "attendance.view",
     "communication.view", "communication.create",
     "transport.view",
-    "academic_years.view"
+    "academic_years.view",
+    "sms.view", "sms.compose", "sms.copy", "sms.export", "sms.mark_sent"
+  ],
+  settings_manager: [
+    "dashboard.view",
+    "settings.view", "settings.create", "settings.edit", "settings.delete",
+    "users.view", "users.create", "users.edit", "users.delete",
+    "academic_years.view", "academic_years.create", "academic_years.edit", "academic_years.delete",
+    "sms.view", "sms.templates"
   ],
   parent: ["portal.view"],
   student: ["portal.view"]

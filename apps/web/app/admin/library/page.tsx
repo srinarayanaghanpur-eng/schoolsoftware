@@ -1,5 +1,6 @@
 "use client";
 
+import { DatePicker } from "@/components/DatePicker";
 import { PageHeader } from "@/components/PageHeader";
 import { useAdminSession } from "@/components/AdminSessionContext";
 import { AdminApiError, adminApiRequest } from "@/lib/adminApiClient";
@@ -42,7 +43,7 @@ export default function LibraryPage() {
           <button className="btn-secondary" onClick={() => setShowI((v) => !v)} disabled={books.length === 0}>{showI ? <X size={16} /> : <Plus size={16} />} Issue book</button>
         </div>
         {showB && <form onSubmit={addBook} className="card grid gap-2 p-5 sm:grid-cols-3"><input className="field" placeholder="Title" required value={bForm.title} onChange={(e) => setBForm({ ...bForm, title: e.target.value })} /><input className="field" placeholder="Author" value={bForm.author} onChange={(e) => setBForm({ ...bForm, author: e.target.value })} /><input className="field" type="number" min="1" placeholder="Copies" required value={bForm.copies} onChange={(e) => setBForm({ ...bForm, copies: e.target.value })} /><button className="btn-primary sm:col-span-3">Add</button></form>}
-        {showI && <form onSubmit={issue} className="card grid gap-2 p-5 sm:grid-cols-2"><select className="field" required value={iForm.bookId} onChange={(e) => setIForm({ ...iForm, bookId: e.target.value })}><option value="">Select book</option>{books.filter((b) => b.available > 0).map((b) => <option key={b.id} value={b.id}>{b.title} ({b.available} avail)</option>)}</select><input className="field" placeholder="Member name" required value={iForm.memberName} onChange={(e) => setIForm({ ...iForm, memberName: e.target.value })} /><select className="field" value={iForm.memberType} onChange={(e) => setIForm({ ...iForm, memberType: e.target.value })}><option value="student">Student</option><option value="staff">Staff</option></select><input className="field" type="date" required value={iForm.dueDate} onChange={(e) => setIForm({ ...iForm, dueDate: e.target.value })} /><button className="btn-primary sm:col-span-2">Issue</button></form>}
+        {showI && <form onSubmit={issue} className="card grid gap-2 p-5 sm:grid-cols-2"><select className="field" required value={iForm.bookId} onChange={(e) => setIForm({ ...iForm, bookId: e.target.value })}><option value="">Select book</option>{books.filter((b) => b.available > 0).map((b) => <option key={b.id} value={b.id}>{b.title} ({b.available} avail)</option>)}</select><input className="field" placeholder="Member name" required value={iForm.memberName} onChange={(e) => setIForm({ ...iForm, memberName: e.target.value })} /><select className="field" value={iForm.memberType} onChange={(e) => setIForm({ ...iForm, memberType: e.target.value })}><option value="student">Student</option><option value="staff">Staff</option></select><DatePicker required value={iForm.dueDate} onChange={(e) => setIForm({ ...iForm, dueDate: e.target.value })} /><button className="btn-primary sm:col-span-2">Issue</button></form>}
 
         <div className="grid gap-5 xl:grid-cols-2">
           <article className="card overflow-x-auto">

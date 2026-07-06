@@ -1,5 +1,6 @@
 "use client";
 
+import { DatePicker } from "@/components/DatePicker";
 import { PageHeader } from "@/components/PageHeader";
 import { useAcademicYears } from "@/components/AcademicYearContext";
 import { useAdminSession } from "@/components/AdminSessionContext";
@@ -143,7 +144,7 @@ export default function InstallmentsPage() {
               </select>
               <input className="field" type="number" min="1" step="0.01" placeholder="Total amount ₹" required value={form.totalAmount} onChange={(e) => setForm({ ...form, totalAmount: e.target.value })} />
               <input className="field" type="number" min="1" max="36" placeholder="No. of installments" required value={form.numInstallments} onChange={(e) => setForm({ ...form, numInstallments: e.target.value })} />
-              <input className="field" type="date" required value={form.firstDueDate} onChange={(e) => setForm({ ...form, firstDueDate: e.target.value })} />
+              <DatePicker required value={form.firstDueDate} onChange={(e) => setForm({ ...form, firstDueDate: e.target.value })} />
             </div>
             {selectedStudent && perInstallment > 0 && (
               <p className="text-sm text-[#303247]">

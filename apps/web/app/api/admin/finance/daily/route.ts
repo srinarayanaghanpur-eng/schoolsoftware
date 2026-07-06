@@ -22,11 +22,11 @@ export async function GET(req: Request) {
   const [paymentsSnap, incomesSnap, expensesSnap] = await Promise.all([
     db.collection("payments").where("createdAt", ">=", fromDate).where("createdAt", "<=", toDate).orderBy("createdAt", "desc").limit(1000).get(),
     db.collection("incomes").where("createdAt", ">=", fromDate).where("createdAt", "<=", toDate).orderBy("createdAt", "desc").limit(1000).get(),
-    db.collection("expenses").where("status", "==", "approved").where("createdAt", ">=", fromDate).where("createdAt", "<=", toDate).orderBy("createdAt", "desc").limit(1000).get()
+    db.collection("expenses").where("createdAt", ">=", fromDate).where("createdAt", "<=", toDate).orderBy("createdAt", "desc").limit(1000).get()
   ]);
   logFirestoreRead("FinanceDailyAPI", "payments", paymentsSnap, { from, to, limit: 1000 });
   logFirestoreRead("FinanceDailyAPI", "incomes", incomesSnap, { from, to, limit: 1000 });
-  logFirestoreRead("FinanceDailyAPI", "expenses", expensesSnap, { from, to, status: "approved", limit: 1000 });
+  logFirestoreRead("FinanceDailyAPI", "expenses", expensesSnap, { from, to, statusFilter: "approved", limit: 1000 });
 
   const byDay = new Map<string, { income: number; expense: number }>();
   const add = (key: string, field: "income" | "expense", amount: number) => {
@@ -38,7 +38,11 @@ export async function GET(req: Request) {
 
   paymentsSnap.docs.forEach((d) => add(docDateKey(d.data()), "income", Number(d.data().amountPaid) || 0));
   incomesSnap.docs.forEach((d) => add(docDateKey(d.data()), "income", Number(d.data().amount) || 0));
-  expensesSnap.docs.forEach((d) => add(docDateKey(d.data()), "expense", Number(d.data().amount) || 0));
+  expensesSnap.docs.forEach((d) => {
+    const data = d.data();
+    if (String(data.status || "").toLowerCase() !== "approved") return;
+    add(docDateKey(data), "expense", Number(data.amount) || 0);
+  });
 
   const days = Array.from(byDay.entries())
     .map(([date, v]) => ({ date, income: v.income, expense: v.expense, net: v.income - v.expense }))

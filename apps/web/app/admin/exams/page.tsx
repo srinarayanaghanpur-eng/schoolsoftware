@@ -1,5 +1,6 @@
 "use client";
 
+import { DatePicker } from "@/components/DatePicker";
 import { PageHeader } from "@/components/PageHeader";
 import { useAdminSession } from "@/components/AdminSessionContext";
 import { useAcademicYears } from "@/components/AcademicYearContext";
@@ -88,8 +89,8 @@ export default function ExamsPage() {
               <label className="text-sm font-semibold text-[#303247]">Class<input className="field mt-1" required value={form.className} onChange={(e) => setForm({ ...form, className: e.target.value })} placeholder="10" /></label>
               <label className="text-sm font-semibold text-[#303247]">Section (optional)<input className="field mt-1" value={form.section} onChange={(e) => setForm({ ...form, section: e.target.value })} placeholder="A" /></label>
               <label className="text-sm font-semibold text-[#303247]">Type<select className="field mt-1" value={form.examType} onChange={(e) => setForm({ ...form, examType: e.target.value })}>{TYPES.map((t) => <option key={t} value={t}>{t.replace("_", " ")}</option>)}</select></label>
-              <label className="text-sm font-semibold text-[#303247]">Start date<input className="field mt-1" type="date" required value={form.startDate} onChange={(e) => setForm({ ...form, startDate: e.target.value })} /></label>
-              <label className="text-sm font-semibold text-[#303247]">End date (optional)<input className="field mt-1" type="date" value={form.endDate} onChange={(e) => setForm({ ...form, endDate: e.target.value })} /></label>
+              <label className="text-sm font-semibold text-[#303247]">Start date<div className="mt-1"><DatePicker required value={form.startDate} onChange={(e) => setForm({ ...form, startDate: e.target.value })} /></div></label>
+              <label className="text-sm font-semibold text-[#303247]">End date (optional)<div className="mt-1"><DatePicker value={form.endDate} onChange={(e) => setForm({ ...form, endDate: e.target.value })} /></div></label>
               <label className="text-sm font-semibold text-[#303247]">Max marks<input className="field mt-1" type="number" min="1" required value={form.maxMarks} onChange={(e) => setForm({ ...form, maxMarks: e.target.value })} /></label>
               <div className="sm:col-span-2 flex items-center gap-3">
                 <button type="button" className="rounded-lg border border-[#e0e3f0] px-3 py-2 text-xs font-bold text-[#5d6690] hover:bg-[#f5f6fd]" onClick={() => setShowTimetable((v) => !v)}>
@@ -112,7 +113,7 @@ export default function ExamsPage() {
                     {timetable.map((entry, i) => (
                       <div key={i} className="flex flex-wrap items-end gap-2 rounded-lg bg-[#f8f8fc] p-3">
                         <label className="text-xs font-bold text-[#5d6690]">Subject<input className="field mt-0.5 !py-1.5 text-xs" value={entry.subject} onChange={(e) => updateTimetableRow(i, "subject", e.target.value)} placeholder="Maths" /></label>
-                        <label className="text-xs font-bold text-[#5d6690]">Date<input className="field mt-0.5 !py-1.5 text-xs" type="date" value={entry.date} onChange={(e) => updateTimetableRow(i, "date", e.target.value)} /></label>
+                        <label className="text-xs font-bold text-[#5d6690]">Date<div className="mt-0.5"><DatePicker className="field !py-1.5 text-xs" value={entry.date} onChange={(e) => updateTimetableRow(i, "date", e.target.value)} /></div></label>
                         <label className="text-xs font-bold text-[#5d6690]">Time<input className="field mt-0.5 !py-1.5 text-xs" type="time" value={entry.time} onChange={(e) => updateTimetableRow(i, "time", e.target.value)} /></label>
                         <label className="text-xs font-bold text-[#5d6690]">Max<input className="field mt-0.5 !py-1.5 text-xs w-16" type="number" value={entry.maxMarks ?? ""} onChange={(e) => updateTimetableRow(i, "maxMarks", e.target.value)} placeholder={form.maxMarks} /></label>
                         <button type="button" onClick={() => removeTimetableRow(i)} className="rounded-lg p-1.5 text-[#ed515d] hover:bg-[#ffebed]"><Trash2 size={14} /></button>

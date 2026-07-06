@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, RefreshCw } from "lucide-react";
+import { DatePicker } from "@/components/DatePicker";
 import { PageHeader } from "@/components/PageHeader";
 import { useAdminSession } from "@/components/AdminSessionContext";
 import { hasPermission } from "@sri-narayana/shared";
@@ -362,7 +363,7 @@ function PaymentModal({
 
         <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
           <L label="Paid Amount (₹)"><input type="number" min="0" className="field mt-1" value={form.paidAmount} onChange={(e) => setForm({ ...form, paidAmount: e.target.value })} /></L>
-          <L label="Payment Date"><input type="date" className="field mt-1" value={form.paymentDate} onChange={(e) => setForm({ ...form, paymentDate: e.target.value })} /></L>
+          <L label="Payment Date"><div className="mt-1"><DatePicker value={form.paymentDate} onChange={(e) => setForm({ ...form, paymentDate: e.target.value })} /></div></L>
           <L label="Payment Mode">
             <select className="field mt-1" value={form.paymentMode} onChange={(e) => setForm({ ...form, paymentMode: e.target.value })}>
               {EMI_PAYMENT_MODES.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}

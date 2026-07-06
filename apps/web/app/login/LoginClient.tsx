@@ -101,6 +101,8 @@ async function signInAndResolveRole(loginId: string, password: string, rememberM
 function destinationForRole(role: string): string {
   if (role === "teacher") return "/teacher";
   if (role === "parent" || role === "student") return "/portal";
+  if (role === "accountant") return "/admin/finance";
+  if (role === "settings_manager") return "/admin/settings";
   return "/admin/dashboard";
 }
 

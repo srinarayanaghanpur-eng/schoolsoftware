@@ -3,7 +3,7 @@ import { FieldValue } from "firebase-admin/firestore";
 import { feeStructureCreateSchema } from "@sri-narayana/shared";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { requirePermission, serializeDoc } from "@/lib/apiUtils";
-import { docCursor, logFirestoreRead, readLimit } from "@/lib/firestoreReadLogger";
+import { logFirestoreRead, readLimit } from "@/lib/firestoreReadLogger";
 import { getSchoolId } from "@/lib/schoolScope";
 
 const COLLECTION = "fee_structures";
@@ -13,31 +13,37 @@ export async function GET(req: Request) {
   const token = await requirePermission(req, "fees.view");
   if (!token) return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
 
-  const { searchParams } = new URL(req.url);
-  const academicYearId = searchParams.get("academicYearId") || "";
-  const className = searchParams.get("className") || "";
-  const schoolId = searchParams.get("schoolId") || "";
-  const pageSize = readLimit(searchParams.get("pageSize") ?? searchParams.get("limit"), 25, 100);
-  const cursor = docCursor(searchParams.get("cursor"));
+  try {
+    const { searchParams } = new URL(req.url);
+    const academicYearId = searchParams.get("academicYearId") || "";
+    const className = searchParams.get("className") || "";
+    const schoolId = searchParams.get("schoolId") || "";
+    const pageSize = readLimit(searchParams.get("pageSize") ?? searchParams.get("limit"), 25, 100);
+    const cursor = searchParams.get("cursor")?.trim() || "";
 
-  const db = adminDb();
-  let query: FirebaseFirestore.Query = db.collection(COLLECTION);
-  if (academicYearId) query = query.where("academicYearId", "==", academicYearId);
-  if (className) query = query.where("className", "==", className);
-  if (schoolId) query = query.where("schoolId", "==", schoolId);
-  query = query.orderBy("className", "asc");
+    const db = adminDb();
+    let query: FirebaseFirestore.Query = db.collection(COLLECTION);
+    if (academicYearId) query = query.where("academicYearId", "==", academicYearId);
+    else if (schoolId) query = query.where("schoolId", "==", schoolId);
 
-  if (cursor) {
-    const cursorDoc = await db.collection(COLLECTION).doc(cursor).get();
-    if (cursorDoc.exists) query = query.startAfter(cursorDoc);
+    const snapshot = await query.limit(500).get();
+    logFirestoreRead("FeeStructuresAPI", COLLECTION, snapshot, { academicYearId, className, schoolId, pageSize });
+
+    const filtered = snapshot.docs
+      .map((doc) => serializeDoc(doc))
+      .filter((structure) => !academicYearId || String(structure.academicYearId || "") === academicYearId)
+      .filter((structure) => !className || String(structure.className || "") === className)
+      .filter((structure) => !schoolId || String(structure.schoolId || "") === schoolId)
+      .sort((left, right) => String(left.className || "").localeCompare(String(right.className || ""), undefined, { numeric: true }));
+
+    const startIndex = cursor ? Math.max(0, filtered.findIndex((item) => item.id === cursor) + 1) : 0;
+    const pageDocs = filtered.slice(startIndex, startIndex + pageSize);
+    const nextCursor = startIndex + pageSize < filtered.length && pageDocs.length > 0 ? pageDocs[pageDocs.length - 1].id : null;
+    return NextResponse.json({ ok: true, structures: pageDocs, pageSize, nextCursor, hasMore: Boolean(nextCursor) });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unable to load fee structures";
+    return NextResponse.json({ ok: false, error: message }, { status: 400 });
   }
-
-  const snapshot = await query.limit(pageSize + 1).get();
-  logFirestoreRead("FeeStructuresAPI", COLLECTION, snapshot, { academicYearId, className, schoolId, pageSize });
-  const pageDocs = snapshot.docs.slice(0, pageSize);
-  const structures = pageDocs.map((doc) => serializeDoc(doc));
-  const nextCursor = snapshot.docs.length > pageSize && pageDocs.length > 0 ? pageDocs[pageDocs.length - 1].id : null;
-  return NextResponse.json({ ok: true, structures, pageSize, nextCursor, hasMore: Boolean(nextCursor) });
 }
 
 // POST /api/admin/fee-structures — create class-wise fee structure (total computed).

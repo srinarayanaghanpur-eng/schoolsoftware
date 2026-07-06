@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRefreshOnFocus } from "@/lib/useRefreshOnFocus";
 import { Plus, X, Edit2, Trash2, Search, Upload, Camera, QrCode, Printer } from "lucide-react";
 import Link from "next/link";
+import { DatePicker } from "@/components/DatePicker";
 import { PageHeader } from "@/components/PageHeader";
 import { PaginationControls } from "@/components/PaginationControls";
 import { useAdminSession } from "@/components/AdminSessionContext";
@@ -1371,7 +1372,7 @@ export default function StudentsPage() {
 
                 <div>
                   <label className="block text-sm font-semibold text-[#303247]">Date of Birth</label>
-                  <input type="date" name="dateOfBirth" value={formData.dateOfBirth} onChange={handleChange} className="field mt-1" />
+                  <div className="mt-1"><DatePicker name="dateOfBirth" value={formData.dateOfBirth} onChange={(e) => setFormData((prev) => ({ ...prev, dateOfBirth: e.target.value }))} /></div>
                 </div>
 
                 {/* ---- Parent / Guardian Details ---- */}

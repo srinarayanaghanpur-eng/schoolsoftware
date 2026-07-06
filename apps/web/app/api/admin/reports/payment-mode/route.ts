@@ -23,18 +23,18 @@ export async function GET(request: NextRequest) {
     const fromDate = new Date(`${from}T00:00:00`);
     const toDate = new Date(`${to}T23:59:59.999`);
     const paymentsSnap = await db.collection("payments")
-      .where("status", "==", "completed")
       .where("createdAt", ">=", fromDate)
       .where("createdAt", "<=", toDate)
       .orderBy("createdAt", "desc")
       .limit(1000)
       .get();
-    logFirestoreRead("PaymentModeReportAPI", "payments", paymentsSnap, { from, to, status: "completed", limit: 1000 });
+    logFirestoreRead("PaymentModeReportAPI", "payments", paymentsSnap, { from, to, statusFilter: "completed", limit: 1000 });
 
     const byMode: Record<string, { paymentMode: string; transactions: number; totalCollected: number }> = {};
     let grandTotal = 0;
     paymentsSnap.docs.forEach((doc: QueryDocumentSnapshot) => {
       const p = doc.data();
+      if (String(p.status || "").toLowerCase() !== "completed") return;
       const mode = String(p.paymentMethod || "cash").toUpperCase();
       if (!byMode[mode]) byMode[mode] = { paymentMode: mode, transactions: 0, totalCollected: 0 };
       const amount = Number(p.amountPaid || 0);

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { FieldValue } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { requirePermission } from "@/lib/apiUtils";
-import { docCursor, logFirestoreRead, readLimit } from "@/lib/firestoreReadLogger";
+import { logFirestoreRead, readLimit } from "@/lib/firestoreReadLogger";
 import { getSchoolId } from "@/lib/schoolScope";
 
 // GET /api/admin/finance/reminders — build the fee-reminder list (students with dues + contact).
@@ -12,31 +12,32 @@ export async function GET(req: Request) {
 
   const { searchParams } = new URL(req.url);
   const pageSize = readLimit(searchParams.get("pageSize") ?? searchParams.get("limit"), 25, 250);
-  const cursor = docCursor(searchParams.get("cursor"));
+  const cursor = searchParams.get("cursor")?.trim() || "";
   const classFilter = searchParams.get("classId") || searchParams.get("class") || "";
   const sectionFilter = searchParams.get("sectionId") || searchParams.get("section") || "";
   const academicYearId = searchParams.get("academicYearId") || "";
   const schoolId = searchParams.get("schoolId") || "";
   const db = adminDb();
 
-  let query: FirebaseFirestore.Query = db.collection("studentFeeSummaries").where("dueAmount", ">", 0);
-  if (schoolId) query = query.where("schoolId", "==", schoolId);
+  let query: FirebaseFirestore.Query = db.collection("studentFeeSummaries");
   if (academicYearId) query = query.where("academicYearId", "==", academicYearId);
-  if (classFilter) query = query.where("classId", "==", classFilter);
-  if (sectionFilter) query = query.where("sectionId", "==", sectionFilter);
-  query = query.orderBy("dueAmount", "desc");
+  else if (schoolId) query = query.where("schoolId", "==", schoolId);
 
-  if (cursor) {
-    const cursorDoc = await db.collection("studentFeeSummaries").doc(cursor).get();
-    if (cursorDoc.exists) query = query.startAfter(cursorDoc);
-  }
-
-  query = query.limit(pageSize + 1);
-
-  const snap = await query.get();
+  const snap = await query.limit(1000).get();
   logFirestoreRead("FinanceRemindersAPI", "studentFeeSummaries", snap, { schoolId, academicYearId, classFilter, sectionFilter, pageSize });
-  const pageDocs = snap.docs.slice(0, pageSize);
-  const nextCursor = snap.docs.length > pageSize && pageDocs.length > 0 ? pageDocs[pageDocs.length - 1].id : null;
+  const filteredDocs = snap.docs
+    .filter((doc) => {
+      const data = doc.data();
+      return (Number(data.dueAmount) || 0) > 0
+        && (!schoolId || String(data.schoolId || "") === schoolId)
+        && (!academicYearId || String(data.academicYearId || "") === academicYearId)
+        && (!classFilter || String(data.classId || data.className || "") === classFilter)
+        && (!sectionFilter || String(data.sectionId || data.sectionName || "") === sectionFilter);
+    })
+    .sort((left, right) => (Number(right.data().dueAmount) || 0) - (Number(left.data().dueAmount) || 0));
+  const startIndex = cursor ? Math.max(0, filteredDocs.findIndex((doc) => doc.id === cursor) + 1) : 0;
+  const pageDocs = filteredDocs.slice(startIndex, startIndex + pageSize);
+  const nextCursor = startIndex + pageSize < filteredDocs.length && pageDocs.length > 0 ? pageDocs[pageDocs.length - 1].id : null;
   // Summaries written since the fee-summary rollout carry name/class/phone, so
   // only fall back to the student doc for legacy summaries missing them.
   const missingIds = pageDocs
