@@ -7,9 +7,11 @@ import {
   demoAttendance,
   demoHolidays,
   demoTeachers,
+  getApprovedPaidCLDays,
+  getUnpaidAbsentDays,
+  normalizeSalaryReport,
   type SalaryReport,
   type Teacher,
-  type AttendanceRecord,
   DEFAULT_SETTINGS
 } from "@sri-narayana/shared";
 import { ArrowLeft, TrendingUp, Wallet } from "lucide-react";
@@ -26,11 +28,11 @@ function currentMonth() {
 }
 
 function approvedPaidCLDays(report: SalaryReport) {
-  return report.approvedPaidCLDays ?? report.paidCLDays ?? report.paidLeaveDays ?? report.clDays ?? 0;
+  return getApprovedPaidCLDays(report);
 }
 
 function unpaidAbsentDays(report: SalaryReport) {
-  return report.unpaidAbsentDays ?? report.unpaidDeductionDays ?? report.absentDays ?? 0;
+  return getUnpaidAbsentDays(report);
 }
 
 export default function TeacherSalaryPage() {
@@ -71,7 +73,7 @@ export default function TeacherSalaryPage() {
 
         const report = salaryResult.reports.find((r) => r.month === month);
         if (report) {
-          setSalary({ report, teacher: teacherResult.teacher });
+          setSalary({ report: normalizeSalaryReport(report), teacher: teacherResult.teacher });
         } else if (!isFirebaseConfigured) {
           // Demo mode
           const demoTeacher = demoTeachers[0];
@@ -85,7 +87,7 @@ export default function TeacherSalaryPage() {
             month,
             settings: DEFAULT_SETTINGS
           });
-          setSalary({ report: demoReport, teacher: demoTeacher });
+          setSalary({ report: normalizeSalaryReport(demoReport), teacher: demoTeacher });
         } else {
           setSalary(null);
         }
@@ -153,6 +155,11 @@ export default function TeacherSalaryPage() {
         <div className="card flex items-center gap-3 p-4">
           <input className="field max-w-xs" type="month" value={month} onChange={(e) => setMonth(e.target.value)} />
         </div>
+        {report.calculationWarning && (
+          <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+            {report.calculationWarning}
+          </div>
+        )}
 
         {/* Salary Summary Cards */}
         <div className="grid gap-4 md:grid-cols-3">

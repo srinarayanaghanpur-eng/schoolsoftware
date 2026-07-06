@@ -64,8 +64,8 @@ function formatDateTime(value?: string) {
   });
 }
 
-function roundMoney(value?: number) {
-  return Math.round((value ?? 0) * 100) / 100;
+function roundMoney(value: number) {
+  return Math.round(value * 100) / 100;
 }
 
 function money(value?: number) {
@@ -155,8 +155,6 @@ export default function SalaryPage() {
     setError(null);
     try {
       const result = await apiRequest<{ reports: SalaryReport[] }>(`/api/admin/salary?month=${encodeURIComponent(targetMonth)}`, undefined, isAccountant);
-      // Defense in depth: re-run the safety formula client-side too, so even a
-      // stale/legacy report can never render full salary with 0 present days.
       setReports(result.reports.map(normalizeSalaryReport));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to load salary");
@@ -208,8 +206,6 @@ export default function SalaryPage() {
 
   const togglePaid = async (report: SalaryReport) => {
     if (isAccountant && payrollAccess?.access !== "approved") return;
-    // Client-side payment block (server enforces the same rule in PATCH):
-    // attendance missing or inconsistent totals must never be marked paid.
     if (!report.paid && isSalaryPaymentBlocked(report)) {
       setError(getSalaryPaymentBlockedReason(report) ?? "Salary payment is blocked for this report.");
       return;
@@ -310,6 +306,8 @@ export default function SalaryPage() {
     }
   };
 
+  const attendanceMissingWarning = reports.find((report) => report.salaryStatus === "Attendance Missing")?.calculationWarning;
+
   if (isAccountant && payrollAccess?.access !== "approved") {
     return (
       <>
@@ -362,6 +360,7 @@ export default function SalaryPage() {
       <section className="space-y-5 p-4 md:p-7">
         {message && <div className="rounded-2xl border border-[#c8f0dc] bg-[#e6f8ef] px-4 py-3 text-sm font-semibold text-[#0f8d52]">{message}</div>}
         {error && <div className="rounded-2xl border border-[#ffd5da] bg-[#ffebed] px-4 py-3 text-sm font-semibold text-[#c83f4d]">{error}</div>}
+        {attendanceMissingWarning && <div className="rounded-2xl border border-[#ffd5da] bg-[#ffebed] px-4 py-3 text-sm font-semibold text-[#c83f4d]">{attendanceMissingWarning}</div>}
         {canReviewPayrollAccess && (
           <div className="card p-4">
             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -480,7 +479,7 @@ export default function SalaryPage() {
                 </div>
                 <div>
                   <dt className="text-[11px] font-semibold uppercase tracking-wide text-[#8490b9]">Deduction</dt>
-                  <dd className={`text-sm font-bold ${(report.salaryDeduction ?? 0) > 0 ? "text-red-600" : "text-[#303247]"}`}>₹{money(report.salaryDeduction)}</dd>
+                  <dd className={`text-sm font-bold ${report.salaryDeduction > 0 ? "text-red-600" : "text-[#303247]"}`}>₹{money(report.salaryDeduction)}</dd>
                 </div>
                 <div className="col-span-2 mt-1 rounded-xl bg-[#f7f8fd] p-3">
                   <dt className="text-[11px] font-semibold uppercase tracking-wide text-[#8490b9]">Net Payable</dt>
@@ -529,7 +528,7 @@ export default function SalaryPage() {
                     {unpaidAbsentDays(report)}
                   </td>
                   <td className="px-4 py-3 text-xs">₹{money(report.perDaySalary)}</td>
-                  <td className={`px-4 py-3 font-semibold ${(report.salaryDeduction ?? 0) > 0 ? "text-red-600" : ""}`} title={`Plain absent: ${report.plainAbsentDays ?? 0} · Excess leave: ${report.excessCLDays ?? report.excessLeave ?? 0}`}>
+                  <td className={`px-4 py-3 font-semibold ${report.salaryDeduction > 0 ? "text-red-600" : ""}`} title={`Plain absent: ${report.plainAbsentDays ?? 0} · Excess leave: ${report.excessCLDays ?? report.excessLeave ?? 0}`}>
                     ₹{money(report.salaryDeduction)}
                   </td>
                   <td className="px-4 py-3">₹{money(report.bonus)}</td>

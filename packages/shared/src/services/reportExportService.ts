@@ -1,5 +1,6 @@
 import * as XLSX from "xlsx";
 import type { AttendanceRecord, BiometricLog, SalaryReport, Teacher } from "../types/models";
+import { getApprovedPaidCLDays, getUnpaidAbsentDays, normalizeSalaryReport } from "./salaryService";
 
 function writeWorkbook(rows: Record<string, unknown>[], sheetName: string) {
   const worksheet = XLSX.utils.json_to_sheet(rows);
@@ -51,24 +52,27 @@ export function buildMonthlyAttendanceRows(records: AttendanceRecord[], teachers
 }
 
 export function buildSalaryRows(reports: SalaryReport[]) {
-  return reports.map((report) => ({
-    "Teacher Name": report.teacherName,
-    "Employee ID": report.employeeId,
-    Month: report.month,
-    "Base Salary": report.baseSalary,
-    "Total Working Days": report.totalWorkingDaysInMonth ?? report.workingDays,
-    "Working Days Elapsed": report.workingDaysElapsed ?? report.workingDays,
-    "Present Days": report.presentDays,
-    "Approved Paid CL Days": report.approvedPaidCLDays ?? report.paidCLDays ?? report.paidLeaveDays ?? report.clDays ?? 0,
-    "Unpaid Absent Days": report.unpaidAbsentDays ?? report.unpaidDeductionDays ?? report.absentDays,
-    "Daily Rate": report.perDaySalary,
-    Deduction: report.salaryDeduction,
-    Bonus: report.bonus,
-    "Net Payable": report.netPayable,
-    Paid: report.paid ? "Paid" : "Unpaid",
-    "Payment date": report.paidAt ?? "",
-    Notes: report.paymentNotes ?? ""
-  }));
+  return reports.map((input) => {
+    const report = normalizeSalaryReport(input);
+    return {
+      "Teacher Name": report.teacherName,
+      "Employee ID": report.employeeId,
+      Month: report.month,
+      "Base Salary": report.baseSalary,
+      "Total Working Days": report.totalWorkingDaysInMonth ?? report.workingDays,
+      "Working Days Elapsed": report.workingDaysElapsed ?? report.workingDays,
+      "Present Days": report.presentDays,
+      "Approved Paid CL Days": getApprovedPaidCLDays(report),
+      "Unpaid Absent Days": getUnpaidAbsentDays(report),
+      "Daily Rate": report.perDaySalary,
+      Deduction: report.salaryDeduction,
+      Bonus: report.bonus,
+      "Net Payable": report.netPayable,
+      Paid: report.salaryStatus && report.salaryStatus !== "Ready" ? report.salaryStatus : report.paid ? "Paid" : "Unpaid",
+      "Payment date": report.paidAt ?? "",
+      Notes: report.paymentNotes ?? report.calculationWarning ?? ""
+    };
+  });
 }
 
 export function buildBiometricLogRows(logs: BiometricLog[]) {

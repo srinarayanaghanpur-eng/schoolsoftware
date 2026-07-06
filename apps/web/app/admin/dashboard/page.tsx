@@ -422,7 +422,8 @@ export default async function AdminDashboardPage() {
     studentsPending: 0,
     weekAttendance: DAY_LABELS.map((day) => ({ day, value: 0 })),
     recentStudents: [],
-    notices: []
+    notices: [],
+    attendanceCutoffPassed: false
   };
 
   const collectedPct = clampPercent(d.totalFeeAmount > 0 ? (d.feesCollected / d.totalFeeAmount) * 100 : 0);

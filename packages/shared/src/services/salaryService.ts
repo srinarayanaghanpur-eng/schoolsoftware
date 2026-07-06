@@ -285,6 +285,32 @@ function buildApprovedLeaveInfo(approvedLeaveCLDates: string[], attendedApproved
   return parts.join(" | ");
 }
 
+export type AttendanceMissingSalaryInput = Omit<SalaryCalculationInput, "records"> & {
+  reason?: string;
+};
+
+export function buildAttendanceMissingSalaryReport(input: AttendanceMissingSalaryInput): SalaryReport {
+  const warning = input.reason ?? ATTENDANCE_MISSING_WARNING;
+  const report = calculateMonthlySalary({
+    ...input,
+    records: [],
+    paid: false,
+    paidAt: undefined,
+    paymentNotes: input.paymentNotes
+  });
+
+  return normalizeSalaryReport({
+    ...report,
+    paid: false,
+    paidAt: undefined,
+    salaryStatus: "Attendance Missing",
+    attendanceDataAvailable: false,
+    paymentBlockedReason: warning,
+    calculationWarning: warning,
+    netPayable: 0
+  });
+}
+
 export function calculateMonthlySalary(input: SalaryCalculationInput): SalaryReport {
   const settings = input.settings ?? DEFAULT_SETTINGS;
   const [yearText, monthText] = input.month.split("-");
@@ -342,7 +368,8 @@ export function calculateMonthlySalary(input: SalaryCalculationInput): SalaryRep
   const absentDates = sortDates([...plainAbsentDates, ...unpaidApprovedLeaveDates]);
   const unpaidAbsentDays = plainAbsentDates.length + excessCLDays;
   const absentDays = unpaidAbsentDays;
-  const earnedPaidDays = presentDates.length + approvedPaidCLDays;
+  const paidHolidayDays = 0;
+  const earnedPaidDays = presentDates.length + approvedPaidCLDays + paidHolidayDays;
 
   // Payroll is earned-days based; do not pay future or otherwise unpaid working days.
   const dailyRate = totalWorkingDates.length > 0 ? input.teacher.baseSalary / totalWorkingDates.length : 0;
@@ -365,6 +392,7 @@ export function calculateMonthlySalary(input: SalaryCalculationInput): SalaryRep
       workingDaysElapsed: workingDatesElapsed.length,
       presentDays: presentDates.length,
       approvedPaidCLDays,
+      paidHolidayDays,
       unpaidAbsentDays,
       dailyRate: roundMoney(dailyRate),
       deduction: roundMoney(salaryDeduction),
@@ -417,6 +445,7 @@ export function calculateMonthlySalary(input: SalaryCalculationInput): SalaryRep
     paidCLDays,
     approvedPaidCLDays,
     paidLeaveDays,
+    paidHolidayDays,
     excessCLDays,
     plainAbsentDays: plainAbsentDates.length,
     unpaidAbsentDays,
@@ -439,6 +468,8 @@ export function calculateMonthlySalary(input: SalaryCalculationInput): SalaryRep
     paid: input.paid ?? false,
     paidAt: input.paidAt,
     paymentNotes: input.paymentNotes,
+    salaryStatus: "Ready",
+    attendanceDataAvailable: true,
     presentDates,
     absentDates,
     approvedLeaveDates,
@@ -457,6 +488,7 @@ export function calculateMonthlySalary(input: SalaryCalculationInput): SalaryRep
       lateDates,
       paidLeaveDays,
       approvedPaidCLDays,
+      paidHolidayDays,
       unpaidAbsentDays,
       excessCLDays,
       earnedPaidDays,
