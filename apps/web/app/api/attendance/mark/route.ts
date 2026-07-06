@@ -16,6 +16,7 @@ import { managementHolidayMessage } from "@sri-narayana/shared";
 import { adminDb, verifyBearerToken } from "@/lib/firebaseAdmin";
 import { removeUndefinedFields } from "@/lib/firestoreSanitize";
 import { getAttendanceRecord, getHolidayByDate, getSchoolSettings, getTeacherById } from "@/lib/firestoreServer";
+import { getSchoolId } from "@/lib/schoolScope";
 
 function getEffectiveGpsSettings(
   teacher: NonNullable<Awaited<ReturnType<typeof getTeacherById>>>,
@@ -30,6 +31,17 @@ function getEffectiveGpsSettings(
       geofenceRadiusMeters: teacher.gpsRadiusMeters ?? settings.geofenceRadiusMeters
     }
   };
+}
+
+async function getActiveAcademicYearId() {
+  const snapshot = await adminDb()
+    .collection("academic_years")
+    .where("isActive", "==", true)
+    .limit(1)
+    .get()
+    .catch(() => null);
+
+  return snapshot?.docs[0]?.id ?? "";
 }
 
 export async function POST(req: Request) {
@@ -134,15 +146,21 @@ export async function POST(req: Request) {
     const db = adminDb();
     const attendanceRef = db.collection("attendance").doc(attendanceDocumentId);
     const teacherRef = db.collection("teachers").doc(payload.teacherId);
+    const schoolId = getSchoolId(decodedToken);
+    const academicYearId = await getActiveAcademicYearId();
+    const attendancePayload = removeUndefinedFields({
+      ...attendance,
+      schoolId,
+      academicYearId
+    });
 
     // Use a transaction so the CL deduction reads the freshest late-entry count atomically
     await db.runTransaction(async (transaction) => {
-      // Mark attendance
-      transaction.set(attendanceRef, removeUndefinedFields(attendance), { merge: true });
-
-      // Read the latest teacher data – no race possible inside a transaction
+      // Firestore requires all transaction reads before writes.
       const teacherSnap = await transaction.get(teacherRef);
       const latest = teacherSnap.data() ?? {};
+
+      transaction.set(attendanceRef, attendancePayload, { merge: true });
 
       const clUpdate: Record<string, unknown> = { updatedAt: nowIso() };
 
@@ -174,6 +192,8 @@ export async function POST(req: Request) {
       timestamp: payload.timestamp,
       source: "mobile",
       eventType: payload.eventType,
+      schoolId,
+      academicYearId,
       latitude: payload.latitude,
       longitude: payload.longitude,
       distanceFromCampus,
