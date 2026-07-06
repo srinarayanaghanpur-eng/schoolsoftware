@@ -27,6 +27,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { AggregateField } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebaseAdmin";
+import { getSchoolSettings } from "@/lib/firestoreServer";
 import { logFirestoreAggregateRead, logFirestoreRead } from "@/lib/firestoreReadLogger";
 
 export const dynamic = "force-dynamic";
@@ -86,7 +87,22 @@ type DashboardData = {
   weekAttendance: { day: string; value: number }[];
   recentStudents: { name: string; cls: string; initials: string }[];
   notices: { title: string; meta: string }[];
+  /** True once school start time + grace has passed (IST): staff who have not
+   *  checked in are then "Absent", not "Pending". */
+  attendanceCutoffPassed: boolean;
 };
+
+/** Minutes since midnight in IST for "now". */
+function istMinutesNow(): number {
+  const ist = new Date(Date.now() + 330 * 60 * 1000);
+  return ist.getUTCHours() * 60 + ist.getUTCMinutes();
+}
+
+function parseTimeToMinutes(time: string | undefined, fallbackMinutes: number): number {
+  const match = /^(\d{1,2}):(\d{2})$/.exec(String(time ?? "").trim());
+  if (!match) return fallbackMinutes;
+  return Number(match[1]) * 60 + Number(match[2]);
+}
 
 // Server-side TTL cache: the dashboard is `force-dynamic`, so without this
 // every navigation re-runs every aggregate/list query. 60s staleness is fine
@@ -231,6 +247,18 @@ async function loadDashboardUncached(yearId: string): Promise<DashboardData> {
     };
   });
 
+  // "Pending" is only meaningful before check-in closes. After school start
+  // time + grace (from Settings), anyone without a check-in is Absent.
+  let attendanceCutoffPassed = false;
+  try {
+    const settings = await getSchoolSettings();
+    const startMinutes = parseTimeToMinutes(settings.schoolStartTime, 9 * 60);
+    const graceMinutes = Number(settings.graceMinutes ?? 10) || 0;
+    attendanceCutoffPassed = istMinutesNow() > startMinutes + graceMinutes;
+  } catch {
+    // settings unavailable → keep "Pending" wording
+  }
+
   return {
     totalStudents,
     totalTeachers,
@@ -242,7 +270,8 @@ async function loadDashboardUncached(yearId: string): Promise<DashboardData> {
     studentsPending,
     weekAttendance,
     recentStudents,
-    notices
+    notices,
+    attendanceCutoffPassed
   };
 }
 
@@ -520,7 +549,11 @@ export default async function AdminDashboardPage() {
             <div>
               <p className="text-xs font-bold text-muted-foreground">Today&apos;s Attendance</p>
               <p className="mt-1 text-sm font-extrabold text-foreground dark:text-white">Present: {d.presentToday}</p>
-              <p className="text-xs font-bold text-destructive dark:text-rose-300">Pending: {Math.max(0, d.totalTeachers - d.presentToday)}</p>
+              {/* Before check-in closes (school start + grace) staff are Pending;
+                  after that, no check-in = Absent. */}
+              <p className="text-xs font-bold text-destructive dark:text-rose-300">
+                {d.attendanceCutoffPassed ? "Absent" : "Pending"}: {Math.max(0, d.totalTeachers - d.presentToday)}
+              </p>
             </div>
           </div>
         </Panel>
