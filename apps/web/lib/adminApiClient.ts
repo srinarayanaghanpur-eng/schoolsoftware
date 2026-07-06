@@ -40,6 +40,23 @@ type CacheEntry = { data: unknown; at: number };
 const memoryCache = new Map<string, CacheEntry>();
 const inflight = new Map<string, Promise<unknown>>();
 
+/**
+ * Network status events for the app-wide banner (see OfflineBanner in
+ * AppShell). Detail types:
+ *  - "stale-served": a GET failed but cached data was shown
+ *  - "request-failed": a GET failed with nothing cached to fall back on
+ *  - "ok": a request succeeded (clears failure banners)
+ */
+export const API_STATUS_EVENT = "snapi:status";
+
+function emitStatus(type: "stale-served" | "request-failed" | "ok") {
+  try {
+    window.dispatchEvent(new CustomEvent(API_STATUS_EVENT, { detail: { type } }));
+  } catch {
+    // SSR or very old browser — banner just won't update
+  }
+}
+
 function now() {
   return Date.now();
 }
@@ -183,6 +200,7 @@ export async function adminApiRequest<T>(path: string, init?: RequestInit, opts?
       const result = await rawRequest<T>(path, init);
       memoryCache.set(key, { data: result, at: now() });
       writeStale(key, result);
+      emitStatus("ok");
       return result;
     } catch (error) {
       // 3. Offline / quota / server error → serve last good copy if we have
@@ -192,8 +210,10 @@ export async function adminApiRequest<T>(path: string, init?: RequestInit, opts?
         if (stale !== null) {
           // Mark so UIs can show an "offline / cached" hint if they want to.
           try { (stale as Record<string, unknown>).__fromCache = true; } catch { /* primitives */ }
+          emitStatus("stale-served");
           return stale as T;
         }
+        emitStatus("request-failed");
       }
       throw error;
     } finally {

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { requirePermission } from "@/lib/apiUtils";
+import { logFirestoreRead, readLimit } from "@/lib/firestoreReadLogger";
+import { getSchoolId } from "@/lib/schoolScope";
 import { BUS_FINANCE_COLLECTION, BUS_EMI_PAYMENTS_COLLECTION } from "@/lib/busFinanceService";
 import type { BusEmiPayment, BusFinance } from "@/types/busFinance.types";
 
@@ -27,6 +29,9 @@ export async function GET(req: NextRequest) {
     const type = (searchParams.get("type") || "monthly") as ReportType;
     const monthFilter = searchParams.get("month"); // YYYY-MM
     const yearFilter = searchParams.get("year"); // YYYY
+    const academicYearId = searchParams.get("academicYearId") || "";
+    const schoolId = searchParams.get("schoolId") || getSchoolId(token);
+    const pageSize = readLimit(searchParams.get("pageSize") ?? searchParams.get("limit"), 25, 1000);
     const today = new Date().toISOString().slice(0, 10);
 
     const db = adminDb();
@@ -34,6 +39,15 @@ export async function GET(req: NextRequest) {
     // Pull only the EMI payments the requested report needs, filtered at the
     // database level, instead of the whole collection for every report type.
     let paymentsQuery: FirebaseFirestore.Query = db.collection(BUS_EMI_PAYMENTS_COLLECTION);
+    let financeQuery: FirebaseFirestore.Query = db.collection(BUS_FINANCE_COLLECTION);
+    if (academicYearId) {
+      paymentsQuery = paymentsQuery.where("academicYearId", "==", academicYearId);
+      financeQuery = financeQuery.where("academicYearId", "==", academicYearId);
+    }
+    if (schoolId) {
+      paymentsQuery = paymentsQuery.where("schoolId", "==", schoolId);
+      financeQuery = financeQuery.where("schoolId", "==", schoolId);
+    }
     if (type === "monthly") {
       paymentsQuery = paymentsQuery.where("emiMonth", "==", monthFilter || today.slice(0, 7));
     } else if (type === "pending") {
@@ -43,9 +57,11 @@ export async function GET(req: NextRequest) {
     }
 
     const [financeSnap, paymentsSnap] = await Promise.all([
-      db.collection(BUS_FINANCE_COLLECTION).limit(500).get(),
-      paymentsQuery.limit(2000).get(),
+      financeQuery.limit(pageSize).get(),
+      paymentsQuery.limit(Math.min(1000, pageSize * 10)).get(),
     ]);
+    logFirestoreRead("BusFinanceReportsAPI", BUS_FINANCE_COLLECTION, financeSnap, { type, schoolId, academicYearId, pageSize });
+    logFirestoreRead("BusFinanceReportsAPI", BUS_EMI_PAYMENTS_COLLECTION, paymentsSnap, { type, schoolId, academicYearId, pageSize: Math.min(1000, pageSize * 10) });
 
     const finances = financeSnap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<BusFinance, "id">) }) as BusFinance);
     const financeById = new Map(finances.map((f) => [f.id, f]));

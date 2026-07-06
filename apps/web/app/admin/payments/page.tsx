@@ -7,6 +7,7 @@ import { FeeStatusBadge, PaymentMethodBadge } from "@/components/FeeComponents";
 import { PageHeader } from "@/components/PageHeader";
 import { PaginationControls } from "@/components/PaginationControls";
 import { useAdminSession } from "@/components/AdminSessionContext";
+import { useAcademicYears } from "@/components/AcademicYearContext";
 import { hasPermission } from "@sri-narayana/shared";
 import { adminApiRequest } from "@/lib/adminApiClient";
 import { db, isFirebaseConfigured } from "@sri-narayana/shared/firebase/client";
@@ -50,6 +51,7 @@ function formatPaymentDate(value: unknown) {
 
 export default function PaymentsPage() {
   const { role, profile } = useAdminSession();
+  const { selectedYear } = useAcademicYears();
   const canRecordPayment = Boolean(role && hasPermission(role, "fees.create"));
   const canCancelPayment = Boolean(role && hasPermission(role, "fees.create"));
   const [payments, setPayments] = useState<Payment[]>([]);
@@ -78,17 +80,33 @@ export default function PaymentsPage() {
   const [cancelSuccess, setCancelSuccess] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!selectedYear?.id) {
+      setPayments([]);
+      setLoading(false);
+      return;
+    }
     fetchPayments({ page: 0, cursor: null });
-  }, []);
-  useRefreshOnFocus(() => fetchPayments());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedYear?.id]);
+  useRefreshOnFocus(() => {
+    if (selectedYear?.id) fetchPayments();
+  });
 
   const fetchPayments = async (options: { cursor?: string | null; page?: number } = {}) => {
+    if (!selectedYear?.id) {
+      setPayments([]);
+      setLoading(false);
+      setNextCursor(null);
+      setHasMore(false);
+      return;
+    }
     const targetPage = options.page ?? currentPage;
     const targetCursor = options.cursor !== undefined ? options.cursor : pageCursors[targetPage] ?? null;
     try {
       setError(null);
       setLoading(true);
       const params = new URLSearchParams({ pageSize: String(RECEIPTS_PAGE_SIZE) });
+      params.set("academicYearId", selectedYear.id);
       if (filterClass) params.set("classId", filterClass);
       if (filterSection) params.set("sectionId", filterSection);
       if (filterMethod) params.set("paymentMode", filterMethod);
@@ -193,6 +211,7 @@ export default function PaymentsPage() {
           <div className="card p-5 md:p-6">
             <h3 className="mb-4 text-lg font-bold text-[#1f2136]">Record New Payment</h3>
             <PaymentForm
+              academicYearId={selectedYear?.id ?? ""}
               onSuccess={() => {
                 setShowForm(false);
                 fetchPayments({ page: 0, cursor: null });
@@ -382,9 +401,11 @@ export default function PaymentsPage() {
 }
 
 function PaymentForm({
+  academicYearId,
   onSuccess,
   onCancel
 }: {
+  academicYearId: string;
   onSuccess: () => void;
   onCancel: () => void;
 }) {
@@ -438,10 +459,16 @@ function PaymentForm({
   }, []);
 
   const loadStudents = async () => {
+    if (!academicYearId) {
+      setStudents([]);
+      setError("Select an academic year before loading students.");
+      return;
+    }
     setStudentsLoading(true);
     setError(null);
     const params = new URLSearchParams({
       pageSize: "25",
+      academicYearId,
       class: studentClass,
       section: studentSection
     });
@@ -456,7 +483,8 @@ function PaymentForm({
 
   useEffect(() => {
     loadStudents();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [academicYearId]);
 
   const selectedStudent = students.find((student) => student.id === studentId);
 

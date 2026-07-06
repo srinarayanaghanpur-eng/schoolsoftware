@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from "@/lib/firebaseAdmin";
 import { requirePermission } from "@/lib/apiUtils";
+import { docCursor, logFirestoreRead, readLimit } from "@/lib/firestoreReadLogger";
+import { getSchoolId } from "@/lib/schoolScope";
 
 /**
  * GET /api/admin/concessions
@@ -16,6 +18,10 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status');
     const studentId = searchParams.get('studentId');
     const classStr = searchParams.get('class');
+    const academicYearId = searchParams.get("academicYearId") || "";
+    const schoolId = searchParams.get("schoolId") || getSchoolId(auth);
+    const pageSize = readLimit(searchParams.get("pageSize") ?? searchParams.get("limit"), 25, 100);
+    const cursor = docCursor(searchParams.get("cursor"));
 
     let query: any = db.collection('concessions');
 
@@ -28,16 +34,30 @@ export async function GET(request: NextRequest) {
     if (classStr) {
       query = query.where('class', '==', classStr);
     }
+    if (academicYearId) {
+      query = query.where("academicYearId", "==", academicYearId);
+    }
+    if (schoolId) {
+      query = query.where("schoolId", "==", schoolId);
+    }
 
     query = query.orderBy('createdAt', 'desc');
 
-    const snapshot = await query.get();
-    const concessions = snapshot.docs.map((doc: { id: string; data: () => any }) => ({
+    if (cursor) {
+      const cursorDoc = await db.collection("concessions").doc(cursor).get();
+      if (cursorDoc.exists) query = query.startAfter(cursorDoc);
+    }
+
+    const snapshot = await query.limit(pageSize + 1).get();
+    logFirestoreRead("ConcessionsAPI", "concessions", snapshot, { status, studentId, classStr, academicYearId, schoolId, pageSize });
+    const pageDocs = snapshot.docs.slice(0, pageSize);
+    const concessions = pageDocs.map((doc: { id: string; data: () => any }) => ({
       id: doc.id,
       ...doc.data()
     }));
+    const nextCursor = snapshot.docs.length > pageSize && pageDocs.length > 0 ? pageDocs[pageDocs.length - 1].id : null;
 
-    return NextResponse.json({ success: true, data: concessions });
+    return NextResponse.json({ success: true, data: concessions, pageSize, nextCursor, hasMore: Boolean(nextCursor) });
   } catch (error) {
     console.error('Error fetching concessions:', error);
     return NextResponse.json(
@@ -82,6 +102,10 @@ export async function POST(request: NextRequest) {
     const concessionData = {
       studentId,
       admissionNumber,
+      class: body.class ?? "",
+      section: body.section ?? "",
+      academicYearId: String(body.academicYearId ?? "").trim(),
+      schoolId: getSchoolId(auth),
       concessionType,
       concessionAmount: concessionAmount || 0,
       concessionPercent: concessionPercent || 0,

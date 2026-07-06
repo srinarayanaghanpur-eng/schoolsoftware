@@ -3,6 +3,7 @@ import { FieldValue } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { requirePermission } from "@/lib/apiUtils";
 import { docCursor, logFirestoreRead, readLimit } from "@/lib/firestoreReadLogger";
+import { getSchoolId } from "@/lib/schoolScope";
 
 /**
  * GET /api/admin/payments
@@ -18,6 +19,7 @@ export async function GET(request: NextRequest) {
     const studentId = searchParams.get('studentId');
     const status = searchParams.get('status');
     const branchId = searchParams.get("branchId") || "";
+    const schoolId = searchParams.get("schoolId") || getSchoolId(auth);
     const academicYearId = searchParams.get("academicYearId") || "";
     const classId = searchParams.get("classId") || searchParams.get("class") || "";
     const sectionId = searchParams.get("sectionId") || searchParams.get("section") || "";
@@ -31,6 +33,7 @@ export async function GET(request: NextRequest) {
 
     let query: any = db.collection('payments');
 
+    if (schoolId) query = query.where("schoolId", "==", schoolId);
     if (branchId) query = query.where("branchId", "==", branchId);
     if (academicYearId) query = query.where("academicYearId", "==", academicYearId);
     if (classId) query = query.where("classId", "==", classId);
@@ -55,7 +58,7 @@ export async function GET(request: NextRequest) {
     query = query.limit(pageSize + 1);
 
     const snapshot = await query.get();
-    logFirestoreRead("PaymentsAPI", "payments", snapshot, { branchId, academicYearId, classId, sectionId, studentId, status, paymentMethod, receiptNo, pageSize });
+    logFirestoreRead("PaymentsAPI", "payments", snapshot, { schoolId, branchId, academicYearId, classId, sectionId, studentId, status, paymentMethod, receiptNo, pageSize });
     const pageDocs = snapshot.docs.slice(0, pageSize);
     const payments = pageDocs.map((doc: { id: string; data: () => any }) => ({
       id: doc.id,
@@ -94,7 +97,8 @@ export async function POST(request: NextRequest) {
       concessionId,
       transactionId,
       remarks,
-      userId
+      userId,
+      idempotencyKey
     } = body;
 
     // Validation
@@ -104,6 +108,16 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    // Idempotency: the client sends a unique key per payment attempt. If the
+    // same key is submitted twice (double-click, network retry, future offline
+    // sync), the second call returns the FIRST payment instead of creating a
+    // duplicate payment/receipt. Key is stored as the doc id of
+    // payment_idempotency/{key} and written inside the same transaction.
+    const idemKey = typeof idempotencyKey === "string" && /^[\w-]{8,100}$/.test(idempotencyKey)
+      ? idempotencyKey
+      : null;
+    const idemRef = idemKey ? db.collection("payment_idempotency").doc(idemKey) : null;
 
     const now = new Date();
     const month = String(now.getMonth() + 1).padStart(2, '0');
@@ -117,12 +131,22 @@ export async function POST(request: NextRequest) {
     let paymentData: Record<string, unknown> = {};
     let receiptData: Record<string, unknown> = {};
     let receiptNumber = "";
+    let existingPaymentId: string | null = null;
 
     await db.runTransaction(async (transaction) => {
-      const [studentSnap, counterSnap] = await Promise.all([
+      // All reads first (Firestore transaction rule), including the
+      // idempotency marker.
+      const [studentSnap, counterSnap, idemSnap] = await Promise.all([
         transaction.get(studentRef),
-        transaction.get(counterRef)
+        transaction.get(counterRef),
+        idemRef ? transaction.get(idemRef) : Promise.resolve(null)
       ]);
+
+      // Same key already processed → return the original, write nothing.
+      if (idemSnap?.exists) {
+        existingPaymentId = String(idemSnap.data()?.paymentId ?? "");
+        return;
+      }
       if (!studentSnap.exists) throw new Error("Student not found");
       const student = studentSnap.data();
       if (!student) throw new Error("Student data unavailable");
@@ -133,6 +157,7 @@ export async function POST(request: NextRequest) {
       const remainingAmount = Math.max(0, amountDue - Number(amountPaid));
       const feeStatus = remainingAmount === 0 ? 'paid' : Number(amountPaid) > 0 ? 'partial' : 'pending';
       const branchId = student.branchId || "default-branch";
+      const schoolId = student.schoolId || getSchoolId(auth);
       const academicYearId = student.academicYearId || "";
       const classId = student.classId || student.class || "";
       const sectionId = student.sectionId || student.section || "";
@@ -141,6 +166,7 @@ export async function POST(request: NextRequest) {
         studentId,
         admissionNumber: student.admissionNumber,
         studentName: student.studentName,
+        schoolId,
         branchId,
         academicYearId,
         classId,
@@ -170,6 +196,7 @@ export async function POST(request: NextRequest) {
         studentId,
         admissionNumber: student.admissionNumber,
         studentName: student.studentName,
+        schoolId,
         branchId,
         academicYearId,
         classId,
@@ -184,6 +211,16 @@ export async function POST(request: NextRequest) {
         createdAt: now
       };
 
+      if (idemRef) {
+        transaction.set(idemRef, {
+          paymentId: paymentRef.id,
+          receiptNumber,
+          studentId,
+          amountPaid: Number(amountPaid),
+          createdBy: userId || auth.uid,
+          createdAt: now
+        });
+      }
       transaction.set(counterRef, { nextNumber: nextNumber + 1, updatedAt: now }, { merge: true });
       transaction.set(paymentRef, paymentData);
       transaction.set(receiptRef, receiptData);
@@ -196,6 +233,7 @@ export async function POST(request: NextRequest) {
       });
       transaction.set(db.collection("studentFeeSummaries").doc(`${studentId}_${academicYearId || "default"}`), {
         studentId,
+        schoolId,
         branchId,
         academicYearId,
         classId,
@@ -214,6 +252,7 @@ export async function POST(request: NextRequest) {
       }, { merge: true });
       transaction.set(db.collection("financeSummaries").doc(`${branchId}_${academicYearId || "default"}_${monthKey}`), {
         branchId,
+        schoolId,
         academicYearId,
         month: monthKey,
         totalIncome: FieldValue.increment(Number(amountPaid)),
@@ -230,6 +269,17 @@ export async function POST(request: NextRequest) {
         timestamp: now
       });
     });
+
+    // Duplicate submission: return the original payment (HTTP 200, not 201)
+    // so retries are safe and no second receipt is ever issued.
+    if (existingPaymentId) {
+      const existingSnap = await db.collection("payments").doc(existingPaymentId).get();
+      return NextResponse.json({
+        success: true,
+        duplicate: true,
+        data: existingSnap.exists ? { id: existingSnap.id, ...existingSnap.data() } : { id: existingPaymentId }
+      });
+    }
 
     return NextResponse.json(
       {

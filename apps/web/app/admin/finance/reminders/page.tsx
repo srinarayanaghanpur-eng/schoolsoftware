@@ -1,6 +1,7 @@
 "use client";
 
 import { PageHeader } from "@/components/PageHeader";
+import { useAcademicYears } from "@/components/AcademicYearContext";
 import { useAdminSession } from "@/components/AdminSessionContext";
 import { AdminApiError, adminApiRequest } from "@/lib/adminApiClient";
 import { hasPermission } from "@sri-narayana/shared";
@@ -12,6 +13,7 @@ function inr(n: number) { return `₹${(n || 0).toLocaleString("en-IN")}`; }
 
 export default function RemindersPage() {
   const { role } = useAdminSession();
+  const { selectedYear } = useAcademicYears();
   const canSend = hasPermission(role, "fees.create");
   const [list, setList] = useState<Reminder[]>([]);
   const [sel, setSel] = useState<Set<string>>(new Set());
@@ -22,18 +24,27 @@ export default function RemindersPage() {
 
   useEffect(() => {
     (async () => {
-      try { setList((await adminApiRequest<{ reminders: Reminder[] }>("/api/admin/finance/reminders")).reminders); }
+      if (!selectedYear?.id) {
+        setList([]);
+        setLoading(false);
+        return;
+      }
+      try {
+        const params = new URLSearchParams({ academicYearId: selectedYear.id, pageSize: "25" });
+        setList((await adminApiRequest<{ reminders: Reminder[] }>(`/api/admin/finance/reminders?${params}`)).reminders);
+      }
       catch (e) { setError(e instanceof AdminApiError ? e.message : "Failed to load"); }
       finally { setLoading(false); }
     })();
-  }, []);
+  }, [selectedYear?.id]);
 
   function toggle(id: string) { const n = new Set(sel); n.has(id) ? n.delete(id) : n.add(id); setSel(n); }
   function toggleAll() { setSel(sel.size === list.length ? new Set() : new Set(list.map((r) => r.studentId))); }
 
   async function send() {
     setError(""); setMsg("");
-    try { const r = await adminApiRequest<{ queued: number }>("/api/admin/finance/reminders", { method: "POST", body: JSON.stringify({ studentIds: [...sel], channel }) }); setMsg(`${r.queued} reminder(s) queued via ${channel}.`); setSel(new Set()); }
+    if (!selectedYear?.id) { setError("Select an academic year first."); return; }
+    try { const r = await adminApiRequest<{ queued: number }>("/api/admin/finance/reminders", { method: "POST", body: JSON.stringify({ studentIds: [...sel], academicYearId: selectedYear.id, channel }) }); setMsg(`${r.queued} reminder(s) queued via ${channel}.`); setSel(new Set()); }
     catch (e) { setError(e instanceof AdminApiError ? e.message : "Failed to send"); }
   }
 
@@ -43,6 +54,7 @@ export default function RemindersPage() {
     <>
       <PageHeader title="Fee Reminders" description="Notify parents of students with outstanding dues." />
       <section className="space-y-4 p-4 md:p-7">
+        {!selectedYear?.id && <div className="card p-5 text-sm font-semibold text-[#7d86a8]">Select an academic year to load reminder candidates.</div>}
         {error && <div className="card border-l-4 border-l-[#ed515d] p-4 text-sm font-semibold text-[#ed515d]">{error}</div>}
         {msg && <div className="card border-l-4 border-l-[#14a762] p-4 text-sm font-semibold text-[#14a762]">{msg}</div>}
 

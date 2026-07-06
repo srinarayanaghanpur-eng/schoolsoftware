@@ -1,6 +1,7 @@
 "use client";
 
 import { ExportButtons } from "@/components/ExportButtons";
+import { useAcademicYears } from "@/components/AcademicYearContext";
 import { DateRangeFilter } from "@/components/DateRangeFilter";
 import { PageHeader } from "@/components/PageHeader";
 import { auth } from "@sri-narayana/shared/firebase/client";
@@ -21,6 +22,7 @@ function isoDate(date: Date) {
 }
 
 export default function ReportsPage() {
+  const { selectedYear } = useAcademicYears();
   const today = new Date();
   const [fromDate, setFromDate] = useState(isoDate(new Date(today.getFullYear(), today.getMonth(), 1)));
   const [toDate, setToDate] = useState(isoDate(today));
@@ -43,11 +45,18 @@ export default function ReportsPage() {
   };
 
   const loadReportData = async (reportMonth = month) => {
+    if (!selectedYear?.id) {
+      setAttendance([]);
+      setTeachers([]);
+      setSalaryReports([]);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
       const [attendanceResult, salaryResult] = await Promise.all([
-        apiRequest<AttendancePayload>("/api/admin/attendance"),
+        apiRequest<AttendancePayload>(`/api/admin/attendance?${new URLSearchParams({ academicYearId: selectedYear.id, pageSize: "25" })}`),
         apiRequest<{ reports: SalaryReport[] }>(`/api/admin/salary?month=${encodeURIComponent(reportMonth)}`)
       ]);
       setAttendance(attendanceResult.records);
@@ -62,7 +71,7 @@ export default function ReportsPage() {
 
   useEffect(() => {
     void loadReportData();
-  }, [month]);
+  }, [month, selectedYear?.id]);
 
   const filteredAttendance = attendance.filter((record) => (!fromDate || record.date >= fromDate) && (!toDate || record.date <= toDate));
 
@@ -70,6 +79,7 @@ export default function ReportsPage() {
     <>
       <PageHeader title="Reports" description="Download Excel reports or open printable PDF reports for attendance, salary, and biometric logs." />
       <section className="space-y-5 p-4 md:p-7">
+        {!selectedYear?.id && <div className="card p-5 text-sm font-semibold text-[#7d86a8]">Select an academic year to load reports.</div>}
         {error && <div className="rounded-2xl border border-[#ffd5da] bg-[#ffebed] px-4 py-3 text-sm font-semibold text-[#c83f4d]">{error}</div>}
         <DateRangeFilter
           from={fromDate}

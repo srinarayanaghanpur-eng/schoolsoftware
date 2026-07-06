@@ -1,6 +1,7 @@
 "use client";
 
 import { PageHeader } from "@/components/PageHeader";
+import { useAcademicYears } from "@/components/AcademicYearContext";
 import { useAdminSession } from "@/components/AdminSessionContext";
 import { AdminApiError, adminApiRequest } from "@/lib/adminApiClient";
 import { hasPermission } from "@sri-narayana/shared";
@@ -12,6 +13,7 @@ function inr(n: number) { return `₹${(n || 0).toLocaleString("en-IN")}`; }
 
 export default function DuesPage() {
   const { role } = useAdminSession();
+  const { selectedYear } = useAcademicYears();
   const [classes, setClasses] = useState<ClassDues[]>([]);
   const [grand, setGrand] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -19,12 +21,24 @@ export default function DuesPage() {
   const [open, setOpen] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!selectedYear?.id) {
+      setClasses([]);
+      setGrand(0);
+      setLoading(false);
+      return;
+    }
+    const academicYearId = selectedYear.id;
     (async () => {
-      try { const r = await adminApiRequest<{ classes: ClassDues[]; grandTotalDue: number }>("/api/admin/finance/dues"); setClasses(r.classes); setGrand(r.grandTotalDue); }
+      try {
+        const params = new URLSearchParams({ academicYearId, pageSize: "25" });
+        const r = await adminApiRequest<{ classes: ClassDues[]; grandTotalDue: number }>(`/api/admin/finance/dues?${params}`);
+        setClasses(r.classes);
+        setGrand(r.grandTotalDue);
+      }
       catch (e) { setError(e instanceof AdminApiError ? e.message : "Failed to load"); }
       finally { setLoading(false); }
     })();
-  }, []);
+  }, [selectedYear?.id]);
 
   if (!hasPermission(role, "fees.view")) return <section className="p-7"><div className="card p-5 font-semibold text-[#ed515d]">Access denied.</div></section>;
 
@@ -32,6 +46,7 @@ export default function DuesPage() {
     <>
       <PageHeader title="Outstanding Dues" description="Fee dues grouped by class." />
       <section className="space-y-4 p-4 md:p-7">
+        {!selectedYear?.id && <div className="card p-5 text-sm font-semibold text-[#7d86a8]">Select an academic year to load outstanding dues.</div>}
         {error && <div className="card border-l-4 border-l-[#ed515d] p-4 text-sm font-semibold text-[#ed515d]">{error}</div>}
         <div className="card flex items-center justify-between p-5"><span className="font-semibold text-[#7d86a8]">Total outstanding</span><span className="text-2xl font-extrabold text-[#e29813]">{inr(grand)}</span></div>
         <div className="space-y-3">

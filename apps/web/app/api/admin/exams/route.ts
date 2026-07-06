@@ -3,27 +3,42 @@ import { FieldValue } from "firebase-admin/firestore";
 import { examCreateSchema } from "@sri-narayana/shared";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { requirePermission, serializeDoc } from "@/lib/apiUtils";
+import { docCursor, logFirestoreRead, readLimit } from "@/lib/firestoreReadLogger";
+import { getSchoolId } from "@/lib/schoolScope";
 
 const COLLECTION = "exams";
 
-// GET /api/admin/exams?academicYearId=&className= — list exams (optionally filtered).
+// GET /api/admin/exams?academicYearId=&className=&schoolId=&pageSize=&cursor=
+// Lists exams with cursor pagination (default 25 rows), newest first.
 export async function GET(req: Request) {
   const token = await requirePermission(req, "exams.view");
   if (!token) return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
 
   const { searchParams } = new URL(req.url);
-  const academicYearId = searchParams.get("academicYearId");
-  const className = searchParams.get("className");
+  const academicYearId = searchParams.get("academicYearId") || "";
+  const className = searchParams.get("className") || "";
+  const schoolId = searchParams.get("schoolId") || getSchoolId(token);
+  const pageSize = readLimit(searchParams.get("pageSize") ?? searchParams.get("limit"), 25, 100);
+  const cursor = docCursor(searchParams.get("cursor"));
 
-  let query: FirebaseFirestore.Query = adminDb().collection(COLLECTION);
+  const db = adminDb();
+  let query: FirebaseFirestore.Query = db.collection(COLLECTION);
   if (academicYearId) query = query.where("academicYearId", "==", academicYearId);
   if (className) query = query.where("className", "==", className);
+  if (schoolId) query = query.where("schoolId", "==", schoolId);
+  query = query.orderBy("startDate", "desc");
 
-  const snapshot = await query.get();
-  const exams = snapshot.docs
-    .map((doc) => serializeDoc(doc))
-    .sort((a, b) => String(b.startDate ?? "").localeCompare(String(a.startDate ?? "")));
-  return NextResponse.json({ ok: true, exams });
+  if (cursor) {
+    const cursorDoc = await db.collection(COLLECTION).doc(cursor).get();
+    if (cursorDoc.exists) query = query.startAfter(cursorDoc);
+  }
+
+  const snapshot = await query.limit(pageSize + 1).get();
+  logFirestoreRead("ExamsAPI", COLLECTION, snapshot, { academicYearId, className, schoolId, pageSize });
+  const pageDocs = snapshot.docs.slice(0, pageSize);
+  const exams = pageDocs.map((doc) => serializeDoc(doc));
+  const nextCursor = snapshot.docs.length > pageSize && pageDocs.length > 0 ? pageDocs[pageDocs.length - 1].id : null;
+  return NextResponse.json({ ok: true, exams, pageSize, nextCursor, hasMore: Boolean(nextCursor) });
 }
 
 // POST /api/admin/exams — create an exam.
@@ -34,7 +49,7 @@ export async function POST(req: Request) {
   try {
     const parsed = examCreateSchema.parse(await req.json());
     const now = FieldValue.serverTimestamp();
-    const ref = await adminDb().collection(COLLECTION).add({ ...parsed, createdAt: now, updatedAt: now });
+    const ref = await adminDb().collection(COLLECTION).add({ ...parsed, schoolId: getSchoolId(token), createdAt: now, updatedAt: now });
     return NextResponse.json({ ok: true, id: ref.id });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to create exam";

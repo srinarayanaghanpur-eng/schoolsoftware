@@ -739,7 +739,7 @@ function SectionManagerModal({
 
 export default function StudentsPage() {
   const { role } = useAdminSession();
-  const { activeYear } = useAcademicYears();
+  const { selectedYear } = useAcademicYears();
   const canCreateStudent = Boolean(role && hasPermission(role, "students.create"));
   const canEditStudent = Boolean(role && hasPermission(role, "students.edit"));
   const canDeleteStudent = Boolean(role && hasPermission(role, "students.delete"));
@@ -833,26 +833,33 @@ export default function StudentsPage() {
   // Reload whenever the class/section/year selection changes, so the
   // list always shows exactly the selected section (never a mixed list).
   useEffect(() => {
+    // Client guard: no selected year -> no query (Phase 2 scoping).
+    if (!selectedYear?.id) {
+      setStudents([]);
+      setLoading(false);
+      return;
+    }
     fetchStudents({ page: 0, cursor: null });
     fetchSectionCount();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeYear?.id, classFilter, sectionFilter]);
+  }, [selectedYear?.id, classFilter, sectionFilter]);
   useEffect(() => {
     fetchTransportRoutes();
   }, []);
   useRefreshOnFocus(() => fetchStudents());
 
   useEffect(() => {
-    if (activeYear?.id) {
-      fetchFeeStructures(activeYear.id);
+    if (selectedYear?.id) {
+      fetchFeeStructures(selectedYear.id);
     }
-  }, [activeYear?.id]);
+  }, [selectedYear?.id]);
 
   const fetchFeeStructures = async (academicYearId: string) => {
     setFeeLoading(true);
     try {
+      const params = new URLSearchParams({ academicYearId, pageSize: "25" });
       const data = await adminApiRequest<{ ok?: boolean; structures?: FeeStructureItem[] }>(
-        `/api/admin/fee-structures?academicYearId=${academicYearId}`
+        `/api/admin/fee-structures?${params}`
       );
       if (data.structures) setFeeStructures(data.structures);
     } catch { /* silently ignore */ }
@@ -873,7 +880,7 @@ export default function StudentsPage() {
   const buildStudentQuery = (cursor?: string | null) => {
     const params = new URLSearchParams();
     params.set("pageSize", String(STUDENTS_PAGE_SIZE));
-    if (activeYear?.id) params.set("academicYearId", activeYear.id);
+    if (selectedYear?.id) params.set("academicYearId", selectedYear.id);
     if (classFilter) params.set("class", classFilter);
     if (sectionFilter) params.set("section", sectionFilter);
     if (searchTerm.trim()) params.set("q", searchTerm.trim());
@@ -886,7 +893,7 @@ export default function StudentsPage() {
   const fetchSectionCount = async () => {
     try {
       const params = new URLSearchParams({ count: "1" });
-      if (activeYear?.id) params.set("academicYearId", activeYear.id);
+      if (selectedYear?.id) params.set("academicYearId", selectedYear.id);
       if (classFilter) params.set("class", classFilter);
       if (sectionFilter) params.set("section", sectionFilter);
       const data = await adminApiRequest<{ success?: boolean; count?: number }>(
@@ -963,7 +970,7 @@ export default function StudentsPage() {
         classId: formData.class,
         section: formData.section,
         sectionId: formData.section,
-        academicYearId: activeYear?.id || "",
+        academicYearId: selectedYear?.id || "",
         gender: formData.gender,
         fatherName: formData.fatherName,
         fatherPhone: formData.fatherPhone,

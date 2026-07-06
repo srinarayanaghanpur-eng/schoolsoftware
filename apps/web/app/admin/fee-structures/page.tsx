@@ -61,7 +61,7 @@ function formFromStructure(structure: FeeStructure): FeeStructureForm {
 
 export default function FeeStructuresPage() {
   const { role } = useAdminSession();
-  const { activeYear, years } = useAcademicYears();
+  const { selectedYear, years } = useAcademicYears();
   const [academicYearId, setAcademicYearId] = useState("");
   const [classFilter, setClassFilter] = useState("");
   const [structures, setStructures] = useState<FeeStructure[]>([]);
@@ -76,17 +76,22 @@ export default function FeeStructuresPage() {
   const formTotal = useMemo(() => form?.heads.reduce((sum, head) => sum + Number(head.amount || 0), 0) ?? 0, [form]);
 
   useEffect(() => {
-    if (!academicYearId && activeYear?.id) {
-      setAcademicYearId(activeYear.id);
+    if (selectedYear?.id) {
+      setAcademicYearId(selectedYear.id);
     }
-  }, [academicYearId, activeYear?.id]);
+  }, [selectedYear?.id]);
 
   const loadStructures = async () => {
+    if (!academicYearId) {
+      setStructures([]);
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
       const params = new URLSearchParams();
-      if (academicYearId) params.set("academicYearId", academicYearId);
+      params.set("academicYearId", academicYearId);
+      params.set("pageSize", "25");
       if (classFilter) params.set("className", classFilter);
       const result = await adminApiRequest<{ ok: true; structures: FeeStructure[] }>(`/api/admin/fee-structures?${params.toString()}`);
       setStructures(result.structures.sort((a, b) => String(a.className).localeCompare(String(b.className), undefined, { numeric: true })));
@@ -102,7 +107,7 @@ export default function FeeStructuresPage() {
   }, [academicYearId, classFilter]);
 
   const startCreate = () => {
-    setForm(emptyForm(academicYearId || activeYear?.id || ""));
+    setForm(emptyForm(academicYearId || selectedYear?.id || ""));
     setMessage(null);
     setError(null);
   };
@@ -178,7 +183,7 @@ export default function FeeStructuresPage() {
     <>
       <PageHeader
         title="Fee Structures"
-        description="Class-wise fee heads for the active academic year."
+        description={selectedYear ? `Class-wise fee heads for ${selectedYear.name}.` : "Select an academic year to load fee heads."}
         action={
           canCreate ? (
             <button className="btn-primary" type="button" onClick={startCreate}>

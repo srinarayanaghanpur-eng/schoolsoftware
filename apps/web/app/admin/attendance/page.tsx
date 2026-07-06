@@ -1,6 +1,7 @@
 "use client";
 
 import { PageHeader } from "@/components/PageHeader";
+import { useAcademicYears } from "@/components/AcademicYearContext";
 import { DateRangeFilter, formatDateForDisplay } from "@/components/DateRangeFilter";
 import { StatusBadge } from "@/components/StatusBadge";
 import { auth } from "@sri-narayana/shared/firebase/client";
@@ -61,6 +62,7 @@ function createEditForm(record: AttendanceRecord): EditForm {
 }
 
 export default function AttendancePage() {
+  const { selectedYear } = useAcademicYears();
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [audits, setAudits] = useState<AttendanceEditAudit[]>([]);
@@ -127,11 +129,18 @@ export default function AttendancePage() {
   };
 
   const loadAttendance = async () => {
+    if (!selectedYear?.id) {
+      setRecords([]);
+      setTeachers([]);
+      setAudits([]);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
       const [result, holidayResult] = await Promise.all([
-        apiRequest<AttendancePayload>("/api/admin/attendance"),
+        apiRequest<AttendancePayload>(`/api/admin/attendance?${new URLSearchParams({ academicYearId: selectedYear.id, pageSize: "25" })}`),
         apiRequest<{ holidays: Holiday[] }>("/api/admin/holidays").catch(() => ({ holidays: [] as Holiday[] }))
       ]);
       setRecords(result.records);
@@ -147,7 +156,8 @@ export default function AttendancePage() {
 
   useEffect(() => {
     void loadAttendance();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedYear?.id]);
 
   const submitEdit = async (event: FormEvent) => {
     event.preventDefault();
@@ -181,6 +191,7 @@ export default function AttendancePage() {
     <>
       <PageHeader title="Attendance Records" description="Review, filter, and manually override attendance with a required audit reason." />
       <section className="space-y-5 p-4 md:p-7">
+        {!selectedYear?.id && <div className="card p-5 text-sm font-semibold text-[#7d86a8]">Select an academic year to load attendance.</div>}
         {message && <div className="rounded-2xl border border-[#c8f0dc] bg-[#e6f8ef] px-4 py-3 text-sm font-semibold text-[#0f8d52]">{message}</div>}
         {error && <div className="rounded-2xl border border-[#ffd5da] bg-[#ffebed] px-4 py-3 text-sm font-semibold text-[#c83f4d]">{error}</div>}
 

@@ -246,33 +246,13 @@ async function syncAttendanceData() {
  * Sync payment data
  */
 async function syncPaymentData() {
-  try {
-    console.log('[ServiceWorker] Syncing payment data...');
-
-    const db = await openAttendanceDB();
-    const queue = await getQueuedRecords(db, 'payments-queue');
-
-    for (const record of queue) {
-      try {
-        const response = await fetch('/api/admin/payments/batch', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(record)
-        });
-
-        if (response.ok) {
-          await removeQueuedRecord(db, 'payments-queue', record.id);
-        }
-      } catch (error) {
-        console.error('[ServiceWorker] Failed to sync payment:', error);
-      }
-    }
-
-    console.log('[ServiceWorker] Payment sync complete');
-  } catch (error) {
-    console.error('[ServiceWorker] Payment sync failed:', error);
-    throw error;
-  }
+  // DISABLED (2026-07-06): offline payment sync must not run until the
+  // server endpoint exists AND every queued record carries an idempotencyKey
+  // (see payment_idempotency handling in /api/admin/payments POST).
+  // Replaying payments without idempotency can create duplicate receipts.
+  // The target endpoint /api/admin/payments/batch does not exist today and
+  // nothing writes to 'payments-queue', so this is a safety no-op.
+  console.log('[ServiceWorker] Payment sync disabled (idempotent batch endpoint not yet available)');
 }
 
 /**

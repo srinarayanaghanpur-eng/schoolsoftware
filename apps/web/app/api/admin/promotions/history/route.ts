@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { requirePermission, serializeDoc } from "@/lib/apiUtils";
+import { docCursor, logFirestoreRead, readLimit } from "@/lib/firestoreReadLogger";
+import { getSchoolId } from "@/lib/schoolScope";
 
 const db = adminDb();
 
@@ -15,17 +17,28 @@ export async function GET(req: Request) {
     const academicYearId = searchParams.get("academicYearId");
     const classStr = searchParams.get("class");
     const studentId = searchParams.get("studentId");
+    const schoolId = searchParams.get("schoolId") || getSchoolId(token);
+    const pageSize = readLimit(searchParams.get("pageSize") ?? searchParams.get("limit"), 25, 100);
+    const cursor = docCursor(searchParams.get("cursor"));
 
     let query: FirebaseFirestore.Query = db.collection("promotions").orderBy("createdAt", "desc");
 
     if (academicYearId) query = query.where("academicYearId", "==", academicYearId);
     if (classStr) query = query.where("fromClass", "==", classStr);
     if (studentId) query = query.where("studentId", "==", studentId);
+    if (schoolId) query = query.where("schoolId", "==", schoolId);
+    if (cursor) {
+      const cursorDoc = await db.collection("promotions").doc(cursor).get();
+      if (cursorDoc.exists) query = query.startAfter(cursorDoc);
+    }
 
-    const snapshot = await query.limit(200).get();
-    const records = snapshot.docs.map((doc) => serializeDoc(doc));
+    const snapshot = await query.limit(pageSize + 1).get();
+    logFirestoreRead("PromotionHistoryAPI", "promotions", snapshot, { schoolId, academicYearId, class: classStr, studentId, pageSize });
+    const pageDocs = snapshot.docs.slice(0, pageSize);
+    const records = pageDocs.map((doc) => serializeDoc(doc));
+    const nextCursor = snapshot.docs.length > pageSize && pageDocs.length > 0 ? pageDocs[pageDocs.length - 1].id : null;
 
-    return NextResponse.json({ ok: true, records });
+    return NextResponse.json({ ok: true, records, pageSize, nextCursor, hasMore: Boolean(nextCursor) });
   } catch (error) {
     console.error("Error fetching promotion history:", error);
     return NextResponse.json({ ok: false, error: "Failed to fetch promotion history" }, { status: 500 });

@@ -8,7 +8,8 @@ import { auth } from "@sri-narayana/shared/firebase/client";
 import type { SalaryReport } from "@sri-narayana/shared";
 import { AlertCircle, Check, CheckCircle2, Download, LockKeyhole, RotateCw, X } from "lucide-react";
 import { useEffect, useState } from "react";
-import * as XLSX from "xlsx";
+// xlsx is ~400KB — loaded on demand inside exportToExcel instead of at page
+// load, so opening the Salary page stays fast.
 import { payrollSessionHeaders } from "@/lib/payrollSessionClient";
 
 function currentMonth() {
@@ -212,11 +213,13 @@ export default function SalaryPage() {
     }
   };
 
-  const exportToExcel = () => {
+  const exportToExcel = async () => {
     if (!reports.length) {
       setError("Generate salary first — nothing to export.");
       return;
     }
+    // Load the spreadsheet library only when the user actually exports.
+    const XLSX = await import("xlsx");
     const rows = reports.map((report) => ({
       "Teacher Name": report.teacherName,
       "Employee ID": report.employeeId,

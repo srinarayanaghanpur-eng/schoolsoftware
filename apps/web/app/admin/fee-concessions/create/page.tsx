@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/PageHeader";
+import { useAcademicYears } from "@/components/AcademicYearContext";
 import { useAdminSession } from "@/components/AdminSessionContext";
 import { auth } from "@sri-narayana/shared/firebase/client";
 import { getClassDisplayName } from "@/lib/classUtils";
@@ -20,6 +21,7 @@ interface StudentOption {
 export default function CreateConcessionPage() {
   const router = useRouter();
   const { role } = useAdminSession();
+  const { selectedYear } = useAcademicYears();
   const user = auth.currentUser;
   const [students, setStudents] = useState<StudentOption[]>([]);
   const [loading, setLoading] = useState(false);
@@ -37,11 +39,16 @@ export default function CreateConcessionPage() {
 
   useEffect(() => {
     fetchStudents();
-  }, []);
+  }, [selectedYear?.id]);
 
   const fetchStudents = async () => {
+    if (!selectedYear?.id) {
+      setStudents([]);
+      return;
+    }
     try {
-      const data = await adminApiRequest<{ success?: boolean; data: StudentOption[] }>("/api/admin/students");
+      const params = new URLSearchParams({ academicYearId: selectedYear.id, pageSize: "25" });
+      const data = await adminApiRequest<{ success?: boolean; data: StudentOption[] }>(`/api/admin/students?${params}`);
       setStudents(data.data ?? []);
     } catch (error) {
       console.error("Failed to fetch students:", error);
@@ -60,6 +67,11 @@ export default function CreateConcessionPage() {
     setError("");
 
     try {
+      if (!selectedYear?.id) {
+        setError("Select an academic year first.");
+        setLoading(false);
+        return;
+      }
       const student = students.find((s) => s.id === formData.studentId);
       if (!student) {
         setError("Please select a student");
@@ -74,6 +86,7 @@ export default function CreateConcessionPage() {
         studentName: student.studentName,
         class: student.class,
         section: student.section,
+        academicYearId: selectedYear.id,
         concessionAmount: formData.concessionType === "fixed" ? parseFloat(formData.concessionAmount) : 0,
         concessionPercent: formData.concessionType === "percentage" ? parseFloat(formData.concessionPercent) : 0,
         userId: user?.uid
@@ -119,6 +132,7 @@ export default function CreateConcessionPage() {
         description="Create a legacy concession request for a student."
       />
       <section className="space-y-5 p-4 md:p-7">
+        {!selectedYear?.id && <div className="card p-5 text-sm font-semibold text-[#7d86a8]">Select an academic year before creating a concession.</div>}
         <div className="rounded-2xl border border-[#ffe1ab] bg-[#fff8ea] p-4 text-sm font-semibold text-[#9f7116]">
           This form supports legacy concession requests only and is retained for backward compatibility.
         </div>

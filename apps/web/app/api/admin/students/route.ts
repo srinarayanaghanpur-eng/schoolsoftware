@@ -4,6 +4,7 @@ import { requirePermission } from "@/lib/apiUtils";
 import { createApprovalRequest } from "@/lib/approvalEngine";
 import { docCursor, logFirestoreRead, readLimit } from "@/lib/firestoreReadLogger";
 import { firestoreErrorResponse, firestoreQuotaResponse, isFirestoreQuotaPaused } from "@/lib/firebaseErrors";
+import { getSchoolId } from "@/lib/schoolScope";
 
 function normalizeText(value: unknown) {
   return String(value ?? "").trim().toLowerCase();
@@ -32,6 +33,7 @@ export async function GET(request: NextRequest) {
     const classStr = searchParams.get('class');
     const section = searchParams.get('section');
     const branchId = searchParams.get("branchId") || "";
+    const schoolId = searchParams.get("schoolId") || getSchoolId(auth);
     const academicYearId = searchParams.get("academicYearId") || "";
     const classId = searchParams.get("classId") || classStr || "";
     const sectionId = searchParams.get("sectionId") || section || "";
@@ -42,6 +44,7 @@ export async function GET(request: NextRequest) {
 
     const applyScope = (baseQuery: any) => {
       let scoped = baseQuery;
+      if (schoolId) scoped = scoped.where("schoolId", "==", schoolId);
       if (branchId) scoped = scoped.where("branchId", "==", branchId);
       if (academicYearId) scoped = scoped.where("academicYearId", "==", academicYearId);
       if (classId) scoped = scoped.where("class", "==", classId);
@@ -86,7 +89,7 @@ export async function GET(request: NextRequest) {
     query = query.limit(canUseCursorPaging ? pageSize + 1 : appliedLimit);
 
     const snapshot = await query.get();
-    logFirestoreRead("StudentsAPI", "students", snapshot, { branchId, academicYearId, classId, sectionId, status, q: q || "none", pageSize });
+    logFirestoreRead("StudentsAPI", "students", snapshot, { schoolId, branchId, academicYearId, classId, sectionId, status, q: q || "none", pageSize });
     const pageDocs = canUseCursorPaging ? snapshot.docs.slice(0, pageSize) : snapshot.docs;
     const students = pageDocs.map((doc: { id: string; data: () => any }) => ({
       id: doc.id,
@@ -146,7 +149,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Optional external/reference id the school may keep (e.g. govt SATS id).
-    const schoolId = String(body.schoolId ?? "").trim();
+    const schoolId = String(body.schoolId ?? "").trim() || getSchoolId(auth);
 
     // Auto-generate a unique sequential admission number from a counter doc.
     // Prefix avoids collisions with legacy free-typed numbers ("2", "u98"...).

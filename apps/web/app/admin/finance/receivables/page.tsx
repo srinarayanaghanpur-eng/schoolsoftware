@@ -1,6 +1,7 @@
 "use client";
 
 import { PageHeader } from "@/components/PageHeader";
+import { useAcademicYears } from "@/components/AcademicYearContext";
 import { useAdminSession } from "@/components/AdminSessionContext";
 import { AdminApiError, adminApiRequest } from "@/lib/adminApiClient";
 import { hasPermission } from "@sri-narayana/shared";
@@ -13,18 +14,31 @@ function inr(n: number) { return `₹${(n || 0).toLocaleString("en-IN")}`; }
 
 export default function ReceivablesPage() {
   const { role } = useAdminSession();
+  const { selectedYear } = useAcademicYears();
   const [summary, setSummary] = useState<ReceivableSummary | null>(null);
   const [byClass, setByClass] = useState<ClassReceivable[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
+    if (!selectedYear?.id) {
+      setSummary(null);
+      setByClass([]);
+      setLoading(false);
+      return;
+    }
+    const academicYearId = selectedYear.id;
     (async () => {
-      try { const r = await adminApiRequest<{ summary: ReceivableSummary; byClass: ClassReceivable[] }>("/api/admin/finance/receivables"); setSummary(r.summary); setByClass(r.byClass); }
+      try {
+        const params = new URLSearchParams({ academicYearId, pageSize: "25" });
+        const r = await adminApiRequest<{ summary: ReceivableSummary; byClass: ClassReceivable[] }>(`/api/admin/finance/receivables?${params}`);
+        setSummary(r.summary);
+        setByClass(r.byClass);
+      }
       catch (e) { setError(e instanceof AdminApiError ? e.message : "Failed to load"); }
       finally { setLoading(false); }
     })();
-  }, []);
+  }, [selectedYear?.id]);
 
   if (!hasPermission(role, "fees.view")) return <section className="p-7"><div className="card p-5 font-semibold text-[#ed515d]">Access denied.</div></section>;
 
@@ -34,6 +48,7 @@ export default function ReceivablesPage() {
     <>
       <PageHeader title="Receivables" description="Outstanding fee receivables grouped by class." />
       <section className="space-y-4 p-4 md:p-7">
+        {!selectedYear?.id && <div className="card p-5 text-sm font-semibold text-[#7d86a8]">Select an academic year to load receivables.</div>}
         {error && <div className="card border-l-4 border-l-[#ed515d] p-4 text-sm font-semibold text-[#ed515d]">{error}</div>}
 
         {loading ? <div className="card p-8 text-center text-stone-400">Loading…</div> : (

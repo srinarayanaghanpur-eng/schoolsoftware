@@ -7,8 +7,8 @@ const COLLECTION = "academic_years";
 
 // POST /api/admin/academic-years/[id]/activate — make this the single active year.
 export async function POST(req: Request, { params }: { params: { id: string } }) {
-  const token = await requireRole(req, ["admin", "principal"]);
-  if (!token) return NextResponse.json({ ok: false, error: "Admin or principal access required" }, { status: 403 });
+  const token = await requireRole(req, ["super_admin"]);
+  if (!token) return NextResponse.json({ ok: false, error: "Super admin access required" }, { status: 403 });
 
   const db = adminDb();
   const ref = db.collection(COLLECTION).doc(params.id);

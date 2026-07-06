@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { FieldValue } from "firebase-admin/firestore";
 import { paymentConfirmSchema } from "@sri-narayana/shared";
 import { adminDb, verifyBearerToken } from "@/lib/firebaseAdmin";
+import { getSchoolId } from "@/lib/schoolScope";
 
 // POST /api/fees/confirm — finalize a payment order: mark paid, record the payment,
 // and update the student's fee totals. (A real gateway would verify a signature here.)
@@ -23,13 +24,21 @@ export async function POST(req: Request) {
 
     let amountPaid = 0;
     let receiptNumber = "";
+    // Idempotency: confirming the same order twice (double-click, network
+    // retry) returns the FIRST payment instead of erroring or duplicating.
+    let existingPaymentId: string | null = null;
 
     await db.runTransaction(async (transaction) => {
       const orderSnap = await transaction.get(orderRef);
       if (!orderSnap.exists) throw new Error("Order not found");
 
-      const order = orderSnap.data() as { studentId: string; amount: number; paymentType: string; status: string; note?: string };
-      if (order.status === "paid") throw new Error("Order already paid");
+      const order = orderSnap.data() as { studentId: string; amount: number; paymentType: string; status: string; note?: string; paymentId?: string; receiptNumber?: string };
+      if (order.status === "paid") {
+        existingPaymentId = String(order.paymentId ?? "");
+        receiptNumber = String(order.receiptNumber ?? "");
+        amountPaid = Number(order.amount) || 0;
+        return; // no writes — original payment stands
+      }
 
       const studentRef = db.collection("students").doc(order.studentId);
       const [studentSnap, counterSnap] = await Promise.all([
@@ -46,6 +55,7 @@ export async function POST(req: Request) {
       const remainingAmount = Math.max(0, amountDue - amountPaid);
       const totalPaid = Number(student.totalFeesPaid || 0) + amountPaid;
       const feeStatus = remainingAmount === 0 ? "paid" : amountPaid > 0 ? "partial" : "pending";
+      const schoolId = String(student.schoolId || getSchoolId(token));
       const branchId = String(student.branchId || "default-branch");
       const academicYearId = String(student.academicYearId || "");
       const classId = String(student.classId || student.class || "");
@@ -55,6 +65,7 @@ export async function POST(req: Request) {
         studentId: order.studentId,
         admissionNumber: student.admissionNumber || "",
         studentName: student.studentName || "",
+        schoolId,
         branchId,
         academicYearId,
         classId,
@@ -87,6 +98,7 @@ export async function POST(req: Request) {
         studentId: order.studentId,
         admissionNumber: student.admissionNumber || "",
         studentName: student.studentName || "",
+        schoolId,
         branchId,
         academicYearId,
         classId,
@@ -107,9 +119,12 @@ export async function POST(req: Request) {
         lastPaymentDate: now,
         feeLastUpdated: now
       }, { merge: true });
-      transaction.update(orderRef, { status: "paid", updatedAt: now });
+      // Record which payment/receipt this order produced so a duplicate
+      // confirm can return the original.
+      transaction.update(orderRef, { status: "paid", paymentId: paymentRef.id, receiptNumber, updatedAt: now });
       transaction.set(db.collection("studentFeeSummaries").doc(`${order.studentId}_${academicYearId || "default"}`), {
         studentId: order.studentId,
+        schoolId,
         branchId,
         academicYearId,
         classId,
@@ -128,6 +143,7 @@ export async function POST(req: Request) {
       }, { merge: true });
       transaction.set(db.collection("financeSummaries").doc(`${branchId}_${academicYearId || "default"}_${monthKey}`), {
         branchId,
+        schoolId,
         academicYearId,
         month: monthKey,
         totalIncome: FieldValue.increment(amountPaid),
@@ -135,6 +151,10 @@ export async function POST(req: Request) {
         updatedAt: now
       }, { merge: true });
     });
+
+    if (existingPaymentId !== null) {
+      return NextResponse.json({ ok: true, duplicate: true, receiptId: existingPaymentId, receiptNumber, amount: amountPaid });
+    }
 
     return NextResponse.json({ ok: true, receiptId: paymentRef.id, receiptNumber, amount: amountPaid });
   } catch (error) {

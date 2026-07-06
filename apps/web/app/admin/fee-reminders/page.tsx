@@ -1,6 +1,7 @@
 "use client";
 
 import { PageHeader } from "@/components/PageHeader";
+import { useAcademicYears } from "@/components/AcademicYearContext";
 import { useAdminSession } from "@/components/AdminSessionContext";
 import { AdminApiError, adminApiRequest } from "@/lib/adminApiClient";
 import { hasPermission } from "@sri-narayana/shared";
@@ -12,6 +13,7 @@ type Student = { id: string; studentName: string; admissionNumber: string };
 
 export default function FeeRemindersPage() {
   const { role } = useAdminSession();
+  const { selectedYear } = useAcademicYears();
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
   const [error, setError] = useState("");
@@ -20,16 +22,22 @@ export default function FeeRemindersPage() {
   const [form, setForm] = useState({ studentId: "", studentName: "", amount: "", dueDate: new Date().toISOString().slice(0, 10), note: "" });
 
   async function load() {
+    if (!selectedYear?.id) {
+      setReminders([]);
+      setStudents([]);
+      return;
+    }
     try {
+      const params = new URLSearchParams({ academicYearId: selectedYear.id, pageSize: "25" });
       const [r, s] = await Promise.all([
-        adminApiRequest<{ reminders: Reminder[] }>("/api/admin/fee-reminders"),
-        adminApiRequest<{ data?: Student[] }>("/api/admin/students")
+        adminApiRequest<{ reminders: Reminder[] }>(`/api/admin/fee-reminders?${params}`),
+        adminApiRequest<{ data?: Student[] }>(`/api/admin/students?${params}`)
       ]);
       setReminders(r.reminders);
       setStudents(s.data || []);
     } catch (e) { setError(e instanceof AdminApiError ? e.message : "Failed to load"); }
   }
-  useEffect(() => { void load(); }, []);
+  useEffect(() => { void load(); }, [selectedYear?.id]);
 
   function selectStudent(student: Student) {
     setForm({ ...form, studentId: student.id, studentName: student.studentName });
@@ -38,11 +46,12 @@ export default function FeeRemindersPage() {
 
   async function submit(e: FormEvent) {
     e.preventDefault(); setError("");
+    if (!selectedYear?.id) { setError("Select an academic year first."); return; }
     if (!form.studentId) { setError("Select a student"); return; }
     try {
       await adminApiRequest("/api/admin/fee-reminders", {
         method: "POST",
-        body: JSON.stringify({ studentId: form.studentId, amount: Number(form.amount), dueDate: form.dueDate, note: form.note })
+        body: JSON.stringify({ studentId: form.studentId, academicYearId: selectedYear.id, amount: Number(form.amount), dueDate: form.dueDate, note: form.note })
       });
       setForm({ studentId: "", studentName: "", amount: "", dueDate: new Date().toISOString().slice(0, 10), note: "" });
       setShow(false); await load();
@@ -59,6 +68,7 @@ export default function FeeRemindersPage() {
     <>
       <PageHeader title="Fee Reminders" description="Create and manage fee reminders for students." />
       <section className="space-y-4 p-4 md:p-7">
+        {!selectedYear?.id && <div className="card p-5 text-sm font-semibold text-[#7d86a8]">Select an academic year to load reminders.</div>}
         {error && <div className="card border-l-4 border-l-[#ed515d] p-4 text-sm font-semibold text-[#ed515d]">{error}</div>}
         <div className="flex justify-end">
           <button className="btn-primary" onClick={() => setShow((v) => !v)}>{show ? <X size={16} /> : <Plus size={16} />} New reminder</button>

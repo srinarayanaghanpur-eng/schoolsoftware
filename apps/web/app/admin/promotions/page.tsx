@@ -102,7 +102,7 @@ function AccessNotice() {
 
 export default function PromotionsPage() {
   const { role } = useAdminSession();
-  const { years, activeYear } = useAcademicYears();
+  const { years, selectedYear } = useAcademicYears();
 
   const canView = Boolean(role && hasPermission(role, "promotions.view"));
   const canCreate = Boolean(canView && (role === "admin" || role === "principal" || role === "super_admin"));
@@ -131,12 +131,14 @@ export default function PromotionsPage() {
   const [historyFilter, setHistoryFilter] = useState("");
 
   useEffect(() => {
-    if (activeYear?.id) setTargetYearId(activeYear.id);
-  }, [activeYear]);
+    if (selectedYear?.id) setTargetYearId(selectedYear.id);
+  }, [selectedYear?.id]);
 
   useEffect(() => {
-    if (canView) fetchStudents();
-  }, [canView]);
+    if (canView && selectedYear?.id) fetchStudents();
+    else setStudents([]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canView, selectedYear?.id, fromClass, fromSection]);
 
   useEffect(() => {
     let filtered = students;
@@ -152,10 +154,15 @@ export default function PromotionsPage() {
   }, [students, fromClass, fromSection, searchTerm]);
 
   const fetchStudents = async () => {
+    if (!selectedYear?.id) {
+      setStudents([]);
+      return;
+    }
     try {
       setLoading(true);
-      const params = new URLSearchParams();
+      const params = new URLSearchParams({ academicYearId: selectedYear.id, pageSize: "25" });
       if (fromClass) params.set("class", fromClass);
+      if (fromSection) params.set("section", fromSection);
       const data = await adminApiRequest<{ success?: boolean; data: Student[] }>(`/api/admin/students?${params}`);
       setStudents(data.data ?? []);
     } catch {
@@ -170,7 +177,12 @@ export default function PromotionsPage() {
       setLoading(true);
       const params = new URLSearchParams();
       if (historyFilter) params.set("class", historyFilter);
-      if (activeYear?.id) params.set("academicYearId", activeYear.id);
+      if (!selectedYear?.id) {
+        setHistory([]);
+        return;
+      }
+      params.set("academicYearId", selectedYear.id);
+      params.set("pageSize", "25");
       const data = await adminApiRequest<{ ok: boolean; records: PromotionRecord[] }>(`/api/admin/promotions/history?${params}`);
       if (data.ok) setHistory(data.records);
     } catch (err) {
@@ -287,7 +299,8 @@ export default function PromotionsPage() {
 
   useEffect(() => {
     if (tab === "history" && canView) fetchHistory();
-  }, [tab, historyFilter, canView]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, historyFilter, canView, selectedYear?.id]);
 
   if (!canView) {
     return (
@@ -310,9 +323,9 @@ export default function PromotionsPage() {
       <PageHeader
         title="Promotion"
         description={
-          activeYear
-            ? `Managing promotions for ${activeYear.name}`
-            : "Set an active academic year to begin promotions"
+          selectedYear
+            ? `Managing promotions for ${selectedYear.name}`
+            : "Select an academic year to begin promotions"
         }
       />
 

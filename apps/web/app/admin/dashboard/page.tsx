@@ -49,7 +49,6 @@ const moduleShortcuts = [
   { href: "/admin/exams", label: "Exams & Marks", icon: BookOpenCheck, tone: "bg-[#f4efff] text-[#7445bd]" },
   { href: "/admin/notices", label: "Communication", icon: Megaphone, tone: "bg-[#fff4df] text-[#c67711]" },
   { href: "/admin/messages", label: "Messages", icon: Send, tone: "bg-[#eef6ff] text-[#1967b2]" },
-  { href: "/admin/academic-years", label: "Academic Years", icon: CalendarDays, tone: "bg-[#f0f7ef] text-[#3d8b4d]" },
   { href: "/admin/promotions", label: "Promotion", icon: GraduationCap, tone: "bg-[#f4efff] text-[#7445bd]" },
   { href: "/admin/users", label: "Users & Roles", icon: UserCog, tone: "bg-[#edf1ff] text-[#2e38a4]" },
   { href: "/admin/approvals", label: "Approvals", icon: ShieldCheck, tone: "bg-[#eef7f8] text-[#17808a]" },

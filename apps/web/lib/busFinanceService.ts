@@ -17,6 +17,8 @@ interface ScheduleSource {
   totalEmis: number;
   emiDueDay: number;
   loanStartDate: string; // yyyy-mm-dd
+  academicYearId?: string;
+  schoolId?: string;
 }
 
 function daysInMonth(year: number, monthIndex0: number): number {
@@ -78,6 +80,8 @@ export async function generateEmiSchedule(financeId: string, source: ScheduleSou
     batch.set(ref, {
       busFinanceId: financeId,
       vehicleNumber: source.vehicleNumber,
+      academicYearId: source.academicYearId || "",
+      schoolId: source.schoolId || "",
       emiNumber: n,
       emiMonth: emiMonthKey(due),
       dueDate: dueIso,

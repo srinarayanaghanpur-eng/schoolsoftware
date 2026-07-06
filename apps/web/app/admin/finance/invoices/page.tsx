@@ -1,6 +1,7 @@
 "use client";
 
 import { PageHeader } from "@/components/PageHeader";
+import { useAcademicYears } from "@/components/AcademicYearContext";
 import { useAdminSession } from "@/components/AdminSessionContext";
 import { AdminApiError, adminApiRequest } from "@/lib/adminApiClient";
 import { hasPermission } from "@sri-narayana/shared";
@@ -13,6 +14,7 @@ function inr(n: number) { return `₹${(n || 0).toLocaleString("en-IN")}`; }
 
 export default function InvoicesPage() {
   const { role } = useAdminSession();
+  const { selectedYear } = useAcademicYears();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
   const [error, setError] = useState("");
@@ -21,22 +23,29 @@ export default function InvoicesPage() {
   const [items, setItems] = useState([{ name: "Tuition Fee", amount: "" }]);
 
   async function load() {
+    if (!selectedYear?.id) {
+      setInvoices([]);
+      setStudents([]);
+      return;
+    }
     try {
-      const inv = await adminApiRequest<{ invoices: Invoice[] }>("/api/admin/finance/invoices");
+      const params = new URLSearchParams({ academicYearId: selectedYear.id, pageSize: "25" });
+      const inv = await adminApiRequest<{ invoices: Invoice[] }>(`/api/admin/finance/invoices?${params}`);
       setInvoices(inv.invoices);
       let studs: Student[] = [];
-      try { const r = await adminApiRequest<{ data?: Student[]; students?: Student[] }>("/api/admin/students"); studs = r.data || r.students || []; } catch { /* students optional */ }
+      try { const r = await adminApiRequest<{ data?: Student[]; students?: Student[] }>(`/api/admin/students?${params}`); studs = r.data || r.students || []; } catch { /* students optional */ }
       setStudents(studs);
     } catch (e) { setError(e instanceof AdminApiError ? e.message : "Failed to load"); }
   }
-  useEffect(() => { void load(); }, []);
+  useEffect(() => { void load(); }, [selectedYear?.id]);
 
   const total = items.reduce((s, it) => s + (Number(it.amount) || 0), 0);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
+    if (!selectedYear?.id) { setError("Select an academic year first."); return; }
     try {
-      await adminApiRequest("/api/admin/finance/invoices", { method: "POST", body: JSON.stringify({ studentId, items: items.filter((i) => i.name && i.amount).map((i) => ({ name: i.name, amount: Number(i.amount) })) }) });
+      await adminApiRequest("/api/admin/finance/invoices", { method: "POST", body: JSON.stringify({ studentId, academicYearId: selectedYear.id, items: items.filter((i) => i.name && i.amount).map((i) => ({ name: i.name, amount: Number(i.amount) })) }) });
       setShow(false); setStudentId(""); setItems([{ name: "Tuition Fee", amount: "" }]); await load();
     } catch (e) { setError(e instanceof AdminApiError ? e.message : "Failed to create"); }
   }
@@ -47,6 +56,7 @@ export default function InvoicesPage() {
     <>
       <PageHeader title="Invoices" description="Generate student fee invoices with auto numbers." />
       <section className="space-y-4 p-4 md:p-7">
+        {!selectedYear?.id && <div className="card p-5 text-sm font-semibold text-[#7d86a8]">Select an academic year to load invoices.</div>}
         {error && <div className="card border-l-4 border-l-[#ed515d] p-4 text-sm font-semibold text-[#ed515d]">{error}</div>}
         <div className="flex justify-end"><button className="btn-primary" onClick={() => setShow((v) => !v)}>{show ? <X size={16} /> : <Plus size={16} />} New invoice</button></div>
 

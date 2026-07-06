@@ -4,6 +4,8 @@ import { feeReminderCreateSchema } from "@sri-narayana/shared";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { requirePermission } from "@/lib/apiUtils";
 import { writeAuditLog } from "@/lib/auditLog";
+import { docCursor, logFirestoreRead, readLimit } from "@/lib/firestoreReadLogger";
+import { getSchoolId } from "@/lib/schoolScope";
 
 const COLLECTION = "fee_reminders";
 
@@ -14,13 +16,29 @@ export async function GET(req: Request) {
 
     const url = new URL(req.url);
     const studentId = url.searchParams.get("studentId");
+    const academicYearId = url.searchParams.get("academicYearId") || "";
+    const schoolId = url.searchParams.get("schoolId") || getSchoolId(token);
+    const pageSize = readLimit(url.searchParams.get("pageSize") ?? url.searchParams.get("limit"), 25, 100);
+    const cursor = docCursor(url.searchParams.get("cursor"));
 
-    let query: FirebaseFirestore.Query = adminDb().collection(COLLECTION);
+    const db = adminDb();
+    let query: FirebaseFirestore.Query = db.collection(COLLECTION);
     if (studentId) query = query.where("studentId", "==", studentId);
+    if (academicYearId) query = query.where("academicYearId", "==", academicYearId);
+    if (schoolId) query = query.where("schoolId", "==", schoolId);
+    query = query.orderBy("createdAt", "desc");
 
-    const snapshot = await query.orderBy("createdAt", "desc").limit(100).get();
-    const reminders = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-    return NextResponse.json({ ok: true, reminders });
+    if (cursor) {
+      const cursorDoc = await db.collection(COLLECTION).doc(cursor).get();
+      if (cursorDoc.exists) query = query.startAfter(cursorDoc);
+    }
+
+    const snapshot = await query.limit(pageSize + 1).get();
+    logFirestoreRead("FeeRemindersAPI", COLLECTION, snapshot, { studentId, academicYearId, schoolId, pageSize });
+    const pageDocs = snapshot.docs.slice(0, pageSize);
+    const reminders = pageDocs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    const nextCursor = snapshot.docs.length > pageSize && pageDocs.length > 0 ? pageDocs[pageDocs.length - 1].id : null;
+    return NextResponse.json({ ok: true, reminders, pageSize, nextCursor, hasMore: Boolean(nextCursor) });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to load reminders";
     return NextResponse.json({ ok: false, error: message }, { status: 400 });
@@ -41,12 +59,16 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: "Student not found" }, { status: 404 });
     }
     const student = studentSnap.data() as Record<string, unknown>;
+    const academicYearId = String(body.academicYearId ?? student.academicYearId ?? "").trim();
+    const schoolId = String(student.schoolId ?? getSchoolId(token));
 
     const now = FieldValue.serverTimestamp();
     const ref = await db.collection(COLLECTION).add({
       studentId: parsed.studentId,
       studentName: student.studentName ?? "",
       className: student.class ?? "",
+      academicYearId,
+      schoolId,
       amount: parsed.amount,
       dueDate: parsed.dueDate,
       note: parsed.note ?? "",

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { useAdminSession } from "@/components/AdminSessionContext";
+import { useAcademicYears } from "@/components/AcademicYearContext";
 import { hasPermission } from "@sri-narayana/shared";
 import { adminApiRequest, AdminApiError } from "@/lib/adminApiClient";
 
@@ -28,6 +29,7 @@ const EMPTY = {
 export default function CreateBusFinancePage() {
   const router = useRouter();
   const { role } = useAdminSession();
+  const { selectedYear } = useAcademicYears();
   const canCreate = Boolean(role && hasPermission(role, "bus_finance.create"));
 
   const [form, setForm] = useState({ ...EMPTY });
@@ -45,6 +47,10 @@ export default function CreateBusFinancePage() {
       setError("Your role cannot create bus loans.");
       return;
     }
+    if (!selectedYear?.id) {
+      setError("Select an academic year before creating a bus loan.");
+      return;
+    }
     setLoading(true);
     setError("");
     try {
@@ -60,6 +66,7 @@ export default function CreateBusFinancePage() {
         emiAmount: Number(form.emiAmount || 0),
         emiDueDay: Number(form.emiDueDay || 1),
         totalEmis: Number(form.totalEmis || 0),
+        academicYearId: selectedYear.id,
         interestRate: form.interestRate === "" ? undefined : Number(form.interestRate),
         notes: form.notes.trim(),
       };
@@ -92,6 +99,7 @@ export default function CreateBusFinancePage() {
     <>
       <PageHeader title="Add Bus Loan" description="Create a vehicle finance record. The EMI schedule is generated automatically." />
       <section className="p-4 md:p-7">
+        {!selectedYear?.id && <div className="card mb-4 p-5 text-sm font-semibold text-[#7d86a8]">Select an academic year before creating a bus loan.</div>}
         <Link href="/admin/transport/bus-finance" className="mb-4 inline-flex items-center gap-1 text-sm font-semibold text-[#3033a1]">
           <ArrowLeft size={16} /> Back to list
         </Link>

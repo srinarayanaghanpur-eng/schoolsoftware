@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Plus, Eye, IndianRupee, Bus, AlertTriangle, CalendarClock } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { useAdminSession } from "@/components/AdminSessionContext";
+import { useAcademicYears } from "@/components/AcademicYearContext";
 import { hasPermission } from "@sri-narayana/shared";
 import { adminApiRequest, AdminApiError } from "@/lib/adminApiClient";
 import type { BusFinance } from "@/types/busFinance.types";
@@ -23,6 +24,7 @@ interface MonthlyRow { emiAmount?: number; status?: string }
 
 export default function BusFinancePage() {
   const { role } = useAdminSession();
+  const { selectedYear } = useAcademicYears();
   const canView = Boolean(role && hasPermission(role, "bus_finance.view"));
   const canCreate = Boolean(role && hasPermission(role, "bus_finance.create"));
   const canDelete = Boolean(role && hasPermission(role, "bus_finance.delete"));
@@ -37,13 +39,23 @@ export default function BusFinancePage() {
   const [busyId, setBusyId] = useState<string | null>(null);
 
   const load = async () => {
+    if (!selectedYear?.id) {
+      setRecords([]);
+      setOverdueAmount(0);
+      setCurrentMonthDue(0);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError("");
     try {
+      const params = new URLSearchParams({ academicYearId: selectedYear.id, pageSize: "25" });
+      const overdueParams = new URLSearchParams({ type: "overdue", academicYearId: selectedYear.id, pageSize: "25" });
+      const monthlyParams = new URLSearchParams({ type: "monthly", academicYearId: selectedYear.id, pageSize: "25" });
       const [list, overdue, monthly] = await Promise.all([
-        adminApiRequest<{ ok: boolean; records: BusFinance[] }>("/api/admin/bus-finance"),
-        adminApiRequest<{ ok: boolean; rows: OverdueRow[] }>("/api/admin/bus-finance/reports?type=overdue"),
-        adminApiRequest<{ ok: boolean; rows: MonthlyRow[] }>("/api/admin/bus-finance/reports?type=monthly"),
+        adminApiRequest<{ ok: boolean; records: BusFinance[] }>(`/api/admin/bus-finance?${params}`),
+        adminApiRequest<{ ok: boolean; rows: OverdueRow[] }>(`/api/admin/bus-finance/reports?${overdueParams}`),
+        adminApiRequest<{ ok: boolean; rows: MonthlyRow[] }>(`/api/admin/bus-finance/reports?${monthlyParams}`),
       ]);
       setRecords(list.records ?? []);
       setOverdueAmount((overdue.rows ?? []).reduce((s, r) => s + (Number(r.overdueAmount) || 0), 0));
@@ -62,7 +74,8 @@ export default function BusFinancePage() {
   useEffect(() => {
     if (canView) void load();
     else setLoading(false);
-  }, [canView]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canView, selectedYear?.id]);
 
   const cards = useMemo(() => {
     const active = records.filter((r) => r.status === "active" || r.status === "overdue");
@@ -140,6 +153,7 @@ export default function BusFinancePage() {
       />
 
       <section className="space-y-5 p-4 md:p-7">
+        {!selectedYear?.id && <div className="card p-5 text-sm font-semibold text-[#7d86a8]">Select an academic year to load bus finance.</div>}
         {error && <div className="card border-l-4 border-[#d84d5b] p-3 text-sm font-semibold text-[#d84d5b]">{error}</div>}
         {success && <div className="card border-l-4 border-[#1f8a4c] p-3 text-sm font-semibold text-[#1f8a4c]">{success}</div>}
 

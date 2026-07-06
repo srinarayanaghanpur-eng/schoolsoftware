@@ -2,6 +2,7 @@
 
 import { PageHeader } from "@/components/PageHeader";
 import { useAdminSession } from "@/components/AdminSessionContext";
+import { useAcademicYears } from "@/components/AcademicYearContext";
 import { AdminApiError, adminApiRequest } from "@/lib/adminApiClient";
 import { hasPermission } from "@sri-narayana/shared";
 import { CheckCircle2, ClipboardList, Plus, Trash2, X } from "lucide-react";
@@ -10,16 +11,15 @@ import { useEffect, useState, type FormEvent } from "react";
 
 type TimetableEntry = { subject: string; date: string; time: string; maxMarks?: string };
 type Exam = { id: string; name: string; className: string; section?: string; examType: string; startDate: string; endDate?: string; maxMarks: number; status: string; academicYearId: string; timetable?: TimetableEntry[] };
-type Year = { id: string; name: string; isActive: boolean };
 
 const TYPES = ["unit_test", "midterm", "final", "olympiad", "other"];
 const statusTone: Record<string, string> = { scheduled: "bg-[#eef0ff] text-[#3033a1]", ongoing: "bg-[#fff4df] text-[#b8791a]", completed: "bg-[#e6f8ef] text-[#14a762]", published: "bg-[#e6f8ef] text-[#14a762]" };
 
 export default function ExamsPage() {
   const { role } = useAdminSession();
+  const { years, selectedYear } = useAcademicYears();
   const canApprove = hasPermission(role, "exams.approve");
   const [exams, setExams] = useState<Exam[]>([]);
-  const [years, setYears] = useState<Year[]>([]);
   const [error, setError] = useState("");
   const [show, setShow] = useState(false);
   const [showTimetable, setShowTimetable] = useState(false);
@@ -27,17 +27,19 @@ export default function ExamsPage() {
   const [form, setForm] = useState({ name: "", academicYearId: "", className: "", section: "", examType: "unit_test", startDate: new Date().toISOString().slice(0, 10), endDate: "", maxMarks: "100" });
 
   async function load() {
+    if (!selectedYear?.id) {
+      setExams([]);
+      return;
+    }
+    const academicYearId = selectedYear.id;
     try {
-      const [e, y] = await Promise.all([
-        adminApiRequest<{ exams: Exam[] }>("/api/admin/exams"),
-        adminApiRequest<{ years: Year[] }>("/api/admin/academic-years")
-      ]);
-      setExams(e.exams); setYears(y.years);
-      const active = y.years.find((x) => x.isActive);
-      if (active) setForm((f) => ({ ...f, academicYearId: f.academicYearId || active.id }));
+      const params = new URLSearchParams({ academicYearId, pageSize: "25" });
+      const e = await adminApiRequest<{ exams: Exam[] }>(`/api/admin/exams?${params}`);
+      setExams(e.exams);
+      setForm((f) => ({ ...f, academicYearId: f.academicYearId || academicYearId }));
     } catch (e) { setError(e instanceof AdminApiError ? e.message : "Failed to load"); }
   }
-  useEffect(() => { void load(); }, []);
+  useEffect(() => { void load(); }, [selectedYear?.id]);
 
   function addTimetableRow() {
     setTimetable([...timetable, { subject: "", date: form.startDate, time: "", maxMarks: form.maxMarks }]);
@@ -74,6 +76,7 @@ export default function ExamsPage() {
     <>
       <PageHeader title="Exams & Marks" description="Schedule exams, enter marks, and publish results." />
       <section className="space-y-4 p-4 md:p-7">
+        {!selectedYear?.id && <div className="card p-5 text-sm font-semibold text-[#7d86a8]">Select an academic year to load exams.</div>}
         {error && <div className="card border-l-4 border-l-[#ed515d] p-4 text-sm font-semibold text-[#ed515d]">{error}</div>}
         {hasPermission(role, "exams.create") && <div className="flex justify-end"><button className="btn-primary" onClick={() => setShow((v) => !v)}>{show ? <X size={16} /> : <Plus size={16} />} New exam</button></div>}
 

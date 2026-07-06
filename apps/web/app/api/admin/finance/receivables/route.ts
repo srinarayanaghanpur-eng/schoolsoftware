@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { requirePermission } from "@/lib/apiUtils";
-import { logFirestoreRead, readLimit } from "@/lib/firestoreReadLogger";
+import { docCursor, logFirestoreRead, readLimit } from "@/lib/firestoreReadLogger";
+import { getSchoolId } from "@/lib/schoolScope";
 
 export async function GET(req: Request) {
   const token = await requirePermission(req, "fees.view");
@@ -11,18 +12,31 @@ export async function GET(req: Request) {
   const classFilter = searchParams.get("classId") || searchParams.get("class") || "";
   const sectionFilter = searchParams.get("sectionId") || searchParams.get("section") || "";
   const academicYearId = searchParams.get("academicYearId") || "";
-  const pageSize = readLimit(searchParams.get("pageSize") ?? searchParams.get("limit"), 500, 1000);
+  const schoolId = searchParams.get("schoolId") || getSchoolId(token);
+  // Default 25 for list views; exports/reports may request more explicitly (up to 1000).
+  const pageSize = readLimit(searchParams.get("pageSize") ?? searchParams.get("limit"), 25, 1000);
+  const cursor = docCursor(searchParams.get("cursor"));
   const db = adminDb();
 
   let query: FirebaseFirestore.Query = db.collection("studentFeeSummaries").where("dueAmount", ">", 0);
+  if (schoolId) query = query.where("schoolId", "==", schoolId);
   if (academicYearId) query = query.where("academicYearId", "==", academicYearId);
   if (classFilter) query = query.where("classId", "==", classFilter);
   if (sectionFilter) query = query.where("sectionId", "==", sectionFilter);
-  query = query.orderBy("dueAmount", "desc").limit(pageSize);
+  query = query.orderBy("dueAmount", "desc");
+
+  if (cursor) {
+    const cursorDoc = await db.collection("studentFeeSummaries").doc(cursor).get();
+    if (cursorDoc.exists) query = query.startAfter(cursorDoc);
+  }
+
+  query = query.limit(pageSize + 1);
 
   const summarySnap = await query.get();
-  logFirestoreRead("FinanceReceivablesAPI", "studentFeeSummaries", summarySnap, { academicYearId, classFilter, sectionFilter, pageSize });
-  const students = summarySnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  logFirestoreRead("FinanceReceivablesAPI", "studentFeeSummaries", summarySnap, { schoolId, academicYearId, classFilter, sectionFilter, pageSize });
+  const pageDocs = summarySnap.docs.slice(0, pageSize);
+  const nextCursor = summarySnap.docs.length > pageSize && pageDocs.length > 0 ? pageDocs[pageDocs.length - 1].id : null;
+  const students = pageDocs.map((d) => ({ id: d.id, ...d.data() }));
 
   const receivables = students
     .map((s: Record<string, unknown>) => {
@@ -60,6 +74,9 @@ export async function GET(req: Request) {
     ok: true,
     summary: { totalReceivable, totalFees, totalPaid, studentCount: receivables.length },
     byClass: Object.values(byClass).sort((a, b) => a.className.localeCompare(b.className)),
-    students: receivables
+    students: receivables,
+    pageSize,
+    nextCursor,
+    hasMore: Boolean(nextCursor)
   });
 }

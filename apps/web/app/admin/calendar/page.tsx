@@ -1,6 +1,7 @@
 "use client";
 
 import { AttendanceCalendar } from "@/components/AttendanceCalendar";
+import { useAcademicYears } from "@/components/AcademicYearContext";
 import { PageHeader } from "@/components/PageHeader";
 import { auth } from "@sri-narayana/shared/firebase/client";
 import type { AttendanceRecord, Teacher } from "@sri-narayana/shared";
@@ -16,6 +17,7 @@ function currentMonth() {
 }
 
 export default function CalendarPage() {
+  const { selectedYear } = useAcademicYears();
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
   const [selectedTeacherId, setSelectedTeacherId] = useState("");
@@ -30,12 +32,19 @@ export default function CalendarPage() {
 
   useEffect(() => {
     const loadCalendarData = async () => {
+      if (!selectedYear?.id) {
+        setTeachers([]);
+        setRecords([]);
+        setLoading(false);
+        return;
+      }
       setLoading(true);
       setError(null);
       try {
         const token = await auth.currentUser?.getIdToken();
         if (!token) throw new Error("Please sign in as admin again.");
-        const response = await fetch("/api/admin/attendance", {
+        const params = new URLSearchParams({ academicYearId: selectedYear.id, pageSize: "25" });
+        const response = await fetch(`/api/admin/attendance?${params}`, {
           headers: { authorization: `Bearer ${token}` }
         });
         const result = (await response.json()) as AttendancePayload & { ok?: boolean; error?: string };
@@ -51,12 +60,13 @@ export default function CalendarPage() {
     };
 
     void loadCalendarData();
-  }, []);
+  }, [selectedYear?.id]);
 
   return (
     <>
       <PageHeader title="Calendar View" description="Color-coded monthly attendance with daily details." />
       <section className="space-y-5 p-4 md:p-7">
+        {!selectedYear?.id && <div className="card p-5 text-sm font-semibold text-[#7d86a8]">Select an academic year to load the calendar.</div>}
         {error && <div className="rounded-2xl border border-[#ffd5da] bg-[#ffebed] px-4 py-3 text-sm font-semibold text-[#c83f4d]">{error}</div>}
         <div className="card flex flex-col gap-3 p-4 md:flex-row">
           <select

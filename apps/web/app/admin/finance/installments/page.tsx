@@ -1,6 +1,7 @@
 "use client";
 
 import { PageHeader } from "@/components/PageHeader";
+import { useAcademicYears } from "@/components/AcademicYearContext";
 import { useAdminSession } from "@/components/AdminSessionContext";
 import { AdminApiError, adminApiRequest } from "@/lib/adminApiClient";
 import { hasPermission } from "@sri-narayana/shared";
@@ -22,6 +23,7 @@ const statusBadge: Record<string, string> = {
 
 export default function InstallmentsPage() {
   const { role } = useAdminSession();
+  const { selectedYear } = useAcademicYears();
   const [plans, setPlans] = useState<InstallmentPlan[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
@@ -34,10 +36,17 @@ export default function InstallmentsPage() {
   const [form, setForm] = useState({ studentId: "", totalAmount: "", numInstallments: "2", firstDueDate: "" });
 
   async function load() {
+    if (!selectedYear?.id) {
+      setPlans([]);
+      setStudents([]);
+      setLoading(false);
+      return;
+    }
     try {
+      const params = new URLSearchParams({ academicYearId: selectedYear.id, pageSize: "25" });
       const [pRes, sRes] = await Promise.all([
-        adminApiRequest<{ plans: InstallmentPlan[] }>("/api/admin/finance/installments"),
-        adminApiRequest<{ success?: boolean; data?: Student[] }>("/api/admin/students")
+        adminApiRequest<{ plans: InstallmentPlan[] }>(`/api/admin/finance/installments?${params}`),
+        adminApiRequest<{ success?: boolean; data?: Student[] }>(`/api/admin/students?${params}`)
       ]);
       setPlans(pRes.plans);
       setStudents(sRes.data ?? []);
@@ -48,10 +57,11 @@ export default function InstallmentsPage() {
     }
   }
 
-  useEffect(() => { void load(); }, []);
+  useEffect(() => { void load(); }, [selectedYear?.id]);
 
   async function createPlan(e: FormEvent) {
     e.preventDefault();
+    if (!selectedYear?.id) { setError("Select an academic year first."); return; }
     setSubmitting(true);
     setError("");
     try {
@@ -73,7 +83,7 @@ export default function InstallmentsPage() {
           studentId: form.studentId,
           totalAmount: total,
           installments,
-          academicYearId: ""
+          academicYearId: selectedYear.id
         })
       });
 
@@ -121,6 +131,7 @@ export default function InstallmentsPage() {
         )}
       />
       <section className="space-y-4 p-4 md:p-7">
+        {!selectedYear?.id && <div className="card p-5 text-sm font-semibold text-[#7d86a8]">Select an academic year to load installment plans.</div>}
         {error && <div className="card border-l-4 border-l-[#ed515d] p-4 text-sm font-semibold text-[#ed515d]">{error}</div>}
 
         {showForm && (

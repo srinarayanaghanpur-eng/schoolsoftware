@@ -3,6 +3,8 @@ import { FieldValue } from "firebase-admin/firestore";
 import { installmentPlanCreateSchema } from "@sri-narayana/shared";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { requirePermission, serializeDoc } from "@/lib/apiUtils";
+import { docCursor, logFirestoreRead, readLimit } from "@/lib/firestoreReadLogger";
+import { getSchoolId } from "@/lib/schoolScope";
 
 const COLLECTION = "installment_plans";
 
@@ -12,14 +14,29 @@ export async function GET(req: Request) {
   if (!token) return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
 
   const { searchParams } = new URL(req.url);
-  let query: FirebaseFirestore.Query = adminDb().collection(COLLECTION);
+  const db = adminDb();
+  let query: FirebaseFirestore.Query = db.collection(COLLECTION);
   const studentId = searchParams.get("studentId");
+  const academicYearId = searchParams.get("academicYearId") || "";
+  const schoolId = searchParams.get("schoolId") || getSchoolId(token);
+  const pageSize = readLimit(searchParams.get("pageSize") ?? searchParams.get("limit"), 25, 100);
+  const cursor = docCursor(searchParams.get("cursor"));
   if (studentId) query = query.where("studentId", "==", studentId);
+  if (academicYearId) query = query.where("academicYearId", "==", academicYearId);
+  if (schoolId) query = query.where("schoolId", "==", schoolId);
+  query = query.orderBy("createdAt", "desc");
 
-  // Hard read cap to keep query cost bounded (Firestore free-tier quota).
-  const snap = await query.orderBy("createdAt", "desc").limit(500).get();
-  const plans = snap.docs.map((d) => serializeDoc(d));
-  return NextResponse.json({ ok: true, plans });
+  if (cursor) {
+    const cursorDoc = await db.collection(COLLECTION).doc(cursor).get();
+    if (cursorDoc.exists) query = query.startAfter(cursorDoc);
+  }
+
+  const snap = await query.limit(pageSize + 1).get();
+  logFirestoreRead("FinanceInstallmentsAPI", COLLECTION, snap, { studentId, academicYearId, schoolId, pageSize });
+  const pageDocs = snap.docs.slice(0, pageSize);
+  const plans = pageDocs.map((d) => serializeDoc(d));
+  const nextCursor = snap.docs.length > pageSize && pageDocs.length > 0 ? pageDocs[pageDocs.length - 1].id : null;
+  return NextResponse.json({ ok: true, plans, pageSize, nextCursor, hasMore: Boolean(nextCursor) });
 }
 
 // POST /api/admin/finance/installments — create a new installment plan.
@@ -32,11 +49,13 @@ export async function POST(req: Request) {
     const now = FieldValue.serverTimestamp();
 
     const studentSnap = await adminDb().collection("students").doc(parsed.studentId).get();
-    const studentName = String(studentSnap.data()?.studentName ?? "");
+    const studentData = studentSnap.data();
+    const studentName = String(studentData?.studentName ?? "");
 
     const doc = {
       ...parsed,
       studentName,
+      schoolId: String(studentData?.schoolId ?? getSchoolId(token)),
       paidAmount: 0,
       createdBy: token.uid,
       createdAt: now,

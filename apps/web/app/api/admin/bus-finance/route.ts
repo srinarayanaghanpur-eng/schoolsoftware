@@ -3,6 +3,8 @@ import { FieldValue } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { requirePermission, serializeDoc } from "@/lib/apiUtils";
 import { BUS_FINANCE_COLLECTION, generateEmiSchedule } from "@/lib/busFinanceService";
+import { docCursor, logFirestoreRead, readLimit } from "@/lib/firestoreReadLogger";
+import { getSchoolId } from "@/lib/schoolScope";
 
 /**
  * GET /api/admin/bus-finance
@@ -14,16 +16,31 @@ export async function GET(req: NextRequest) {
 
   try {
     const { searchParams } = new URL(req.url);
-    let query: FirebaseFirestore.Query = adminDb().collection(BUS_FINANCE_COLLECTION);
-    const status = searchParams.get("status");
+    const db = adminDb();
+    let query: FirebaseFirestore.Query = db.collection(BUS_FINANCE_COLLECTION);
+    const status = searchParams.get("status") || "";
+    const academicYearId = searchParams.get("academicYearId") || "";
+    const schoolId = searchParams.get("schoolId") || getSchoolId(token);
+    const pageSize = readLimit(searchParams.get("pageSize") ?? searchParams.get("limit"), 25, 100);
+    const cursor = docCursor(searchParams.get("cursor"));
+
     if (status) query = query.where("status", "==", status);
+    if (academicYearId) query = query.where("academicYearId", "==", academicYearId);
+    if (schoolId) query = query.where("schoolId", "==", schoolId);
+    query = query.orderBy("vehicleNumber", "asc");
 
-    const snap = await query.get();
-    const records = snap.docs
-      .map((d) => serializeDoc(d) as Record<string, unknown> & { id: string })
-      .sort((a, b) => String(a.vehicleNumber ?? "").localeCompare(String(b.vehicleNumber ?? "")));
+    if (cursor) {
+      const cursorDoc = await db.collection(BUS_FINANCE_COLLECTION).doc(cursor).get();
+      if (cursorDoc.exists) query = query.startAfter(cursorDoc);
+    }
 
-    return NextResponse.json({ ok: true, records });
+    const snap = await query.limit(pageSize + 1).get();
+    logFirestoreRead("BusFinanceAPI", BUS_FINANCE_COLLECTION, snap, { status, academicYearId, schoolId, pageSize });
+    const pageDocs = snap.docs.slice(0, pageSize);
+    const records = pageDocs.map((d) => serializeDoc(d) as Record<string, unknown> & { id: string });
+    const nextCursor = snap.docs.length > pageSize && pageDocs.length > 0 ? pageDocs[pageDocs.length - 1].id : null;
+
+    return NextResponse.json({ ok: true, records, pageSize, nextCursor, hasMore: Boolean(nextCursor) });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to load bus finance records";
     return NextResponse.json({ ok: false, error: message }, { status: 500 });
@@ -64,8 +81,12 @@ export async function POST(req: NextRequest) {
 
     const now = FieldValue.serverTimestamp();
     const vehicleNumber = String(body.vehicleNumber).trim();
+    const schoolId = String(body.schoolId || getSchoolId(token));
+    const academicYearId = String(body.academicYearId || "");
 
     const record: Record<string, unknown> = {
+      schoolId,
+      academicYearId,
       vehicleName: String(body.vehicleName).trim(),
       vehicleNumber,
       financeCompany: String(body.financeCompany).trim(),
@@ -94,6 +115,8 @@ export async function POST(req: NextRequest) {
       vehicleNumber,
       emiAmount,
       totalEmis,
+      schoolId,
+      academicYearId,
       emiDueDay,
       loanStartDate: String(body.loanStartDate),
     });

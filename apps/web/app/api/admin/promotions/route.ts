@@ -4,6 +4,8 @@ import { adminDb } from "@/lib/firebaseAdmin";
 import { requirePermission, serializeDoc } from "@/lib/apiUtils";
 import { writeAuditLog } from "@/lib/auditLog";
 import { createApprovalRequest } from "@/lib/approvalEngine";
+import { docCursor, logFirestoreRead, readLimit } from "@/lib/firestoreReadLogger";
+import { getSchoolId } from "@/lib/schoolScope";
 
 const db = adminDb();
 
@@ -25,22 +27,35 @@ export async function GET(req: Request) {
 
   try {
     const { searchParams } = new URL(req.url);
-    const academicYearId = searchParams.get("academicYearId");
-    const promotionType = searchParams.get("promotionType");
-    const status = searchParams.get("status");
-    const classStr = searchParams.get("class");
+    const academicYearId = searchParams.get("academicYearId") || "";
+    const promotionType = searchParams.get("promotionType") || "";
+    const status = searchParams.get("status") || "";
+    const classStr = searchParams.get("class") || "";
+    const schoolId = searchParams.get("schoolId") || getSchoolId(token);
+    const pageSize = readLimit(searchParams.get("pageSize") ?? searchParams.get("limit"), 25, 100);
+    const cursor = docCursor(searchParams.get("cursor"));
 
-    let query: FirebaseFirestore.Query = db.collection(COLLECTION).orderBy("createdAt", "desc");
+    let query: FirebaseFirestore.Query = db.collection(COLLECTION);
 
     if (academicYearId) query = query.where("academicYearId", "==", academicYearId);
     if (promotionType) query = query.where("promotionType", "==", promotionType);
     if (status) query = query.where("status", "==", status);
     if (classStr) query = query.where("fromClass", "==", classStr);
+    if (schoolId) query = query.where("schoolId", "==", schoolId);
+    query = query.orderBy("createdAt", "desc");
 
-    const snapshot = await query.limit(500).get();
-    const records = snapshot.docs.map((doc) => serializeDoc(doc));
+    if (cursor) {
+      const cursorDoc = await db.collection(COLLECTION).doc(cursor).get();
+      if (cursorDoc.exists) query = query.startAfter(cursorDoc);
+    }
 
-    return NextResponse.json({ ok: true, records });
+    const snapshot = await query.limit(pageSize + 1).get();
+    logFirestoreRead("PromotionsAPI", COLLECTION, snapshot, { academicYearId, promotionType, status, class: classStr, schoolId, pageSize });
+    const pageDocs = snapshot.docs.slice(0, pageSize);
+    const records = pageDocs.map((doc) => serializeDoc(doc));
+    const nextCursor = snapshot.docs.length > pageSize && pageDocs.length > 0 ? pageDocs[pageDocs.length - 1].id : null;
+
+    return NextResponse.json({ ok: true, records, pageSize, nextCursor, hasMore: Boolean(nextCursor) });
   } catch (error) {
     console.error("Error fetching promotions:", error);
     return NextResponse.json({ ok: false, error: "Failed to fetch promotions" }, { status: 500 });
@@ -74,6 +89,7 @@ export async function POST(req: Request) {
     }
 
     const now = FieldValue.serverTimestamp();
+    const schoolId = getSchoolId(token);
     const batch = db.batch();
     const promotionIds: string[] = [];
     const promotionRecords: Record<string, unknown>[] = [];
@@ -89,6 +105,7 @@ export async function POST(req: Request) {
 
       const record: Record<string, unknown> = {
         promotionType,
+        schoolId,
         academicYearId,
         fromAcademicYearId: studentData.academicYearId || "",
         studentId: doc.id,
@@ -120,6 +137,7 @@ export async function POST(req: Request) {
         class: record.toClass,
         section: record.toSection,
         academicYearId,
+        schoolId,
         updatedAt: now
       };
 

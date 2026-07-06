@@ -3,19 +3,40 @@ import { FieldValue } from "firebase-admin/firestore";
 import { invoiceCreateSchema } from "@sri-narayana/shared";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { requirePermission, serializeDoc } from "@/lib/apiUtils";
+import { docCursor, logFirestoreRead, readLimit } from "@/lib/firestoreReadLogger";
+import { getSchoolId } from "@/lib/schoolScope";
 
 const COLLECTION = "invoices";
 
 export async function GET(req: Request) {
   const token = await requirePermission(req, "fees.view");
   if (!token) return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
-  const studentId = new URL(req.url).searchParams.get("studentId");
-  let query: FirebaseFirestore.Query = adminDb().collection(COLLECTION);
+
+  const db = adminDb();
+  const { searchParams } = new URL(req.url);
+  const studentId = searchParams.get("studentId") || "";
+  const academicYearId = searchParams.get("academicYearId") || "";
+  const schoolId = searchParams.get("schoolId") || getSchoolId(token);
+  const pageSize = readLimit(searchParams.get("pageSize") ?? searchParams.get("limit"), 25, 100);
+  const cursor = docCursor(searchParams.get("cursor"));
+
+  let query: FirebaseFirestore.Query = db.collection(COLLECTION);
   if (studentId) query = query.where("studentId", "==", studentId);
-  // Hard read cap to keep query cost bounded (Firestore free-tier quota).
-  const snap = await query.limit(500).get();
-  const invoices = snap.docs.map((d) => serializeDoc(d)).sort((a, b) => String(b.date ?? "").localeCompare(String(a.date ?? "")));
-  return NextResponse.json({ ok: true, invoices });
+  if (academicYearId) query = query.where("academicYearId", "==", academicYearId);
+  if (schoolId) query = query.where("schoolId", "==", schoolId);
+  query = query.orderBy("date", "desc");
+
+  if (cursor) {
+    const cursorDoc = await db.collection(COLLECTION).doc(cursor).get();
+    if (cursorDoc.exists) query = query.startAfter(cursorDoc);
+  }
+
+  const snap = await query.limit(pageSize + 1).get();
+  logFirestoreRead("FinanceInvoicesAPI", COLLECTION, snap, { studentId, academicYearId, schoolId, pageSize });
+  const pageDocs = snap.docs.slice(0, pageSize);
+  const invoices = pageDocs.map((d) => serializeDoc(d));
+  const nextCursor = snap.docs.length > pageSize && pageDocs.length > 0 ? pageDocs[pageDocs.length - 1].id : null;
+  return NextResponse.json({ ok: true, invoices, pageSize, nextCursor, hasMore: Boolean(nextCursor) });
 }
 
 // POST — generate an invoice with a sequential number (INV-0001…).
@@ -24,10 +45,14 @@ export async function POST(req: Request) {
   if (!token) return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
 
   try {
-    const parsed = invoiceCreateSchema.parse(await req.json());
+    const body = await req.json();
+    const parsed = invoiceCreateSchema.parse(body);
     const db = adminDb();
     const total = parsed.items.reduce((sum, it) => sum + it.amount, 0);
     const student = await db.collection("students").doc(parsed.studentId).get();
+    const studentData = student.data();
+    const academicYearId = String(body.academicYearId ?? studentData?.academicYearId ?? "").trim();
+    const schoolId = String(studentData?.schoolId ?? getSchoolId(token));
 
     // atomic sequential invoice number
     const counterRef = db.collection("counters").doc("invoices");
@@ -42,7 +67,9 @@ export async function POST(req: Request) {
     const ref = await db.collection(COLLECTION).add({
       invoiceNo,
       studentId: parsed.studentId,
-      studentName: (student.data()?.studentName as string) || "",
+      studentName: (studentData?.studentName as string) || "",
+      academicYearId,
+      schoolId,
       items: parsed.items,
       total,
       status: "issued",

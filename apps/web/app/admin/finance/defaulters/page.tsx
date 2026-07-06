@@ -1,6 +1,7 @@
 "use client";
 
 import { PageHeader } from "@/components/PageHeader";
+import { useAcademicYears } from "@/components/AcademicYearContext";
 import { useAdminSession } from "@/components/AdminSessionContext";
 import { AdminApiError, adminApiRequest } from "@/lib/adminApiClient";
 import { hasPermission } from "@sri-narayana/shared";
@@ -21,16 +22,23 @@ const CLASS_OPTIONS = ["", "Nur", "KG", "1", "2", "3", "4", "5", "6", "7", "8", 
 
 export default function DefaultersPage() {
   const { role } = useAdminSession();
+  const { selectedYear } = useAcademicYears();
   const [data, setData] = useState<Defaulter[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [classFilter, setClassFilter] = useState("");
 
   const fetchData = async (cls: string) => {
+    if (!selectedYear?.id) {
+      setData([]);
+      setLoading(false);
+      return;
+    }
     setLoading(true); setError("");
     try {
-      const q = cls ? `?class=${cls}` : "";
-      const r = await adminApiRequest<{ data: Defaulter[] }>(`/api/admin/finance/defaulters${q}`);
+      const params = new URLSearchParams({ academicYearId: selectedYear.id, pageSize: "25" });
+      if (cls) params.set("class", cls);
+      const r = await adminApiRequest<{ data: Defaulter[] }>(`/api/admin/finance/defaulters?${params}`);
       setData(r.data);
     } catch (e) {
       setError(e instanceof AdminApiError ? e.message : "Failed to load");
@@ -39,7 +47,7 @@ export default function DefaultersPage() {
     }
   };
 
-  useEffect(() => { fetchData(classFilter); }, [classFilter]);
+  useEffect(() => { fetchData(classFilter); }, [classFilter, selectedYear?.id]);
 
   if (!hasPermission(role, "fees.view")) {
     return <section className="p-7"><div className="card p-5 font-semibold text-[#ed515d]">Access denied.</div></section>;
@@ -49,6 +57,7 @@ export default function DefaultersPage() {
     <>
       <PageHeader title="Defaulters List" description="Students with outstanding fee dues." />
       <section className="space-y-5 p-4 md:p-7">
+        {!selectedYear?.id && <div className="card p-5 text-sm font-semibold text-[#7d86a8]">Select an academic year to load defaulters.</div>}
         {error && <div className="card border-l-4 border-l-[#ed515d] p-4 text-sm font-semibold text-[#ed515d]">{error}</div>}
 
         <div className="card flex flex-wrap items-end gap-4 p-5">

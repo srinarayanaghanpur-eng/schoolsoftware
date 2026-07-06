@@ -71,7 +71,7 @@ import { DarkModeToggle } from "@/components/DarkModeToggle";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { SectionTabs } from "@/components/SectionTabs";
 import { clearPayrollSessionId } from "@/lib/payrollSessionClient";
-import { clearAdminApiCacheForSignOut } from "@/lib/adminApiClient";
+import { API_STATUS_EVENT, clearAdminApiCacheForSignOut } from "@/lib/adminApiClient";
 import { refreshClaims } from "@/lib/authClaims";
 import { isRoleAllowedForPath } from "@/lib/routeAccess";
 import { lazyLoad } from "@/lib/lazyLoad";
@@ -990,29 +990,93 @@ function AccessDeniedState({ module }: { module?: Module }) {
 type Profile = { uid: string; name: string; email?: string; role?: Role };
 
 /**
- * Global connectivity banner. Shown fixed at the top when the browser goes
- * offline; pages keep rendering cached data (adminApiClient localStorage
- * fallback + Firestore IndexedDB persistence) instead of a blank screen.
+ * Global network status banner. States:
+ *  - online: hidden
+ *  - offline: amber, "Offline — showing saved data"
+ *  - reconnecting: blue, shown briefly after connectivity returns
+ *  - stale/failed: gray/red, when an API call failed (with Retry)
+ * Driven by browser online/offline events plus API_STATUS_EVENT emitted by
+ * adminApiClient whenever a request fails or is served from cache.
  */
+type NetStatus = "online" | "offline" | "reconnecting" | "stale" | "failed";
+
 function OfflineBanner() {
-  const [offline, setOffline] = useState(false);
+  const [status, setStatus] = useState<NetStatus>("online");
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   useEffect(() => {
-    const update = () => setOffline(typeof navigator !== "undefined" && !navigator.onLine);
-    update();
-    window.addEventListener("online", update);
-    window.addEventListener("offline", update);
+    const clearTimer = () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+      timerRef.current = null;
+    };
+
+    const handleOffline = () => {
+      clearTimer();
+      setStatus("offline");
+    };
+    const handleOnline = () => {
+      clearTimer();
+      setStatus("reconnecting");
+      // Show "reconnecting" briefly, then clear.
+      timerRef.current = setTimeout(() => setStatus("online"), 2500);
+    };
+    const handleApiStatus = (event: Event) => {
+      const type = (event as CustomEvent<{ type?: string }>).detail?.type;
+      // Browser-level offline state wins over per-request signals.
+      if (typeof navigator !== "undefined" && !navigator.onLine) return;
+      if (type === "ok") {
+        setStatus((prev) => (prev === "stale" || prev === "failed" ? "online" : prev));
+      } else if (type === "stale-served") {
+        setStatus("stale");
+      } else if (type === "request-failed") {
+        setStatus("failed");
+      }
+    };
+
+    if (typeof navigator !== "undefined" && !navigator.onLine) setStatus("offline");
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+    window.addEventListener(API_STATUS_EVENT, handleApiStatus);
     return () => {
-      window.removeEventListener("online", update);
-      window.removeEventListener("offline", update);
+      clearTimer();
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+      window.removeEventListener(API_STATUS_EVENT, handleApiStatus);
     };
   }, []);
-  if (!offline) return null;
+
+  if (status === "online") return null;
+
+  const config: Record<Exclude<NetStatus, "online">, { className: string; text: string; retry?: boolean }> = {
+    offline: {
+      className: "bg-amber-500",
+      text: "Offline — showing saved data. Changes will not sync until you reconnect."
+    },
+    reconnecting: { className: "bg-sky-600", text: "Back online — refreshing data…" },
+    stale: {
+      className: "bg-slate-600",
+      text: "Connection problem — showing saved data.",
+      retry: true
+    },
+    failed: { className: "bg-rose-600", text: "Request failed.", retry: true }
+  };
+  const { className, text, retry } = config[status];
+
   return (
     <div
       role="status"
-      className="fixed inset-x-0 top-0 z-[100] bg-amber-500 px-4 py-1.5 text-center text-xs font-extrabold text-white shadow-md print:hidden"
+      className={`fixed inset-x-0 top-0 z-[100] flex items-center justify-center gap-3 px-4 py-1.5 text-center text-xs font-extrabold text-white shadow-md print:hidden ${className}`}
     >
-      Offline — showing saved data. Changes will not sync until you reconnect.
+      <span>{text}</span>
+      {retry && (
+        <button
+          type="button"
+          onClick={() => window.location.reload()}
+          className="min-h-[28px] rounded-full bg-white/20 px-3 py-0.5 text-[11px] font-extrabold uppercase tracking-wide transition hover:bg-white/30"
+        >
+          Retry
+        </button>
+      )}
     </div>
   );
 }

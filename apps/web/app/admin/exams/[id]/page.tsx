@@ -1,6 +1,7 @@
 "use client";
 
 import { PageHeader } from "@/components/PageHeader";
+import { useAcademicYears } from "@/components/AcademicYearContext";
 import { useAdminSession } from "@/components/AdminSessionContext";
 import { AdminApiError, adminApiRequest } from "@/lib/adminApiClient";
 import { hasPermission } from "@sri-narayana/shared";
@@ -8,12 +9,13 @@ import { Save } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-type Exam = { id: string; name: string; className: string; section?: string; maxMarks: number };
+type Exam = { id: string; name: string; className: string; section?: string; maxMarks: number; academicYearId?: string };
 type Student = { id: string; studentName?: string; class?: string; section?: string };
 type Mark = { studentId: string; subject: string; marksObtained: number };
 
 export default function MarksEntryPage({ params }: { params: { id: string } }) {
   const { role } = useAdminSession();
+  const { selectedYear } = useAcademicYears();
   const canEdit = hasPermission(role, "exams.edit");
   const [exam, setExam] = useState<Exam | null>(null);
   const [students, setStudents] = useState<Student[]>([]);
@@ -29,11 +31,18 @@ export default function MarksEntryPage({ params }: { params: { id: string } }) {
         const e = await adminApiRequest<{ exam: Exam }>(`/api/admin/exams/${params.id}`);
         setExam(e.exam);
         let studs: Student[] = [];
-        try { const r = await adminApiRequest<{ data?: Student[]; students?: Student[] }>("/api/admin/students"); studs = r.data || r.students || []; } catch { /* optional */ }
+        try {
+          const query = new URLSearchParams({ pageSize: "25" });
+          const academicYearId = e.exam.academicYearId || selectedYear?.id || "";
+          if (academicYearId) query.set("academicYearId", academicYearId);
+          if (e.exam.className) query.set("class", e.exam.className);
+          const r = await adminApiRequest<{ data?: Student[]; students?: Student[] }>(`/api/admin/students?${query}`);
+          studs = r.data || r.students || [];
+        } catch { /* optional */ }
         setStudents(studs.filter((s) => !e.exam.className || String(s.class) === String(e.exam.className)));
       } catch (e) { setError(e instanceof AdminApiError ? e.message : "Failed to load"); }
     })();
-  }, [params.id]);
+  }, [params.id, selectedYear?.id]);
 
   // load existing marks for the chosen subject
   useEffect(() => {

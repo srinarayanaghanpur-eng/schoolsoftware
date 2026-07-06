@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowLeft, FileDown, Printer } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { useAdminSession } from "@/components/AdminSessionContext";
+import { useAcademicYears } from "@/components/AcademicYearContext";
 import { hasPermission } from "@sri-narayana/shared";
 import { adminApiRequest, AdminApiError } from "@/lib/adminApiClient";
 
@@ -24,6 +25,7 @@ const prettify = (key: string) =>
 
 export default function BusFinanceReportsPage() {
   const { role } = useAdminSession();
+  const { selectedYear } = useAcademicYears();
   const canExport = Boolean(role && hasPermission(role, "bus_finance.export"));
 
   const [type, setType] = useState<ReportType>("monthly");
@@ -34,10 +36,15 @@ export default function BusFinanceReportsPage() {
   const [error, setError] = useState("");
 
   const run = async () => {
+    if (!selectedYear?.id) {
+      setRows([]);
+      setError("Select an academic year to load reports.");
+      return;
+    }
     setLoading(true);
     setError("");
     try {
-      const qs = new URLSearchParams({ type });
+      const qs = new URLSearchParams({ type, academicYearId: selectedYear.id, pageSize: "25" });
       if (type === "monthly") qs.set("month", month);
       if (type === "yearly" && year) qs.set("year", year);
       const res = await adminApiRequest<{ ok: boolean; rows: Record<string, unknown>[] }>(
@@ -55,7 +62,7 @@ export default function BusFinanceReportsPage() {
   useEffect(() => {
     if (canExport) void run();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [type]);
+  }, [type, selectedYear?.id]);
 
   const columns = rows.length > 0 ? Object.keys(rows[0]) : [];
   const fileBase = `bus-emi-${type}${type === "monthly" ? "-" + month : ""}${type === "yearly" ? "-" + year : ""}`;
@@ -101,6 +108,7 @@ export default function BusFinanceReportsPage() {
     <>
       <PageHeader title="Bus EMI Reports" description="Reports built from real EMI payment data." />
       <section className="space-y-4 p-4 md:p-7">
+        {!selectedYear?.id && <div className="card p-5 text-sm font-semibold text-[#7d86a8]">Select an academic year to load bus EMI reports.</div>}
         <Link href="/admin/transport/bus-finance" className="inline-flex items-center gap-1 text-sm font-semibold text-[#3033a1]">
           <ArrowLeft size={16} /> Back to list
         </Link>

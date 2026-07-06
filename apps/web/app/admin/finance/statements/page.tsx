@@ -1,6 +1,7 @@
 "use client";
 
 import { PageHeader } from "@/components/PageHeader";
+import { useAcademicYears } from "@/components/AcademicYearContext";
 import { useAdminSession } from "@/components/AdminSessionContext";
 import { AdminApiError, adminApiRequest } from "@/lib/adminApiClient";
 import { hasPermission } from "@sri-narayana/shared";
@@ -19,6 +20,7 @@ function fmt(d: string) {
 
 export default function StatementsPage() {
   const { role } = useAdminSession();
+  const { selectedYear } = useAcademicYears();
   const [students, setStudents] = useState<Student[]>([]);
   const [selectedId, setSelectedId] = useState("");
   const [student, setStudent] = useState<Student | null>(null);
@@ -28,9 +30,16 @@ export default function StatementsPage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
+    if (!selectedYear?.id) {
+      setStudents([]);
+      setLoadingStudents(false);
+      return;
+    }
+    const academicYearId = selectedYear.id;
     (async () => {
       try {
-        const r = await adminApiRequest<{ data: Student[] }>("/api/admin/students");
+        const params = new URLSearchParams({ academicYearId, pageSize: "25" });
+        const r = await adminApiRequest<{ data: Student[] }>(`/api/admin/students?${params}`);
         setStudents(r.data);
       } catch (e) {
         setError(e instanceof AdminApiError ? e.message : "Failed to load students");
@@ -38,16 +47,18 @@ export default function StatementsPage() {
         setLoadingStudents(false);
       }
     })();
-  }, []);
+  }, [selectedYear?.id]);
 
   useEffect(() => {
-    if (!selectedId) { setStudent(null); setPayments([]); return; }
+    if (!selectedId || !selectedYear?.id) { setStudent(null); setPayments([]); return; }
+    const academicYearId = selectedYear.id;
     (async () => {
       setLoadingStatement(true); setError("");
       try {
         const matched = students.find((s) => s.id === selectedId) || null;
         setStudent(matched);
-        const pRes = await adminApiRequest<{ data: Payment[] }>(`/api/admin/payments?studentId=${selectedId}`);
+        const params = new URLSearchParams({ studentId: selectedId, academicYearId, pageSize: "25" });
+        const pRes = await adminApiRequest<{ data: Payment[] }>(`/api/admin/payments?${params}`);
         setPayments(pRes.data);
       } catch (e) {
         setError(e instanceof AdminApiError ? e.message : "Failed to load statement");
@@ -55,7 +66,7 @@ export default function StatementsPage() {
         setLoadingStatement(false);
       }
     })();
-  }, [selectedId]);
+  }, [selectedId, selectedYear?.id]);
 
   const handlePrint = () => window.print();
 
@@ -80,6 +91,7 @@ export default function StatementsPage() {
     <>
       <PageHeader title="Per-Student Fee Statement" description="View fee summary and payment history for individual students." />
       <section className="space-y-5 p-4 md:p-7">
+        {!selectedYear?.id && <div className="card p-5 text-sm font-semibold text-[#7d86a8]">Select an academic year to load statements.</div>}
         {error && <div className="card border-l-4 border-l-[#ed515d] p-4 text-sm font-semibold text-[#ed515d]">{error}</div>}
 
         <div className="card p-5">

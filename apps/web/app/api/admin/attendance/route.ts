@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { attendanceEditSchema } from "@sri-narayana/shared";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { requireAdmin, serializeDoc, startTimer } from "@/lib/apiUtils";
+import { docCursor, logFirestoreRead, readLimit } from "@/lib/firestoreReadLogger";
+import { getSchoolId } from "@/lib/schoolScope";
 
 function chunk<T>(items: T[], size: number) {
   const chunks: T[][] = [];
@@ -20,17 +22,39 @@ export async function GET(req: Request) {
     }
 
     const db = adminDb();
+    const { searchParams } = new URL(req.url);
+    const academicYearId = searchParams.get("academicYearId") || "";
+    const schoolId = searchParams.get("schoolId") || getSchoolId(decodedToken);
+    const pageSize = readLimit(searchParams.get("pageSize") ?? searchParams.get("limit"), 25, 100);
+    const cursor = docCursor(searchParams.get("cursor"));
+
+    let attendanceQuery: FirebaseFirestore.Query = db.collection("attendance");
+    if (academicYearId) attendanceQuery = attendanceQuery.where("academicYearId", "==", academicYearId);
+    if (schoolId) attendanceQuery = attendanceQuery.where("schoolId", "==", schoolId);
+    attendanceQuery = attendanceQuery.orderBy("date", "desc");
+
+    if (cursor) {
+      const cursorDoc = await db.collection("attendance").doc(cursor).get();
+      if (cursorDoc.exists) attendanceQuery = attendanceQuery.startAfter(cursorDoc);
+    }
+
     const dbTimer = startTimer();
     const [attendanceSnapshot, auditSnapshot] = await Promise.all([
-      db.collection("attendance").orderBy("date", "desc").limit(200).get(),
+      attendanceQuery.limit(pageSize + 1).get(),
       db.collection("attendance_edit_audit_logs").orderBy("editedAt", "desc").limit(50).get()
     ]);
     const dbMs = dbTimer();
+    logFirestoreRead("AttendanceAPI", "attendance", attendanceSnapshot, { academicYearId, schoolId, pageSize });
 
-    const records = attendanceSnapshot.docs.map((doc) => serializeDoc(doc));
+    const attendancePageDocs = attendanceSnapshot.docs.slice(0, pageSize);
+    const nextCursor =
+      attendanceSnapshot.docs.length > pageSize && attendancePageDocs.length > 0
+        ? attendancePageDocs[attendancePageDocs.length - 1].id
+        : null;
+    const records = attendancePageDocs.map((doc) => serializeDoc(doc));
     const audits = auditSnapshot.docs.map((doc) => serializeDoc(doc));
 
-    // Only load teachers that are referenced in 200 recent records (~95% fewer teachers loaded)
+    // Only load teachers that are referenced in the current page of records
     const uniqueTeacherIds = new Set(
       records
         .map((r: any) => r.teacherId || "")
@@ -55,6 +79,9 @@ export async function GET(req: Request) {
       records,
       teachers: teacherDocs.map((doc) => serializeDoc(doc)),
       audits,
+      pageSize,
+      nextCursor,
+      hasMore: Boolean(nextCursor),
       _metrics: { dbMs, totalMs }
     });
   } catch (error) {

@@ -6,11 +6,13 @@ import { Plus } from "lucide-react";
 import { Concession } from "@/types/fee.types";
 import { ConcessionListItem } from "@/components/FeeComponents";
 import { PageHeader } from "@/components/PageHeader";
+import { useAcademicYears } from "@/components/AcademicYearContext";
 import { useAdminSession } from "@/components/AdminSessionContext";
 import { adminApiRequest } from "@/lib/adminApiClient";
 
 export default function ConcessionsPage() {
   const { role } = useAdminSession();
+  const { selectedYear } = useAcademicYears();
   const canCreateConcession = role === "admin" || role === "super_admin";
   const [concessions, setConcessions] = useState<Concession[]>([]);
   const [filteredConcessions, setFilteredConcessions] = useState<Concession[]>([]);
@@ -20,7 +22,7 @@ export default function ConcessionsPage() {
 
   useEffect(() => {
     fetchConcessions();
-  }, []);
+  }, [selectedYear?.id]);
 
   useEffect(() => {
     let filtered = concessions;
@@ -36,8 +38,14 @@ export default function ConcessionsPage() {
   }, [concessions, statusFilter, classFilter]);
 
   const fetchConcessions = async () => {
+    if (!selectedYear?.id) {
+      setConcessions([]);
+      setLoading(false);
+      return;
+    }
     try {
-      const data = await adminApiRequest<{ success?: boolean; data: Concession[] }>("/api/admin/concessions");
+      const params = new URLSearchParams({ academicYearId: selectedYear.id, pageSize: "25" });
+      const data = await adminApiRequest<{ success?: boolean; data: Concession[] }>(`/api/admin/concessions?${params}`);
       setConcessions(data.data ?? []);
     } catch (error) {
       console.error("Failed to fetch concessions:", error);
@@ -73,6 +81,7 @@ export default function ConcessionsPage() {
       />
 
       <section className="space-y-5 p-4 md:p-7">
+        {!selectedYear?.id && <div className="card p-5 text-sm font-semibold text-[#7d86a8]">Select an academic year to load concessions.</div>}
         <div className="rounded-2xl border border-[#ffe1ab] bg-[#fff8ea] p-4 text-sm font-semibold text-[#9f7116]">
           This page is kept only for existing concession records. New fee management uses the annual enrollment + commitment fee model.
         </div>
