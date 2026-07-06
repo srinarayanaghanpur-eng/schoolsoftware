@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
-import { FieldValue } from "firebase-admin/firestore";
-import { expenseCreateSchema } from "@sri-narayana/shared";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { requirePermission, serializeDoc } from "@/lib/apiUtils";
+import { errorMessage, requirePermission, serializeDoc } from "@/lib/apiUtils";
+import { createDebitVoucherFromExpense } from "@/lib/debitVoucherService";
 
 const COLLECTION = "expenses";
 
@@ -35,12 +34,9 @@ export async function POST(req: Request) {
   if (!token) return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
 
   try {
-    const parsed = expenseCreateSchema.parse(await req.json());
-    const now = FieldValue.serverTimestamp();
-    const ref = await adminDb().collection(COLLECTION).add({ ...parsed, status: "pending", createdBy: token.uid, createdAt: now, updatedAt: now });
-    return NextResponse.json({ ok: true, id: ref.id });
+    const result = await createDebitVoucherFromExpense(await req.json(), token, { expenseStatus: "pending" });
+    return NextResponse.json({ ok: true, id: result.expenseId, ...result });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unable to record expense";
-    return NextResponse.json({ ok: false, error: message }, { status: 400 });
+    return NextResponse.json({ ok: false, error: errorMessage(error, "Unable to record expense") }, { status: 400 });
   }
 }

@@ -6,18 +6,13 @@ import { ReceiptPreviewClient } from "@/components/receipts/ReceiptPreviewClient
 import { ROLES } from "@sri-narayana/shared";
 import { useParams } from "next/navigation";
 
-export default function PortalReceiptPage() {
+export default function ReceiptPage() {
   const params = useParams();
-  const paymentId = params.paymentId as string;
+  const receiptId = params?.receiptId as string;
   return (
     <AuthGate roles={ROLES}>
       <AppShell>
-        <ReceiptPreviewClient
-          receiptId={paymentId}
-          backHref="/portal/payments"
-          backLabel="Back to Payments"
-          showShareActions={false}
-        />
+        <ReceiptPreviewClient receiptId={receiptId} backHref="/admin/payments" backLabel="Back to Fee Collection" />
       </AppShell>
     </AuthGate>
   );

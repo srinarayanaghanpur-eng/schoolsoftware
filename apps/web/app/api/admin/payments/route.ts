@@ -4,6 +4,7 @@ import { adminDb } from "@/lib/firebaseAdmin";
 import { requirePermission } from "@/lib/apiUtils";
 import { docCursor, logFirestoreRead, readLimit } from "@/lib/firestoreReadLogger";
 import { getSchoolId } from "@/lib/schoolScope";
+import { buildReceiptRecord, generateReceiptNumber, resolveAcademicYearLabel } from "@/lib/receiptService";
 
 /**
  * GET /api/admin/payments
@@ -158,33 +159,31 @@ export async function POST(request: NextRequest) {
     const studentRef = db.collection("students").doc(studentId);
     const paymentRef = db.collection("payments").doc();
     const receiptRef = db.collection("receipts").doc();
-    const counterRef = db.collection("receipt_counters").doc(monthKey);
 
     let paymentData: Record<string, unknown> = {};
     let receiptData: Record<string, unknown> = {};
     let receiptNumber = "";
     let existingPaymentId: string | null = null;
+    let existingReceiptId: string | null = null;
 
     await db.runTransaction(async (transaction) => {
       // All reads first (Firestore transaction rule), including the
       // idempotency marker.
-      const [studentSnap, counterSnap, idemSnap] = await Promise.all([
+      const [studentSnap, idemSnap] = await Promise.all([
         transaction.get(studentRef),
-        transaction.get(counterRef),
         idemRef ? transaction.get(idemRef) : Promise.resolve(null)
       ]);
 
       // Same key already processed → return the original, write nothing.
       if (idemSnap?.exists) {
         existingPaymentId = String(idemSnap.data()?.paymentId ?? "");
+        existingReceiptId = String(idemSnap.data()?.receiptId ?? existingPaymentId);
         return;
       }
       if (!studentSnap.exists) throw new Error("Student not found");
       const student = studentSnap.data();
       if (!student) throw new Error("Student data unavailable");
 
-      const nextNumber = Number(counterSnap.data()?.nextNumber ?? 1);
-      receiptNumber = `RCP-${year}-${month}-${String(nextNumber).padStart(4, "0")}`;
       const amountDue = Number(student.totalFeesDue || 0);
       const remainingAmount = Math.max(0, amountDue - Number(amountPaid));
       const feeStatus = remainingAmount === 0 ? 'paid' : Number(amountPaid) > 0 ? 'partial' : 'pending';
@@ -193,6 +192,8 @@ export async function POST(request: NextRequest) {
       const academicYearId = student.academicYearId || "";
       const classId = student.classId || student.class || "";
       const sectionId = student.sectionId || student.section || "";
+      const academicYear = await resolveAcademicYearLabel(db, String(academicYearId || ""), String(student.academicYear || ""), transaction);
+      receiptNumber = await generateReceiptNumber(db, academicYear, transaction);
 
       paymentData = {
         studentId,
@@ -214,6 +215,7 @@ export async function POST(request: NextRequest) {
         paymentDate: now,
         paymentMethod,
         transactionId: transactionId || null,
+        receiptId: receiptRef.id,
         receiptNumber,
         remarks: remarks || null,
         recordedBy: userId || auth.uid,
@@ -222,30 +224,22 @@ export async function POST(request: NextRequest) {
         updatedAt: now
       };
 
-      receiptData = {
-        receiptNumber,
+      receiptData = buildReceiptRecord({
+        receiptId: receiptRef.id,
+        receiptNo: receiptNumber,
         paymentId: paymentRef.id,
-        studentId,
-        admissionNumber: student.admissionNumber,
-        studentName: student.studentName,
-        schoolId,
-        branchId,
-        academicYearId,
-        classId,
-        sectionId,
-        class: student.class,
-        section: student.section,
-        amountPaid: Number(amountPaid),
-        paymentDate: now,
-        receiptDate: now,
-        issuedBy: userId || auth.uid,
-        status: 'issued',
+        academicYear,
+        payment: paymentData,
+        student,
+        createdByUserId: userId || auth.uid,
+        createdByUsername: auth.name ?? auth.email ?? auth.uid,
         createdAt: now
-      };
+      });
 
       if (idemRef) {
         transaction.set(idemRef, {
           paymentId: paymentRef.id,
+          receiptId: receiptRef.id,
           receiptNumber,
           studentId,
           amountPaid: Number(amountPaid),
@@ -253,7 +247,6 @@ export async function POST(request: NextRequest) {
           createdAt: now
         });
       }
-      transaction.set(counterRef, { nextNumber: nextNumber + 1, updatedAt: now }, { merge: true });
       transaction.set(paymentRef, paymentData);
       transaction.set(receiptRef, receiptData);
       transaction.update(studentRef, {
@@ -309,7 +302,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         success: true,
         duplicate: true,
-        data: existingSnap.exists ? { id: existingSnap.id, ...existingSnap.data() } : { id: existingPaymentId }
+        data: existingSnap.exists ? { id: existingSnap.id, ...existingSnap.data(), receiptId: existingReceiptId } : { id: existingPaymentId, receiptId: existingReceiptId }
       });
     }
 

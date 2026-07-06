@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRefreshOnFocus } from "@/lib/useRefreshOnFocus";
-import { Plus, X, Edit2, Trash2, Search, Upload, Camera, QrCode, Printer } from "lucide-react";
+import { Plus, X, Edit2, Trash2, Search, Upload, Camera, QrCode, Printer, ReceiptText } from "lucide-react";
 import Link from "next/link";
 import { DatePicker } from "@/components/DatePicker";
 import { PageHeader } from "@/components/PageHeader";
@@ -1694,6 +1694,9 @@ export default function StudentsPage() {
                     <Link href={`/admin/admission-form/${student.id}`} className="grid h-9 w-9 place-items-center rounded-xl bg-[#f0faf0] text-[#2d8659]" aria-label="Print admission form">
                       <Printer size={16} />
                     </Link>
+                    <Link href={`/admin/payments?studentId=${student.id}`} className="grid h-9 w-9 place-items-center rounded-xl bg-[#fff7e6] text-[#ad7413]" aria-label="Open fee receipts">
+                      <ReceiptText size={16} />
+                    </Link>
                     {canEditStudent && (
                       <button onClick={() => openEditForm(student)} className="grid h-9 w-9 place-items-center rounded-xl bg-[#eeefff] text-[#3033a1]" aria-label="Edit student">
                         <Edit2 size={16} />
@@ -1749,6 +1752,9 @@ export default function StudentsPage() {
                         )}
                         <Link href={`/admin/admission-form/${student.id}`} className="grid h-9 w-9 place-items-center rounded-xl bg-[#f0faf0] text-[#2d8659] hover:bg-[#dff5e5]" title="Print admission form">
                           <Printer size={16} />
+                        </Link>
+                        <Link href={`/admin/payments?studentId=${student.id}`} className="grid h-9 w-9 place-items-center rounded-xl bg-[#fff7e6] text-[#ad7413] hover:bg-[#ffefc7]" title="Open fee receipts">
+                          <ReceiptText size={16} />
                         </Link>
                         {canEditStudent && (
                         <button onClick={() => openEditForm(student)} className="grid h-9 w-9 place-items-center rounded-xl bg-[#eeefff] text-[#3033a1] hover:bg-[#e3e5ff]" title="Edit student">

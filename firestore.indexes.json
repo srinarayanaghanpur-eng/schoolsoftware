@@ -368,6 +368,38 @@
       ]
     },
     {
+      "collectionGroup": "debitVouchers",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "academicYear", "order": "ASCENDING" },
+        { "fieldPath": "voucherNo", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "debitVouchers",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "date", "order": "ASCENDING" },
+        { "fieldPath": "voucherNo", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "debitVouchers",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "expenseCategory", "order": "ASCENDING" },
+        { "fieldPath": "voucherNo", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "debitVouchers",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "amount", "order": "ASCENDING" },
+        { "fieldPath": "voucherNo", "order": "DESCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "incomes",
       "queryScope": "COLLECTION",
       "fields": [

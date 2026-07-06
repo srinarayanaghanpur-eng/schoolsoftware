@@ -1,36 +1,23 @@
 import { NextResponse } from "next/server";
-import { DEFAULT_SETTINGS } from "@sri-narayana/shared";
-import { adminDb } from "@/lib/firebaseAdmin";
+import { hasPermission, type Role } from "@sri-narayana/shared";
 import { requirePermission } from "@/lib/apiUtils";
-import { docDateKey } from "@/lib/financeUtils";
+import { createReceiptFromPayment, getReceiptById } from "@/lib/receiptService";
 
-// GET /api/admin/finance/receipt/[paymentId] — structured data for a printable receipt/invoice.
+// GET /api/admin/finance/receipt/[paymentId] — compatibility endpoint for
+// existing payment-history links. It returns the canonical digital receipt and
+// creates one for older completed payments that predate the new receipt schema.
 export async function GET(req: Request, { params }: { params: { paymentId: string } }) {
   const token = await requirePermission(req, "fees.view");
   if (!token) return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
 
-  const db = adminDb();
-  const paySnap = await db.collection("payments").doc(params.paymentId).get();
-  if (!paySnap.exists) return NextResponse.json({ ok: false, error: "Payment not found" }, { status: 404 });
-  const p = paySnap.data() as Record<string, unknown>;
-
-  const studentSnap = p.studentId ? await db.collection("students").doc(String(p.studentId)).get() : null;
-  const s = studentSnap?.data() as Record<string, unknown> | undefined;
-  const settingsSnap = await db.collection("settings").doc("school").get();
-  const schoolName = (settingsSnap.data()?.schoolName as string) || DEFAULT_SETTINGS.schoolName;
-
-  return NextResponse.json({
-    ok: true,
-    receipt: {
-      receiptNo: params.paymentId,
-      schoolName,
-      date: docDateKey(p),
-      student: s ? { id: p.studentId, name: s.studentName || "", admissionNo: s.admissionNumber || "", className: s.class || "", section: s.section || "" } : null,
-      amount: Number(p.amountPaid) || 0,
-      paymentType: p.paymentType || "",
-      paymentMethod: p.paymentMethod || "",
-      transactionId: p.transactionId || "",
-      status: p.status || "completed"
-    }
-  });
+  try {
+    const canPrint = hasPermission(token.role as Role | undefined, "fees.create");
+    const existing = await getReceiptById(params.paymentId);
+    const receipt = existing || (canPrint ? await createReceiptFromPayment(params.paymentId, token) : null);
+    if (!receipt) return NextResponse.json({ ok: false, error: "Receipt not found" }, { status: 404 });
+    return NextResponse.json({ ok: true, receipt, canPrint });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unable to load receipt";
+    return NextResponse.json({ ok: false, error: message }, { status: 404 });
+  }
 }

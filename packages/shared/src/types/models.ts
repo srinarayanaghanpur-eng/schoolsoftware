@@ -489,6 +489,7 @@ export type PortalSummary = {
 // ===== Finance & Accounting =====
 export type ExpenseStatus = "pending" | "approved" | "rejected";
 export type FinancePaymentMethod = "cash" | "bank" | "upi" | "cheque" | "card" | "other";
+export type DebitVoucherStatus = "active" | "cancelled";
 
 export type Expense = {
   id?: string;
@@ -504,6 +505,33 @@ export type Expense = {
   createdBy: string;
   createdAt: FirestoreDate;
   updatedAt: FirestoreDate;
+};
+
+export type DebitVoucher = {
+  id?: string;
+  voucherNo: number;
+  voucherKey?: string;
+  academicYear: string;
+  academicYearId?: string;
+  date: string;
+  paidTo: string;
+  paidToLower?: string;
+  towards: string;
+  amount: number;
+  amountInWords: string;
+  expenseCategory: string;
+  paymentMode: FinancePaymentMethod;
+  cashAccountId?: string;
+  bankAccountId?: string;
+  expenseId?: string;
+  bankTransactionId?: string;
+  notes?: string;
+  createdByUserId: string;
+  createdByUsername?: string;
+  createdAt: FirestoreDate;
+  printedAt?: FirestoreDate;
+  printCount: number;
+  status: DebitVoucherStatus;
 };
 
 export type Income = {
@@ -556,6 +584,39 @@ export type ClassDues = {
   studentCount: number;
   totalDue: number;
   students: { id: string; name: string; due: number }[];
+};
+
+export type DigitalFeeReceiptItem = {
+  type: "Tuition Fee" | "Transport / Bus Fee" | "Books / Uniform / Other";
+  periodOrMonth: string;
+  amount: number;
+  remarks: string;
+};
+
+export type DigitalFeeReceipt = {
+  id?: string;
+  receiptNo: string;
+  receiptNumber?: string;
+  paymentId: string;
+  academicYear: string;
+  studentId: string;
+  studentName: string;
+  admissionNo: string;
+  className: string;
+  section: string;
+  parentName: string;
+  mobile: string;
+  paymentDate: FirestoreDate;
+  paymentMode: string;
+  feeItems: DigitalFeeReceiptItem[];
+  totalPaid: number;
+  balanceDue: number;
+  createdByUserId: string;
+  createdByUsername: string;
+  createdAt: FirestoreDate;
+  printedAt?: FirestoreDate;
+  printCount: number;
+  status?: "issued" | "cancelled";
 };
 
 // ===== Installment Plans =====

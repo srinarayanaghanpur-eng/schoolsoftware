@@ -3,12 +3,13 @@
   "private": true,
   "version": "1.0.0",
   "description": "Sri Narayana High School ERP – Desktop App",
+  "author": "Sri Narayana High School",
   "main": "main.js",
   "scripts": {
-    "dev": "electron .",
+    "dev": "node scripts/run-electron.js .",
     "build:web": "node scripts/build-web.js",
-    "dist": "npm run build:web && electron-builder --win",
-    "dist:portable": "npm run build:web && electron-builder --win portable"
+    "dist": "npm run build:web && node scripts/run-electron-builder.js --win",
+    "dist:portable": "npm run build:web && node scripts/run-electron-builder.js --win portable"
   },
   "build": {
     "appId": "com.sri-narayana.high-school.erp",
@@ -19,6 +20,7 @@
       "output": "dist"
     },
     "files": [
+      "assets/icon.ico",
       "main.js",
       "preload.js"
     ],
@@ -30,6 +32,7 @@
       }
     ],
     "win": {
+      "icon": "assets/icon.ico",
       "target": [
         {
           "target": "nsis",

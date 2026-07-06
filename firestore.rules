@@ -48,6 +48,15 @@ service cloud.firestore {
       return signedIn() && effectiveRole() == "super_admin";
     }
 
+    function isFinanceRole() {
+      return signedIn() && (
+        effectiveRole() == "super_admin" ||
+        effectiveRole() == "admin" ||
+        effectiveRole() == "accountant" ||
+        effectiveRole() == "cashier"
+      );
+    }
+
     function isActiveTeacher() {
       return signedIn() && effectiveRole() == "teacher" && effectiveStatus() == "active";
     }
@@ -179,6 +188,10 @@ service cloud.firestore {
     match /expenses/{id} {
       allow read, write: if isAdmin();
     }
+    match /debitVouchers/{id} {
+      allow read, create, update: if isFinanceRole();
+      allow delete: if isSuperAdmin();
+    }
     match /incomes/{id} {
       allow read, write: if isAdmin();
     }
@@ -191,7 +204,7 @@ service cloud.firestore {
     match /bank_transactions/{id} { allow read, write: if isAdmin(); }
     match /invoices/{id} { allow read, write: if isAdmin(); }
     match /fee_reminders/{id} { allow read, write: if isAdmin(); }
-    match /counters/{id} { allow read, write: if isAdmin(); }
+    match /counters/{id} { allow read, write: if isFinanceRole(); }
 
     // Phase 4: transport, library, hostel, inventory. Reads for signed-in users;
     // writes via admin SDK (API enforces per-role permissions).
@@ -258,8 +271,12 @@ service cloud.firestore {
     match /receipts/{receiptId} {
       allow read: if isAdmin() || isAccountant() || isPrincipal();
       allow create: if isAdmin() || isAccountant();
-      allow update: if isAdmin() || (isAccountant() && request.resource.data.status == 'draft');
+      allow update: if isAdmin() || isAccountant();
       allow delete: if isAdmin();
+    }
+
+    match /receipt_counters/{counterId} {
+      allow read, write: if isAdmin() || isAccountant();
     }
 
     // Audit logs for fee operations

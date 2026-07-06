@@ -203,6 +203,22 @@ export const expenseCreateSchema = z.object({
   academicYearId: z.string().trim().optional().default("")
 });
 
+export const debitVoucherStatusSchema = z.enum(["active", "cancelled"]);
+
+export const debitVoucherCreateSchema = z.object({
+  date: z.string().trim().min(8),
+  paidTo: z.string().trim().min(1, "Paid to is required"),
+  towards: z.string().trim().min(1, "Towards / purpose is required"),
+  expenseCategory: z.string().trim().min(1, "Expense category is required"),
+  amount: z.coerce.number().positive("Amount must be greater than 0"),
+  paymentMode: financePaymentMethodSchema.optional().default("cash"),
+  notes: z.string().trim().optional().default(""),
+  academicYearId: z.string().trim().optional().default(""),
+  academicYear: z.string().trim().optional().default(""),
+  cashAccountId: z.string().trim().optional().default(""),
+  bankAccountId: z.string().trim().optional().default("")
+});
+
 export const expenseStatusUpdateSchema = z.object({
   status: z.enum(["approved", "rejected"])
 });

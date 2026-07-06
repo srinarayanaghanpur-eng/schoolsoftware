@@ -1,69 +1,267 @@
-const { app, BrowserWindow, dialog } = require("electron");
+const { app, BrowserWindow, dialog, shell } = require("electron");
 const { fork } = require("child_process");
-const path = require("path");
-const net = require("net");
 const fs = require("fs");
+const net = require("net");
+const path = require("path");
 
-const PORT = process.env.ERP_PORT || 3456;
+const DEFAULT_PORT = Number(process.env.ERP_PORT || 3456);
+const HOST = "127.0.0.1";
+const PORT_SCAN_LIMIT = 50;
 
-let serverProcess = null;
+let isQuitting = false;
 let mainWindow = null;
+let serverPort = DEFAULT_PORT;
+let serverProcess = null;
+
+const gotSingleInstanceLock = app.requestSingleInstanceLock();
+
+if (!gotSingleInstanceLock) {
+  app.quit();
+}
+
+app.setName("Sri Narayana ERP");
+if (process.platform === "win32") {
+  app.setAppUserModelId("com.sri-narayana.high-school.erp");
+}
 
 function getServerScript() {
   if (app.isPackaged) {
     return path.join(process.resourcesPath, "web", "apps", "web", "server.js");
   }
+
   return path.join(__dirname, "..", "web", ".next", "standalone", "apps", "web", "server.js");
 }
 
-function waitForPort(port, host, timeout = 30000) {
+function getWebRoot() {
+  return path.dirname(getServerScript());
+}
+
+function getIconPath() {
+  const candidates = [
+    path.join(__dirname, "assets", "icon.ico"),
+    path.join(getWebRoot(), "public", "sri-narayana-high-school-logo.jpg"),
+    path.join(__dirname, "..", "web", "public", "sri-narayana-high-school-logo.jpg"),
+  ];
+
+  return candidates.find((candidate) => fs.existsSync(candidate));
+}
+
+function parseEnvValue(value) {
+  let parsed = value.trim();
+  const quote = parsed[0];
+
+  if ((quote === "\"" || quote === "'" || quote === "`") && parsed.endsWith(quote)) {
+    parsed = parsed.slice(1, -1);
+  }
+
+  return quote === "\"" ? parsed.replace(/\\n/g, "\n") : parsed;
+}
+
+function loadEnvFile(filePath) {
+  if (!fs.existsSync(filePath)) return false;
+
+  const lines = fs.readFileSync(filePath, "utf8").split(/\r?\n/);
+
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith("#")) continue;
+
+    const normalizedLine = line.startsWith("export ") ? line.slice("export ".length).trim() : line;
+    const equalsIndex = normalizedLine.indexOf("=");
+    if (equalsIndex <= 0) continue;
+
+    const key = normalizedLine.slice(0, equalsIndex).trim();
+    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(key)) continue;
+    if (process.env[key] !== undefined) continue;
+
+    process.env[key] = parseEnvValue(normalizedLine.slice(equalsIndex + 1));
+  }
+
+  return true;
+}
+
+function loadRuntimeEnvironment() {
+  const webRoot = getWebRoot();
+  const envCandidates = [
+    path.join(__dirname, "..", "web", ".env.local"),
+    path.join(__dirname, "..", "web", ".env.production"),
+    path.join(__dirname, "..", "web", ".env"),
+    path.join(webRoot, ".env.local"),
+    path.join(webRoot, ".env.production"),
+    path.join(webRoot, ".env"),
+  ];
+
+  for (const envFile of Array.from(new Set(envCandidates))) {
+    if (loadEnvFile(envFile)) {
+      console.log(`[desktop] Loaded runtime environment from ${envFile}`);
+    }
+  }
+}
+
+function isPortAvailable(port) {
+  return new Promise((resolve) => {
+    const server = net.createServer();
+
+    server.once("error", () => resolve(false));
+    server.once("listening", () => {
+      server.close(() => resolve(true));
+    });
+    server.listen(port, HOST);
+  });
+}
+
+async function findAvailablePort(preferredPort) {
+  for (let offset = 0; offset < PORT_SCAN_LIMIT; offset += 1) {
+    const port = preferredPort + offset;
+    if (await isPortAvailable(port)) return port;
+  }
+
+  throw new Error(`No available local port found between ${preferredPort} and ${preferredPort + PORT_SCAN_LIMIT - 1}`);
+}
+
+function waitForPort(port, host, timeout = 45000) {
   return new Promise((resolve, reject) => {
     const start = Date.now();
+
     function check() {
       const sock = new net.Socket();
       sock.setTimeout(1000);
+
       sock.on("connect", () => {
         sock.destroy();
         resolve();
       });
+
+      sock.on("timeout", () => {
+        sock.destroy();
+        retry();
+      });
+
       sock.on("error", () => {
         sock.destroy();
+        retry();
+      });
+
+      function retry() {
         if (Date.now() - start > timeout) {
-          reject(new Error(`Timeout waiting for port ${port}`));
+          reject(new Error(`Timeout waiting for ERP server on ${host}:${port}`));
         } else {
           setTimeout(check, 300);
         }
-      });
+      }
+
       sock.connect(port, host);
     }
+
     check();
   });
+}
+
+function stopServer() {
+  if (!serverProcess) return;
+
+  serverProcess.kill();
+  serverProcess = null;
+}
+
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, (char) => {
+    switch (char) {
+      case "&":
+        return "&amp;";
+      case "<":
+        return "&lt;";
+      case ">":
+        return "&gt;";
+      case "\"":
+        return "&quot;";
+      default:
+        return "&#39;";
+    }
+  });
+}
+
+function loadErrorPage(title, message) {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+
+  const safeTitle = escapeHtml(title);
+  const safeMessage = escapeHtml(message);
+
+  const html = `
+    <!doctype html>
+    <html>
+      <head>
+        <meta charset="utf-8" />
+        <title>${safeTitle}</title>
+        <style>
+          body {
+            align-items: center;
+            background: #0f172a;
+            color: #f8fafc;
+            display: flex;
+            font-family: Arial, sans-serif;
+            justify-content: center;
+            margin: 0;
+            min-height: 100vh;
+          }
+          main {
+            max-width: 620px;
+            padding: 32px;
+          }
+          h1 {
+            font-size: 24px;
+            margin: 0 0 12px;
+          }
+          p {
+            color: #cbd5e1;
+            line-height: 1.6;
+            margin: 0;
+            white-space: pre-wrap;
+          }
+        </style>
+      </head>
+      <body>
+        <main>
+          <h1>${safeTitle}</h1>
+          <p>${safeMessage}</p>
+        </main>
+      </body>
+    </html>
+  `;
+
+  mainWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
 }
 
 async function startServer() {
   const serverScript = getServerScript();
 
   if (!fs.existsSync(serverScript)) {
-    dialog.showErrorBox(
-      "Server Not Built",
-      "The web app server was not found.\n\n" +
-      "Run: npm run build:desktop\n\n" +
-      `Expected: ${serverScript}`
-    );
+    const message = [
+      "The web app server was not found.",
+      "",
+      "Run: npm run build:desktop",
+      "",
+      `Expected: ${serverScript}`,
+    ].join("\n");
+
+    dialog.showErrorBox("ERP Server Not Built", message);
     throw new Error(`Server script not found: ${serverScript}`);
   }
 
+  loadRuntimeEnvironment();
+  serverPort = await findAvailablePort(DEFAULT_PORT);
+
   const env = {
     ...process.env,
-    PORT: String(PORT),
-    HOSTNAME: "127.0.0.1",
+    HOSTNAME: HOST,
     NODE_ENV: "production",
+    PORT: String(serverPort),
   };
 
   serverProcess = fork(serverScript, [], {
     env,
-    stdio: ["pipe", "pipe", "pipe", "ipc"],
     execArgv: ["--max-old-space-size=2048"],
+    stdio: ["pipe", "pipe", "pipe", "ipc"],
   });
 
   serverProcess.stdout.on("data", (data) => {
@@ -75,73 +273,98 @@ async function startServer() {
   });
 
   serverProcess.on("exit", (code) => {
-    console.log(`[Next.js] Server exited with code ${code}`);
+    console.log(`[Next.js] ERP server exited with code ${code}`);
     serverProcess = null;
+
+    if (!isQuitting) {
+      loadErrorPage("ERP Server Stopped", "The local ERP server stopped unexpectedly. Close and reopen the app.");
+    }
   });
 
-  await waitForPort(PORT, "127.0.0.1");
+  await waitForPort(serverPort, HOST);
 }
 
 function createWindow() {
+  const icon = getIconPath();
+
   mainWindow = new BrowserWindow({
-    width: 1400,
+    backgroundColor: "#0f172a",
     height: 900,
-    minWidth: 1024,
+    icon,
     minHeight: 700,
+    minWidth: 1024,
+    show: false,
     title: "Sri Narayana High School ERP",
     webPreferences: {
-      preload: path.join(__dirname, "preload.js"),
-      nodeIntegration: false,
       contextIsolation: true,
+      nodeIntegration: false,
+      preload: path.join(__dirname, "preload.js"),
     },
-    show: false,
+    width: 1400,
   });
 
-  mainWindow.loadURL(`http://127.0.0.1:${PORT}`);
+  mainWindow.loadURL(`http://${HOST}:${serverPort}`);
 
   mainWindow.once("ready-to-show", () => {
     mainWindow.show();
+    mainWindow.focus();
+  });
+
+  mainWindow.webContents.on("did-fail-load", (_event, errorCode, errorDescription) => {
+    loadErrorPage("ERP Failed To Load", `${errorDescription} (${errorCode})\n\nLocal URL: http://${HOST}:${serverPort}`);
+  });
+
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    try {
+      const target = new URL(url);
+      const isLocalErp =
+        (target.hostname === HOST || target.hostname === "localhost") &&
+        Number(target.port || serverPort) === serverPort;
+
+      if (isLocalErp) return { action: "allow" };
+
+      shell.openExternal(url);
+      return { action: "deny" };
+    } catch {
+      return { action: "deny" };
+    }
   });
 
   mainWindow.on("closed", () => {
     mainWindow = null;
-    if (serverProcess) {
-      serverProcess.kill();
-      serverProcess = null;
-    }
-  });
-
-  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    if (url.startsWith("http://127.0.0.1") || url.startsWith("http://localhost")) {
-      return { action: "allow" };
-    }
-    return { action: "deny" };
+    stopServer();
   });
 }
 
+app.on("second-instance", () => {
+  if (!mainWindow) return;
+
+  if (mainWindow.isMinimized()) mainWindow.restore();
+  mainWindow.show();
+  mainWindow.focus();
+});
+
 app.on("window-all-closed", () => {
-  if (serverProcess) {
-    serverProcess.kill();
-    serverProcess = null;
-  }
+  isQuitting = true;
+  stopServer();
   app.quit();
 });
 
 app.on("before-quit", () => {
-  if (serverProcess) {
-    serverProcess.kill();
-    serverProcess = null;
-  }
+  isQuitting = true;
+  stopServer();
 });
 
 app.whenReady().then(async () => {
   try {
-    console.log("Starting Next.js server...");
+    console.log("[desktop] Starting ERP server...");
     await startServer();
-    console.log(`Server ready at http://127.0.0.1:${PORT}`);
+    console.log(`[desktop] ERP server ready at http://${HOST}:${serverPort}`);
     createWindow();
   } catch (err) {
-    console.error("Failed to start app:", err);
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[desktop] Failed to start app:", err);
+    dialog.showErrorBox("Sri Narayana ERP Failed To Start", message);
     app.quit();
   }
 });

@@ -6,6 +6,7 @@ import { useAdminSession } from "@/components/AdminSessionContext";
 import { AdminApiError, adminApiRequest } from "@/lib/adminApiClient";
 import { hasPermission } from "@sri-narayana/shared";
 import { Check, Plus, X } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
 
 type Expense = { id: string; category: string; amount: number; date: string; description: string; vendor?: string; paymentMethod: string; status: "pending" | "approved" | "rejected" };
@@ -18,6 +19,7 @@ const blank = { category: "utilities", amount: "", date: new Date().toISOString(
 const statusTone: Record<string, string> = { pending: "bg-[#fff4df] text-[#b8791a]", approved: "bg-[#e6f8ef] text-[#14a762]", rejected: "bg-[#ffebed] text-[#ed515d]" };
 
 export default function ExpensesPage() {
+  const router = useRouter();
   const { role } = useAdminSession();
   const canApprove = hasPermission(role, "fees.approve");
   const [items, setItems] = useState<Expense[]>([]);
@@ -38,8 +40,9 @@ export default function ExpensesPage() {
     e.preventDefault();
     setSaving(true); setError("");
     try {
-      await adminApiRequest("/api/admin/finance/expenses", { method: "POST", body: JSON.stringify({ ...form, amount: Number(form.amount) }) });
+      const result = await adminApiRequest<{ voucherId?: string }>("/api/admin/finance/expenses", { method: "POST", body: JSON.stringify({ ...form, amount: Number(form.amount) }) });
       setForm(blank); setShowForm(false); await load();
+      if (result.voucherId) router.push(`/vouchers/${result.voucherId}`);
     } catch (e) { setError(e instanceof AdminApiError ? e.message : "Failed to save"); }
     finally { setSaving(false); }
   }
@@ -70,6 +73,9 @@ export default function ExpensesPage() {
             </label>
             <label className="text-sm font-semibold text-[#303247]">Date
               <div className="mt-1"><DatePicker required value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} /></div>
+            </label>
+            <label className="text-sm font-semibold text-[#303247]">Paid To
+              <input className="field mt-1" required value={form.vendor} onChange={(e) => setForm({ ...form, vendor: e.target.value })} placeholder="Vendor, staff or receiver name" />
             </label>
             <label className="text-sm font-semibold text-[#303247]">Payment method
               <select className="field mt-1" value={form.paymentMethod} onChange={(e) => setForm({ ...form, paymentMethod: e.target.value })}>{METHODS.map((m) => <option key={m} value={m}>{m}</option>)}</select>

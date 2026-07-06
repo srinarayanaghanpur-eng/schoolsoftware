@@ -75,6 +75,7 @@ export interface FeeStructure {
 export interface Payment {
   id: string;
   studentId: string;
+  receiptId?: string;
   admissionNumber: string;
   studentName: string;
   amountDue: number;
@@ -96,6 +97,7 @@ export interface Payment {
 
 export interface Receipt {
   id: string;
+  receiptNo?: string;
   receiptNumber: string;
   paymentId: string;
   studentId: string;

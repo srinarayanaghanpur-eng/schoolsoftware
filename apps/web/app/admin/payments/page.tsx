@@ -25,9 +25,24 @@ type StudentOption = {
   studentName: string;
   class?: string;
   section?: string;
+  fatherName?: string;
+  fatherPhone?: string;
+  phone?: string;
   totalFeesDue?: number;
   totalFeeAmount?: number;
   totalFeesPaid?: number;
+};
+
+type PaymentSuccessReceipt = {
+  paymentId: string;
+  receiptId: string;
+  receiptNumber: string;
+  amount: number;
+  balanceDue: number;
+  studentName: string;
+  mobile: string;
+  paymentDate: string;
+  providerOrderId?: string;
 };
 
 const PAYMENT_METHODS: { value: PaymentMethod; label: string }[] = [
@@ -64,6 +79,10 @@ export default function PaymentsPage() {
   const [filterClass, setFilterClass] = useState("");
   const [filterSection, setFilterSection] = useState("");
   const [filterMethod, setFilterMethod] = useState("");
+  const [filterStudentId, setFilterStudentId] = useState(() => {
+    if (typeof window === "undefined") return "";
+    return new URLSearchParams(window.location.search).get("studentId") || "";
+  });
   const [filterDateFrom, setFilterDateFrom] = useState("");
   const [filterDateTo, setFilterDateTo] = useState("");
   const { sectionsByClass, sectionsFor } = useClassSections();
@@ -110,6 +129,7 @@ export default function PaymentsPage() {
       params.set("academicYearId", selectedYear.id);
       if (filterClass) params.set("classId", filterClass);
       if (filterSection) params.set("sectionId", filterSection);
+      if (filterStudentId) params.set("studentId", filterStudentId);
       if (filterMethod) params.set("paymentMode", filterMethod);
       if (filterDateFrom) params.set("dateFrom", filterDateFrom);
       if (filterDateTo) params.set("dateTo", filterDateTo);
@@ -214,7 +234,6 @@ export default function PaymentsPage() {
             <PaymentForm
               academicYearId={selectedYear?.id ?? ""}
               onSuccess={() => {
-                setShowForm(false);
                 fetchPayments({ page: 0, cursor: null });
               }}
               onCancel={() => setShowForm(false)}
@@ -270,6 +289,7 @@ export default function PaymentsPage() {
             onClick={() => {
               setFilterClass("");
               setFilterSection("");
+              setFilterStudentId("");
               setFilterMethod("");
               setFilterDateFrom("");
               setFilterDateTo("");
@@ -319,7 +339,7 @@ export default function PaymentsPage() {
                 </div>
                 <div className="mt-3 flex flex-wrap gap-2 border-t border-[#edf0f7] pt-3">
                   <a
-                    href={`/admin/finance/receipt/${payment.id}`}
+                    href={`/receipts/print/${payment.receiptId || payment.id}`}
                     target="_blank"
                     className="inline-flex items-center gap-1.5 rounded-lg bg-[#eeefff] px-3 py-1.5 text-xs font-bold text-[#3033a1] hover:bg-[#e3e5ff]"
                   >
@@ -407,7 +427,7 @@ function PaymentForm({
   onCancel
 }: {
   academicYearId: string;
-  onSuccess: () => void;
+  onSuccess: (receipt: PaymentSuccessReceipt) => void;
   onCancel: () => void;
 }) {
   const [students, setStudents] = useState<StudentOption[]>([]);
@@ -430,7 +450,7 @@ function PaymentForm({
   const [method, setMethod] = useState<PaymentMethod>("cash");
   const [note, setNote] = useState("");
   const [loading, setLoading] = useState(false);
-  const [receipt, setReceipt] = useState<{ receiptId: string; amount: number; providerOrderId?: string } | null>(null);
+  const [receipt, setReceipt] = useState<PaymentSuccessReceipt | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [upi, setUpi] = useState<{ upiId: string; payeeName: string }>({ upiId: DEFAULT_UPI_ID, payeeName: DEFAULT_UPI_PAYEE_NAME });
 
@@ -528,7 +548,7 @@ function PaymentForm({
         method: "POST",
         body: JSON.stringify({ studentId, amount: payable, paymentType, note: buildMethodNote() })
       });
-      const confirmation = await adminApiRequest<{ ok: true; receiptId: string; amount: number }>("/api/fees/confirm", {
+      const confirmation = await adminApiRequest<{ ok: true; paymentId: string; receiptId: string; receiptNumber: string; amount: number }>("/api/fees/confirm", {
         method: "POST",
         body: JSON.stringify({
           orderId: order.orderId,
@@ -536,9 +556,19 @@ function PaymentForm({
           method
         })
       });
-      const methodLabel = PAYMENT_METHODS.find((m) => m.value === method)?.label || method;
-      setReceipt({ receiptId: confirmation.receiptId, amount: confirmation.amount, providerOrderId: order.providerOrderId });
-      onSuccess();
+      const createdReceipt = {
+        paymentId: confirmation.paymentId,
+        receiptId: confirmation.receiptId,
+        receiptNumber: confirmation.receiptNumber,
+        amount: confirmation.amount,
+        balanceDue: Math.max(0, Number(selectedStudent?.totalFeesDue ?? 0) - confirmation.amount),
+        studentName: selectedStudent?.studentName || "student",
+        mobile: selectedStudent?.fatherPhone || selectedStudent?.phone || "",
+        paymentDate: new Date().toISOString(),
+        providerOrderId: order.providerOrderId
+      };
+      setReceipt(createdReceipt);
+      onSuccess(createdReceipt);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to complete payment.");
     } finally {
@@ -568,6 +598,22 @@ function PaymentForm({
     return parts.join(" | ") || `Payment via ${method}`;
   };
 
+  const receiptMessage = receipt
+    ? [
+        "Dear Parent,",
+        `Fee payment received for ${receipt.studentName}.`,
+        "",
+        `Receipt No: ${receipt.receiptNumber}`,
+        `Amount Paid: ₹${receipt.amount.toLocaleString("en-IN")}`,
+        `Balance Due: ₹${receipt.balanceDue.toLocaleString("en-IN")}`,
+        `Date: ${new Date(receipt.paymentDate).toLocaleDateString("en-GB")}`,
+        "",
+        "Sri Narayana High School"
+      ].join("\n")
+    : "";
+  const receiptMobile = receipt?.mobile ? `91${receipt.mobile.replace(/\D/g, "").slice(-10)}` : "";
+  const receiptTargetId = receipt?.receiptId || receipt?.paymentId || "";
+
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {error && <div className="rounded-xl border border-[#ffd5da] bg-[#ffebed] px-4 py-3 text-sm font-semibold text-[#c83f4d]">{error}</div>}
@@ -575,8 +621,32 @@ function PaymentForm({
         <div className="rounded-xl border border-[#c8f0dc] bg-[#e6f8ef] px-4 py-3 text-sm font-semibold text-[#0f8d52]">
           <span className="inline-flex items-center gap-2">
             <CheckCircle2 size={17} />
-            Receipt {receipt.receiptId} generated for ₹{receipt.amount.toLocaleString("en-IN")} via {PAYMENT_METHODS.find((m) => m.value === method)?.label || method}.
+            Receipt {receipt.receiptNumber} generated for ₹{receipt.amount.toLocaleString("en-IN")} via {PAYMENT_METHODS.find((m) => m.value === method)?.label || method}.
           </span>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <a href={`/receipts/print/${receiptTargetId}`} target="_blank" rel="noreferrer" className="btn-primary text-xs">
+              <Printer size={14} /> Print Receipt
+            </a>
+            <a href={`/receipts/print/${receiptTargetId}`} target="_blank" rel="noreferrer" className="btn-secondary text-xs">
+              Download PDF
+            </a>
+            {receiptMobile && (
+              <>
+                <a href={`https://wa.me/${receiptMobile}?text=${encodeURIComponent(receiptMessage)}`} target="_blank" rel="noreferrer" className="btn-secondary text-xs">
+                  Send via WhatsApp
+                </a>
+                <a href={`sms:${receiptMobile}?body=${encodeURIComponent(receiptMessage)}`} className="btn-secondary text-xs">
+                  Send SMS
+                </a>
+              </>
+            )}
+            <button type="button" className="btn-secondary text-xs" onClick={() => navigator.clipboard.writeText(receiptMessage)}>
+              Copy SMS Text
+            </button>
+            <button type="button" className="btn-secondary text-xs" onClick={onCancel}>
+              Back to Fee Collection
+            </button>
+          </div>
         </div>
       )}
 
