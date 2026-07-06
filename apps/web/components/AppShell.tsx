@@ -857,7 +857,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     if (
       !isFirebaseConfigured ||
       !role ||
-      (role !== "admin" && role !== "super_admin") ||
+      role !== "super_admin" ||
       !canAccessModule(role, "communication") ||
       !isRoleAllowedForPath("/admin/notifications", role)
     ) {

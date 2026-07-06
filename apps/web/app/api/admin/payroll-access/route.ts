@@ -49,7 +49,7 @@ export async function GET(req: Request) {
 
   const scope = new URL(req.url).searchParams.get("scope");
   if (scope === "requests") {
-    if (role !== "super_admin" && role !== "admin") {
+    if (role !== "super_admin") {
       return NextResponse.json({ ok: false, error: "Admin access required" }, { status: 403 });
     }
 
