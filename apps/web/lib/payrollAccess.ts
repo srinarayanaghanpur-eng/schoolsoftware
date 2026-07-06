@@ -185,4 +185,59 @@ export async function requirePayrollAccess(req: Request): Promise<PayrollAccessR
   return { ok: true, token, role, mode: "approved", context, request };
 }
 
+/**
+ * Auto-cleanup of stale payroll access requests.
+ *
+ * Approvals are only ever valid for the accountant's CURRENT login session on
+ * the CURRENT day (isApprovedPayrollRequest checks sessionId + dateKey), so a
+ * request from a previous day — or a previous session of the same accountant —
+ * is dead weight that clutters the admin approvals list.
+ *
+ * Deleting them is safe: they can never grant access again.
+ */
+export async function expireStalePayrollAccessRequests(options?: {
+  /** Also delete same-day requests from other sessions of this accountant. */
+  accountant?: { userId: string; currentSessionId: string };
+}) {
+  const db = adminDb();
+  const today = istDateKey();
+
+  try {
+    // 1. Requests from previous days (any accountant, any status).
+    const staleByDate = await db
+      .collection(REQUEST_COLLECTION)
+      .where("dateKey", "<", today)
+      .limit(200)
+      .get();
+
+    const batch = db.batch();
+    let count = staleByDate.size;
+    staleByDate.docs.forEach((doc) => batch.delete(doc.ref));
+
+    // 2. Same-day requests from this accountant's OLD sessions (they signed
+    //    in again, so previous-session requests can never be valid).
+    if (options?.accountant) {
+      const sameDay = await db
+        .collection(REQUEST_COLLECTION)
+        .where("dateKey", "==", today)
+        .where("accountantUserId", "==", options.accountant.userId)
+        .limit(50)
+        .get();
+      sameDay.docs.forEach((doc) => {
+        if (doc.data().sessionId !== options.accountant!.currentSessionId) {
+          batch.delete(doc.ref);
+          count += 1;
+        }
+      });
+    }
+
+    if (count > 0) await batch.commit();
+    return count;
+  } catch (error) {
+    // Cleanup is best-effort — never block the approvals list on it.
+    console.error("Payroll access cleanup failed:", error);
+    return 0;
+  }
+}
+
 export { REQUEST_COLLECTION as PAYROLL_ACCESS_REQUEST_COLLECTION };

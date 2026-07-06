@@ -50,6 +50,9 @@ export async function GET(request: NextRequest) {
     if (dateFrom) query = query.where("createdAt", ">=", new Date(dateFrom));
     if (dateTo) query = query.where("createdAt", "<=", new Date(`${dateTo}T23:59:59.999`));
 
+    // Keep the filtered-but-unordered query for the missing-index fallback.
+    const filteredQuery = query;
+
     query = query.orderBy('createdAt', 'desc');
     if (cursor) {
       const cursorDoc = await db.collection("payments").doc(cursor).get();
@@ -57,22 +60,51 @@ export async function GET(request: NextRequest) {
     }
     query = query.limit(pageSize + 1);
 
-    const snapshot = await query.get();
-    logFirestoreRead("PaymentsAPI", "payments", snapshot, { schoolId, branchId, academicYearId, classId, sectionId, studentId, status, paymentMethod, receiptNo, pageSize });
-    const pageDocs = snapshot.docs.slice(0, pageSize);
+    let snapshot;
+    let degraded = false;
+    try {
+      snapshot = await query.get();
+    } catch (error: any) {
+      // FAILED_PRECONDITION (code 9) = missing composite index for this
+      // filter combination. Instead of a 500 + empty page, retry without
+      // orderBy (which is what requires the index) and sort in memory.
+      // Cursor paging is unavailable in this degraded mode.
+      const code = String(error?.code ?? "");
+      const message = String(error?.message ?? "");
+      if (code !== "9" && !message.includes("FAILED_PRECONDITION") && !message.toLowerCase().includes("index")) {
+        throw error;
+      }
+      console.error(`[PaymentsAPI] Missing Firestore index — degraded unordered query used. Create the index via this link:\n${message}`);
+      snapshot = await filteredQuery.limit(pageSize * 3).get();
+      degraded = true;
+    }
+
+    logFirestoreRead("PaymentsAPI", "payments", snapshot, { schoolId, branchId, academicYearId, classId, sectionId, studentId, status, paymentMethod, receiptNo, pageSize, degraded });
+
+    let docs = snapshot.docs;
+    if (degraded) {
+      const ts = (doc: any) => {
+        const created = doc.data()?.createdAt;
+        return created?.toMillis?.() ?? new Date(created ?? 0).getTime() ?? 0;
+      };
+      docs = [...docs].sort((a: any, b: any) => ts(b) - ts(a)).slice(0, pageSize + 1);
+    }
+
+    const pageDocs = docs.slice(0, pageSize);
     const payments = pageDocs.map((doc: { id: string; data: () => any }) => ({
       id: doc.id,
       ...doc.data()
     }));
-    const nextCursor = snapshot.docs.length > pageSize && pageDocs.length > 0
+    const nextCursor = !degraded && docs.length > pageSize && pageDocs.length > 0
       ? pageDocs[pageDocs.length - 1].id
       : null;
 
-    return NextResponse.json({ success: true, data: payments, pageSize, nextCursor, hasMore: Boolean(nextCursor) });
+    return NextResponse.json({ success: true, data: payments, pageSize, nextCursor, hasMore: Boolean(nextCursor), degraded });
   } catch (error) {
     console.error('Error fetching payments:', error);
+    const message = error instanceof Error ? error.message : 'Failed to fetch payments';
     return NextResponse.json(
-      { success: false, error: 'Failed to fetch payments' },
+      { success: false, error: `Failed to fetch payments: ${message.slice(0, 300)}` },
       { status: 500 }
     );
   }

@@ -7,6 +7,7 @@ import {
   PAYROLL_ACCESS_REQUEST_COLLECTION,
   buildPayrollAccessContext,
   canOpenPayrollDirectly,
+  expireStalePayrollAccessRequests,
   getPayrollRole,
   isApprovedPayrollRequest,
   logPayrollAccessAudit,
@@ -51,6 +52,11 @@ export async function GET(req: Request) {
     if (role !== "super_admin" && role !== "admin") {
       return NextResponse.json({ ok: false, error: "Admin access required" }, { status: 403 });
     }
+
+    // Auto-delete requests from previous days: approvals are per-session,
+    // per-day, so yesterday's entries can never be valid and only clutter
+    // this list.
+    await expireStalePayrollAccessRequests();
 
     const snapshot = await adminDb()
       .collection(PAYROLL_ACCESS_REQUEST_COLLECTION)
@@ -97,6 +103,13 @@ export async function POST(req: Request) {
   if (!context) {
     return NextResponse.json({ ok: false, error: "Payroll approval session is required" }, { status: 400 });
   }
+
+  // New request from a fresh login: remove this accountant's requests from
+  // older sessions (and any previous-day leftovers) so only the current
+  // session's request appears in the admin approvals list.
+  await expireStalePayrollAccessRequests({
+    accountant: { userId: context.accountantUserId, currentSessionId: context.sessionId }
+  });
 
   const existing = await readPayrollAccessRequest(context);
   const now = new Date().toISOString();
