@@ -17,7 +17,7 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const academicYearId = searchParams.get("academicYearId") || "";
   const className = searchParams.get("className") || "";
-  const schoolId = searchParams.get("schoolId") || getSchoolId(token);
+  const schoolId = searchParams.get("schoolId") || "";
   const pageSize = readLimit(searchParams.get("pageSize") ?? searchParams.get("limit"), 25, 100);
   const cursor = docCursor(searchParams.get("cursor"));
 

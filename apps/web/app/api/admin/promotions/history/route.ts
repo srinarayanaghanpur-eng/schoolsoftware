@@ -2,8 +2,6 @@ import { NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { requirePermission, serializeDoc } from "@/lib/apiUtils";
 import { docCursor, logFirestoreRead, readLimit } from "@/lib/firestoreReadLogger";
-import { getSchoolId } from "@/lib/schoolScope";
-
 const db = adminDb();
 
 export async function GET(req: Request) {
@@ -17,7 +15,9 @@ export async function GET(req: Request) {
     const academicYearId = searchParams.get("academicYearId");
     const classStr = searchParams.get("class");
     const studentId = searchParams.get("studentId");
-    const schoolId = searchParams.get("schoolId") || getSchoolId(token);
+    // Applied-when-present: only filter by schoolId when explicitly requested,
+    // so legacy docs without the field are not hidden.
+    const schoolId = searchParams.get("schoolId") || "";
     const pageSize = readLimit(searchParams.get("pageSize") ?? searchParams.get("limit"), 25, 100);
     const cursor = docCursor(searchParams.get("cursor"));
 

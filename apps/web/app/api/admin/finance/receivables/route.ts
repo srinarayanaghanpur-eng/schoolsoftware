@@ -2,8 +2,6 @@ import { NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { requirePermission } from "@/lib/apiUtils";
 import { docCursor, logFirestoreRead, readLimit } from "@/lib/firestoreReadLogger";
-import { getSchoolId } from "@/lib/schoolScope";
-
 export async function GET(req: Request) {
   const token = await requirePermission(req, "fees.view");
   if (!token) return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
@@ -12,7 +10,7 @@ export async function GET(req: Request) {
   const classFilter = searchParams.get("classId") || searchParams.get("class") || "";
   const sectionFilter = searchParams.get("sectionId") || searchParams.get("section") || "";
   const academicYearId = searchParams.get("academicYearId") || "";
-  const schoolId = searchParams.get("schoolId") || getSchoolId(token);
+  const schoolId = searchParams.get("schoolId") || "";
   // Default 25 for list views; exports/reports may request more explicitly (up to 1000).
   const pageSize = readLimit(searchParams.get("pageSize") ?? searchParams.get("limit"), 25, 1000);
   const cursor = docCursor(searchParams.get("cursor"));

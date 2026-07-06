@@ -31,7 +31,7 @@ export async function GET(req: Request) {
     const promotionType = searchParams.get("promotionType") || "";
     const status = searchParams.get("status") || "";
     const classStr = searchParams.get("class") || "";
-    const schoolId = searchParams.get("schoolId") || getSchoolId(token);
+    const schoolId = searchParams.get("schoolId") || "";
     const pageSize = readLimit(searchParams.get("pageSize") ?? searchParams.get("limit"), 25, 100);
     const cursor = docCursor(searchParams.get("cursor"));
 

@@ -3,8 +3,6 @@ import { attendanceEditSchema } from "@sri-narayana/shared";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { requireAdmin, serializeDoc, startTimer } from "@/lib/apiUtils";
 import { docCursor, logFirestoreRead, readLimit } from "@/lib/firestoreReadLogger";
-import { getSchoolId } from "@/lib/schoolScope";
-
 function chunk<T>(items: T[], size: number) {
   const chunks: T[][] = [];
   for (let index = 0; index < items.length; index += size) {
@@ -24,14 +22,18 @@ export async function GET(req: Request) {
     const db = adminDb();
     const { searchParams } = new URL(req.url);
     const academicYearId = searchParams.get("academicYearId") || "";
-    const schoolId = searchParams.get("schoolId") || getSchoolId(decodedToken);
+    const schoolId = searchParams.get("schoolId") || "";
     const pageSize = readLimit(searchParams.get("pageSize") ?? searchParams.get("limit"), 25, 100);
     const cursor = docCursor(searchParams.get("cursor"));
 
     let attendanceQuery: FirebaseFirestore.Query = db.collection("attendance");
-    if (academicYearId) attendanceQuery = attendanceQuery.where("academicYearId", "==", academicYearId);
-    if (schoolId) attendanceQuery = attendanceQuery.where("schoolId", "==", schoolId);
-    attendanceQuery = attendanceQuery.orderBy("date", "desc");
+    // Avoid a required composite index for academicYearId + schoolId + date.
+    // Query one scoped field, then apply the remaining scope and date sort in API code.
+    if (academicYearId) {
+      attendanceQuery = attendanceQuery.where("academicYearId", "==", academicYearId);
+    } else if (schoolId) {
+      attendanceQuery = attendanceQuery.where("schoolId", "==", schoolId);
+    }
 
     if (cursor) {
       const cursorDoc = await db.collection("attendance").doc(cursor).get();
@@ -40,16 +42,24 @@ export async function GET(req: Request) {
 
     const dbTimer = startTimer();
     const [attendanceSnapshot, auditSnapshot] = await Promise.all([
-      attendanceQuery.limit(pageSize + 1).get(),
+      attendanceQuery.limit(Math.min(100, pageSize * 4) + 1).get(),
       db.collection("attendance_edit_audit_logs").orderBy("editedAt", "desc").limit(50).get()
     ]);
     const dbMs = dbTimer();
     logFirestoreRead("AttendanceAPI", "attendance", attendanceSnapshot, { academicYearId, schoolId, pageSize });
 
-    const attendancePageDocs = attendanceSnapshot.docs.slice(0, pageSize);
+    const scopedDocs = attendanceSnapshot.docs
+      .filter((doc) => {
+        const data = doc.data();
+        if (academicYearId && data.academicYearId !== academicYearId) return false;
+        if (schoolId && data.schoolId !== schoolId) return false;
+        return true;
+      })
+      .sort((a, b) => String(b.data().date ?? "").localeCompare(String(a.data().date ?? "")));
+    const attendancePageDocs = scopedDocs.slice(0, pageSize);
     const nextCursor =
-      attendanceSnapshot.docs.length > pageSize && attendancePageDocs.length > 0
-        ? attendancePageDocs[attendancePageDocs.length - 1].id
+      attendanceSnapshot.docs.length > Math.min(100, pageSize * 4) && attendancePageDocs.length > 0
+        ? attendanceSnapshot.docs[attendanceSnapshot.docs.length - 1].id
         : null;
     const records = attendancePageDocs.map((doc) => serializeDoc(doc));
     const audits = auditSnapshot.docs.map((doc) => serializeDoc(doc));

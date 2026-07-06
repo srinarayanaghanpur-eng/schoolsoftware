@@ -28,6 +28,14 @@ module.exports = {
         border: "hsl(var(--border) / <alpha-value>)",
         input: "hsl(var(--input) / <alpha-value>)",
         ring: "hsl(var(--ring) / <alpha-value>)",
+        surface: "hsl(var(--surface) / <alpha-value>)",
+        "text-secondary": "hsl(var(--text-secondary) / <alpha-value>)",
+        "text-muted": "hsl(var(--text-muted) / <alpha-value>)",
+        "accent-number": "hsl(var(--accent-number) / <alpha-value>)",
+        "chart-grid": "hsl(var(--chart-grid) / <alpha-value>)",
+        "chart-label": "hsl(var(--chart-label) / <alpha-value>)",
+        "chart-tooltip": "hsl(var(--chart-tooltip) / <alpha-value>)",
+        "chart-tooltip-foreground": "hsl(var(--chart-tooltip-foreground) / <alpha-value>)",
         primary: {
           DEFAULT: "hsl(var(--primary) / <alpha-value>)",
           foreground: "hsl(var(--primary-foreground) / <alpha-value>)"

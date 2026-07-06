@@ -16,7 +16,7 @@ export async function GET(req: Request) {
   const classFilter = searchParams.get("classId") || searchParams.get("class") || "";
   const sectionFilter = searchParams.get("sectionId") || searchParams.get("section") || "";
   const academicYearId = searchParams.get("academicYearId") || "";
-  const schoolId = searchParams.get("schoolId") || getSchoolId(token);
+  const schoolId = searchParams.get("schoolId") || "";
   const db = adminDb();
 
   let query: FirebaseFirestore.Query = db.collection("studentFeeSummaries").where("dueAmount", ">", 0);

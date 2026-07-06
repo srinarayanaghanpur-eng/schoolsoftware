@@ -49,9 +49,14 @@ const inflight = new Map<string, Promise<unknown>>();
  */
 export const API_STATUS_EVENT = "snapi:status";
 
-function emitStatus(type: "stale-served" | "request-failed" | "ok") {
+function emitStatus(type: "stale-served" | "request-failed" | "ok", path?: string, status?: number) {
   try {
-    window.dispatchEvent(new CustomEvent(API_STATUS_EVENT, { detail: { type } }));
+    if (type !== "ok" && path) {
+      // Leave a trail so the failing endpoint is easy to identify from the
+      // browser console when the banner appears.
+      console.warn(`[adminApi] ${type}: ${path}${status !== undefined ? ` (HTTP ${status})` : ""}`);
+    }
+    window.dispatchEvent(new CustomEvent(API_STATUS_EVENT, { detail: { type, path, status } }));
   } catch {
     // SSR or very old browser — banner just won't update
   }
@@ -210,10 +215,10 @@ export async function adminApiRequest<T>(path: string, init?: RequestInit, opts?
         if (stale !== null) {
           // Mark so UIs can show an "offline / cached" hint if they want to.
           try { (stale as Record<string, unknown>).__fromCache = true; } catch { /* primitives */ }
-          emitStatus("stale-served");
+          emitStatus("stale-served", path, error.status);
           return stale as T;
         }
-        emitStatus("request-failed");
+        emitStatus("request-failed", path, error.status);
       }
       throw error;
     } finally {

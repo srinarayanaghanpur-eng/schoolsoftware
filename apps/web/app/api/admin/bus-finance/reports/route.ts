@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { requirePermission } from "@/lib/apiUtils";
-import { logFirestoreRead, readLimit } from "@/lib/firestoreReadLogger";
-import { getSchoolId } from "@/lib/schoolScope";
-import { BUS_FINANCE_COLLECTION, BUS_EMI_PAYMENTS_COLLECTION } from "@/lib/busFinanceService";
+import { logFirestoreRead, readLimit } from "@/lib/firestoreReadLogger";import { BUS_FINANCE_COLLECTION, BUS_EMI_PAYMENTS_COLLECTION } from "@/lib/busFinanceService";
 import type { BusEmiPayment, BusFinance } from "@/types/busFinance.types";
 
 type ReportType =
@@ -30,7 +28,7 @@ export async function GET(req: NextRequest) {
     const monthFilter = searchParams.get("month"); // YYYY-MM
     const yearFilter = searchParams.get("year"); // YYYY
     const academicYearId = searchParams.get("academicYearId") || "";
-    const schoolId = searchParams.get("schoolId") || getSchoolId(token);
+    const schoolId = searchParams.get("schoolId") || "";
     const pageSize = readLimit(searchParams.get("pageSize") ?? searchParams.get("limit"), 25, 1000);
     const today = new Date().toISOString().slice(0, 10);
 

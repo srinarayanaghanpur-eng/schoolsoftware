@@ -38,7 +38,7 @@ export async function GET(req: Request) {
     const dbTimer = startTimer();
     const [teacherSnapshot, attendanceSnapshot] = await Promise.all([
       db.collection("teachers").doc(teacherId).get(),
-      db.collection("attendance").where("teacherId", "==", teacherId).orderBy("date", "desc").limit(60).get()
+      db.collection("attendance").where("teacherId", "==", teacherId).limit(120).get()
     ]);
     const dbMs = dbTimer();
 
@@ -51,7 +51,10 @@ export async function GET(req: Request) {
       return NextResponse.json({ ok: false, error: "Your staff record is inactive. Please contact the administrator." }, { status: 403 });
     }
 
-    const records = attendanceSnapshot.docs.map((doc) => serializeDoc<AttendanceRecord>(doc));
+    const records = attendanceSnapshot.docs
+      .map((doc) => serializeDoc<AttendanceRecord>(doc))
+      .sort((a, b) => String(b.date ?? "").localeCompare(String(a.date ?? "")))
+      .slice(0, 60);
 
     const totalMs = totalTimer();
     console.log(`[API] /api/staff/me - DB: ${dbMs}ms, Total: ${totalMs}ms, Records: ${records.length}`);

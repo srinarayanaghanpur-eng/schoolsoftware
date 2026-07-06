@@ -2,8 +2,6 @@ import { NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { requirePermission } from "@/lib/apiUtils";
 import { docCursor, logFirestoreRead, readLimit } from "@/lib/firestoreReadLogger";
-import { getSchoolId } from "@/lib/schoolScope";
-
 // GET /api/admin/finance/defaulters?class=X – students with outstanding dues.
 export async function GET(req: Request) {
   const token = await requirePermission(req, "fees.view");
@@ -13,7 +11,7 @@ export async function GET(req: Request) {
   const classFilter = searchParams.get("classId") || searchParams.get("class") || "";
   const sectionFilter = searchParams.get("sectionId") || searchParams.get("section") || "";
   const branchId = searchParams.get("branchId") || "";
-  const schoolId = searchParams.get("schoolId") || getSchoolId(token);
+  const schoolId = searchParams.get("schoolId") || "";
   const academicYearId = searchParams.get("academicYearId") || "";
   const pageSize = readLimit(searchParams.get("pageSize") ?? searchParams.get("limit"), 25, 100);
   const cursor = docCursor(searchParams.get("cursor"));

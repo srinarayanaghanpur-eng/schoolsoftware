@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
     const studentId = searchParams.get('studentId');
     const status = searchParams.get('status');
     const branchId = searchParams.get("branchId") || "";
-    const schoolId = searchParams.get("schoolId") || getSchoolId(auth);
+    const schoolId = searchParams.get("schoolId") || "";
     const academicYearId = searchParams.get("academicYearId") || "";
     const classId = searchParams.get("classId") || searchParams.get("class") || "";
     const sectionId = searchParams.get("sectionId") || searchParams.get("section") || "";

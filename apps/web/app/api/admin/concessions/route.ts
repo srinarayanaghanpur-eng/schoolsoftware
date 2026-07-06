@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
     const studentId = searchParams.get('studentId');
     const classStr = searchParams.get('class');
     const academicYearId = searchParams.get("academicYearId") || "";
-    const schoolId = searchParams.get("schoolId") || getSchoolId(auth);
+    const schoolId = searchParams.get("schoolId") || "";
     const pageSize = readLimit(searchParams.get("pageSize") ?? searchParams.get("limit"), 25, 100);
     const cursor = docCursor(searchParams.get("cursor"));
 

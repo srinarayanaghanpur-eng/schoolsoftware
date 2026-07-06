@@ -4,57 +4,73 @@
 
 :root {
   color-scheme: light;
-  --background: 225 100% 98%;
-  --foreground: 235 31% 12%;
+  --background: 210 40% 98%;
+  --foreground: 222 47% 11%;
   --card: 0 0% 100%;
-  --card-foreground: 235 31% 12%;
+  --card-foreground: 222 47% 11%;
   --popover: 0 0% 100%;
-  --popover-foreground: 235 31% 12%;
-  --muted: 228 52% 97%;
-  --muted-foreground: 227 18% 52%;
-  --border: 225 33% 90%;
-  --input: 228 64% 99%;
-  --ring: 239 45% 48%;
-  --primary: 239 54% 41%;
+  --popover-foreground: 222 47% 11%;
+  --muted: 210 40% 96%;
+  --muted-foreground: 215 16% 47%;
+  --border: 214 32% 91%;
+  --input: 0 0% 100%;
+  --ring: 224 76% 48%;
+  --primary: 224 76% 48%;
   --primary-foreground: 0 0% 100%;
-  --secondary: 228 52% 97%;
-  --secondary-foreground: 235 31% 12%;
-  --accent: 235 72% 95%;
-  --accent-foreground: 239 54% 41%;
-  --destructive: 354 82% 60%;
+  --secondary: 210 40% 96%;
+  --secondary-foreground: 215 25% 27%;
+  --accent: 226 100% 97%;
+  --accent-foreground: 224 76% 48%;
+  --destructive: 351 95% 71%;
   --destructive-foreground: 0 0% 100%;
-  --success: 151 78% 36%;
+  --success: 142 71% 45%;
   --success-foreground: 0 0% 100%;
-  --warning: 38 84% 47%;
-  --warning-foreground: 35 92% 17%;
-  --shadow-rgb: 36 42 94;
+  --warning: 48 96% 53%;
+  --warning-foreground: 222 47% 11%;
+  --surface: 0 0% 100%;
+  --text-secondary: 215 19% 35%;
+  --text-muted: 215 16% 47%;
+  --accent-number: 217 91% 60%;
+  --chart-grid: 214 32% 91%;
+  --chart-label: 215 16% 47%;
+  --chart-tooltip: 0 0% 100%;
+  --chart-tooltip-foreground: 222 47% 11%;
+  --shadow-rgb: 15 23 42;
 }
 
 .dark {
   color-scheme: dark;
-  --background: 222 19% 7%;
-  --foreground: 226 25% 90%;
-  --card: 226 19% 13%;
-  --card-foreground: 226 25% 90%;
-  --popover: 226 19% 13%;
-  --popover-foreground: 226 25% 90%;
-  --muted: 228 16% 16%;
-  --muted-foreground: 228 19% 68%;
-  --border: 227 16% 22%;
-  --input: 228 16% 16%;
-  --ring: 238 43% 57%;
-  --primary: 238 43% 57%;
-  --primary-foreground: 0 0% 100%;
-  --secondary: 228 16% 16%;
-  --secondary-foreground: 226 25% 90%;
-  --accent: 236 29% 23%;
-  --accent-foreground: 235 76% 86%;
-  --destructive: 354 74% 58%;
-  --destructive-foreground: 0 0% 100%;
-  --success: 151 69% 42%;
-  --success-foreground: 151 90% 8%;
-  --warning: 40 88% 58%;
-  --warning-foreground: 35 92% 12%;
+  --background: 222 47% 11%;
+  --foreground: 210 40% 98%;
+  --card: 217 33% 17%;
+  --card-foreground: 210 40% 98%;
+  --popover: 221 39% 11%;
+  --popover-foreground: 210 40% 98%;
+  --muted: 215 28% 17%;
+  --muted-foreground: 215 20% 65%;
+  --border: 215 25% 27%;
+  --input: 221 39% 11%;
+  --ring: 217 91% 60%;
+  --primary: 217 91% 60%;
+  --primary-foreground: 222 47% 11%;
+  --secondary: 215 28% 17%;
+  --secondary-foreground: 213 27% 84%;
+  --accent: 226 58% 28%;
+  --accent-foreground: 229 96% 82%;
+  --destructive: 351 95% 71%;
+  --destructive-foreground: 222 47% 11%;
+  --success: 142 71% 45%;
+  --success-foreground: 222 47% 11%;
+  --warning: 48 96% 53%;
+  --warning-foreground: 222 47% 11%;
+  --surface: 217 33% 17%;
+  --text-secondary: 213 27% 84%;
+  --text-muted: 215 20% 65%;
+  --accent-number: 229 96% 82%;
+  --chart-grid: 215 25% 27%;
+  --chart-label: 215 20% 65%;
+  --chart-tooltip: 221 39% 11%;
+  --chart-tooltip-foreground: 210 40% 98%;
   --shadow-rgb: 0 0 0;
 }
 
@@ -72,6 +88,11 @@ html, body {
      (>=1280px) keeps the original 18px, so laptop/desktop layouts are
      pixel-identical to before. */
   font-size: 15px;
+}
+
+.dark body {
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
 }
 
 /* Stop iOS from auto-inflating text and never let the document scroll
@@ -785,6 +806,123 @@ img, svg, video, canvas {
 
 .erp-app :where(.divide-stone-100 > :not([hidden]) ~ :not([hidden])) {
   border-color: hsl(var(--border));
+}
+
+.dark .erp-app {
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+}
+
+.dark .erp-app :where(.card, .bg-white, .bg-card, .bg-gray-50, .bg-gray-100, .bg-stone-50, .bg-slate-50, .bg-slate-100, .bg-slate-200, .bg-\[\#f4f5fb\], .bg-\[\#f5f6fd\], .bg-\[\#f5f7fd\], .bg-\[\#f6f8ff\], .bg-\[\#f7f8fc\], .bg-\[\#f7f8fd\], .bg-\[\#f7f9ff\], .bg-\[\#f8f8fc\], .bg-\[\#f8f9ff\], .bg-\[\#f8faff\], .bg-\[\#f9faff\], .bg-\[\#f9fbff\], .bg-\[\#fafbff\], .bg-\[\#fbfcff\]) {
+  background-color: hsl(var(--card));
+  color: hsl(var(--card-foreground));
+}
+
+.dark .erp-app :where(.bg-muted, .bg-\[\#e6e9f5\], .bg-\[\#e7ebf6\], .bg-\[\#edf0f7\], .bg-\[\#edf1fb\], .bg-\[\#eef0f7\], .bg-\[\#f0f2f8\], .bg-\[\#f1f2f6\], .bg-\[\#f2f4fa\], .bg-\[\#f3f4fb\], .bg-\[\#f4f7ff\]) {
+  background-color: hsl(var(--muted));
+  color: hsl(var(--secondary-foreground));
+}
+
+.dark .erp-app :where(.text-black, .text-gray-800, .text-gray-900, .text-stone-800, .text-stone-900, .text-stone-950, .text-slate-700, .text-slate-800, .text-slate-900, .text-slate-950, .text-\[\#0f172a\], .text-\[\#111827\], .text-\[\#141735\], .text-\[\#15172d\], .text-\[\#17192e\], .text-\[\#171931\], .text-\[\#181a31\], .text-\[\#1b1d32\], .text-\[\#1d1f35\], .text-\[\#1f2136\], .text-\[\#20223a\], .text-\[\#20233f\], .text-\[\#23253a\], .text-\[\#242640\], .text-\[\#242744\], .text-\[\#253052\], .text-\[\#2a2e45\], .text-\[\#303247\], .text-\[\#353864\]) {
+  color: hsl(var(--foreground));
+}
+
+.dark .erp-app :where(.text-gray-400, .text-gray-500, .text-gray-600, .text-gray-700, .text-stone-400, .text-stone-500, .text-stone-600, .text-slate-400, .text-slate-500, .text-slate-600, .text-\[\#475067\], .text-\[\#5d6690\], .text-\[\#5f6888\], .text-\[\#5f6b8d\], .text-\[\#65708f\], .text-\[\#657092\], .text-\[\#6b7391\], .text-\[\#6f7898\], .text-\[\#707a9e\], .text-\[\#7a86ad\], .text-\[\#7b85a8\], .text-\[\#7d86a8\], .text-\[\#8490b9\], .text-\[\#8a91b4\], .text-\[\#8a93b1\], .text-\[\#8a94b6\], .text-\[\#9aa3bd\], .text-\[\#9aa4c4\]) {
+  color: hsl(var(--muted-foreground));
+}
+
+.dark .erp-app :where(.text-blue-600, .text-indigo-600, .text-purple-600, .text-\[\#246bfe\], .text-\[\#252a87\], .text-\[\#2628a0\], .text-\[\#272a86\], .text-\[\#27318d\], .text-\[\#2e38a4\], .text-\[\#3033a1\], .text-\[\#313581\], .text-\[\#3137b7\], .text-\[\#3436a2\], .text-\[\#3540c0\], .text-\[\#4d5096\], .text-\[\#4f63f6\], .text-\[\#5751b8\], .text-\[\#6547d2\], .text-\[\#7445bd\]) {
+  color: hsl(var(--accent-number));
+}
+
+.dark .erp-app :where(.text-green-600, .text-emerald-600, .text-\[\#0a9255\], .text-\[\#0d8f5b\], .text-\[\#0f8d52\], .text-\[\#13a961\], .text-\[\#14a762\], .text-\[\#17808a\], .text-\[\#1f8a4c\], .text-\[\#3d8b4d\]) {
+  color: hsl(var(--success));
+}
+
+.dark .erp-app :where(.text-amber-600, .text-orange-600, .text-yellow-600, .text-\[\#9f7116\], .text-\[\#b8791a\], .text-\[\#b87d0e\], .text-\[\#c67711\], .text-\[\#c96a10\], .text-\[\#d27a14\], .text-\[\#d79418\], .text-\[\#e29813\]) {
+  color: hsl(var(--warning));
+}
+
+.dark .erp-app :where(.text-red-500, .text-red-600, .text-rose-600, .text-\[\#c83f4d\], .text-\[\#d1485c\], .text-\[\#d84d5b\], .text-\[\#ed515d\]) {
+  color: hsl(var(--destructive));
+}
+
+.dark .erp-app :where(.bg-\[\#edf1ff\], .bg-\[\#edf7ff\], .bg-\[\#eef0ff\], .bg-\[\#eef2ff\], .bg-\[\#eeefff\], .bg-\[\#eef6ff\], .bg-\[\#f0edff\], .bg-\[\#f1edff\], .bg-\[\#f1f4ff\], .bg-\[\#f4efff\], .bg-blue-50, .bg-indigo-50, .bg-purple-50) {
+  background-color: hsl(var(--accent) / 0.42);
+}
+
+.dark .erp-app :where(.bg-\[\#e6f8ef\], .bg-\[\#e7f6ec\], .bg-\[\#e9f8f0\], .bg-\[\#edfdf4\], .bg-\[\#f0f7ef\], .bg-\[\#f6faf6\], .bg-green-50, .bg-emerald-50) {
+  background-color: hsl(var(--success) / 0.14);
+}
+
+.dark .erp-app :where(.bg-\[\#fff0e0\], .bg-\[\#fff3e8\], .bg-\[\#fff4df\], .bg-\[\#fff8ea\], .bg-\[\#fffcf0\], .bg-\[\#fffcf5\], .bg-yellow-50, .bg-amber-50) {
+  background-color: hsl(var(--warning) / 0.16);
+}
+
+.dark .erp-app :where(.bg-\[\#ffebed\], .bg-\[\#fff0f2\], .bg-\[\#fff1f1\], .bg-\[\#fff7f7\], .bg-red-50, .bg-rose-50) {
+  background-color: hsl(var(--destructive) / 0.16);
+}
+
+.dark .erp-app :where(.border-gray-200, .border-stone-100, .border-stone-200, .border-stone-300, .border-slate-200, .border-\[\#c7d1ec\], .border-\[\#dce1f0\], .border-\[\#dfe3f1\], .border-\[\#e0e3f0\], .border-\[\#e1e7f4\], .border-\[\#e2e6f4\], .border-\[\#e3e6f0\], .border-\[\#e3e8f6\], .border-\[\#e4e6f0\], .border-\[\#e4e9f7\], .border-\[\#e5e9f4\], .border-\[\#e5e9f7\], .border-\[\#edf0f7\], .border-\[\#edf1fb\]) {
+  border-color: hsl(var(--border));
+}
+
+.dark .erp-app :where(table) {
+  color: hsl(var(--foreground));
+}
+
+.dark .erp-app :where(thead, .bg-stone-50, .bg-\[\#f7f8fd\]) {
+  background-color: hsl(var(--muted));
+  color: hsl(var(--secondary-foreground));
+}
+
+.dark .erp-app :where(th) {
+  color: hsl(var(--secondary-foreground));
+}
+
+.dark .erp-app :where(td) {
+  color: hsl(var(--foreground));
+}
+
+.dark .erp-app :where(tbody tr) {
+  border-color: hsl(var(--border));
+}
+
+.dark .erp-app :where(tbody tr:hover, .hover\:bg-gray-50:hover, .hover\:bg-gray-100:hover, .hover\:bg-stone-50:hover, .hover\:bg-\[\#fafbff\]:hover, .hover\:bg-\[\#f8faff\]:hover, .hover\:bg-\[\#f5f6fd\]:hover, .hover\:bg-\[\#f4f5fb\]:hover, .hover\:bg-\[\#f3f4fb\]:hover, .hover\:bg-\[\#eef2ff\]:hover, .hover\:bg-\[\#e7ecff\]:hover, .hover\:bg-\[\#e3e8ff\]:hover, .hover\:bg-\[\#e3e5ff\]:hover, .hover\:bg-\[\#e0e3ff\]:hover) {
+  background-color: hsl(var(--muted));
+}
+
+.dark .erp-app :where(input:not([type="checkbox"]):not([type="radio"]), select, textarea) {
+  border-color: hsl(var(--border));
+  background-color: hsl(var(--input));
+  color: hsl(var(--foreground));
+}
+
+.dark .erp-app :where(input:not([type="checkbox"]):not([type="radio"]), select, textarea)::placeholder {
+  color: hsl(var(--muted-foreground));
+}
+
+.dark .erp-app :where(input:disabled, input[readonly], select:disabled, textarea:disabled, textarea[readonly]) {
+  background-color: hsl(var(--muted));
+  color: hsl(var(--muted-foreground));
+}
+
+.dark .erp-app :where(svg text, .recharts-text, .recharts-label) {
+  fill: hsl(var(--chart-label));
+}
+
+.dark .erp-app :where(.recharts-cartesian-grid line) {
+  stroke: hsl(var(--chart-grid));
+}
+
+.dark .erp-app :where(.recharts-default-tooltip) {
+  border-color: hsl(var(--border)) !important;
+  background: hsl(var(--chart-tooltip)) !important;
+  color: hsl(var(--chart-tooltip-foreground)) !important;
+}
+
+.dark .erp-app :where(.recharts-tooltip-label, .recharts-tooltip-item) {
+  color: hsl(var(--chart-tooltip-foreground)) !important;
 }
 
 .erp-app :where(.shadow, .shadow-sm, .shadow-lg, .shadow-xl, .shadow-2xl) {

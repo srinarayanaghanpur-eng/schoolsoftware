@@ -34,29 +34,29 @@ export const dynamic = "force-dynamic";
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 const quickActions = [
-  { href: "/admin/students", label: "Add Student", icon: UserPlus, tone: "bg-[#edf1ff] text-[#2e38a4]" },
-  { href: "/admin/attendance", label: "Mark Attendance", icon: ClipboardCheck, tone: "bg-[#fff4df] text-[#c67711]" },
-  { href: "/admin/payments", label: "Collect Fee", icon: CreditCard, tone: "bg-[#e9f8f0] text-[#0d8f5b]" },
-  { href: "/admin/teachers", label: "Add Staff", icon: GraduationCap, tone: "bg-[#eef6ff] text-[#1967b2]" },
-  { href: "/admin/notifications", label: "New Notice", icon: Megaphone, tone: "bg-[#fff0f2] text-[#d1485c]" },
-  { href: "/admin/exams", label: "Create Exam", icon: BookOpenCheck, tone: "bg-[#f4efff] text-[#7445bd]" },
-  { href: "/admin/reports", label: "Generate Report", icon: FileSpreadsheet, tone: "bg-[#eef7f8] text-[#17808a]" },
-  { href: "/admin/settings", label: "View All", icon: MoreHorizontal, tone: "bg-[#f2f4fa] text-[#5a6383]" }
+  { href: "/admin/students", label: "Add Student", icon: UserPlus, tone: "bg-[#edf1ff] text-[#2e38a4] dark:bg-indigo-500/15 dark:text-indigo-200" },
+  { href: "/admin/attendance", label: "Mark Attendance", icon: ClipboardCheck, tone: "bg-[#fff4df] text-[#c67711] dark:bg-yellow-400/15 dark:text-yellow-300" },
+  { href: "/admin/payments", label: "Collect Fee", icon: CreditCard, tone: "bg-[#e9f8f0] text-[#0d8f5b] dark:bg-emerald-500/15 dark:text-emerald-300" },
+  { href: "/admin/teachers", label: "Add Staff", icon: GraduationCap, tone: "bg-[#eef6ff] text-[#1967b2] dark:bg-blue-500/15 dark:text-blue-300" },
+  { href: "/admin/notifications", label: "New Notice", icon: Megaphone, tone: "bg-[#fff0f2] text-[#d1485c] dark:bg-rose-500/15 dark:text-rose-300" },
+  { href: "/admin/exams", label: "Create Exam", icon: BookOpenCheck, tone: "bg-[#f4efff] text-[#7445bd] dark:bg-indigo-500/15 dark:text-indigo-200" },
+  { href: "/admin/reports", label: "Generate Report", icon: FileSpreadsheet, tone: "bg-[#eef7f8] text-[#17808a] dark:bg-cyan-500/15 dark:text-cyan-300" },
+  { href: "/admin/settings", label: "View All", icon: MoreHorizontal, tone: "bg-[#f2f4fa] text-[#5a6383] dark:bg-slate-700 dark:text-slate-300" }
 ];
 
 const moduleShortcuts = [
-  { href: "/admin/parents", label: "Parents", icon: UsersRound, tone: "bg-[#edf1ff] text-[#2e38a4]" },
-  { href: "/admin/exams", label: "Exams & Marks", icon: BookOpenCheck, tone: "bg-[#f4efff] text-[#7445bd]" },
-  { href: "/admin/notices", label: "Communication", icon: Megaphone, tone: "bg-[#fff4df] text-[#c67711]" },
-  { href: "/admin/messages", label: "Messages", icon: Send, tone: "bg-[#eef6ff] text-[#1967b2]" },
-  { href: "/admin/promotions", label: "Promotion", icon: GraduationCap, tone: "bg-[#f4efff] text-[#7445bd]" },
-  { href: "/admin/users", label: "Users & Roles", icon: UserCog, tone: "bg-[#edf1ff] text-[#2e38a4]" },
-  { href: "/admin/approvals", label: "Approvals", icon: ShieldCheck, tone: "bg-[#eef7f8] text-[#17808a]" },
-  { href: "/admin/calendar", label: "Timetable", icon: CalendarDays, tone: "bg-[#fff4df] text-[#c67711]" },
-  { href: "/admin/transport", label: "Transport", icon: Bus, tone: "bg-[#eef6ff] text-[#1967b2]" },
-  { href: "/admin/library", label: "Library", icon: Library, tone: "bg-[#f0f7ef] text-[#3d8b4d]" },
-  { href: "/admin/hostel", label: "Hostel", icon: Hotel, tone: "bg-[#fff0f2] text-[#d1485c]" },
-  { href: "/admin/inventory", label: "Inventory", icon: Package, tone: "bg-[#f4efff] text-[#7445bd]" }
+  { href: "/admin/parents", label: "Parents", icon: UsersRound, tone: "bg-[#edf1ff] text-[#2e38a4] dark:bg-indigo-500/15 dark:text-indigo-200" },
+  { href: "/admin/exams", label: "Exams & Marks", icon: BookOpenCheck, tone: "bg-[#f4efff] text-[#7445bd] dark:bg-indigo-500/15 dark:text-indigo-200" },
+  { href: "/admin/notices", label: "Communication", icon: Megaphone, tone: "bg-[#fff4df] text-[#c67711] dark:bg-yellow-400/15 dark:text-yellow-300" },
+  { href: "/admin/messages", label: "Messages", icon: Send, tone: "bg-[#eef6ff] text-[#1967b2] dark:bg-blue-500/15 dark:text-blue-300" },
+  { href: "/admin/promotions", label: "Promotion", icon: GraduationCap, tone: "bg-[#f4efff] text-[#7445bd] dark:bg-indigo-500/15 dark:text-indigo-200" },
+  { href: "/admin/users", label: "Users & Roles", icon: UserCog, tone: "bg-[#edf1ff] text-[#2e38a4] dark:bg-indigo-500/15 dark:text-indigo-200" },
+  { href: "/admin/approvals", label: "Approvals", icon: ShieldCheck, tone: "bg-[#eef7f8] text-[#17808a] dark:bg-cyan-500/15 dark:text-cyan-300" },
+  { href: "/admin/calendar", label: "Timetable", icon: CalendarDays, tone: "bg-[#fff4df] text-[#c67711] dark:bg-yellow-400/15 dark:text-yellow-300" },
+  { href: "/admin/transport", label: "Transport", icon: Bus, tone: "bg-[#eef6ff] text-[#1967b2] dark:bg-blue-500/15 dark:text-blue-300" },
+  { href: "/admin/library", label: "Library", icon: Library, tone: "bg-[#f0f7ef] text-[#3d8b4d] dark:bg-emerald-500/15 dark:text-emerald-300" },
+  { href: "/admin/hostel", label: "Hostel", icon: Hotel, tone: "bg-[#fff0f2] text-[#d1485c] dark:bg-rose-500/15 dark:text-rose-300" },
+  { href: "/admin/inventory", label: "Inventory", icon: Package, tone: "bg-[#f4efff] text-[#7445bd] dark:bg-indigo-500/15 dark:text-indigo-200" }
 ];
 
 function istDateKey(date: Date) {
@@ -244,15 +244,15 @@ function MetricCard({
 }) {
   const SafeIcon = Icon ?? Circle;
   return (
-    <article className="dashboard-animate rounded-lg border border-[#e1e7f4] bg-white p-4 shadow-[0_10px_26px_rgba(31,42,116,0.05)] transition hover:-translate-y-0.5 hover:shadow-[0_16px_32px_rgba(31,42,116,0.08)]">
+    <article className="dashboard-animate rounded-lg border border-border bg-card p-4 text-card-foreground shadow-[0_10px_26px_rgba(31,42,116,0.05)] transition hover:-translate-y-0.5 hover:shadow-[0_16px_32px_rgba(31,42,116,0.08)] dark:bg-slate-900 dark:shadow-black/20">
       <div className="flex items-start justify-between gap-3">
         <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-lg ${tone}`}>
           <SafeIcon size={20} strokeWidth={2.3} />
         </span>
-        <span className="rounded-full bg-[#f4f7ff] px-2 py-1 text-[11px] font-extrabold text-[#5f6b8d]">Live</span>
+        <span className="rounded-full bg-muted px-2 py-1 text-[11px] font-extrabold text-muted-foreground">Live</span>
       </div>
-      <p className="mt-4 text-sm font-bold text-[#657092]">{label}</p>
-      <p className="mt-1 text-2xl font-extrabold tracking-tight text-[#141735] md:text-[28px]">{value}</p>
+      <p className="mt-4 text-sm font-bold text-muted-foreground">{label}</p>
+      <p className="mt-1 text-2xl font-extrabold tracking-tight text-foreground dark:text-white md:text-[28px]">{value}</p>
       <p className={`mt-1 text-xs font-bold ${helperTone}`}>{helper}</p>
     </article>
   );
@@ -260,7 +260,7 @@ function MetricCard({
 
 function Panel({ children, className = "" }: { children: ReactNode; className?: string }) {
   return (
-    <article className={`dashboard-animate rounded-lg border border-[#e1e7f4] bg-white shadow-[0_10px_26px_rgba(31,42,116,0.05)] ${className}`}>
+    <article className={`dashboard-animate rounded-lg border border-border bg-card text-card-foreground shadow-[0_10px_26px_rgba(31,42,116,0.05)] dark:bg-slate-900 dark:shadow-black/20 ${className}`}>
       {children}
     </article>
   );
@@ -286,25 +286,25 @@ function AttendanceTrend({ data }: { data: { day: string; value: number }[] }) {
     <svg className="mt-4 h-[230px] w-full overflow-visible" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Staff attendance trend for the last seven days">
       <defs>
         <linearGradient id="attendanceArea" x1="0" x2="0" y1="0" y2="1">
-          <stop offset="0%" stopColor="#3c46d1" stopOpacity="0.22" />
-          <stop offset="100%" stopColor="#3c46d1" stopOpacity="0.02" />
+          <stop offset="0%" stopColor="hsl(var(--accent-number))" stopOpacity="0.28" />
+          <stop offset="100%" stopColor="hsl(var(--accent-number))" stopOpacity="0.04" />
         </linearGradient>
       </defs>
       {[0, 25, 50, 75, 100].map((tick) => {
         const y = paddingTop + (1 - tick / 100) * chartHeight;
         return (
           <g key={tick}>
-            <line x1={paddingX} x2={width - paddingX} y1={y} y2={y} stroke="#e7ebf5" strokeWidth="1" />
-            <text x={8} y={y + 4} fill="#7d86a8" fontSize="12" fontWeight="700">{tick}%</text>
+            <line x1={paddingX} x2={width - paddingX} y1={y} y2={y} stroke="hsl(var(--chart-grid))" strokeWidth="1" />
+            <text x={8} y={y + 4} fill="hsl(var(--chart-label))" fontSize="12" fontWeight="700">{tick}%</text>
           </g>
         );
       })}
       <polygon points={area} fill="url(#attendanceArea)" />
-      <polyline points={line} fill="none" stroke="#3540c0" strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" />
+      <polyline points={line} fill="none" stroke="hsl(var(--accent-number))" strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" />
       {points.map((point) => (
         <g key={`${point.day}-${point.x}`}>
-          <circle cx={point.x} cy={point.y} r="5" fill="#3540c0" stroke="#fff" strokeWidth="3" />
-          <text x={point.x} y={height - 8} textAnchor="middle" fill="#707a9e" fontSize="13" fontWeight="800">{point.day}</text>
+          <circle cx={point.x} cy={point.y} r="5" fill="hsl(var(--accent-number))" stroke="hsl(var(--card))" strokeWidth="3" />
+          <text x={point.x} y={height - 8} textAnchor="middle" fill="hsl(var(--chart-label))" fontSize="13" fontWeight="800">{point.day}</text>
         </g>
       ))}
     </svg>
@@ -324,13 +324,13 @@ function ActivityItem({
 }) {
   const SafeIcon = Icon ?? Circle;
   return (
-    <div className="flex items-start gap-3 rounded-lg px-2 py-2.5 transition hover:bg-[#f8faff]">
+    <div className="flex items-start gap-3 rounded-lg px-2 py-2.5 transition hover:bg-muted">
       <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg ${tone}`}>
         <SafeIcon size={17} strokeWidth={2.25} />
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-extrabold text-[#20233f]">{title}</span>
-        <span className="block truncate text-xs font-semibold text-[#7d86a8]">{meta}</span>
+        <span className="block truncate text-sm font-extrabold text-foreground">{title}</span>
+        <span className="block truncate text-xs font-semibold text-muted-foreground">{meta}</span>
       </span>
     </div>
   );
@@ -339,11 +339,11 @@ function ActivityItem({
 function QuickAction({ href, label, icon: Icon, tone }: { href: string; label: string; icon?: LucideIcon; tone: string }) {
   const SafeIcon = Icon ?? Circle;
   return (
-    <Link href={href} className="group flex min-w-[92px] flex-col items-center gap-2 rounded-lg px-2 py-2 text-center transition hover:bg-[#f8faff]">
+    <Link href={href} className="group flex min-w-[92px] flex-col items-center gap-2 rounded-lg px-2 py-2 text-center transition hover:bg-muted">
       <span className={`grid h-11 w-11 place-items-center rounded-lg transition group-hover:scale-105 ${tone}`}>
         <SafeIcon size={21} strokeWidth={2.3} />
       </span>
-      <span className="text-xs font-extrabold leading-4 text-[#242744]">{label}</span>
+      <span className="text-xs font-extrabold leading-4 text-foreground">{label}</span>
     </Link>
   );
 }
@@ -351,11 +351,11 @@ function QuickAction({ href, label, icon: Icon, tone }: { href: string; label: s
 function ModuleShortcut({ href, label, icon: Icon, tone }: { href: string; label: string; icon?: LucideIcon; tone: string }) {
   const SafeIcon = Icon ?? Circle;
   return (
-    <Link href={href} className="dashboard-animate group flex min-h-[96px] flex-col items-center justify-center gap-3 rounded-lg border border-[#e1e7f4] bg-white px-3 py-4 text-center shadow-[0_8px_18px_rgba(31,42,116,0.04)] transition hover:-translate-y-0.5 hover:border-[#c7d1ec] hover:shadow-[0_14px_28px_rgba(31,42,116,0.08)]">
+    <Link href={href} className="dashboard-animate group flex min-h-[96px] flex-col items-center justify-center gap-3 rounded-lg border border-border bg-card px-3 py-4 text-center text-card-foreground shadow-[0_8px_18px_rgba(31,42,116,0.04)] transition hover:-translate-y-0.5 hover:border-ring/40 hover:shadow-[0_14px_28px_rgba(31,42,116,0.08)] dark:bg-slate-900 dark:shadow-black/20">
       <span className={`grid h-11 w-11 place-items-center rounded-lg transition group-hover:scale-105 ${tone}`}>
         <SafeIcon size={21} strokeWidth={2.25} />
       </span>
-      <span className="text-xs font-extrabold leading-4 text-[#253052]">{label}</span>
+      <span className="text-xs font-extrabold leading-4 text-foreground">{label}</span>
     </Link>
   );
 }

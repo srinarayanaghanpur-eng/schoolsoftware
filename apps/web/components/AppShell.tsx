@@ -1026,10 +1026,12 @@ function OfflineBanner() {
       if (typeof navigator !== "undefined" && !navigator.onLine) return;
       if (type === "ok") {
         setStatus((prev) => (prev === "stale" || prev === "failed" ? "online" : prev));
-      } else if (type === "stale-served") {
-        setStatus("stale");
-      } else if (type === "request-failed") {
-        setStatus("failed");
+      } else if (type === "stale-served" || type === "request-failed") {
+        setStatus(type === "stale-served" ? "stale" : "failed");
+        // Auto-dismiss: a single failed request shouldn't leave a permanent
+        // red bar. It reappears if the next request fails too.
+        clearTimer();
+        timerRef.current = setTimeout(() => setStatus("online"), 8000);
       }
     };
 
@@ -1075,6 +1077,16 @@ function OfflineBanner() {
           className="min-h-[28px] rounded-full bg-white/20 px-3 py-0.5 text-[11px] font-extrabold uppercase tracking-wide transition hover:bg-white/30"
         >
           Retry
+        </button>
+      )}
+      {status !== "offline" && (
+        <button
+          type="button"
+          aria-label="Dismiss"
+          onClick={() => setStatus("online")}
+          className="grid h-7 w-7 place-items-center rounded-full bg-white/10 text-sm font-bold leading-none transition hover:bg-white/25"
+        >
+          ×
         </button>
       )}
     </div>

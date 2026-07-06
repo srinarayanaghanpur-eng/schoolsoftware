@@ -294,6 +294,7 @@ export type SalaryReport = {
   paidCLDays: number; // approved leave days paid from monthly CL allowance
   approvedPaidCLDays: number; // approved leave days without check-in paid from CL
   paidLeaveDays?: number; // approved leave days paid from remaining CL balance
+  paidHolidayDays?: number; // paid holidays included in paid-day reconciliation when applicable
   excessCLDays: number; // max(totalClUsed - allowance, 0)
   plainAbsentDays: number; // working days with no check-in and no approved leave
   unpaidAbsentDays: number; // plain absences + approved leave beyond CL balance
@@ -316,6 +317,10 @@ export type SalaryReport = {
   paid: boolean;
   paidAt?: string;
   paymentNotes?: string;
+  salaryStatus?: "Ready" | "Attendance Missing" | "Invalid";
+  attendanceDataAvailable?: boolean;
+  paymentBlockedReason?: string;
+  calculationWarning?: string;
   presentDates?: string[];
   absentDates?: string[];
   approvedLeaveDates?: string[];
@@ -339,6 +344,7 @@ export type PayrollCalculationDebug = {
   lateDates: string[];
   paidLeaveDays: number;
   approvedPaidCLDays: number;
+  paidHolidayDays?: number;
   unpaidAbsentDays: number;
   excessCLDays: number;
   earnedPaidDays: number;

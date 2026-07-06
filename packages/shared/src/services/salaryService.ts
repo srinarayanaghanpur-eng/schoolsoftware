@@ -20,6 +20,173 @@ export type SalaryCalculationInput = {
 };
 
 export const MONTHLY_CL_ALLOWANCE = 3;
+export const ATTENDANCE_MISSING_WARNING = "Attendance data not available. Please sync attendance before generating salary.";
+export const INVALID_SALARY_CALCULATION_ERROR = "Invalid salary calculation. Attendance and absence totals do not match working days.";
+
+type SalaryStatus = NonNullable<SalaryReport["salaryStatus"]>;
+
+export type SalarySafetyTotals = {
+  baseSalary: number;
+  totalWorkingDays: number;
+  workingDaysElapsed: number;
+  presentDays: number;
+  approvedPaidCLDays: number;
+  paidHolidayDays: number;
+  paidDays: number;
+  unpaidAbsentDays: number;
+  dailyRate: number;
+  salaryDeduction: number;
+  manualDeduction: number;
+  bonus: number;
+  totalDeduction: number;
+  grossEarnedSalary: number;
+  netPayable: number;
+  salaryStatus: SalaryStatus;
+  paymentBlocked: boolean;
+  paymentBlockedReason?: string;
+};
+
+function finiteNumber(value: unknown, fallback = 0): number {
+  const numberValue = Number(value);
+  return Number.isFinite(numberValue) ? numberValue : fallback;
+}
+
+function nonNegativeNumber(value: unknown, fallback = 0): number {
+  return Math.max(0, finiteNumber(value, fallback));
+}
+
+function firstKnownNumber(values: unknown[], fallback = 0): number {
+  for (const value of values) {
+    if (value !== undefined && value !== null && Number.isFinite(Number(value))) return Number(value);
+  }
+  return fallback;
+}
+
+export function getApprovedPaidCLDays(report: Partial<SalaryReport>): number {
+  return nonNegativeNumber(
+    firstKnownNumber([report.approvedPaidCLDays, report.paidCLDays, report.paidLeaveDays, report.clDays])
+  );
+}
+
+export function getPaidHolidayDays(report: Partial<SalaryReport>): number {
+  return nonNegativeNumber(report.paidHolidayDays);
+}
+
+export function getSalarySafetyTotals(report: Partial<SalaryReport>): SalarySafetyTotals {
+  const baseSalary = nonNegativeNumber(report.baseSalary);
+  const totalWorkingDays = nonNegativeNumber(firstKnownNumber([report.totalWorkingDaysInMonth, report.workingDays]));
+  const workingDaysElapsed = nonNegativeNumber(firstKnownNumber([report.workingDaysElapsed, report.workingDays]));
+  const presentDays = nonNegativeNumber(report.presentDays);
+  const approvedPaidCLDays = getApprovedPaidCLDays(report);
+  const paidHolidayDays = getPaidHolidayDays(report);
+  const paidDays = presentDays + approvedPaidCLDays + paidHolidayDays;
+  const requiredUnpaidAbsentDays = Math.max(0, workingDaysElapsed - paidDays);
+  const existingUnpaidAbsentDays = nonNegativeNumber(
+    firstKnownNumber([report.unpaidAbsentDays, report.unpaidDeductionDays, report.absentDays])
+  );
+  const unpaidAbsentDays = Math.max(existingUnpaidAbsentDays, requiredUnpaidAbsentDays);
+  const dailyRate = totalWorkingDays > 0 ? baseSalary / totalWorkingDays : nonNegativeNumber(report.perDaySalary);
+  const salaryDeduction = unpaidAbsentDays * dailyRate;
+  const manualDeduction = nonNegativeNumber(report.manualDeduction);
+  const bonus = nonNegativeNumber(report.bonus);
+  const totalDeduction = salaryDeduction + manualDeduction;
+  const elapsedPayableBase = totalWorkingDays > 0 ? Math.min(workingDaysElapsed, totalWorkingDays) * dailyRate : baseSalary;
+  const payableBase = report.payrollFinalized || workingDaysElapsed >= totalWorkingDays ? baseSalary : elapsedPayableBase;
+  const grossEarnedSalary = Math.max(0, payableBase - salaryDeduction);
+  const netPayable = Math.max(0, grossEarnedSalary + bonus - manualDeduction);
+  const attendanceMissing = report.attendanceDataAvailable === false || report.salaryStatus === "Attendance Missing";
+  const invalidTotals = workingDaysElapsed > 0 && presentDays === 0 && approvedPaidCLDays === 0 && existingUnpaidAbsentDays === 0;
+  const salaryStatus: SalaryStatus = attendanceMissing ? "Attendance Missing" : invalidTotals || report.salaryStatus === "Invalid" ? "Invalid" : "Ready";
+  const paymentBlockedReason = attendanceMissing
+    ? ATTENDANCE_MISSING_WARNING
+    : invalidTotals || report.salaryStatus === "Invalid"
+      ? report.paymentBlockedReason || INVALID_SALARY_CALCULATION_ERROR
+      : undefined;
+
+  return {
+    baseSalary,
+    totalWorkingDays,
+    workingDaysElapsed,
+    presentDays,
+    approvedPaidCLDays,
+    paidHolidayDays,
+    paidDays,
+    unpaidAbsentDays,
+    dailyRate,
+    salaryDeduction,
+    manualDeduction,
+    bonus,
+    totalDeduction,
+    grossEarnedSalary,
+    netPayable,
+    salaryStatus,
+    paymentBlocked: Boolean(paymentBlockedReason),
+    paymentBlockedReason
+  };
+}
+
+export function getUnpaidAbsentDays(report: Partial<SalaryReport>): number {
+  return getSalarySafetyTotals(report).unpaidAbsentDays;
+}
+
+export function isSalaryPaymentBlocked(report: Partial<SalaryReport>): boolean {
+  return getSalarySafetyTotals(report).paymentBlocked;
+}
+
+export function getSalaryPaymentBlockedReason(report: Partial<SalaryReport>): string | undefined {
+  return getSalarySafetyTotals(report).paymentBlockedReason;
+}
+
+export function normalizeSalaryReport(report: SalaryReport): SalaryReport {
+  const totals = getSalarySafetyTotals(report);
+  const roundedDailyRate = roundMoney(totals.dailyRate);
+  const roundedSalaryDeduction = roundMoney(totals.salaryDeduction);
+  const roundedGrossEarnedSalary = roundMoney(totals.grossEarnedSalary);
+  const roundedTotalDeduction = roundMoney(totals.totalDeduction);
+  const roundedNetPayable = totals.salaryStatus === "Attendance Missing" ? 0 : roundMoney(totals.netPayable);
+  const paymentBlockedReason = totals.paymentBlockedReason;
+
+  return {
+    ...report,
+    totalWorkingDaysInMonth: totals.totalWorkingDays || report.totalWorkingDaysInMonth,
+    workingDaysElapsed: totals.workingDaysElapsed,
+    workingDays: totals.workingDaysElapsed,
+    presentDays: totals.presentDays,
+    perDaySalary: roundedDailyRate,
+    paidCLDays: totals.approvedPaidCLDays,
+    approvedPaidCLDays: totals.approvedPaidCLDays,
+    paidLeaveDays: totals.approvedPaidCLDays,
+    paidHolidayDays: totals.paidHolidayDays,
+    unpaidAbsentDays: totals.unpaidAbsentDays,
+    unpaidDeductionDays: totals.unpaidAbsentDays,
+    absentDays: totals.unpaidAbsentDays,
+    earnedPaidDays: totals.paidDays,
+    grossEarnedSalary: roundedGrossEarnedSalary,
+    salaryDeduction: roundedSalaryDeduction,
+    manualDeduction: roundMoney(totals.manualDeduction),
+    bonus: roundMoney(totals.bonus),
+    totalDeduction: roundedTotalDeduction,
+    netPayable: roundedNetPayable,
+    paid: totals.paymentBlocked ? false : Boolean(report.paid),
+    paidAt: totals.paymentBlocked ? undefined : report.paidAt,
+    salaryStatus: totals.salaryStatus,
+    attendanceDataAvailable: totals.salaryStatus === "Attendance Missing" ? false : report.attendanceDataAvailable ?? true,
+    paymentBlockedReason,
+    calculationWarning: totals.salaryStatus === "Attendance Missing" ? ATTENDANCE_MISSING_WARNING : report.calculationWarning,
+    calculationDebug: report.calculationDebug
+      ? {
+          ...report.calculationDebug,
+          paidHolidayDays: totals.paidHolidayDays,
+          unpaidAbsentDays: totals.unpaidAbsentDays,
+          earnedPaidDays: totals.paidDays,
+          grossEarnedSalary: roundedGrossEarnedSalary,
+          dailyRate: roundedDailyRate,
+          deduction: roundedSalaryDeduction,
+          netPayable: roundedNetPayable
+        }
+      : report.calculationDebug
+  };
+}
 
 function normalizeDate(dateStr: string): string {
   return dateStr.slice(0, 10);

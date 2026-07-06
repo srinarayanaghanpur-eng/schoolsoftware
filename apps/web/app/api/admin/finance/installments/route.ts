@@ -18,7 +18,7 @@ export async function GET(req: Request) {
   let query: FirebaseFirestore.Query = db.collection(COLLECTION);
   const studentId = searchParams.get("studentId");
   const academicYearId = searchParams.get("academicYearId") || "";
-  const schoolId = searchParams.get("schoolId") || getSchoolId(token);
+  const schoolId = searchParams.get("schoolId") || "";
   const pageSize = readLimit(searchParams.get("pageSize") ?? searchParams.get("limit"), 25, 100);
   const cursor = docCursor(searchParams.get("cursor"));
   if (studentId) query = query.where("studentId", "==", studentId);

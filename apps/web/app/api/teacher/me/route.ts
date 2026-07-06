@@ -28,7 +28,7 @@ export async function GET(req: Request) {
     const dbTimer = startTimer();
     const [teacherSnapshot, attendanceSnapshot, holidaysSnapshot] = await Promise.all([
       db.collection("teachers").doc(teacherId).get(),
-      db.collection("attendance").where("teacherId", "==", teacherId).orderBy("date", "desc").limit(60).get(),
+      db.collection("attendance").where("teacherId", "==", teacherId).limit(120).get(),
       db.collection("holidays").where("date", ">=", `${month}-01`).where("date", "<=", `${month}-31`).get()
     ]);
     const dbMs = dbTimer();
@@ -43,7 +43,9 @@ export async function GET(req: Request) {
     }
 
     const records = attendanceSnapshot.docs
-      .map((doc) => serializeDoc<AttendanceRecord>(doc));
+      .map((doc) => serializeDoc<AttendanceRecord>(doc))
+      .sort((a, b) => String(b.date ?? "").localeCompare(String(a.date ?? "")))
+      .slice(0, 60);
     const holidays = filterActiveHolidays(holidaysSnapshot.docs.map((doc) => serializeDoc<Holiday>(doc)));
     const todayHoliday = findHolidayForDate(holidays, today) ?? null;
 
