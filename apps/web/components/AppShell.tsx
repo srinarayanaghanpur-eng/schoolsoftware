@@ -203,7 +203,7 @@ const contextSubnavs: ContextSubnav[] = [
       { href: "/admin/finance/dues", label: "Dues", icon: FileStack, module: "fees" },
       { href: "/admin/payments", label: "Receipts", icon: ScrollText, module: "fees", activePrefixes: ["/admin/finance/receipt"] },
       { href: "/admin/finance/invoices", label: "Invoices", icon: FileText, module: "fees" },
-      { href: "/admin/fee-reports", label: "Reports", icon: BarChart3, module: "fees" }
+      { href: "/admin/reports", label: "Reports", icon: BarChart3, module: "fees" }
     ]
   },
   {
@@ -295,7 +295,7 @@ const pageTitles: Record<string, string> = {
   "/admin/parents": "Parents",
   "/admin/teachers": "Teachers",
   "/admin/attendance": "Attendance",
-  "/admin/reports": "Attendance Reports",
+  "/admin/reports": "Reports",
   "/admin/payments": "Fees & Finance",
   "/admin/fee-structures": "Fee Structures",
   "/admin/fee-reminders": "Fee Reminders",

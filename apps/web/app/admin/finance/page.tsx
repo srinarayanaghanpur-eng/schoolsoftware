@@ -242,6 +242,39 @@ export default function FinanceDashboardPage() {
           </div>
         )}
 
+        <article className="rounded-2xl border border-border bg-card p-5 text-card-foreground shadow-[0_12px_30px_rgba(31,41,100,0.06)] dark:bg-slate-900 dark:shadow-black/20">
+          <h2 className="text-base font-extrabold text-foreground dark:text-slate-100">Quick Actions</h2>
+          <p className="mt-1 text-xs font-semibold text-muted-foreground">Common finance workflows in one tap.</p>
+          <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-5">
+            {actions.filter(Boolean).map(({ label, href, icon }) => {
+              const Icon = icon ?? Circle;
+              return (
+                <Link
+                  key={label}
+                  href={href}
+                  className="group flex min-w-[92px] flex-col items-center gap-2 rounded-lg px-2 py-2 text-center transition hover:bg-muted"
+                >
+                  <span className="grid h-11 w-11 place-items-center rounded-lg bg-accent text-accent-foreground transition group-hover:scale-105 dark:bg-indigo-500/15 dark:text-indigo-200">
+                    <Icon size={21} strokeWidth={2.3} />
+                  </span>
+                  <span className="text-xs font-extrabold leading-4 text-foreground">{label}</span>
+                </Link>
+              );
+            })}
+          </div>
+          <div className="mt-5 rounded-xl bg-[#17217f] p-4 text-white shadow-[0_14px_28px_rgba(23,33,127,0.20)]">
+            <div className="flex items-center gap-3">
+              <span className="grid h-10 w-10 place-items-center rounded-xl bg-white/12">
+                <IndianRupee size={19} />
+              </span>
+              <div>
+                <p className="text-sm font-extrabold">Today</p>
+                <p className="text-xs font-semibold text-[#c7d0ff]">{formatINR(data?.kpis.todayCollected ?? 0)} collected</p>
+              </div>
+            </div>
+          </div>
+        </article>
+
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {kpis.filter(Boolean).map(({ label, value, delta, tone, icon }) => {
             const Icon = icon ?? Circle;
@@ -425,37 +458,6 @@ export default function FinanceDashboardPage() {
             )}
           </article>
 
-          <article className="rounded-2xl border border-border bg-card p-5 text-card-foreground shadow-[0_12px_30px_rgba(31,41,100,0.06)] dark:bg-slate-900 dark:shadow-black/20">
-            <h2 className="text-base font-extrabold text-foreground dark:text-slate-100">Quick Actions</h2>
-            <div className="mt-4 grid gap-3">
-              {actions.filter(Boolean).map(({ label, href, icon }) => {
-                const Icon = icon ?? Circle;
-                return (
-                  <Link
-                    key={label}
-                    href={href}
-                    className="flex h-12 items-center gap-3 rounded-xl border border-border bg-muted px-3 text-sm font-extrabold text-foreground transition hover:border-ring/40 hover:bg-card hover:text-accent-number hover:shadow-[0_10px_22px_rgba(44,48,143,0.08)] dark:text-slate-100"
-                  >
-                    <span className="grid h-8 w-8 place-items-center rounded-lg bg-accent text-accent-foreground dark:bg-indigo-500/15 dark:text-indigo-200">
-                      <Icon size={16} />
-                    </span>
-                    {label}
-                  </Link>
-                );
-              })}
-            </div>
-            <div className="mt-5 rounded-xl bg-[#17217f] p-4 text-white shadow-[0_14px_28px_rgba(23,33,127,0.20)]">
-              <div className="flex items-center gap-3">
-                <span className="grid h-10 w-10 place-items-center rounded-xl bg-white/12">
-                  <IndianRupee size={19} />
-                </span>
-                <div>
-                  <p className="text-sm font-extrabold">Today</p>
-                  <p className="text-xs font-semibold text-[#c7d0ff]">{formatINR(data?.kpis.todayCollected ?? 0)} collected</p>
-                </div>
-              </div>
-            </div>
-          </article>
         </div>
       </div>
     </section>

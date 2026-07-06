@@ -86,7 +86,7 @@ export default function AdmissionFormPage() {
 
       {/* Admission Form */}
       <div className="admission-print-page mx-auto max-w-3xl p-6 print:p-0">
-        <div className="rounded-2xl bg-white p-8 shadow-sm print:shadow-none print:p-0">
+        <div className="print-area rounded-2xl bg-white p-8 shadow-sm print:shadow-none print:p-0">
           {/* Header */}
           <div className="border-b-2 border-[#3033a1] pb-4 mb-6 text-center">
             <h1 className="text-xl font-extrabold text-[#1b1d32] uppercase tracking-wide">Sri Narayana High School</h1>

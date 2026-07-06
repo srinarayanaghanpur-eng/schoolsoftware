@@ -62,12 +62,15 @@ export function ExportButtons({
   attendance,
   teachers,
   salaryReports,
-  biometricLogs = []
+  biometricLogs = [],
+  showSalary = true
 }: {
   attendance: AttendanceRecord[];
   teachers: Teacher[];
   salaryReports: SalaryReport[];
   biometricLogs?: BiometricLog[];
+  /** Salary exports are restricted to super_admin — pass false to hide them. */
+  showSalary?: boolean;
 }) {
   const [downloading, setDownloading] = useState<string | null>(null);
   const runDownload = async (key: string, rows: Record<string, unknown>[], sheetName: string, fileName: string) => {
@@ -93,12 +96,16 @@ export function ExportButtons({
       <button className="btn-secondary" onClick={() => openPrintableReport("Monthly attendance report", buildMonthlyAttendanceRows(attendance, teachers))}>
         <FileText size={16} /> Monthly PDF
       </button>
-      <button className="btn-secondary" disabled={Boolean(downloading)} onClick={() => runDownload("salary", buildSalaryRows(salaryReports), "Salary", "salary-report.xlsx")}>
-        <Download size={16} /> {downloading === "salary" ? "Preparing..." : "Salary"}
-      </button>
-      <button className="btn-secondary" onClick={() => openPrintableReport("Salary report", buildSalaryRows(salaryReports))}>
-        <FileText size={16} /> Salary PDF
-      </button>
+      {showSalary && (
+        <>
+          <button className="btn-secondary" disabled={Boolean(downloading)} onClick={() => runDownload("salary", buildSalaryRows(salaryReports), "Salary", "salary-report.xlsx")}>
+            <Download size={16} /> {downloading === "salary" ? "Preparing..." : "Salary"}
+          </button>
+          <button className="btn-secondary" onClick={() => openPrintableReport("Salary report", buildSalaryRows(salaryReports))}>
+            <FileText size={16} /> Salary PDF
+          </button>
+        </>
+      )}
       <button className="btn-secondary" disabled={Boolean(downloading)} onClick={() => runDownload("biometric", buildBiometricLogRows(biometricLogs), "Biometric", "biometric-logs.xlsx")}>
         <Download size={16} /> {downloading === "biometric" ? "Preparing..." : "Biometric"}
       </button>

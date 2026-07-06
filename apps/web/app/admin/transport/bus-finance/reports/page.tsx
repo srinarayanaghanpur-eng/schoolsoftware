@@ -143,7 +143,7 @@ export default function BusFinanceReportsPage() {
 
         {error && <div className="card border-l-4 border-[#d84d5b] p-3 text-sm font-semibold text-[#d84d5b]">{error}</div>}
 
-        <div className="card overflow-hidden p-0">
+        <div className="print-area card overflow-hidden p-0">
           <div className="border-b border-[#edf0f7] px-5 py-3">
             <h3 className="text-sm font-bold text-[#1f2136]">{REPORTS.find((r) => r.value === type)?.label} — {rows.length} row(s)</h3>
           </div>

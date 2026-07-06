@@ -13,7 +13,7 @@ export const ROLE_LABELS: Record<Role, string> = {
   accountant: "Accountant",
   teacher: "Teacher",
   parent: "Parent",
-  settings_manager: "Settings Manager"
+  settings_manager: "Admin"
 };
 
 /** Every feature area in the app. Frontend uses these to build the nav. */

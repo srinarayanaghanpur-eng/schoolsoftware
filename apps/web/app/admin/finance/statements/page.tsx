@@ -117,7 +117,7 @@ export default function StatementsPage() {
         )}
 
         {student && (
-          <>
+          <div className="print-area space-y-4">
             <div className="card p-5">
               <h3 className="mb-3 text-lg font-bold text-[#1f2136]">Student Info</h3>
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -173,7 +173,7 @@ export default function StatementsPage() {
                 </table>
               </div>
             </div>
-          </>
+          </div>
         )}
 
         {!selectedId && !loadingStudents && (

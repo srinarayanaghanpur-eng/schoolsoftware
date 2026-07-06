@@ -521,6 +521,46 @@ img, svg, video, canvas {
 }
 
 @media print {
+  /* --- Global print cleanup: hide all app chrome --- */
+  aside,
+  nav,
+  header,
+  button,
+  select,
+  input,
+  textarea,
+  .no-print {
+    display: none !important;
+  }
+  main {
+    margin: 0 !important;
+    display: block !important;
+  }
+  body {
+    background: #fff !important;
+  }
+  .card {
+    box-shadow: none !important;
+    border: 1px solid #e7e5e4 !important;
+    break-inside: avoid;
+  }
+
+  /* --- Focused printing: when a page marks a .print-area, print ONLY it --- */
+  body:has(.print-area) * {
+    visibility: hidden;
+  }
+  body:has(.print-area) .print-area,
+  body:has(.print-area) .print-area * {
+    visibility: visible;
+  }
+  body:has(.print-area) .print-area {
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: 100%;
+    margin: 0;
+    padding: 12mm;
+  }
+
   .print-report-body {
     font-family: Arial, sans-serif;
     color: #1c1917;

@@ -112,7 +112,7 @@ export default function ReceiptPage() {
       <div className="mx-auto max-w-[600px] px-4 py-6 print:px-0 print:py-0">
         <div className="mb-4 hidden print:block" />
 
-        <div className="card p-8 print:border-0 print:shadow-none">
+        <div className="print-area card p-8 print:border-0 print:shadow-none">
           <div className="text-center">
             <h1 className="text-xl font-extrabold text-[#1b1d32]">{data.schoolName}</h1>
             <p className="mt-1 text-sm font-medium text-[#7d86a8]">Fee Payment Receipt</p>

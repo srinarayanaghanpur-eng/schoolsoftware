@@ -90,7 +90,7 @@ function ReceiptView() {
 
       <div
         ref={printRef}
-        className="mx-auto max-w-[600px] overflow-hidden rounded-2xl border border-[#e3e6f0] bg-white shadow-[0_2px_12px_rgba(36,42,94,0.06)] print:shadow-none print:border-0"
+        className="print-area mx-auto max-w-[600px] overflow-hidden rounded-2xl border border-[#e3e6f0] bg-white shadow-[0_2px_12px_rgba(36,42,94,0.06)] print:shadow-none print:border-0"
       >
         <div className="border-b border-[#edf0f7] bg-[#f7f8fd] p-6 text-center">
           <h1 className="text-xl font-extrabold text-[#1b1d32]">{receipt.schoolName}</h1>

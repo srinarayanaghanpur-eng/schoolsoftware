@@ -107,7 +107,7 @@ export default function CreateConcessionPage() {
     }
   };
 
-  if (role !== "admin" && role !== "super_admin") {
+  if (role !== "principal" && role !== "super_admin") {
     return (
       <>
         <PageHeader title="Grant Legacy Fee Concession" description="Create a legacy concession request for a student." />
