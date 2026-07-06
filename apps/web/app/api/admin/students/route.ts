@@ -260,6 +260,29 @@ export async function POST(request: NextRequest) {
 
     const docRef = await db.collection('students').add(studentData);
 
+    // Keep studentFeeSummaries in sync from day one so finance pages
+    // (dues, reminders, defaulters, dashboard) see this student before
+    // any payment is recorded.
+    const academicYearId = String(body.academicYearId || "");
+    await db.collection("studentFeeSummaries").doc(`${docRef.id}_${academicYearId || "default"}`).set({
+      studentId: docRef.id,
+      schoolId,
+      branchId: body.branchId || "default-branch",
+      academicYearId,
+      classId: body.classId || classStr,
+      sectionId: body.sectionId || section,
+      studentName,
+      admissionNumber,
+      phone: phone || body.fatherPhone || '',
+      className: classStr,
+      sectionName: section,
+      totalFee: totalFeeAmount,
+      totalPaid: 0,
+      totalConcession: 0,
+      dueAmount: totalFeesDue,
+      updatedAt: new Date()
+    }, { merge: true });
+
     // Raise an approval request only when approval is required.
     if (requireApproval) try {
       await createApprovalRequest({

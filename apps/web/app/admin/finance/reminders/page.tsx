@@ -5,8 +5,8 @@ import { useAcademicYears } from "@/components/AcademicYearContext";
 import { useAdminSession } from "@/components/AdminSessionContext";
 import { AdminApiError, adminApiRequest } from "@/lib/adminApiClient";
 import { hasPermission } from "@sri-narayana/shared";
-import { MessageCircle, Send } from "lucide-react";
-import { useEffect, useState } from "react";
+import { MessageCircle, RefreshCw, Send } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
 
 type Reminder = { studentId: string; name: string; className: string; phone: string; due: number };
 function inr(n: number) { return `₹${(n || 0).toLocaleString("en-IN")}`; }
@@ -37,21 +37,39 @@ export default function RemindersPage() {
   const [loading, setLoading] = useState(true);
   const [waMessage, setWaMessage] = useState("");
 
-  useEffect(() => {
-    (async () => {
-      if (!selectedYear?.id) {
-        setList([]);
-        setLoading(false);
-        return;
-      }
-      try {
-        const params = new URLSearchParams({ academicYearId: selectedYear.id, pageSize: "25" });
-        setList((await adminApiRequest<{ reminders: Reminder[] }>(`/api/admin/finance/reminders?${params}`)).reminders);
-      }
-      catch (e) { setError(e instanceof AdminApiError ? e.message : "Failed to load"); }
-      finally { setLoading(false); }
-    })();
+  const [syncing, setSyncing] = useState(false);
+
+  const load = useCallback(async () => {
+    if (!selectedYear?.id) {
+      setList([]);
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({ academicYearId: selectedYear.id, pageSize: "100" });
+      setList((await adminApiRequest<{ reminders: Reminder[] }>(`/api/admin/finance/reminders?${params}`)).reminders);
+    }
+    catch (e) { setError(e instanceof AdminApiError ? e.message : "Failed to load"); }
+    finally { setLoading(false); }
   }, [selectedYear?.id]);
+
+  useEffect(() => { void load(); }, [load]);
+
+  async function syncDues() {
+    if (!selectedYear?.id) { setError("Select an academic year first."); return; }
+    setSyncing(true); setError(""); setMsg("");
+    try {
+      const r = await adminApiRequest<{ synced: number }>("/api/admin/finance/sync-summaries", {
+        method: "POST",
+        body: JSON.stringify({ academicYearId: selectedYear.id })
+      });
+      setMsg(`Synced fee data for ${r.synced} student(s).`);
+      await load();
+    }
+    catch (e) { setError(e instanceof AdminApiError ? e.message : "Sync failed"); }
+    finally { setSyncing(false); }
+  }
 
   function toggle(id: string) { const n = new Set(sel); n.has(id) ? n.delete(id) : n.add(id); setSel(n); }
   function toggleAll() { setSel(sel.size === list.length ? new Set() : new Set(list.map((r) => r.studentId))); }
@@ -75,6 +93,11 @@ export default function RemindersPage() {
 
         <div className="card flex flex-wrap items-center gap-3 p-4">
           <span className="text-sm font-semibold text-[#7d86a8]">{sel.size} selected of {list.length} with dues</span>
+          {canSend && (
+            <button className="btn-outline" onClick={syncDues} disabled={syncing} title="Rebuild dues list from student records">
+              <RefreshCw size={16} className={syncing ? "animate-spin" : ""} /> {syncing ? "Syncing…" : "Sync dues"}
+            </button>
+          )}
           <select className="field ml-auto max-w-[160px]" value={channel} onChange={(e) => setChannel(e.target.value)}><option value="sms">SMS</option><option value="whatsapp">WhatsApp</option><option value="email">Email</option></select>
           <button className="btn-primary" disabled={sel.size === 0 || !canSend} onClick={send}><Send size={16} /> Send reminders</button>
           {sel.size > 0 && (
