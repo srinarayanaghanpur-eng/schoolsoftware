@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useAdminSession } from "@/components/AdminSessionContext";
 import { adminApiRequest } from "@/lib/adminApiClient";
-import { AI_PERMISSIONS, checkPermission } from "@/lib/ai/aiPermissions";
+import { AI_PERMISSIONS } from "@/lib/ai/aiPermissions";
 import {
   MessageSquare,
   IndianRupee,
@@ -12,25 +12,24 @@ import {
   Users,
   GraduationCap,
   ShieldAlert,
-  Send,
-  Trash2,
-  Copy,
-  Plus,
-  Loader2,
   Bot,
-  User,
   Megaphone,
   AlertTriangle,
-  CheckCircle2,
   XCircle,
+  Loader2,
+  X,
+  Sparkles,
 } from "lucide-react";
+import { AIToolSidebar } from "@/components/ai/AIToolSidebar";
+import { AIChatPanel } from "@/components/ai/AIChatPanel";
+import { DuesSummaryPanel } from "@/components/ai/DuesSummaryPanel";
 
-type ToolItem = {
+interface ToolItem {
   id: string;
   label: string;
   icon: typeof Bot;
   permission: string;
-};
+}
 
 const AI_TOOLS: ToolItem[] = [
   { id: "chat", label: "General Chat", icon: MessageSquare, permission: AI_PERMISSIONS.CHAT },
@@ -48,15 +47,49 @@ type ChatMessage = {
   tool?: string;
 };
 
+interface DuesSummaryData {
+  totalStudents: number;
+  totalDueAmount: number;
+  classWiseSummary: Array<{ class: string; studentCount: number; totalDue: number }>;
+  topDueCases: Array<{ studentName: string; totalDue: number }>;
+  suggestedReminderPlan: string;
+  summaryUpdatedAt?: string | null;
+}
+
+const PLACEHOLDERS: Record<string, string> = {
+  chat: "Ask AI about notices, summaries, or ERP help...",
+  fee_reminder: "Enter a Student ID to generate a fee reminder...",
+  notice: "Describe the notice you want to generate...",
+  dues: "Ask about dues or click Summarize Dues...",
+  parent_message: "Describe the parent message you want to write...",
+  teacher_message: "Describe the teacher message you want to write...",
+  report: "Paste report data or ask for explanation...",
+};
+
+const TOOL_DESCRIPTIONS: Record<string, string> = {
+  chat: "General AI assistant with live ERP data context",
+  fee_reminder: "Generated fixed template message from actual dues",
+  notice: "Creates a formatted school notice with live ERP context",
+  dues: "Summarizes fee due data from ERP",
+  parent_message: "Drafts parent communication with ERP context",
+  teacher_message: "Drafts teacher communication with ERP context",
+  report: "Explains reports in simple English with ERP data",
+};
+
 export default function AiAgentPage() {
-  const { hasPermission, role, permissions, loading: sessionLoading } = useAdminSession();
+  const { hasPermission, loading: sessionLoading } = useAdminSession();
 
   const [activeTool, setActiveTool] = useState("chat");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const [quotaMode, setQuotaMode] = useState<string | null>(null);
+  const [showRightPanel, setShowRightPanel] = useState(true);
+
+  // Dues Summary state
+  const [duesData, setDuesData] = useState<DuesSummaryData | null>(null);
+  const [duesLoading, setDuesLoading] = useState(false);
+  const [duesError, setDuesError] = useState<string | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -81,23 +114,14 @@ export default function AiAgentPage() {
     }
   }, [sessionLoading]);
 
-  const canAccessTool = (permission: string) => {
-    return hasPermission(permission);
-  };
-
-  const availableTools = AI_TOOLS.filter((t) => canAccessTool(t.permission));
-
+  const availableTools = AI_TOOLS.filter((t) => hasPermission(t.permission));
   const toolTitle = availableTools.find((t) => t.id === activeTool)?.label || "AI Agent";
 
   async function fetchErpContext(): Promise<string | undefined> {
     try {
       const res = await adminApiRequest<{ ok: boolean; data: Record<string, unknown> }>("/api/ai/context");
-      if (res.ok && res.data) {
-        return JSON.stringify(res.data, null, 2);
-      }
-    } catch {
-      // silently fail - context is optional
-    }
+      if (res.ok && res.data) return JSON.stringify(res.data, null, 2);
+    } catch { /* optional */ }
     return undefined;
   }
 
@@ -114,80 +138,41 @@ export default function AiAgentPage() {
       let response = "";
 
       if (activeTool === "notice") {
-        const res = await adminApiRequest<{ ok: boolean; notice: string }>(
-          "/api/ai/generate-notice",
-          {
-            method: "POST",
-            body: JSON.stringify({
-              topic: userMessage,
-              language: "English",
-              tone: "formal",
-              target: "parents",
-            }),
-          }
-        );
+        const res = await adminApiRequest<{ ok: boolean; notice: string }>("/api/ai/generate-notice", {
+          method: "POST",
+          body: JSON.stringify({ topic: userMessage, language: "English", tone: "formal", target: "parents" }),
+        });
         response = res.notice;
       } else if (activeTool === "fee_reminder") {
-        const res = await adminApiRequest<{ ok: boolean; message: string; variables?: Record<string, unknown>; warnings?: string[] }>(
+        const res = await adminApiRequest<{ ok: boolean; message: string; warnings?: string[] }>(
           "/api/ai/generate-fee-message",
-          {
-            method: "POST",
-            body: JSON.stringify({ studentId: userMessage }),
-          }
+          { method: "POST", body: JSON.stringify({ studentId: userMessage }) }
         );
         response = res.message;
-        if (res.warnings?.length) {
-          response += "\n\n⚠️ Warnings:\n" + res.warnings.join("\n");
-        }
+        if (res.warnings?.length) response += "\n\n⚠️ Warnings:\n" + res.warnings.join("\n");
       } else if (activeTool === "parent_message") {
-        const res = await adminApiRequest<{ ok: boolean; response: string }>(
-          "/api/ai/chat",
-          {
-            method: "POST",
-            body: JSON.stringify({
-              prompt: `Write a parent message about: ${userMessage}`,
-              feature: "parent_message",
-            }),
-          }
-        );
+        const res = await adminApiRequest<{ ok: boolean; response: string }>("/api/ai/chat", {
+          method: "POST",
+          body: JSON.stringify({ prompt: `Write a parent message about: ${userMessage}`, feature: "parent_message" }),
+        });
         response = res.response;
       } else if (activeTool === "teacher_message") {
-        const res = await adminApiRequest<{ ok: boolean; response: string }>(
-          "/api/ai/chat",
-          {
-            method: "POST",
-            body: JSON.stringify({
-              prompt: `Write a teacher message about: ${userMessage}`,
-              feature: "teacher_message",
-            }),
-          }
-        );
+        const res = await adminApiRequest<{ ok: boolean; response: string }>("/api/ai/chat", {
+          method: "POST",
+          body: JSON.stringify({ prompt: `Write a teacher message about: ${userMessage}`, feature: "teacher_message" }),
+        });
         response = res.response;
       } else if (activeTool === "report") {
-        const res = await adminApiRequest<{ ok: boolean; response: string }>(
-          "/api/ai/chat",
-          {
-            method: "POST",
-            body: JSON.stringify({
-              prompt: `Explain this report in simple English: ${userMessage}`,
-              feature: "report_explainer",
-            }),
-          }
-        );
+        const res = await adminApiRequest<{ ok: boolean; response: string }>("/api/ai/chat", {
+          method: "POST",
+          body: JSON.stringify({ prompt: `Explain this report in simple English: ${userMessage}`, feature: "report_explainer" }),
+        });
         response = res.response;
       } else {
-        const res = await adminApiRequest<{ ok: boolean; response: string }>(
-          "/api/ai/chat",
-          {
-            method: "POST",
-            body: JSON.stringify({
-              prompt: userMessage,
-              feature: activeTool,
-              useErpData: true,
-              erpContext,
-            }),
-          }
-        );
+        const res = await adminApiRequest<{ ok: boolean; response: string }>("/api/ai/chat", {
+          method: "POST",
+          body: JSON.stringify({ prompt: userMessage, feature: activeTool, useErpData: true, erpContext }),
+        });
         response = res.response;
       }
 
@@ -196,21 +181,10 @@ export default function AiAgentPage() {
       const error = err as { message?: string };
       setMessages((prev) => [
         ...prev,
-        {
-          role: "assistant",
-          content: `Error: ${error.message || "Something went wrong. Please try again."}`,
-          tool: activeTool,
-        },
+        { role: "assistant", content: `Error: ${error.message || "Something went wrong."}`, tool: activeTool },
       ]);
     } finally {
       setLoading(false);
-    }
-  }
-
-  function handleKeyDown(e: React.KeyboardEvent) {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
     }
   }
 
@@ -218,54 +192,49 @@ export default function AiAgentPage() {
     setMessages([]);
   }
 
-  async function handleCopy(index: number) {
-    const text = messages[index]?.content;
-    if (!text) return;
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopiedIndex(index);
-      setTimeout(() => setCopiedIndex(null), 2000);
-    } catch {
-      // fallback
-    }
-  }
-
   async function handleSummarizeDues() {
-    setLoading(true);
+    setDuesLoading(true);
+    setDuesError(null);
+    setDuesData(null);
     try {
-      const res = await adminApiRequest<{ ok: boolean; summary: { totalStudents: number; totalDueAmount: number; classWiseSummary: Array<{ class: string; studentCount: number; totalDue: number }>; topDueCases: Array<{ studentName: string; totalDue: number }>; suggestedReminderPlan: string } }>(
+      const res = await adminApiRequest<{ ok: boolean; summary: DuesSummaryData; mode?: string }>(
         "/api/ai/summarize-dues",
         { method: "POST", body: JSON.stringify({}) }
       );
-      const { summary } = res;
-      let text = `📊 **Dues Summary**\n\n`;
-      text += `Total students with dues: **${summary.totalStudents}**\n`;
-      text += `Total due amount: **Rs ${summary.totalDueAmount.toLocaleString()}**\n\n`;
-      text += `**Class-wise breakdown:**\n`;
-      summary.classWiseSummary.forEach((c) => {
-        text += `- ${c.class}: ${c.studentCount} students, Rs ${c.totalDue.toLocaleString()}\n`;
-      });
-      text += `\n**Top due cases:**\n`;
-      summary.topDueCases.slice(0, 5).forEach((s, i) => {
-        text += `${i + 1}. ${s.studentName}: Rs ${s.totalDue.toLocaleString()}\n`;
-      });
-      text += `\n**Plan:** ${summary.suggestedReminderPlan}`;
-
-      setMessages((prev) => [
-        ...prev,
-        { role: "user", content: "Summarize fee dues", tool: "dues" },
-        { role: "assistant", content: text, tool: "dues" },
-      ]);
+      setDuesData(res.summary);
     } catch (err: unknown) {
-      const error = err as { message?: string };
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", content: `Error: ${error.message || "Failed to summarize dues"}`, tool: "dues" },
-      ]);
+      const error = err as { message?: string; mode?: string };
+      if (error.message?.includes("Access denied")) {
+        setDuesError("Access denied: Your role does not have AI Agent permission.");
+      } else if (error.message?.includes("Gemini API key")) {
+        setDuesError("Gemini API key is not configured. Add it in AI Settings.");
+      } else if (error.mode === "saver" || error.message?.includes("Saver")) {
+        setDuesError("Quota saver mode is active. Showing cached summary if available.");
+      } else {
+        setDuesError(error.message || "Failed to summarize dues. Try again later.");
+      }
     } finally {
-      setLoading(false);
+      setDuesLoading(false);
     }
   }
+
+  function handleToolSelect(toolId: string) {
+    setActiveTool(toolId);
+    if (toolId !== "dues") {
+      setDuesData(null);
+      setDuesError(null);
+    }
+  }
+
+  const rightPanelTips: Record<string, string[]> = {
+    chat: ["Ask about fee dues", "Generate notices", "Get report summaries", "Draft communications"],
+    fee_reminder: ["Enter a valid Student ID", "Reminder includes actual due amount", "Uses fixed template format"],
+    notice: ["Specify topic clearly", "Choose tone (formal/simple)", "Target: parents/students/teachers"],
+    dues: ["Click Summarize Dues to start", "Data comes from ERP records", "No Gemini call for calculations"],
+    parent_message: ["Describe the situation", "Include any specific details", "Message stays professional"],
+    teacher_message: ["Clear and concise topic", "Include date/time if applicable", "Signed as Administration"],
+    report: ["Paste report numbers", "Ask for trends", "Request actionable insights"],
+  };
 
   if (sessionLoading) {
     return (
@@ -294,12 +263,23 @@ export default function AiAgentPage() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-140px)] flex-col overflow-hidden">
-      <div className="border-b border-border bg-card px-4 py-3 md:px-7">
-        <h1 className="text-xl font-extrabold text-foreground">AI Agent</h1>
-        <p className="mt-0.5 text-sm font-medium text-muted-foreground">
-          Ask AI to generate notices, fee reminders, summaries, and parent messages
-        </p>
+    <div className="flex h-[calc(100vh-64px)] flex-col overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between border-b border-border bg-card px-4 py-3 md:px-7">
+        <div>
+          <h1 className="text-xl font-extrabold text-foreground">AI Agent</h1>
+          <p className="mt-0.5 text-sm font-medium text-muted-foreground">
+            Ask AI to generate notices, fee reminders, summaries, and parent messages
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setShowRightPanel((v) => !v)}
+          className="btn-ghost hidden h-8 w-8 place-items-center rounded-lg p-0 text-muted-foreground lg:grid"
+          title="Toggle tips panel"
+        >
+          <Sparkles size={15} />
+        </button>
       </div>
 
       {quotaMode === "saver" && (
@@ -319,180 +299,104 @@ export default function AiAgentPage() {
         </div>
       )}
 
+      {/* Body */}
       <div className="flex flex-1 overflow-hidden">
-        <aside className="hidden w-56 shrink-0 overflow-y-auto border-r border-border bg-card p-3 md:block">
-          <nav className="space-y-1">
-            {availableTools.map((tool) => {
-              const Icon = tool.icon;
-              const active = activeTool === tool.id;
-              return (
-                <button
-                  key={tool.id}
-                  type="button"
-                  onClick={() => setActiveTool(tool.id)}
-                  className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-[13px] font-bold transition ${
-                    active
-                      ? "bg-accent text-accent-foreground shadow-sm ring-1 ring-border"
-                      : "text-muted-foreground hover:bg-muted hover:text-accent-foreground"
-                  }`}
-                >
-                  <Icon size={16} strokeWidth={2.35} />
-                  {tool.label}
-                </button>
-              );
-            })}
-          </nav>
-        </aside>
+        <AIToolSidebar tools={availableTools} activeTool={activeTool} onSelect={handleToolSelect} />
 
+        {/* Center workspace */}
         <div className="flex flex-1 flex-col overflow-hidden">
-          {activeTool === "dues" && (
-            <div className="flex items-center justify-between border-b border-border bg-muted/20 px-4 py-2.5">
-              <span className="text-sm font-bold text-foreground">Fee Dues Summary</span>
-              <button
-                type="button"
-                onClick={handleSummarizeDues}
-                disabled={loading}
-                className="btn-primary flex items-center gap-2 text-xs"
-              >
-                {loading ? <Loader2 size={14} className="animate-spin" /> : <BarChart3 size={14} />}
-                Summarize Dues
-              </button>
+          {activeTool === "dues" ? (
+            <div className="flex flex-1 flex-col overflow-hidden">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-muted/20 px-4 py-3 md:px-6">
+                <div>
+                  <h2 className="text-base font-extrabold text-foreground">Fee Dues Summary</h2>
+                  <p className="text-xs font-medium text-muted-foreground">Summarizes fee due data from ERP</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleSummarizeDues}
+                  disabled={duesLoading}
+                  className="btn-primary inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-xs font-bold shadow-sm"
+                >
+                  {duesLoading ? <Loader2 size={15} className="animate-spin" /> : <BarChart3 size={15} />}
+                  {duesLoading ? "Summarizing..." : "Summarize Dues"}
+                </button>
+              </div>
+              <div className="flex-1 overflow-y-auto p-4 md:p-6">
+                <div className="mx-auto max-w-5xl">
+                  <DuesSummaryPanel
+                    data={duesData}
+                    loading={duesLoading}
+                    error={duesError}
+                    onSummarize={handleSummarizeDues}
+                  />
+                </div>
+              </div>
             </div>
-          )}
-
-          {activeTool === "fee_reminder" && (
-            <div className="border-b border-border bg-muted/20 px-4 py-2.5">
-              <p className="text-xs font-semibold text-muted-foreground">
-                Enter a Student ID to generate a fixed fee reminder message. The system will fetch actual due amounts from the database.
-              </p>
-            </div>
-          )}
-
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
-            {messages.length === 0 ? (
-              <div className="flex h-full flex-col items-center justify-center text-center">
-                <Bot size={48} className="mb-4 text-muted-foreground/40" />
-                <h3 className="text-lg font-extrabold text-foreground">{toolTitle}</h3>
-                <p className="mt-1 max-w-md text-sm font-medium text-muted-foreground">
-                  {activeTool === "chat" && "Ask AI to generate notices, fee reminders, summaries, and parent messages."}
-                  {activeTool === "fee_reminder" && "Enter a Student ID to generate a fee reminder message."}
-                  {activeTool === "notice" && "Describe the notice you want to create. Include topic, audience, and tone."}
-                  {activeTool === "dues" && 'Click "Summarize Dues" to get a class-wise fee due summary.'}
-                  {activeTool === "parent_message" && "Describe the message you want to send to parents."}
-                  {activeTool === "teacher_message" && "Describe the message you want to send to teachers."}
-                  {activeTool === "report" && "Paste report data or describe what you need explained."}
+          ) : activeTool === "fee_reminder" ? (
+            <div className="flex flex-1 flex-col overflow-hidden">
+              <div className="border-b border-border bg-muted/20 px-4 py-2.5 md:px-6">
+                <p className="text-xs font-semibold text-muted-foreground">
+                  Enter a Student ID to generate a fixed fee reminder message. The system will fetch actual due amounts from the database.
                 </p>
               </div>
-            ) : (
-              messages.map((msg, idx) => (
-                <div key={idx} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-                  <div
-                    className={`max-w-[85%] rounded-2xl px-4 py-3 ${
-                      msg.role === "user"
-                        ? "bg-[#17217f] text-white"
-                        : "border border-border bg-card text-foreground"
-                    }`}
-                  >
-                    <div className="mb-1 flex items-center gap-2">
-                      {msg.role === "user" ? (
-                        <User size={14} className="shrink-0 opacity-70" />
-                      ) : (
-                        <Bot size={14} className="shrink-0 text-[#17217f]" />
-                      )}
-                      <span className="text-[11px] font-extrabold uppercase tracking-wider opacity-70">
-                        {msg.role === "user" ? "You" : "AI Agent"}
-                      </span>
-                    </div>
-                    <div className="whitespace-pre-wrap text-sm leading-relaxed">{msg.content}</div>
-                    {msg.role === "assistant" && (
-                      <div className="mt-2 flex items-center gap-2 border-t border-border/50 pt-2">
-                        <button
-                          type="button"
-                          onClick={() => handleCopy(idx)}
-                          className="flex items-center gap-1 text-[11px] font-bold text-muted-foreground hover:text-foreground"
-                        >
-                          {copiedIndex === idx ? (
-                            <CheckCircle2 size={13} className="text-emerald-500" />
-                          ) : (
-                            <Copy size={13} />
-                          )}
-                          {copiedIndex === idx ? "Copied" : "Copy"}
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))
-            )}
-            {loading && (
-              <div className="flex justify-start">
-                <div className="flex items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3">
-                  <Loader2 size={16} className="animate-spin text-[#17217f]" />
-                  <span className="text-sm font-medium text-muted-foreground">AI is thinking...</span>
-                </div>
-              </div>
-            )}
-            <div ref={messagesEndRef} />
-          </div>
-
-          <div className="border-t border-border bg-card px-4 py-3">
-            <div className="flex items-center gap-2">
-              <div className="relative flex-1">
-                <input
-                  type="text"
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder={
-                    activeTool === "fee_reminder"
-                      ? "Enter Student ID..."
-                      : activeTool === "notice"
-                      ? "Describe the notice (e.g. 'Write a notice about fee payment for parents')..."
-                      : activeTool === "dues"
-                      ? "Ask about dues or click Summarize Dues..."
-                      : activeTool === "parent_message"
-                      ? "Describe parent message..."
-                      : activeTool === "teacher_message"
-                      ? "Describe teacher message..."
-                      : activeTool === "report"
-                      ? "Paste report data or ask for explanation..."
-                      : "Type your message..."
-                  }
-                  className="field pr-12"
-                  disabled={loading}
-                />
-              </div>
-              <button
-                type="button"
-                onClick={handleSend}
-                disabled={loading || !input.trim()}
-                className="btn-primary grid h-10 w-10 place-items-center rounded-lg p-0"
-              >
-                {loading ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
-              </button>
-              <button
-                type="button"
-                onClick={handleClear}
-                disabled={messages.length === 0}
-                className="btn-ghost grid h-10 w-10 place-items-center rounded-lg p-0"
-                title="Clear chat"
-              >
-                <Trash2 size={16} />
-              </button>
+              <AIChatPanel
+                messages={messages}
+                loading={loading}
+                input={input}
+                activeTool={activeTool}
+                toolTitle={toolTitle}
+                onSend={handleSend}
+                onInputChange={setInput}
+                onClear={handleClear}
+                placeholders={PLACEHOLDERS}
+              />
             </div>
-            <div className="mt-2">
-              <span className="text-[11px] font-medium text-muted-foreground">
-                {activeTool === "notice" && "Creates a formatted school notice with live ERP context"}
-                {activeTool === "fee_reminder" && "Generates fixed template message from actual dues"}
-                {activeTool === "dues" && "Summarizes fee due data from ERP"}
-                {activeTool === "chat" && "General AI assistant with live ERP data context"}
-                {activeTool === "parent_message" && "Drafts parent communication with ERP context"}
-                {activeTool === "teacher_message" && "Drafts teacher communication with ERP context"}
-                {activeTool === "report" && "Explains reports in simple English with ERP data"}
-              </span>
-            </div>
-          </div>
+          ) : (
+            <AIChatPanel
+              messages={messages}
+              loading={loading}
+              input={input}
+              activeTool={activeTool}
+              toolTitle={toolTitle}
+              onSend={handleSend}
+              onInputChange={setInput}
+              onClear={handleClear}
+              placeholders={PLACEHOLDERS}
+            />
+          )}
         </div>
+
+        {/* Right context panel - desktop only */}
+        {showRightPanel && (
+          <aside className="hidden w-64 shrink-0 overflow-y-auto border-l border-border bg-card p-4 lg:block">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-extrabold uppercase tracking-wider text-muted-foreground">Quick Tips</h3>
+              <button type="button" onClick={() => setShowRightPanel(false)} className="text-muted-foreground hover:text-foreground">
+                <X size={14} />
+              </button>
+            </div>
+            <ul className="mt-3 space-y-2">
+              {(rightPanelTips[activeTool] || rightPanelTips.chat).map((tip, i) => (
+                <li key={i} className="flex items-start gap-2 text-xs font-medium text-muted-foreground">
+                  <span className="mt-1 grid h-1.5 w-1.5 shrink-0 rounded-full bg-[#3033a1]/40" />
+                  {tip}
+                </li>
+              ))}
+            </ul>
+            <div className="mt-6 border-t border-border pt-4">
+              <h3 className="text-xs font-extrabold uppercase tracking-wider text-muted-foreground">Active Tool</h3>
+              <p className="mt-2 text-sm font-bold text-foreground">{toolTitle}</p>
+              <p className="mt-0.5 text-xs font-medium text-muted-foreground">{TOOL_DESCRIPTIONS[activeTool] || ""}</p>
+            </div>
+            {quotaMode && (
+              <div className="mt-6 border-t border-border pt-4">
+                <h3 className="text-xs font-extrabold uppercase tracking-wider text-muted-foreground">Quota Status</h3>
+                <p className="mt-2 text-xs font-semibold text-amber-600 capitalize">{quotaMode} mode</p>
+              </div>
+            )}
+          </aside>
+        )}
       </div>
     </div>
   );
