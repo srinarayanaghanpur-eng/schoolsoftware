@@ -174,7 +174,7 @@ export default function AiQuotaPage() {
           <div>
             <h2 className="text-lg font-extrabold text-foreground">Access denied</h2>
             <p className="mt-1 text-sm font-medium text-muted-foreground">
-              You do not have permission to view quota & usage.
+              Your role does not have AI Agent permission. Ask super admin to enable <strong>ai_agent.view</strong> for your role.
             </p>
           </div>
         </div>

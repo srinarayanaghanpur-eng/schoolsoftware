@@ -15,7 +15,7 @@ const SETTINGS_DOC = "default-school";
 export async function GET(req: Request) {
   try {
     const token = await requirePermission(req, AI_PERMISSIONS.VIEW);
-    if (!token) return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
+    if (!token) return NextResponse.json({ ok: false, error: "Access denied. Missing permission: ai_agent.view" }, { status: 403 });
 
     const schoolId = getSchoolId(token);
     const db = adminDb();
@@ -75,7 +75,7 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const token = await requirePermission(req, AI_PERMISSIONS.SETTINGS);
-    if (!token) return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
+    if (!token) return NextResponse.json({ ok: false, error: "Access denied. Missing permission: ai_agent.settings" }, { status: 403 });
 
     const body = await req.json();
     const schoolId = getSchoolId(token);

@@ -7,7 +7,7 @@ import { getSchoolId } from "@/lib/schoolScope";
 export async function GET(req: Request) {
   try {
     const token = await requirePermission(req, AI_PERMISSIONS.LOGS);
-    if (!token) return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
+    if (!token) return NextResponse.json({ ok: false, error: "Access denied. Missing permission: ai_agent.logs" }, { status: 403 });
 
     const url = new URL(req.url);
     const schoolId = getSchoolId(token);

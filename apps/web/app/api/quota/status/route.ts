@@ -8,7 +8,7 @@ import { getCacheStats } from "@/lib/quota/cacheManager";
 export async function GET(req: Request) {
   try {
     const token = await requirePermission(req, AI_PERMISSIONS.VIEW);
-    if (!token) return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
+    if (!token) return NextResponse.json({ ok: false, error: "Access denied. Missing permission: ai_agent.view" }, { status: 403 });
 
     const schoolId = getSchoolId(token);
     const usage = await getDailyUsage(schoolId);

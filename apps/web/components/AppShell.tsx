@@ -63,8 +63,10 @@ import {
   ALL,
   ALL_KNOWN_PERMISSIONS,
   ROLE_LABELS,
+  ROLE_PERMISSIONS,
   SCHOOL_CONTACT,
   canAccessModuleFromList,
+  hasPermission,
   hasPermissionFromList,
   isValidRole,
   modulesForRoleFromList,
@@ -1023,7 +1025,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     role,
     permissions: rolePermissions,
     loading: sessionLoading || signingOut,
-    hasPermission: (permission: Permission) => hasPermissionFromList(role, rolePermissions, permission)
+    hasPermission: (permission: Permission) => {
+      if (!role) return false;
+      if (role === "super_admin") return true;
+      if (rolePermissions && rolePermissions.length > 0) {
+        return hasPermissionFromList(role, rolePermissions, permission);
+      }
+      return hasPermission(role, permission);
+    }
   }), [profile, role, rolePermissions, sessionLoading, signingOut]);
   const isPortalRole = role === "parent";
   const mainNav = useMemo(

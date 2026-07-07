@@ -11,7 +11,7 @@ import { getCachedResponse, setCachedResponse, getCacheTtlForFeature } from "@/l
 export async function POST(req: Request) {
   try {
     const token = await requirePermission(req, AI_PERMISSIONS.GENERATE_NOTICE);
-    if (!token) return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
+    if (!token) return NextResponse.json({ ok: false, error: "Access denied. Missing permission: ai_agent.generate_notice" }, { status: 403 });
 
     const body = await req.json();
     const { topic, language = "English", tone = "formal", target = "parents" } = body;

@@ -12,7 +12,7 @@ import { checkQuotaBeforeOp } from "@/lib/quota/firebaseQuotaGuard";
 export async function POST(req: Request) {
   try {
     const token = await requirePermission(req, AI_PERMISSIONS.CHAT);
-    if (!token) return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
+    if (!token) return NextResponse.json({ ok: false, error: "Access denied. Missing permission: ai_agent.chat" }, { status: 403 });
 
     const body = await req.json();
     const { prompt, feature = "chat", useErpData = false, erpContext } = body;

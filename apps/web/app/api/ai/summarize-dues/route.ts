@@ -10,7 +10,7 @@ import { getCachedResponse, setCachedResponse, getCacheTtlForFeature } from "@/l
 export async function POST(req: Request) {
   try {
     const token = await requirePermission(req, AI_PERMISSIONS.SUMMARIZE_REPORTS);
-    if (!token) return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
+    if (!token) return NextResponse.json({ ok: false, error: "Access denied. Missing permission: ai_agent.summarize_reports" }, { status: 403 });
 
     const body = await req.json();
     const { className, section, feeType, academicYearId } = body;

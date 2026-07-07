@@ -8,7 +8,7 @@ import { resetRateLimiter } from "@/lib/quota/rateLimiter";
 export async function POST(req: Request) {
   try {
     const token = await requirePermission(req, AI_PERMISSIONS.SETTINGS);
-    if (!token) return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
+    if (!token) return NextResponse.json({ ok: false, error: "Access denied. Missing permission: ai_agent.settings" }, { status: 403 });
 
     const schoolId = getSchoolId(token);
     const body = await req.json().catch(() => ({}));

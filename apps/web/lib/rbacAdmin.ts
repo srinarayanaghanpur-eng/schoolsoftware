@@ -70,31 +70,25 @@ export async function getEffectiveRolePermissions(role: Role): Promise<Permissio
 
 export async function roleHasPermission(role: Role | undefined, permission: Permission): Promise<boolean> {
   if (!role) return false;
+  if (role === "super_admin") return true;
   const doc = await getRoleDocument(role);
   if (!doc) return hasPermission(role, permission);
-  if (role === "super_admin" && isSuperAdminCriticalPermission(permission)) return true;
   if (doc.permissions.includes(ALL)) return true;
   return doc.permissions.includes(permission);
 }
 
 export async function roleHasAllPermissions(role: Role | undefined, permissions: readonly Permission[]): Promise<boolean> {
   if (!role) return false;
+  if (role === "super_admin") return true;
   const effective = await getEffectiveRolePermissions(role);
-  return permissions.every((permission) =>
-    role === "super_admin" && isSuperAdminCriticalPermission(permission)
-      ? true
-      : effective.includes(ALL) || effective.includes(permission)
-  );
+  return permissions.every((p) => effective.includes(ALL) || effective.includes(p));
 }
 
 export async function roleHasAnyPermission(role: Role | undefined, permissions: readonly Permission[]): Promise<boolean> {
   if (!role) return false;
+  if (role === "super_admin") return true;
   const effective = await getEffectiveRolePermissions(role);
-  return permissions.some((permission) =>
-    role === "super_admin" && isSuperAdminCriticalPermission(permission)
-      ? true
-      : effective.includes(ALL) || effective.includes(permission)
-  );
+  return permissions.some((p) => effective.includes(ALL) || effective.includes(p));
 }
 
 export async function ensureRoleDocuments(updatedBy = "system"): Promise<RoleDocument[]> {

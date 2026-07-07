@@ -87,6 +87,24 @@ export async function requirePermission(req: Request, permission: Permission): P
   return decodedToken;
 }
 
+/**
+ * Same as requirePermission but returns a descriptive error message instead of null.
+ * Makes it easier to show the missing permission in the API response.
+ */
+export async function checkPermissionWithMessage(req: Request, permission: Permission, decodedToken?: DecodedIdToken | null): Promise<{ ok: true; token: DecodedIdToken } | { ok: false; error: string; status: 403 }> {
+  if (!decodedToken) {
+    decodedToken = await verifyBearerToken(req);
+  }
+  if (!decodedToken) {
+    return { ok: false, error: "Authentication required. Please sign in.", status: 403 };
+  }
+  const role = await resolveRole(decodedToken);
+  if (!role || !await roleHasPermission(role, permission)) {
+    return { ok: false, error: `Access denied. Missing permission: ${permission}. Ask super admin to enable this permission for your role.`, status: 403 };
+  }
+  return { ok: true, token: decodedToken };
+}
+
 /** Allow the request only if the signed-in user's role grants every permission. */
 export async function requireAllPermissions(req: Request, permissions: readonly Permission[]): Promise<DecodedIdToken | null> {
   const decodedToken = await verifyBearerToken(req);

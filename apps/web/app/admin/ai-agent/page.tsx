@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useAdminSession } from "@/components/AdminSessionContext";
 import { adminApiRequest } from "@/lib/adminApiClient";
-import { AI_PERMISSIONS } from "@/lib/ai/aiPermissions";
+import { AI_PERMISSIONS, checkPermission } from "@/lib/ai/aiPermissions";
 import {
   MessageSquare,
   IndianRupee,
@@ -272,7 +272,7 @@ export default function AiAgentPage() {
           <div>
             <h2 className="text-lg font-extrabold text-foreground">Access denied</h2>
             <p className="mt-1 text-sm font-medium text-muted-foreground">
-              You do not have permission to access the AI Agent.
+              Your role does not have AI Agent permission. Ask super admin to enable <strong>ai_agent.view</strong> and related AI permissions for your role.
             </p>
           </div>
         </div>
