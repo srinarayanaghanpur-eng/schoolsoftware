@@ -55,7 +55,6 @@ export default function AiAgentPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [useErpData, setUseErpData] = useState(false);
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const [quotaMode, setQuotaMode] = useState<string | null>(null);
 
@@ -90,6 +89,18 @@ export default function AiAgentPage() {
 
   const toolTitle = availableTools.find((t) => t.id === activeTool)?.label || "AI Agent";
 
+  async function fetchErpContext(): Promise<string | undefined> {
+    try {
+      const res = await adminApiRequest<{ ok: boolean; data: Record<string, unknown> }>("/api/ai/context");
+      if (res.ok && res.data) {
+        return JSON.stringify(res.data, null, 2);
+      }
+    } catch {
+      // silently fail - context is optional
+    }
+    return undefined;
+  }
+
   async function handleSend() {
     if (!input.trim() || loading) return;
 
@@ -99,6 +110,7 @@ export default function AiAgentPage() {
     setLoading(true);
 
     try {
+      const erpContext = await fetchErpContext();
       let response = "";
 
       if (activeTool === "notice") {
@@ -171,7 +183,8 @@ export default function AiAgentPage() {
             body: JSON.stringify({
               prompt: userMessage,
               feature: activeTool,
-              useErpData,
+              useErpData: true,
+              erpContext,
             }),
           }
         );
@@ -467,24 +480,15 @@ export default function AiAgentPage() {
                 <Trash2 size={16} />
               </button>
             </div>
-            <div className="mt-2 flex items-center gap-4">
-              <label className="flex cursor-pointer items-center gap-1.5">
-                <input
-                  type="checkbox"
-                  checked={useErpData}
-                  onChange={(e) => setUseErpData(e.target.checked)}
-                  className="h-3.5 w-3.5"
-                />
-                <span className="text-[11px] font-bold text-muted-foreground">Use ERP Data</span>
-              </label>
+            <div className="mt-2">
               <span className="text-[11px] font-medium text-muted-foreground">
-                {activeTool === "notice" && "Creates a formatted school notice"}
+                {activeTool === "notice" && "Creates a formatted school notice with live ERP context"}
                 {activeTool === "fee_reminder" && "Generates fixed template message from actual dues"}
                 {activeTool === "dues" && "Summarizes fee due data from ERP"}
-                {activeTool === "chat" && "General AI assistant for school tasks"}
-                {activeTool === "parent_message" && "Drafts parent communication"}
-                {activeTool === "teacher_message" && "Drafts teacher communication"}
-                {activeTool === "report" && "Explains reports in simple English"}
+                {activeTool === "chat" && "General AI assistant with live ERP data context"}
+                {activeTool === "parent_message" && "Drafts parent communication with ERP context"}
+                {activeTool === "teacher_message" && "Drafts teacher communication with ERP context"}
+                {activeTool === "report" && "Explains reports in simple English with ERP data"}
               </span>
             </div>
           </div>

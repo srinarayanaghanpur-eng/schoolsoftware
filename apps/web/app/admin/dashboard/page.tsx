@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import {
   BellRing,
   BookOpenCheck,
+  Brain,
   Bus,
   CalendarDays,
   Circle,
@@ -22,7 +23,8 @@ import {
   UserCog,
   UserPlus,
   UsersRound,
-  Wallet
+  Wallet,
+  Sparkles
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { AggregateField } from "firebase-admin/firestore";
@@ -42,6 +44,7 @@ const quickActions = [
   { href: "/admin/notifications", label: "New Notice", icon: Megaphone, tone: "bg-[#fff0f2] text-[#d1485c] dark:bg-rose-500/15 dark:text-rose-300" },
   { href: "/admin/exams", label: "Create Exam", icon: BookOpenCheck, tone: "bg-[#f4efff] text-[#7445bd] dark:bg-indigo-500/15 dark:text-indigo-200" },
   { href: "/admin/reports", label: "Generate Report", icon: FileSpreadsheet, tone: "bg-[#eef7f8] text-[#17808a] dark:bg-cyan-500/15 dark:text-cyan-300" },
+  { href: "/admin/ai-agent", label: "AI Agent", icon: Brain, tone: "bg-[#f0e7ff] text-[#7c3aed] dark:bg-purple-500/15 dark:text-purple-300" },
   { href: "/admin/settings", label: "View All", icon: MoreHorizontal, tone: "bg-[#f2f4fa] text-[#5a6383] dark:bg-slate-700 dark:text-slate-300" }
 ];
 
@@ -609,6 +612,21 @@ export default async function AdminDashboardPage() {
             <p className="mt-1 text-xs font-semibold text-muted-foreground">Safety checks and control settings.</p>
           </div>
           <div className="grid gap-3">
+            <Link href="/admin/ai-agent" className="dashboard-animate rounded-lg border border-purple-200 bg-gradient-to-br from-purple-50 to-white p-4 text-card-foreground shadow-[0_8px_18px_rgba(124,58,237,0.08)] transition hover:-translate-y-0.5 hover:border-purple-300 hover:shadow-[0_8px_24px_rgba(124,58,237,0.15)] dark:border-purple-800/40 dark:from-purple-950/30 dark:to-slate-900">
+              <span className="flex items-center gap-3">
+                <span className="relative grid h-10 w-10 place-items-center rounded-lg bg-gradient-to-br from-purple-500 to-indigo-600 text-white shadow-md">
+                  <Sparkles size={18} />
+                  <span className="absolute -right-1 -top-1 h-3 w-3 rounded-full bg-amber-400 shadow-sm" />
+                </span>
+                <span>
+                  <span className="flex items-center gap-2">
+                    <span className="block text-sm font-extrabold text-foreground dark:text-white">AI Agent</span>
+                    <span className="rounded-full bg-gradient-to-r from-purple-500 to-indigo-600 px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wider text-white">New</span>
+                  </span>
+                  <span className="text-xs font-semibold text-muted-foreground">Generate notices, fee reminders, summaries, and more</span>
+                </span>
+              </span>
+            </Link>
             <Link href="/admin/settings" className="dashboard-animate rounded-lg border border-border bg-card p-4 text-card-foreground shadow-[0_8px_18px_rgba(31,42,116,0.04)] transition hover:-translate-y-0.5 hover:border-ring/40 dark:bg-slate-900 dark:shadow-black/20">
               <span className="flex items-center gap-3">
                 <span className="grid h-10 w-10 place-items-center rounded-lg bg-[#edf1ff] text-[#2e38a4] dark:bg-indigo-500/15 dark:text-indigo-200"><Settings size={20} /></span>
