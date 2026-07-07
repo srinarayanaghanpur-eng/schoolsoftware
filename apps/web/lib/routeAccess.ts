@@ -34,6 +34,8 @@ export const routePermissions: RoutePermission[] = [
   { path: "/admin/settings", roles: ["super_admin", "settings_manager"] },
   // Academic-year management is super_admin / settings_manager only.
   { path: "/admin/settings/academic-years", roles: ["super_admin", "settings_manager"] },
+  { path: "/admin/ai-agent/settings", roles: ["super_admin", "admin"] },
+  { path: "/admin/ai-agent", roles: BACK_OFFICE_ROLES },
   { path: "/admin/users", roles: BACK_OFFICE_ROLES },
   { path: "/admin/roles", roles: BACK_OFFICE_ROLES },
 

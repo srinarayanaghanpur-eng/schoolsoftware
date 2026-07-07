@@ -8,6 +8,7 @@ import {
   BellRing,
   BookOpen,
   BookOpenCheck,
+  Brain,
   Building2,
   Bus,
   CalendarCheck,
@@ -24,6 +25,8 @@ import {
   ClipboardCheck,
   FileStack,
   FileText,
+  Fuel,
+  Gauge,
   GraduationCap,
   Grid2X2,
   IndianRupee,
@@ -41,11 +44,13 @@ import {
   ShieldAlert,
   ShieldCheck,
   ScrollText,
+  User,
   UserPlus,
   UserCircle,
   UserCog,
   Users,
   Wallet,
+  Wrench,
   X
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -147,6 +152,7 @@ const primaryNav: NavItem[] = [
   },
   { href: "/admin/notices", label: "Communication", module: "communication", icon: Megaphone, activePrefixes: ["/admin/notices", "/admin/messages", "/admin/notifications"] },
   { href: "/admin/reports", label: "Reports", module: "reports", icon: BarChart3, activePrefixes: ["/admin/reports"] },
+  { href: "/admin/ai-agent", label: "AI Agent", module: "ai_agent", icon: Brain, activePrefixes: ["/admin/ai-agent"] },
   { href: "/admin/settings", label: "Settings", module: "settings", icon: Settings, activePrefixes: ["/admin/settings", "/admin/users", "/admin/approvals", "/admin/branches", "/admin/biometric", "/admin/backup"] }
 ];
 
@@ -165,6 +171,11 @@ const portalNav: NavItem[] = [
 const secondaryNav: NavItem[] = [
   { href: "/admin/calendar", label: "Timetable", module: "academics", icon: CalendarDays },
   { href: "/admin/transport", label: "Transport", module: "transport", icon: Bus },
+  { href: "/admin/transport/drivers", label: "Drivers", module: "transport", icon: User },
+  { href: "/admin/transport/fuel-logs", label: "Fuel Logs", module: "transport", icon: Fuel },
+  { href: "/admin/transport/daily-km", label: "Daily KM", module: "transport", icon: Gauge },
+  { href: "/admin/transport/maintenance", label: "Maintenance", module: "transport", icon: Wrench },
+  { href: "/admin/transport/insurance", label: "Insurance", module: "transport", icon: ShieldCheck },
   { href: "/admin/transport/bus-finance", label: "Bus Finance / EMI", module: "bus_finance", icon: Wallet },
   { href: "/admin/library", label: "Library", module: "library", icon: Library },
   { href: "/admin/hostel", label: "Hostel", module: "hostel", icon: Hotel },
@@ -187,6 +198,7 @@ const desktopNavSections: Array<{ label: string; hrefs: string[] }> = [
       "/admin/exams",
       "/admin/notices",
       "/admin/reports",
+      "/admin/ai-agent",
       "/admin/settings"
     ]
   }
@@ -261,6 +273,17 @@ const contextSubnavs: ContextSubnav[] = [
       { href: "/admin/attendance", label: "Records", icon: ClipboardCheck, module: "attendance" },
       { href: "/admin/my-attendance", label: "My Attendance", icon: CalendarCheck, module: "attendance" }
     ]
+  },
+  {
+    title: "AI Agent",
+    eyebrow: "Artificial Intelligence",
+    matchPrefixes: ["/admin/ai-agent"],
+    items: [
+      { href: "/admin/ai-agent", label: "AI Agent", icon: Brain, module: "ai_agent" },
+      { href: "/admin/ai-agent/settings", label: "AI Settings", icon: Settings, module: "ai_agent" },
+      { href: "/admin/ai-agent/logs", label: "AI Logs", icon: FileText, module: "ai_agent" },
+      { href: "/admin/ai-agent/quota", label: "Quota & Usage", icon: BarChart3, module: "ai_agent" }
+    ]
   }
 ];
 
@@ -316,7 +339,11 @@ const pageTitles: Record<string, string> = {
   "/admin/branches": "Branches",
   "/admin/settings": "Settings",
   "/admin/biometric": "Biometric Devices",
-  "/admin/backup": "Backup & Restore"
+  "/admin/backup": "Backup & Restore",
+  "/admin/ai-agent": "AI Agent",
+  "/admin/ai-agent/settings": "AI Settings",
+  "/admin/ai-agent/logs": "AI Logs",
+  "/admin/ai-agent/quota": "Quota & Usage"
 };
 
 const routeModules: Array<{ prefix: string; module: Module }> = [
@@ -345,7 +372,8 @@ const routeModules: Array<{ prefix: string; module: Module }> = [
   { prefix: "/admin/approvals", module: "settings" },
   { prefix: "/admin/users", module: "users" },
   { prefix: "/portal", module: "portal" },
-  { prefix: "/admin/dashboard", module: "dashboard" }
+  { prefix: "/admin/dashboard", module: "dashboard" },
+  { prefix: "/admin/ai-agent", module: "ai_agent" }
 ];
 
 function moduleForPath(pathname: string): Module | undefined {

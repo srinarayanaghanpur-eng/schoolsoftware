@@ -70,3 +70,86 @@ export const EMI_PAYMENT_MODES: { value: EmiPaymentMode; label: string }[] = [
 ];
 
 export const BUS_FINANCE_STATUSES: BusFinanceStatus[] = ["active", "closed", "overdue", "cancelled"];
+
+// ===== Daily KM Logs =====
+export interface DailyKmLog {
+  id: string;
+  vehicleId: string;
+  vehicleRegNo?: string;
+  date: string;
+  startOdometer: number;
+  endOdometer: number;
+  kmRun: number;
+  notes?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+// ===== Maintenance Logs =====
+export type MaintenanceType = "service" | "repair" | "parts" | "other";
+
+export interface MaintenanceLog {
+  id: string;
+  vehicleId: string;
+  vehicleRegNo?: string;
+  date: string;
+  type: MaintenanceType;
+  description?: string;
+  cost: number;
+  mechanic?: string;
+  notes?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export const MAINTENANCE_TYPES: { value: MaintenanceType; label: string }[] = [
+  { value: "service", label: "Service" },
+  { value: "repair", label: "Repair" },
+  { value: "parts", label: "Parts" },
+  { value: "other", label: "Other" },
+];
+
+// ===== Insurance Records =====
+export interface InsuranceRecord {
+  id: string;
+  vehicleId: string;
+  vehicleRegNo?: string;
+  provider: string;
+  policyNo?: string;
+  premium: number;
+  startDate: string;
+  renewalDate: string;
+  notes?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+// ===== Drivers =====
+export interface Driver {
+  id: string;
+  name: string;
+  phone?: string;
+  salary?: number;
+  licenseExpiry?: string;
+  vehicleId?: string;
+  vehicleRegNo?: string;
+  notes?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+// ===== Fuel Logs =====
+export interface FuelLog {
+  id: string;
+  vehicleId: string;
+  vehicleRegNo?: string;
+  date: string;
+  liters: number;
+  costPerLiter: number;
+  totalCost: number;
+  odometerReading?: number;
+  station?: string;
+  notes?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
