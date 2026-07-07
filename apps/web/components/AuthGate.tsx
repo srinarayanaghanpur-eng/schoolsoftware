@@ -9,6 +9,7 @@ import { doc, getDoc } from "firebase/firestore";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { BrandLoader } from "./BrandLoader";
+import { AutoLogoutProvider } from "./auth/AutoLogoutProvider";
 
 const ROLE_HINT_KEY = "erp-auth-role";
 const ROLE_HINT_TTL = 10 * 60 * 1000; // 10 minutes
@@ -142,5 +143,5 @@ export function AuthGate({
     return <BrandLoader message="Loading secure workspace…" />;
   }
 
-  return children;
+  return <AutoLogoutProvider>{children}</AutoLogoutProvider>;
 }

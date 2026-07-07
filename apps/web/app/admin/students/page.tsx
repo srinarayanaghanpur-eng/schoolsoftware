@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { useRefreshOnFocus } from "@/lib/useRefreshOnFocus";
-import { Plus, X, Edit2, Trash2, Search, Upload, Camera, QrCode, Printer, ReceiptText } from "lucide-react";
+import { Plus, X, ArrowLeft, Edit2, Trash2, Search, Upload, Camera, QrCode, Printer, ReceiptText, Save } from "lucide-react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { DatePicker } from "@/components/DatePicker";
 import { PageHeader } from "@/components/PageHeader";
 import { PaginationControls } from "@/components/PaginationControls";
@@ -741,6 +742,7 @@ function SectionManagerModal({
 export default function StudentsPage() {
   const { role } = useAdminSession();
   const { selectedYear } = useAcademicYears();
+  const searchParams = useSearchParams();
   const canCreateStudent = Boolean(role && hasPermission(role, "students.create"));
   const canEditStudent = Boolean(role && hasPermission(role, "students.edit"));
   const canDeleteStudent = Boolean(role && hasPermission(role, "students.delete"));
@@ -854,6 +856,14 @@ export default function StudentsPage() {
       fetchFeeStructures(selectedYear.id);
     }
   }, [selectedYear?.id]);
+
+  // Auto-open the form when navigated via the Admission Form sub-nav link.
+  useEffect(() => {
+    if (searchParams.get("admission") === "1" && canCreateStudent) {
+      openAddForm();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   const fetchFeeStructures = async (academicYearId: string) => {
     setFeeLoading(true);
@@ -1298,295 +1308,314 @@ export default function StudentsPage() {
         }
       />
 
-      <section className="space-y-5 p-4 md:p-7">
-        {showForm && (
-          <div className="card p-5 md:p-6">
-            <div className="mb-4 flex items-center justify-between gap-4">
-              <h3 className="text-lg font-bold text-[#1f2136]">{editingId ? "Edit Student" : "Add New Student"}</h3>
-              <button onClick={closeForm} className="grid h-9 w-9 place-items-center rounded-xl text-[#7d86a8] hover:bg-[#f4f5fb] hover:text-[#3033a1]">
-                <X size={20} />
+      <section className={`${showForm ? 'min-h-[100dvh]' : 'space-y-5'} p-4 md:p-6 lg:p-8`}>
+        {showForm ? (
+          <div className="-m-4 md:-m-6 lg:-m-8 flex min-h-[100dvh] flex-col bg-white">
+            {/* Sticky Header */}
+            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[#edf0f7] bg-white px-4 py-3 md:px-6 lg:px-8">
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={closeForm}
+                  className="grid h-9 w-9 place-items-center rounded-xl text-[#7d86a8] hover:bg-[#f4f5fb] hover:text-[#3033a1]"
+                >
+                  <ArrowLeft size={20} />
+                </button>
+                <h2 className="text-lg font-bold text-[#1f2136]">
+                  {editingId ? "Edit Student" : "Add New Student"}
+                </h2>
+              </div>
+              <button type="submit" form="admission-form" className="btn-primary">
+                <Save size={16} />
+                {editingId ? "Save Changes" : "Save Student"}
               </button>
             </div>
 
-            {error && <div className="mb-4 rounded-xl border border-[#ffd5da] bg-[#ffebed] p-4 text-sm font-semibold text-[#c83f4d]">{error}</div>}
-            {success && <div className="mb-4 rounded-xl border border-[#c8f0dc] bg-[#e6f8ef] p-4 text-sm font-semibold text-[#0f8d52]">{success}</div>}
+            {/* Scrollable Form Body */}
+            <div className="flex-1 overflow-y-auto">
+              <div className="mx-auto w-full max-w-none px-4 py-6 md:px-6 lg:px-8">
+                {error && <div className="mb-6 rounded-xl border border-[#ffd5da] bg-[#ffebed] p-4 text-sm font-semibold text-[#c83f4d]">{error}</div>}
+                {success && <div className="mb-6 rounded-xl border border-[#c8f0dc] bg-[#e6f8ef] p-4 text-sm font-semibold text-[#0f8d52]">{success}</div>}
 
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <form id="admission-form" onSubmit={handleSubmit}>
+                  <div className="grid grid-cols-1 gap-x-6 gap-y-5 md:grid-cols-2 lg:grid-cols-3">
 
-                {/* ---- Basic Information ---- */}
-                <SectionDivider label="Basic Information" />
+                    {/* ---- Basic Information ---- */}
+                    <SectionDivider label="Basic Information" />
 
-                <div>
-                  <label className="block text-sm font-semibold text-[#303247]">Admission Number</label>
-                  <input
-                    type="text"
-                    value={editingId ? formData.admissionNumber : "Auto-generated on save"}
-                    readOnly
-                    disabled
-                    className="field mt-1 cursor-not-allowed bg-[#f4f5fb] text-[#5a6488]"
-                  />
-                  <p className="mt-1 text-xs font-medium text-[#7d86a8]">
-                    {editingId ? "Admission number cannot be changed." : "Assigned automatically — no manual entry."}
-                  </p>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-[#303247]">School ID <span className="font-normal text-[#7d86a8]">(optional)</span></label>
-                  <input
-                    type="text"
-                    name="schoolId"
-                    value={formData.schoolId}
-                    onChange={handleChange}
-                    placeholder="e.g. govt / SATS id"
-                    className="field mt-1"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-[#303247]">Student Name *</label>
-                  <input type="text" name="studentName" value={formData.studentName} onChange={handleChange} required placeholder="Full name" className="field mt-1" />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-[#303247]">Class *</label>
-                  <select name="class" value={formData.class} onChange={handleChange} required className="field mt-1">
-                    {CLASS_OPTIONS.map((cls) => <option key={cls} value={cls}>{CLASS_LABELS[cls] ?? cls}</option>)}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-[#303247]">Section *</label>
-                  <select name="section" value={formData.section} onChange={handleChange} required className="field mt-1">
-                    {sectionsFor(formData.class).map((sec) => <option key={sec} value={sec}>{sec}</option>)}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-[#303247]">Gender</label>
-                  <select name="gender" value={formData.gender} onChange={handleChange} className="field mt-1">
-                    <option value="">Select gender</option>
-                    {GENDER_OPTIONS.map((g) => <option key={g} value={g}>{g}</option>)}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-[#303247]">Date of Birth</label>
-                  <div className="mt-1"><DatePicker name="dateOfBirth" value={formData.dateOfBirth} onChange={(e) => setFormData((prev) => ({ ...prev, dateOfBirth: e.target.value }))} /></div>
-                </div>
-
-                {/* ---- Parent / Guardian Details ---- */}
-                <SectionDivider label="Parent / Guardian Details" />
-
-                <div>
-                  <label className="block text-sm font-semibold text-[#303247]">Father Name</label>
-                  <input type="text" name="fatherName" value={formData.fatherName} onChange={handleChange} placeholder="Father's name" className="field mt-1" />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-[#303247]">Father Phone</label>
-                  <input type="tel" name="fatherPhone" value={formData.fatherPhone} onChange={handleChange} placeholder="10-digit number" className="field mt-1" />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-[#303247]">Mother Name</label>
-                  <input type="text" name="motherName" value={formData.motherName} onChange={handleChange} placeholder="Mother's name" className="field mt-1" />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-[#303247]">Mother Phone</label>
-                  <input type="tel" name="motherPhone" value={formData.motherPhone} onChange={handleChange} placeholder="10-digit number" className="field mt-1" />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-[#303247]">Email</label>
-                  <input type="email" name="email" value={formData.email} onChange={handleChange} placeholder="email@example.com" className="field mt-1" />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-[#303247]">Phone (Primary Contact)</label>
-                  <input type="tel" name="phone" value={formData.phone} onChange={handleChange} placeholder="10-digit number" className="field mt-1" />
-                </div>
-
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-semibold text-[#303247]">Address</label>
-                  <textarea name="address" value={formData.address} onChange={handleChange} placeholder="Street address" rows={2} className="field mt-1" />
-                </div>
-
-                {/* ---- Emergency Contact ---- */}
-                <SectionDivider label="Emergency Contact" />
-
-                <div>
-                  <label className="block text-sm font-semibold text-[#303247]">Contact Name</label>
-                  <input type="text" name="emergencyContactName" value={formData.emergencyContactName} onChange={handleChange} placeholder="Emergency contact name" className="field mt-1" />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-[#303247]">Contact Phone</label>
-                  <input type="tel" name="emergencyContactPhone" value={formData.emergencyContactPhone} onChange={handleChange} placeholder="10-digit number" className="field mt-1" />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-[#303247]">Relation</label>
-                  <input type="text" name="emergencyContactRelation" value={formData.emergencyContactRelation} onChange={handleChange} placeholder="e.g. uncle, grandparent" className="field mt-1" />
-                </div>
-
-                {/* ---- Photo & Documents ---- */}
-                <SectionDivider label="Photo & Documents" />
-
-                <div>
-                  <label className="block text-sm font-semibold text-[#303247]">Student Photo</label>
-                  <div className="mt-1 flex items-center gap-3">
-                    {formData.photoURL ? (
-                      <div className="relative">
-                        <img src={formData.photoURL} alt="Student" className="h-20 w-20 rounded-xl object-cover border border-[#edf0f7]" />
-                        <button type="button" onClick={() => setFormData((prev) => ({ ...prev, photoURL: "" }))} className="absolute -right-2 -top-2 grid h-5 w-5 place-items-center rounded-full bg-[#ed515d] text-white text-xs">
-                          <X size={12} />
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="flex h-20 w-20 items-center justify-center rounded-xl border-2 border-dashed border-[#d0d5e8] bg-[#f7f8fd]">
-                        <Camera size={24} className="text-[#9aa4c4]" />
-                      </div>
-                    )}
-                    <label className="cursor-pointer rounded-lg bg-[#eef0ff] px-3 py-2 text-xs font-semibold text-[#3033a1] hover:bg-[#e3e5ff]">
-                      <Upload size={14} className="inline mr-1" />
-                      {uploading ? "Uploading..." : "Upload Photo"}
-                      <input type="file" accept="image/*" onChange={handlePhotoUpload} className="hidden" disabled={uploading} />
-                    </label>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-[#303247]">Aadhaar Number</label>
-                  <input type="text" name="aadhaarNumber" value={formData.aadhaarNumber} onChange={handleChange} placeholder="12-digit Aadhaar" maxLength={12} className="field mt-1" />
-                </div>
-
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-semibold text-[#303247]">Documents</label>
-                  <div className="mt-1 space-y-2">
-                    {formData.documentURLs.map((doc, i) => (
-                      <div key={i} className="flex items-center justify-between rounded-lg border border-[#edf0f7] bg-[#fafbff] px-3 py-2">
-                        <a href={doc.url} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-[#3033a1] hover:underline truncate">{doc.name}</a>
-                        <button type="button" onClick={() => removeDocument(i)} className="ml-2 text-[#ed515d] hover:text-[#c83f4d]">
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    ))}
-                    <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-[#d0d5e8] px-3 py-2 text-xs font-semibold text-[#7d86a8] hover:border-[#3033a1] hover:text-[#3033a1]">
-                      <Upload size={14} />
-                      {uploading ? "Uploading..." : "Upload Document"}
-                      <input type="file" onChange={handleDocumentUpload} className="hidden" disabled={uploading} />
-                    </label>
-                  </div>
-                </div>
-
-                {/* ---- Previous School Details ---- */}
-                <SectionDivider label="Previous School Details" />
-
-                <div>
-                  <label className="block text-sm font-semibold text-[#303247]">Previous School Name</label>
-                  <input type="text" name="previousSchoolName" value={formData.previousSchoolName} onChange={handleChange} placeholder="School name" className="field mt-1" />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-[#303247]">Year Left</label>
-                  <input type="text" name="previousSchoolYearLeft" value={formData.previousSchoolYearLeft} onChange={handleChange} placeholder="e.g. 2025-26" className="field mt-1" />
-                </div>
-
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-semibold text-[#303247]">Previous School Address</label>
-                  <input type="text" name="previousSchoolAddress" value={formData.previousSchoolAddress} onChange={handleChange} placeholder="School address" className="field mt-1" />
-                </div>
-
-                {/* ---- Sibling / Family Group ---- */}
-                <SectionDivider label="Sibling / Family Group" />
-
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-semibold text-[#303247]">Sibling Admission Numbers</label>
-                  <input type="text" name="siblingAdmissionNumbers" value={formData.siblingAdmissionNumbers} onChange={handleChange} placeholder="Comma-separated admission numbers, e.g. 1001, 1005" className="field mt-1" />
-                  <p className="mt-1 text-xs font-medium text-[#7d86a8]">Enter admission numbers of siblings separated by commas.</p>
-                </div>
-
-                {/* ---- Transport ---- */}
-                <SectionDivider label="Transport" />
-
-                <div>
-                  <label className="block text-sm font-semibold text-[#303247]">Transport Route</label>
-                  <select name="transportRouteId" value={formData.transportRouteId} onChange={handleChange} className="field mt-1">
-                    <option value="">No transport</option>
-                    {transportRoutes.map((route) => (
-                      <option key={route.id} value={route.id}>{route.name}</option>
-                    ))}
-                  </select>
-                </div>
-
-                {formData.transportRouteId && (
-                  <>
                     <div>
-                      <label className="block text-sm font-semibold text-[#303247]">Stop</label>
-                      <select name="transportStopName" value={formData.transportStopName} onChange={handleChange} className="field mt-1">
-                        <option value="">Select stop</option>
-                        {transportRoutes
-                          .find((r) => r.id === formData.transportRouteId)
-                          ?.stops.map((stop) => (
-                            <option key={stop.name} value={stop.name}>
-                              {stop.name} (₹{stop.fee.toLocaleString("en-IN")})
-                            </option>
-                          ))}
+                      <label className="block text-sm font-semibold text-[#303247]">Admission Number</label>
+                      <input
+                        type="text"
+                        value={editingId ? formData.admissionNumber : "Auto-generated on save"}
+                        readOnly
+                        disabled
+                        className="field mt-1 cursor-not-allowed bg-[#f4f5fb] text-[#5a6488]"
+                      />
+                      <p className="mt-1 text-xs font-medium text-[#7d86a8]">
+                        {editingId ? "Admission number cannot be changed." : "Assigned automatically — no manual entry."}
+                      </p>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-[#303247]">School ID <span className="font-normal text-[#7d86a8]">(optional)</span></label>
+                      <input
+                        type="text"
+                        name="schoolId"
+                        value={formData.schoolId}
+                        onChange={handleChange}
+                        placeholder="e.g. govt / SATS id"
+                        className="field mt-1"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-[#303247]">Student Name *</label>
+                      <input type="text" name="studentName" value={formData.studentName} onChange={handleChange} required placeholder="Full name" className="field mt-1" />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-[#303247]">Class *</label>
+                      <select name="class" value={formData.class} onChange={handleChange} required className="field mt-1">
+                        {CLASS_OPTIONS.map((cls) => <option key={cls} value={cls}>{CLASS_LABELS[cls] ?? cls}</option>)}
                       </select>
                     </div>
 
                     <div>
-                      <label className="block text-sm font-semibold text-[#303247]">Transport Fee</label>
-                      <input type="number" min="0" name="transportFee" value={formData.transportFee} onChange={handleChange} placeholder="₹0" className="field mt-1" />
+                      <label className="block text-sm font-semibold text-[#303247]">Section *</label>
+                      <select name="section" value={formData.section} onChange={handleChange} required className="field mt-1">
+                        {sectionsFor(formData.class).map((sec) => <option key={sec} value={sec}>{sec}</option>)}
+                      </select>
                     </div>
-                  </>
-                )}
 
-                {/* ---- Fee Details ---- */}
-                <SectionDivider label="Fee Details" />
+                    <div>
+                      <label className="block text-sm font-semibold text-[#303247]">Gender</label>
+                      <select name="gender" value={formData.gender} onChange={handleChange} className="field mt-1">
+                        <option value="">Select gender</option>
+                        {GENDER_OPTIONS.map((g) => <option key={g} value={g}>{g}</option>)}
+                      </select>
+                    </div>
 
-                <div>
-                  <label className="block text-sm font-semibold text-[#303247]">Academic Fee (Annual)</label>
-                  <input
-                    type="text"
-                    name="annualEnrollmentFee"
-                    value={`₹${Number(formData.annualEnrollmentFee || 0).toLocaleString("en-IN")}`}
-                    readOnly
-                    className="field mt-1 cursor-not-allowed bg-[#f4f5fb] font-semibold text-[#5a6488]"
-                  />
-                  {(() => {
-                    const fs = feeStructures.find((s) => s.className === formData.class);
-                    if (fs) {
-                      return (
-                        <p className="mt-1 text-xs font-medium text-[#7d86a8]">
-                          {fs.heads.map((h) => `${h.name}: ₹${h.amount.toLocaleString("en-IN")}`).join(" · ")}
-                        </p>
-                      );
-                    }
-                    return (
-                      <p className="mt-1 text-xs font-medium text-[#7d86a8]">
-                        Auto-set from {CLASS_LABELS[formData.class] ?? formData.class} fee structure{feeLoading ? " (loading...)" : " (fallback)"}
-                      </p>
-                    );
-                  })()}
-                </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-[#303247]">Date of Birth</label>
+                      <div className="mt-1"><DatePicker name="dateOfBirth" value={formData.dateOfBirth} onChange={(e) => setFormData((prev) => ({ ...prev, dateOfBirth: e.target.value }))} /></div>
+                    </div>
 
-                <div>
-                  <label className="block text-sm font-semibold text-[#303247]">Commitment Fee</label>
-                  <input type="number" min="0" name="commitmentFee" value={formData.commitmentFee} onChange={handleChange} placeholder="₹0" className="field mt-1" />
-                </div>
+                    {/* ---- Parent / Guardian Details ---- */}
+                    <SectionDivider label="Parent / Guardian Details" />
 
+                    <div>
+                      <label className="block text-sm font-semibold text-[#303247]">Father Name</label>
+                      <input type="text" name="fatherName" value={formData.fatherName} onChange={handleChange} placeholder="Father's name" className="field mt-1" />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-[#303247]">Father Phone</label>
+                      <input type="tel" name="fatherPhone" value={formData.fatherPhone} onChange={handleChange} placeholder="10-digit number" className="field mt-1" />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-[#303247]">Mother Name</label>
+                      <input type="text" name="motherName" value={formData.motherName} onChange={handleChange} placeholder="Mother's name" className="field mt-1" />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-[#303247]">Mother Phone</label>
+                      <input type="tel" name="motherPhone" value={formData.motherPhone} onChange={handleChange} placeholder="10-digit number" className="field mt-1" />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-[#303247]">Email</label>
+                      <input type="email" name="email" value={formData.email} onChange={handleChange} placeholder="email@example.com" className="field mt-1" />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-[#303247]">Phone (Primary Contact)</label>
+                      <input type="tel" name="phone" value={formData.phone} onChange={handleChange} placeholder="10-digit number" className="field mt-1" />
+                    </div>
+
+                    <div className="md:col-span-2 lg:col-span-3">
+                      <label className="block text-sm font-semibold text-[#303247]">Address</label>
+                      <textarea name="address" value={formData.address} onChange={handleChange} placeholder="Street address" rows={2} className="field mt-1" />
+                    </div>
+
+                    {/* ---- Emergency Contact ---- */}
+                    <SectionDivider label="Emergency Contact" />
+
+                    <div>
+                      <label className="block text-sm font-semibold text-[#303247]">Contact Name</label>
+                      <input type="text" name="emergencyContactName" value={formData.emergencyContactName} onChange={handleChange} placeholder="Emergency contact name" className="field mt-1" />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-[#303247]">Contact Phone</label>
+                      <input type="tel" name="emergencyContactPhone" value={formData.emergencyContactPhone} onChange={handleChange} placeholder="10-digit number" className="field mt-1" />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-[#303247]">Relation</label>
+                      <input type="text" name="emergencyContactRelation" value={formData.emergencyContactRelation} onChange={handleChange} placeholder="e.g. uncle, grandparent" className="field mt-1" />
+                    </div>
+
+                    {/* ---- Photo & Documents ---- */}
+                    <SectionDivider label="Photo & Documents" />
+
+                    <div>
+                      <label className="block text-sm font-semibold text-[#303247]">Student Photo</label>
+                      <div className="mt-1 flex items-center gap-3">
+                        {formData.photoURL ? (
+                          <div className="relative">
+                            <img src={formData.photoURL} alt="Student" className="h-20 w-20 rounded-xl object-cover border border-[#edf0f7]" />
+                            <button type="button" onClick={() => setFormData((prev) => ({ ...prev, photoURL: "" }))} className="absolute -right-2 -top-2 grid h-5 w-5 place-items-center rounded-full bg-[#ed515d] text-white text-xs">
+                              <X size={12} />
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex h-20 w-20 items-center justify-center rounded-xl border-2 border-dashed border-[#d0d5e8] bg-[#f7f8fd]">
+                            <Camera size={24} className="text-[#9aa4c4]" />
+                          </div>
+                        )}
+                        <label className="cursor-pointer rounded-lg bg-[#eef0ff] px-3 py-2 text-xs font-semibold text-[#3033a1] hover:bg-[#e3e5ff]">
+                          <Upload size={14} className="inline mr-1" />
+                          {uploading ? "Uploading..." : "Upload Photo"}
+                          <input type="file" accept="image/*" onChange={handlePhotoUpload} className="hidden" disabled={uploading} />
+                        </label>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-[#303247]">Aadhaar Number</label>
+                      <input type="text" name="aadhaarNumber" value={formData.aadhaarNumber} onChange={handleChange} placeholder="12-digit Aadhaar" maxLength={12} className="field mt-1" />
+                    </div>
+
+                    <div className="md:col-span-2 lg:col-span-3">
+                      <label className="block text-sm font-semibold text-[#303247]">Documents</label>
+                      <div className="mt-1 space-y-2">
+                        {formData.documentURLs.map((doc, i) => (
+                          <div key={i} className="flex items-center justify-between rounded-lg border border-[#edf0f7] bg-[#fafbff] px-3 py-2">
+                            <a href={doc.url} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-[#3033a1] hover:underline truncate">{doc.name}</a>
+                            <button type="button" onClick={() => removeDocument(i)} className="ml-2 text-[#ed515d] hover:text-[#c83f4d]">
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        ))}
+                        <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-[#d0d5e8] px-3 py-2 text-xs font-semibold text-[#7d86a8] hover:border-[#3033a1] hover:text-[#3033a1]">
+                          <Upload size={14} />
+                          {uploading ? "Uploading..." : "Upload Document"}
+                          <input type="file" onChange={handleDocumentUpload} className="hidden" disabled={uploading} />
+                        </label>
+                      </div>
+                    </div>
+
+                    {/* ---- Previous School Details ---- */}
+                    <SectionDivider label="Previous School Details" />
+
+                    <div>
+                      <label className="block text-sm font-semibold text-[#303247]">Previous School Name</label>
+                      <input type="text" name="previousSchoolName" value={formData.previousSchoolName} onChange={handleChange} placeholder="School name" className="field mt-1" />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-[#303247]">Year Left</label>
+                      <input type="text" name="previousSchoolYearLeft" value={formData.previousSchoolYearLeft} onChange={handleChange} placeholder="e.g. 2025-26" className="field mt-1" />
+                    </div>
+
+                    <div className="md:col-span-2 lg:col-span-3">
+                      <label className="block text-sm font-semibold text-[#303247]">Previous School Address</label>
+                      <input type="text" name="previousSchoolAddress" value={formData.previousSchoolAddress} onChange={handleChange} placeholder="School address" className="field mt-1" />
+                    </div>
+
+                    {/* ---- Sibling / Family Group ---- */}
+                    <SectionDivider label="Sibling / Family Group" />
+
+                    <div className="md:col-span-2 lg:col-span-3">
+                      <label className="block text-sm font-semibold text-[#303247]">Sibling Admission Numbers</label>
+                      <input type="text" name="siblingAdmissionNumbers" value={formData.siblingAdmissionNumbers} onChange={handleChange} placeholder="Comma-separated admission numbers, e.g. 1001, 1005" className="field mt-1" />
+                      <p className="mt-1 text-xs font-medium text-[#7d86a8]">Enter admission numbers of siblings separated by commas.</p>
+                    </div>
+
+                    {/* ---- Transport ---- */}
+                    <SectionDivider label="Transport" />
+
+                    <div>
+                      <label className="block text-sm font-semibold text-[#303247]">Transport Route</label>
+                      <select name="transportRouteId" value={formData.transportRouteId} onChange={handleChange} className="field mt-1">
+                        <option value="">No transport</option>
+                        {transportRoutes.map((route) => (
+                          <option key={route.id} value={route.id}>{route.name}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {formData.transportRouteId && (
+                      <>
+                        <div>
+                          <label className="block text-sm font-semibold text-[#303247]">Stop</label>
+                          <select name="transportStopName" value={formData.transportStopName} onChange={handleChange} className="field mt-1">
+                            <option value="">Select stop</option>
+                            {transportRoutes
+                              .find((r) => r.id === formData.transportRouteId)
+                              ?.stops.map((stop) => (
+                                <option key={stop.name} value={stop.name}>
+                                  {stop.name} (₹{stop.fee.toLocaleString("en-IN")})
+                                </option>
+                              ))}
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-semibold text-[#303247]">Transport Fee</label>
+                          <input type="number" min="0" name="transportFee" value={formData.transportFee} onChange={handleChange} placeholder="₹0" className="field mt-1" />
+                        </div>
+                      </>
+                    )}
+
+                    {/* ---- Fee Details ---- */}
+                    <SectionDivider label="Fee Details" />
+
+                    <div>
+                      <label className="block text-sm font-semibold text-[#303247]">Academic Fee (Annual)</label>
+                      <input
+                        type="text"
+                        name="annualEnrollmentFee"
+                        value={`₹${Number(formData.annualEnrollmentFee || 0).toLocaleString("en-IN")}`}
+                        readOnly
+                        className="field mt-1 cursor-not-allowed bg-[#f4f5fb] font-semibold text-[#5a6488]"
+                      />
+                      {(() => {
+                        const fs = feeStructures.find((s) => s.className === formData.class);
+                        if (fs) {
+                          return (
+                            <p className="mt-1 text-xs font-medium text-[#7d86a8]">
+                              {fs.heads.map((h) => `${h.name}: ₹${h.amount.toLocaleString("en-IN")}`).join(" · ")}
+                            </p>
+                          );
+                        }
+                        return (
+                          <p className="mt-1 text-xs font-medium text-[#7d86a8]">
+                            Auto-set from {CLASS_LABELS[formData.class] ?? formData.class} fee structure{feeLoading ? " (loading...)" : " (fallback)"}
+                          </p>
+                        );
+                      })()}
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-[#303247]">Commitment Fee</label>
+                      <input type="number" min="0" name="commitmentFee" value={formData.commitmentFee} onChange={handleChange} placeholder="₹0" className="field mt-1" />
+                    </div>
+
+                  </div>
+
+                  <div className="mt-8 flex flex-wrap gap-3 border-t border-[#edf0f7] pt-6">
+                    <button type="submit" className="btn-primary">{editingId ? "Save Changes" : "Add Student"}</button>
+                    <button type="button" onClick={closeForm} className="btn-secondary">Cancel</button>
+                  </div>
+                </form>
               </div>
-
-              <div className="flex flex-wrap gap-3 pt-2">
-                <button type="submit" className="btn-primary">{editingId ? "Save Changes" : "Add Student"}</button>
-                <button type="button" onClick={closeForm} className="btn-secondary">Cancel</button>
-              </div>
-            </form>
+            </div>
           </div>
-        )}
+        ) : (
+        <>
 
         {canEditStudent && (
           <div className="flex justify-end">
@@ -1849,6 +1878,8 @@ export default function StudentsPage() {
             </div>
           </div>
         )}
+        </>
+      )}
       </section>
     </>
   );

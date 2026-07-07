@@ -391,6 +391,7 @@ function useTeacherLoginController() {
   const [loading, setLoading] = useState(false);
   const [forgotLoading, setForgotLoading] = useState(false);
   const [inactiveReason, setInactiveReason] = useState(false);
+  const [sessionExpiredReason, setSessionExpiredReason] = useState(false);
   const [academicYears, setAcademicYears] = useState<PublicAcademicYear[]>([]);
   const [selectedYearId, setSelectedYearId] = useState("");
   const [yearsLoading, setYearsLoading] = useState(true);
@@ -402,7 +403,9 @@ function useTeacherLoginController() {
   // Warm up the destination route bundles + Firebase modules while the user
   // is still typing so navigation after login feels instant.
   useEffect(() => {
-    setInactiveReason(new URLSearchParams(window.location.search).get("reason") === "inactive");
+    const reason = new URLSearchParams(window.location.search).get("reason");
+    setInactiveReason(reason === "inactive");
+    setSessionExpiredReason(reason === "session-expired");
     router.prefetch("/admin/dashboard");
     router.prefetch("/portal");
     router.prefetch("/teacher");
@@ -447,7 +450,8 @@ function useTeacherLoginController() {
   // the user straight to their workspace. Skipped when we were bounced here for
   // an inactive account (there is no valid session to resume in that case).
   useEffect(() => {
-    if (new URLSearchParams(window.location.search).get("reason") === "inactive") return;
+    const reason = new URLSearchParams(window.location.search).get("reason");
+    if (reason === "inactive" || reason === "session-expired") return;
     let cancelled = false;
     void resolveRememberedRole().then((role) => {
       if (cancelled || !role) return;
@@ -583,6 +587,7 @@ function useTeacherLoginController() {
     forgotLoading,
     loginIdCheckStatus,
     inactiveReason,
+    sessionExpiredReason,
     academicYears,
     selectedYearId,
     setSelectedYearId,
@@ -676,6 +681,7 @@ function DesktopLoginExperience() {
     forgotLoading,
     loginIdCheckStatus,
     inactiveReason,
+    sessionExpiredReason,
     academicYears,
     selectedYearId,
     setSelectedYearId,
@@ -753,9 +759,9 @@ function DesktopLoginExperience() {
                 {forgotLoading ? "Sending..." : "Forgot password?"}
               </button>
             </div>
-            {(inactiveReason || error) && (
+            {(inactiveReason || sessionExpiredReason || error) && (
               <div className="mt-5 rounded-[14px] border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-600">
-                {error ?? "Your teacher login is inactive. Please contact admin."}
+                {error ?? (sessionExpiredReason ? "Session expired due to inactivity. Please login again." : "Your teacher login is inactive. Please contact admin.")}
               </div>
             )}
             <button
@@ -836,6 +842,7 @@ function MobileLoginExperience() {
     forgotLoading,
     loginIdCheckStatus,
     inactiveReason,
+    sessionExpiredReason,
     academicYears,
     selectedYearId,
     setSelectedYearId,
@@ -929,9 +936,9 @@ function MobileLoginExperience() {
             </button>
           </div>
 
-          {(inactiveReason || error) && (
+          {(inactiveReason || sessionExpiredReason || error) && (
             <div className="mt-3 rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold leading-4 text-red-600">
-              {error ?? "Your teacher login is inactive. Please contact admin."}
+              {error ?? (sessionExpiredReason ? "Session expired due to inactivity. Please login again." : "Your teacher login is inactive. Please contact admin.")}
             </div>
           )}
 

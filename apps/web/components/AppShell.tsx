@@ -245,7 +245,7 @@ const contextSubnavs: ContextSubnav[] = [
     matchPrefixes: ["/admin/students", "/admin/admission-form"],
     items: [
       { href: "/admin/students", label: "Student List", icon: Users, module: "students" },
-      { href: "/admin/admission-form", label: "Admission Form", icon: UserPlus, module: "students" }
+      { href: "/admin/students?admission=1", label: "Admission Form", icon: UserPlus, module: "students" }
     ]
   },
   {
@@ -460,10 +460,9 @@ function SubSidebarToggleButton({
       aria-expanded={expanded}
       data-sub-sidebar-toggle-button
       onClick={onToggle}
-      className="fixed left-0 top-0 z-[60] grid h-11 w-11 place-items-center rounded-r-lg border border-l-0 border-border bg-card text-primary shadow-lg hover:bg-accent focus:ring-2 focus:ring-ring/30 print:hidden"
+      className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-border bg-card text-muted-foreground shadow-sm hover:bg-accent hover:text-accent-foreground focus:ring-2 focus:ring-ring/30 print:hidden"
     >
-      <ToggleIcon size={20} strokeWidth={2.55} />
-      <span className="sr-only">{actionLabel}</span>
+      <ToggleIcon size={18} strokeWidth={2.55} />
     </button>
   );
 }
@@ -473,13 +472,15 @@ function ContextualSubnav({
   pathname,
   collapsed,
   drawerOpen,
-  onCloseDrawer
+  onCloseDrawer,
+  onToggle
 }: {
   subnav: ContextSubnav;
   pathname: string;
   collapsed: boolean;
   drawerOpen: boolean;
   onCloseDrawer: () => void;
+  onToggle: () => void;
 }) {
   const items = (subnav.items ?? []).filter((item): item is ContextSubnavItem => Boolean(item?.href && item.label));
 
@@ -513,10 +514,16 @@ function ContextualSubnav({
   );
 
   const header = () => (
-    <div className="border-b border-border px-5 py-5">
+    <div className="flex items-start gap-3 border-b border-border px-5 py-4">
+      <SubSidebarToggleButton
+        title={subnav.title}
+        collapsed={collapsed}
+        drawerOpen={drawerOpen}
+        onToggle={onToggle}
+      />
       <div className="min-w-0 flex-1">
         <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-muted-foreground">{subnav.eyebrow}</p>
-        <h2 className="mt-1 truncate text-lg font-extrabold tracking-tight text-foreground">{subnav.title}</h2>
+        <h2 className="mt-0.5 truncate text-lg font-extrabold tracking-tight text-foreground">{subnav.title}</h2>
       </div>
     </div>
   );
@@ -1178,14 +1185,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           collapsed={contextSubnavCollapsed}
           drawerOpen={contextSubnavDrawerOpen}
           onCloseDrawer={() => setContextSubnavDrawerOpen(false)}
-        />
-      )}
-
-      {contextualSubnav && !mobileNavOpen && (
-        <SubSidebarToggleButton
-          title={contextualSubnav.title}
-          collapsed={contextSubnavCollapsed}
-          drawerOpen={contextSubnavDrawerOpen}
           onToggle={toggleSubSidebar}
         />
       )}
