@@ -12,34 +12,68 @@ export async function GET(req: Request) {
 
     const schoolId = getSchoolId(token);
     const db = adminDb();
-    const academicYearId = req.headers.get("x-academic-year") || "current";
+    const academicYearId = "current";
+    const today = new Date().toISOString().slice(0, 10);
+
+    const baseQuery = (col: string) => db.collection(col).where("schoolId", "==", schoolId);
 
     const [
       studentsSnap,
-      teachersSnap,
-      feeSummary,
+      feeDueSummary,
       noticesSnap,
+      classesSnap,
+      teachersSnap,
+      pendingApprovalsSnap,
+      todayAttendanceSnap,
     ] = await Promise.all([
-      db.collection("students").where("schoolId", "==", schoolId).limit(1).select("studentName").get().catch(() => null),
-      db.collection("teachers").where("schoolId", "==", schoolId).limit(1).select("name").get().catch(() => null),
+      baseQuery("students").select("class").get().catch(() => null),
       getFeeDueSummary(schoolId, academicYearId),
-      db.collection("notices").where("schoolId", "==", schoolId).orderBy("createdAt", "desc").limit(3).get().catch(() => null),
+      baseQuery("notices").orderBy("createdAt", "desc").limit(5).get().catch(() => null),
+      baseQuery("classes").get().catch(() => null),
+      baseQuery("teachers").get().catch(() => null),
+      baseQuery("approval_requests").where("status", "==", "pending").get().catch(() => null),
+      db.collection("attendance").where("schoolId", "==", schoolId).where("date", "==", today).get().catch(() => null),
     ]);
 
-    const context: Record<string, unknown> = {
+    const totalStudents = studentsSnap?.docs.length || 0;
+
+    const studentsByClass: Record<string, number> = {};
+    studentsSnap?.docs.forEach((d) => {
+      const cls = String(d.data().class || "Unknown");
+      studentsByClass[cls] = (studentsByClass[cls] || 0) + 1;
+    });
+
+    const totalPresent = todayAttendanceSnap?.docs.filter((d) => d.data().status === "present").length || 0;
+    const totalAbsent = todayAttendanceSnap?.docs.filter((d) => d.data().status === "absent").length || 0;
+
+    const context = {
       schoolName: "Sri Narayana High School",
       academicYearId,
-      totalStudentsEstimate: studentsSnap?.size || "unknown",
-      totalTeachersEstimate: teachersSnap?.size || "unknown",
-      recentNotices: noticesSnap?.docs.map((d) => {
-        const data = d.data() as Record<string, unknown>;
-        return {
-          title: String(data.title || data.topic || "").slice(0, 100),
-          date: String(data.createdAt || ""),
-          target: String(data.target || ""),
-        };
-      }) || [],
-      feeDueSummary: feeSummary || null,
+      students: {
+        total: totalStudents,
+        byClass: studentsByClass,
+        totalClasses: classesSnap?.docs.length || 0,
+      },
+      teachers: {
+        total: teachersSnap?.docs.length || 0,
+      },
+      attendance: {
+        date: today,
+        present: totalPresent,
+        absent: totalAbsent,
+        totalMarked: totalPresent + totalAbsent,
+      },
+      fee: {
+        summary: feeDueSummary || null,
+      },
+      notices: {
+        recent: noticesSnap?.docs.map((d) => ({
+          title: String(d.data().title || d.data().topic || "").slice(0, 120),
+          date: d.data().createdAt ? String(d.data().createdAt).slice(0, 10) : "",
+          target: String(d.data().target || "all"),
+        })) || [],
+      },
+      pendingApprovals: pendingApprovalsSnap?.docs.length || 0,
     };
 
     return NextResponse.json({ ok: true, data: context });

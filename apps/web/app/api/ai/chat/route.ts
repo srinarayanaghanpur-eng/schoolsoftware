@@ -77,10 +77,8 @@ export async function POST(req: Request) {
 
     let systemInstruction = SYSTEM_PROMPT;
     if (useErpData && erpContext) {
-      const truncatedContext = Array.isArray(erpContext)
-        ? erpContext.slice(0, 25)
-        : erpContext;
-      systemInstruction += `\n\nHere is the relevant ERP data for context:\n${JSON.stringify(truncatedContext)}`;
+      const contextStr = typeof erpContext === "string" ? erpContext : JSON.stringify(erpContext);
+      systemInstruction += `\n\nHere is the live ERP data you MUST use to answer:\n${contextStr}`;
     }
 
     const response = await client.models.generateContent({
