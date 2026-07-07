@@ -21,6 +21,7 @@ export type RoutePermission = { path: string; roles: readonly UserRole[] };
  *  still governed by the module RBAC matrix (modulesForRole) + the rules below. */
 export const BACK_OFFICE_ROLES: readonly UserRole[] = [
   "super_admin",
+  "admin",
   "principal",
   "accountant",
   "settings_manager"
@@ -32,8 +33,8 @@ export const routePermissions: RoutePermission[] = [
   { path: "/admin/settings", roles: ["super_admin", "settings_manager"] },
   // Academic-year management is super_admin / settings_manager only.
   { path: "/admin/settings/academic-years", roles: ["super_admin", "settings_manager"] },
-  { path: "/admin/users", roles: ["super_admin", "settings_manager"] },
-  { path: "/admin/roles", roles: ["super_admin", "settings_manager"] },
+  { path: "/admin/users", roles: BACK_OFFICE_ROLES },
+  { path: "/admin/roles", roles: BACK_OFFICE_ROLES },
 
   // Portals
   { path: "/teacher", roles: ["teacher"] },

@@ -2,13 +2,13 @@ import { NextResponse } from "next/server";
 import { FieldValue } from "firebase-admin/firestore";
 import { passwordResetSchema } from "@sri-narayana/shared";
 import { adminAuth, adminDb } from "@/lib/firebaseAdmin";
-import { errorMessage, requireAdmin } from "@/lib/apiUtils";
+import { errorMessage, requirePermission } from "@/lib/apiUtils";
 
 export async function POST(req: Request, { params }: { params: { parentId: string } }) {
   try {
-    const decodedToken = await requireAdmin(req);
+    const decodedToken = await requirePermission(req, "parents.edit");
     if (!decodedToken) {
-      return NextResponse.json({ ok: false, error: "Admin access required" }, { status: 403 });
+      return NextResponse.json({ ok: false, error: "Missing or insufficient permissions." }, { status: 403 });
     }
 
     const body = await req.json();

@@ -26,6 +26,9 @@ type AcademicYearContextValue = {
 const AcademicYearContext = createContext<AcademicYearContextValue | null>(null);
 const ACADEMIC_YEARS_CLIENT_CACHE_MS = 5 * 60 * 1000;
 const ACADEMIC_YEARS_CLIENT_CACHE_KEY = "sriNarayana.academicYears";
+const ACADEMIC_YEARS_FETCHED_SESSION_KEY = "sriNarayana.academicYearsFetched";
+const ACTIVE_ACADEMIC_YEAR_STORAGE_KEY = "sriNarayana.activeAcademicYearId";
+const ACADEMIC_YEARS_TIMEOUT_MS = 5_000;
 export const SELECTED_ACADEMIC_YEAR_STORAGE_KEY = "sriNarayana.selectedAcademicYear";
 
 function readStoredSelectedYearId(): string | null {
@@ -39,16 +42,17 @@ function readStoredSelectedYearId(): string | null {
   }
 }
 
-function readCachedAcademicYears(): AcademicYear[] | null {
+function readCachedAcademicYears(): { years: AcademicYear[]; fresh: boolean } | null {
   try {
-    const raw = window.sessionStorage.getItem(ACADEMIC_YEARS_CLIENT_CACHE_KEY);
+    const raw = window.localStorage.getItem(ACADEMIC_YEARS_CLIENT_CACHE_KEY);
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as { years?: AcademicYear[]; expiresAt?: number };
-    if (!parsed.expiresAt || parsed.expiresAt <= Date.now() || !Array.isArray(parsed.years)) {
-      window.sessionStorage.removeItem(ACADEMIC_YEARS_CLIENT_CACHE_KEY);
+    const parsed = JSON.parse(raw) as { years?: AcademicYear[]; cachedAt?: number; expiresAt?: number };
+    if (!Array.isArray(parsed.years)) {
+      window.localStorage.removeItem(ACADEMIC_YEARS_CLIENT_CACHE_KEY);
       return null;
     }
-    return parsed.years;
+    const expiresAt = parsed.expiresAt ?? (parsed.cachedAt ? parsed.cachedAt + ACADEMIC_YEARS_CLIENT_CACHE_MS : 0);
+    return { years: parsed.years, fresh: Boolean(expiresAt && expiresAt > Date.now()) };
   } catch {
     return null;
   }
@@ -56,18 +60,38 @@ function readCachedAcademicYears(): AcademicYear[] | null {
 
 function cacheAcademicYears(years: AcademicYear[]) {
   try {
-    window.sessionStorage.setItem(
+    const active = years.find((year) => year.isActive);
+    window.localStorage.setItem(
       ACADEMIC_YEARS_CLIENT_CACHE_KEY,
-      JSON.stringify({ years, expiresAt: Date.now() + ACADEMIC_YEARS_CLIENT_CACHE_MS })
+      JSON.stringify({ years, cachedAt: Date.now(), expiresAt: Date.now() + ACADEMIC_YEARS_CLIENT_CACHE_MS })
     );
+    if (active?.id) window.localStorage.setItem(ACTIVE_ACADEMIC_YEAR_STORAGE_KEY, active.id);
   } catch {
-    // Session storage can be blocked; server-side caching still reduces duplicate reads.
+    // Storage can be blocked; server-side caching still reduces duplicate reads.
+  }
+}
+
+function hasFetchedYearsThisSession() {
+  try {
+    return window.sessionStorage.getItem(ACADEMIC_YEARS_FETCHED_SESSION_KEY) === "true";
+  } catch {
+    return false;
+  }
+}
+
+function markFetchedYearsThisSession() {
+  try {
+    window.sessionStorage.setItem(ACADEMIC_YEARS_FETCHED_SESSION_KEY, "true");
+  } catch {
+    // ignore
   }
 }
 
 export function AcademicYearProvider({ children }: { children: ReactNode }) {
   const { role } = useAdminSession();
-  const [years, setYears] = useState<AcademicYear[]>([]);
+  const [years, setYears] = useState<AcademicYear[]>(() =>
+    typeof window === "undefined" ? [] : readCachedAcademicYears()?.years ?? []
+  );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [accessDenied, setAccessDenied] = useState(false);
@@ -109,33 +133,43 @@ export function AcademicYearProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    if (!options?.force) {
-      const cachedYears = readCachedAcademicYears();
-      if (cachedYears) {
-        setYears(cachedYears);
+    const cachedYears = !options?.force ? readCachedAcademicYears() : null;
+    if (cachedYears) {
+      setYears(cachedYears.years);
+      setError(null);
+      setAccessDenied(false);
+
+      if (hasFetchedYearsThisSession()) {
         setLoading(false);
-        setError(null);
-        setAccessDenied(false);
         return;
       }
     }
 
-    setLoading(true);
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), ACADEMIC_YEARS_TIMEOUT_MS);
+
+    setLoading(!cachedYears);
     setError(null);
     setAccessDenied(false);
     try {
       const path = options?.force ? "/api/admin/academic-years?refresh=1" : "/api/admin/academic-years";
-      const result = await adminApiRequest<{ ok: true; years: AcademicYear[] }>(path);
+      const result = await adminApiRequest<{ ok: true; years: AcademicYear[] }>(path, { signal: controller.signal });
       setYears(result.years);
       cacheAcademicYears(result.years);
     } catch (err) {
       if (err instanceof AdminApiError && err.status === 403) {
         setAccessDenied(true);
         setError("Access denied");
+      } else if (cachedYears?.years.length) {
+        setYears(cachedYears.years);
+        setError("Online sync is slow. Using cached data.");
       } else {
         setError(err instanceof Error ? err.message : "Unable to load academic years");
       }
     } finally {
+      window.clearTimeout(timeout);
+      controller.abort();
+      markFetchedYearsThisSession();
       setLoading(false);
     }
   }, []);

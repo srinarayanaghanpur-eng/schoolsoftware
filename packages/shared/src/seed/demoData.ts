@@ -7,10 +7,8 @@ import type {
   LeaveRequest,
   PasswordResetHistory,
   PasswordResetRequest,
-  SalaryReport,
   Teacher
 } from "../types/models";
-import { calculateMonthlySalary } from "../services/salaryService";
 
 export const demoTeachers: Teacher[] = [
   {
@@ -245,13 +243,3 @@ export const demoAttendanceEditAudits: AttendanceEditAudit[] = [
     editedAt: "2026-05-19T02:30:00.000Z"
   }
 ];
-
-export const demoSalaryReports: SalaryReport[] = demoTeachers.map((teacher) =>
-  calculateMonthlySalary({
-    teacher,
-    records: demoAttendance.filter((record) => record.teacherId === teacher.id),
-    holidays: demoHolidays,
-    month: "2026-05",
-    settings: DEFAULT_SETTINGS
-  })
-);

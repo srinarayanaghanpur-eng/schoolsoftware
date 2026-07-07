@@ -69,7 +69,7 @@ export async function GET(req: Request) {
     });
   }
 
-  if (canOpenPayrollDirectly(role)) {
+  if (await canOpenPayrollDirectly(role)) {
     return NextResponse.json({ ok: true, access: "direct", role, roleLabel: ROLE_LABELS[role] });
   }
 

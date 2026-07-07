@@ -2,18 +2,13 @@
 
 import { DatePicker } from "@/components/DatePicker";
 import { PageHeader } from "@/components/PageHeader";
-import { auth, isFirebaseConfigured } from "@sri-narayana/shared/firebase/client";
+import { auth } from "@sri-narayana/shared/firebase/client";
 import {
-  calculateMonthlySalary,
-  demoAttendance,
-  demoHolidays,
-  demoTeachers,
   getApprovedPaidCLDays,
   getUnpaidAbsentDays,
   normalizeSalaryReport,
   type SalaryReport,
-  type Teacher,
-  DEFAULT_SETTINGS
+  type Teacher
 } from "@sri-narayana/shared";
 import { ArrowLeft, TrendingUp, Wallet } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -75,20 +70,6 @@ export default function TeacherSalaryPage() {
         const report = salaryResult.reports.find((r) => r.month === month);
         if (report) {
           setSalary({ report: normalizeSalaryReport(report), teacher: teacherResult.teacher });
-        } else if (!isFirebaseConfigured) {
-          // Demo mode
-          const demoTeacher = demoTeachers[0];
-          const demoRecords = demoAttendance.filter(
-            (r) => r.teacherId === demoTeacher.id && r.month === month
-          );
-          const demoReport = calculateMonthlySalary({
-            teacher: demoTeacher,
-            records: demoRecords,
-            holidays: demoHolidays.filter((h) => h.date.startsWith(month)),
-            month,
-            settings: DEFAULT_SETTINGS
-          });
-          setSalary({ report: normalizeSalaryReport(demoReport), teacher: demoTeacher });
         } else {
           setSalary(null);
         }

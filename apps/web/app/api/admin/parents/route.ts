@@ -2,15 +2,15 @@ import { NextResponse } from "next/server";
 import { FieldValue } from "firebase-admin/firestore";
 import { parentCreateSchema } from "@sri-narayana/shared";
 import { adminAuth, adminDb } from "@/lib/firebaseAdmin";
-import { errorMessage, requireAdmin } from "@/lib/apiUtils";
+import { errorMessage, requirePermission } from "@/lib/apiUtils";
 import { employeeIdToInternalEmail } from "@sri-narayana/shared";
 import { writeAuditLog } from "@/lib/auditLog";
 
 export async function GET(req: Request) {
   try {
-    const decodedToken = await requireAdmin(req);
+    const decodedToken = await requirePermission(req, "parents.view");
     if (!decodedToken) {
-      return NextResponse.json({ ok: false, error: "Admin access required" }, { status: 403 });
+      return NextResponse.json({ ok: false, error: "Missing or insufficient permissions." }, { status: 403 });
     }
 
     const url = new URL(req.url);
@@ -51,9 +51,9 @@ export async function POST(req: Request) {
   let createdUid: string | undefined;
 
   try {
-    const decodedToken = await requireAdmin(req);
+    const decodedToken = await requirePermission(req, "parents.create");
     if (!decodedToken) {
-      return NextResponse.json({ ok: false, error: "Admin access required" }, { status: 403 });
+      return NextResponse.json({ ok: false, error: "Missing or insufficient permissions." }, { status: 403 });
     }
 
     const body = await req.json();

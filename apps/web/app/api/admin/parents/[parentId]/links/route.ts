@@ -1,15 +1,15 @@
 import { NextResponse } from "next/server";
 import { parentStudentLinkSchema } from "@sri-narayana/shared";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { requireAdmin } from "@/lib/apiUtils";
+import { requirePermission } from "@/lib/apiUtils";
 import { linkParentToStudent, unlinkParentFromStudent, getStudentsForParent } from "@/lib/parentStudentLink";
 import { writeAuditLog } from "@/lib/auditLog";
 
 export async function GET(req: Request, { params }: { params: { parentId: string } }) {
   try {
-    const decodedToken = await requireAdmin(req);
+    const decodedToken = await requirePermission(req, "parents.view");
     if (!decodedToken) {
-      return NextResponse.json({ ok: false, error: "Admin access required" }, { status: 403 });
+      return NextResponse.json({ ok: false, error: "Missing or insufficient permissions." }, { status: 403 });
     }
 
     const links = await getStudentsForParent(params.parentId);
@@ -35,9 +35,9 @@ export async function GET(req: Request, { params }: { params: { parentId: string
 
 export async function POST(req: Request, { params }: { params: { parentId: string } }) {
   try {
-    const decodedToken = await requireAdmin(req);
+    const decodedToken = await requirePermission(req, "parents.edit");
     if (!decodedToken) {
-      return NextResponse.json({ ok: false, error: "Admin access required" }, { status: 403 });
+      return NextResponse.json({ ok: false, error: "Missing or insufficient permissions." }, { status: 403 });
     }
 
     const body = await req.json();
@@ -63,9 +63,9 @@ export async function POST(req: Request, { params }: { params: { parentId: strin
 
 export async function DELETE(req: Request, { params }: { params: { parentId: string } }) {
   try {
-    const decodedToken = await requireAdmin(req);
+    const decodedToken = await requirePermission(req, "parents.edit");
     if (!decodedToken) {
-      return NextResponse.json({ ok: false, error: "Admin access required" }, { status: 403 });
+      return NextResponse.json({ ok: false, error: "Missing or insufficient permissions." }, { status: 403 });
     }
 
     const url = new URL(req.url);

@@ -2,14 +2,14 @@ import { NextResponse } from "next/server";
 import { FieldValue } from "firebase-admin/firestore";
 import { parentUpdateSchema } from "@sri-narayana/shared";
 import { adminAuth, adminDb } from "@/lib/firebaseAdmin";
-import { requireAdmin } from "@/lib/apiUtils";
+import { requirePermission } from "@/lib/apiUtils";
 import { writeAuditLog } from "@/lib/auditLog";
 
 export async function PATCH(req: Request, { params }: { params: { parentId: string } }) {
   try {
-    const decodedToken = await requireAdmin(req);
+    const decodedToken = await requirePermission(req, "parents.edit");
     if (!decodedToken) {
-      return NextResponse.json({ ok: false, error: "Admin access required" }, { status: 403 });
+      return NextResponse.json({ ok: false, error: "Missing or insufficient permissions." }, { status: 403 });
     }
 
     const body = await req.json();

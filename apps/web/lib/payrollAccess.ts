@@ -1,7 +1,8 @@
 import type { DecodedIdToken } from "firebase-admin/auth";
 import { FieldValue } from "firebase-admin/firestore";
-import { hasPermission, isValidRole, type Role } from "@sri-narayana/shared";
+import { isValidRole, type Role } from "@sri-narayana/shared";
 import { adminDb, verifyBearerToken } from "@/lib/firebaseAdmin";
+import { roleHasPermission } from "@/lib/rbacAdmin";
 
 export type PayrollApprovalStatus = "pending" | "approved" | "rejected";
 
@@ -43,8 +44,8 @@ export function getPayrollRole(token: DecodedIdToken | null): Role | undefined {
   return isValidRole(role) ? role : undefined;
 }
 
-export function canOpenPayrollDirectly(role: Role | undefined) {
-  return Boolean(role && (role === "super_admin" || role === "principal") && hasPermission(role, "payroll.view"));
+export async function canOpenPayrollDirectly(role: Role | undefined) {
+  return Boolean(role && (role === "super_admin" || role === "principal") && await roleHasPermission(role, "payroll.view"));
 }
 
 export function istDateKey(date = new Date()) {
@@ -160,11 +161,11 @@ export async function requirePayrollAccess(req: Request): Promise<PayrollAccessR
   const token = await verifyBearerToken(req);
   const role = getPayrollRole(token);
 
-  if (!token || !role || !hasPermission(role, "payroll.view")) {
+  if (!token || !role || !await roleHasPermission(role, "payroll.view")) {
     return { ok: false, status: 403, error: "Payroll access denied", token: token ?? undefined, role };
   }
 
-  if (canOpenPayrollDirectly(role)) {
+  if (await canOpenPayrollDirectly(role)) {
     return { ok: true, token, role, mode: "direct" };
   }
 

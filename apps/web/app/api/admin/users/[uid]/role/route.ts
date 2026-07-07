@@ -2,12 +2,12 @@ import { NextResponse } from "next/server";
 import { FieldValue } from "firebase-admin/firestore";
 import { isValidRole } from "@sri-narayana/shared";
 import { adminAuth, adminDb } from "@/lib/firebaseAdmin";
-import { requireRole } from "@/lib/apiUtils";
+import { requirePermission } from "@/lib/apiUtils";
 
 // PATCH /api/admin/users/[uid]/role — assign a role (admin only).
 // Sets the Firebase custom claim AND the users/{uid} doc so login resolves it.
 export async function PATCH(req: Request, { params }: { params: { uid: string } }) {
-  const token = await requireRole(req, ["settings_manager"]);
+  const token = await requirePermission(req, "users.edit");
   if (!token) return NextResponse.json({ ok: false, error: "Admin access required" }, { status: 403 });
 
   try {

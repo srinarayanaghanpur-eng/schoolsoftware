@@ -135,6 +135,8 @@ class PerformanceMonitor {
    * Print performance report
    */
   printReport(): void {
+    if (process.env.NODE_ENV === 'production') return;
+
     const summary = this.getSummary();
     console.group('📊 Performance Report');
     console.table(summary);
@@ -167,14 +169,12 @@ export const perfMonitor = new PerformanceMonitor();
  * Web Vitals tracking
  */
 export function trackWebVitals(): void {
+  if (process.env.NODE_ENV === 'production') return;
+
   // Track Cumulative Layout Shift
   if ('PerformanceObserver' in window) {
     try {
-      const observer = new PerformanceObserver((list) => {
-        for (const entry of list.getEntries()) {
-          console.log('Performance entry:', entry.name, (entry as any).duration);
-        }
-      });
+      const observer = new PerformanceObserver(() => {});
 
       observer.observe({ entryTypes: ['largest-contentful-paint', 'first-input', 'layout-shift'] });
     } catch (e) {
@@ -187,6 +187,8 @@ export function trackWebVitals(): void {
  * Log memory usage
  */
 export function logMemoryUsage(): void {
+  if (process.env.NODE_ENV === 'production') return;
+
   if ((performance as any).memory) {
     const memory = (performance as any).memory;
     console.log('Memory Usage:', {

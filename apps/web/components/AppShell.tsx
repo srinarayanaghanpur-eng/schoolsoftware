@@ -19,6 +19,7 @@ import {
   ChevronDown,
   Clock,
   ChevronLeft,
+  ChevronRight,
   Circle,
   ClipboardCheck,
   FileStack,
@@ -56,10 +57,12 @@ import { doc, getDoc } from "firebase/firestore";
 import {
   ROLE_LABELS,
   SCHOOL_CONTACT,
-  canAccessModule,
+  canAccessModuleFromList,
+  hasPermissionFromList,
   isValidRole,
-  modulesForRole,
+  modulesForRoleFromList,
   type Module,
+  type Permission,
   type Role
 } from "@sri-narayana/shared";
 import { auth, db, isFirebaseConfigured } from "@sri-narayana/shared/firebase/client";
@@ -122,7 +125,7 @@ const FallbackIcon = Circle;
 const primaryNav: NavItem[] = [
   { href: "/admin/dashboard", label: "Dashboard", module: "dashboard", icon: LayoutDashboard },
   { href: "/admin/students", label: "Students", module: "students", icon: Users, activePrefixes: ["/admin/students", "/admin/admission-form"] },
-  { href: "/admin/parents", label: "Parents", module: "students", icon: UserCircle, activePrefixes: ["/admin/parents"] },
+  { href: "/admin/parents", label: "Parents", module: "parents", icon: UserCircle, activePrefixes: ["/admin/parents"] },
   { href: "/admin/teachers", label: "Staff", module: "staff", icon: GraduationCap, activePrefixes: ["/admin/teachers"] },
   { href: "/admin/attendance", label: "Attendance", module: "attendance", icon: ClipboardCheck, activePrefixes: ["/admin/attendance", "/admin/my-attendance"] },
   {
@@ -335,7 +338,7 @@ const routeModules: Array<{ prefix: string; module: Module }> = [
   { prefix: "/admin/backup", module: "settings" },
   { prefix: "/admin/promotions", module: "promotions" },
   { prefix: "/admin/students", module: "students" },
-  { prefix: "/admin/parents", module: "students" },
+  { prefix: "/admin/parents", module: "parents" },
   { prefix: "/admin/messages", module: "communication" },
   { prefix: "/admin/approvals", module: "settings" },
   { prefix: "/admin/users", module: "users" },
@@ -347,8 +350,8 @@ function moduleForPath(pathname: string): Module | undefined {
   return routeModules.find((entry) => pathname === entry.prefix || pathname.startsWith(`${entry.prefix}/`))?.module;
 }
 
-function navForRole(items: Array<NavItem | null | undefined>, role?: Role): NavItem[] {
-  const allowed = new Set(modulesForRole(role));
+function navForRole(items: Array<NavItem | null | undefined>, role?: Role, permissions?: readonly Permission[]): NavItem[] {
+  const allowed = new Set(modulesForRoleFromList(role, permissions));
   return items
     .filter((item): item is NavItem => Boolean(item?.href && item.label && item.module))
     // Must pass BOTH the module RBAC matrix and the route table, so we never
@@ -442,15 +445,17 @@ function SubSidebarToggleButton({
   title,
   collapsed,
   drawerOpen,
-  onToggle
+  onToggle,
+  className
 }: {
   title: string;
   collapsed: boolean;
   drawerOpen: boolean;
   onToggle: () => void;
+  className?: string;
 }) {
   const expanded = drawerOpen ? drawerOpen : !collapsed;
-  const ToggleIcon = expanded ? ChevronLeft : Menu;
+  const ToggleIcon = expanded ? ChevronLeft : ChevronRight;
   const actionLabel = expanded ? `Hide ${title} navigation` : `Show ${title} navigation`;
 
   return (
@@ -460,7 +465,10 @@ function SubSidebarToggleButton({
       aria-expanded={expanded}
       data-sub-sidebar-toggle-button
       onClick={onToggle}
-      className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-border bg-card text-muted-foreground shadow-sm hover:bg-accent hover:text-accent-foreground focus:ring-2 focus:ring-ring/30 print:hidden"
+      className={clsx(
+        "grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-primary/20 bg-primary text-primary-foreground shadow-sm transition hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-ring/40 print:hidden",
+        className
+      )}
     >
       <ToggleIcon size={18} strokeWidth={2.55} />
     </button>
@@ -514,17 +522,17 @@ function ContextualSubnav({
   );
 
   const header = () => (
-    <div className="flex items-start gap-3 border-b border-border px-5 py-4">
+    <div className="flex min-h-[73px] items-start gap-3 border-b border-border px-5 py-4">
+      <div className="min-w-0 flex-1">
+        <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-muted-foreground">{subnav.eyebrow}</p>
+        <h2 className="mt-0.5 truncate text-lg font-extrabold tracking-tight text-foreground">{subnav.title}</h2>
+      </div>
       <SubSidebarToggleButton
         title={subnav.title}
         collapsed={collapsed}
         drawerOpen={drawerOpen}
         onToggle={onToggle}
       />
-      <div className="min-w-0 flex-1">
-        <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-muted-foreground">{subnav.eyebrow}</p>
-        <h2 className="mt-0.5 truncate text-lg font-extrabold tracking-tight text-foreground">{subnav.title}</h2>
-      </div>
     </div>
   );
 
@@ -539,6 +547,24 @@ function ContextualSubnav({
       >
         {header()}
         {renderLinks(undefined, !collapsed)}
+      </aside>
+
+      <aside
+        aria-hidden={!collapsed}
+        aria-label={`${subnav.title} collapsed navigation`}
+        className={clsx(
+          "fixed inset-y-0 left-[248px] z-30 hidden w-12 flex-col border-r border-border bg-card shadow-sm transition-[transform,opacity] duration-300 ease-out lg:flex print:hidden",
+          collapsed ? "translate-x-0 opacity-100" : "pointer-events-none -translate-x-2 opacity-0"
+        )}
+      >
+        <div className="flex min-h-[73px] items-start justify-center border-b border-border px-1.5 py-4">
+          <SubSidebarToggleButton
+            title={subnav.title}
+            collapsed={collapsed}
+            drawerOpen={false}
+            onToggle={onToggle}
+          />
+        </div>
       </aside>
 
       {drawerOpen && (
@@ -749,6 +775,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   // Signed-in user, synced from the `users/{uid}` profile doc (falls back to
   // the Firebase Auth display name / email).
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [rolePermissions, setRolePermissions] = useState<Permission[] | undefined>(undefined);
   const [sessionLoading, setSessionLoading] = useState(true);
   const [signingOut, setSigningOut] = useState(false);
   useEffect(() => {
@@ -760,6 +787,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       setSessionLoading(true);
       if (!user) {
         setProfile(null);
+        setRolePermissions(undefined);
         setSessionLoading(false);
         return;
       }
@@ -787,10 +815,42 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const role = profile?.role;
 
+  useEffect(() => {
+    if (!isFirebaseConfigured || !role) {
+      setRolePermissions(undefined);
+      return;
+    }
+    let cancelled = false;
+    const loadPermissions = async () => {
+      try {
+        const snapshot = await getDoc(doc(db, "roles", role));
+        if (cancelled) return;
+        if (!snapshot.exists()) {
+          setRolePermissions(undefined);
+          return;
+        }
+        const data = snapshot.data() as { permissions?: unknown };
+        setRolePermissions(Array.isArray(data.permissions) ? data.permissions.filter((item): item is string => typeof item === "string") : []);
+      } catch {
+        if (!cancelled) setRolePermissions(undefined);
+      }
+    };
+    const handleRbacUpdate = (event: Event) => {
+      const updatedRole = (event as CustomEvent<{ role?: unknown }>).detail?.role;
+      if (!updatedRole || updatedRole === role) void loadPermissions();
+    };
+    void loadPermissions();
+    window.addEventListener("snhs-rbac-updated", handleRbacUpdate);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("snhs-rbac-updated", handleRbacUpdate);
+    };
+  }, [role]);
+
   // Pending approval count badge
   const [pendingApprovals, setPendingApprovals] = useState(0);
   useEffect(() => {
-    if (!isFirebaseConfigured || !role || !canAccessModule(role, "settings") || !isRoleAllowedForPath("/admin/approvals", role)) {
+    if (!isFirebaseConfigured || !role || !canAccessModuleFromList(role, rolePermissions, "settings") || !isRoleAllowedForPath("/admin/approvals", role)) {
       setPendingApprovals(0);
       return;
     }
@@ -833,7 +893,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       stopped = true;
       if (interval) clearInterval(interval);
     };
-  }, [role]);
+  }, [role, rolePermissions]);
 
   const [pendingCommunicationRequests, setPendingCommunicationRequests] = useState(0);
   useEffect(() => {
@@ -851,7 +911,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       !isFirebaseConfigured ||
       !role ||
       role !== "super_admin" ||
-      !canAccessModule(role, "communication") ||
+      !canAccessModuleFromList(role, rolePermissions, "communication") ||
       !isRoleAllowedForPath("/admin/notifications", role)
     ) {
       setPendingCommunicationRequests(0);
@@ -891,7 +951,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       stopped = true;
       if (interval) clearInterval(interval);
     };
-  }, [role, pathname]);
+  }, [role, rolePermissions, pathname]);
 
   // Mobile slide-in nav drawer. Closes automatically on navigation.
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -927,7 +987,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     }
   }, [sessionLoading, role, pathname, router]);
 
-  const sessionValue = useMemo(() => ({ profile, role, loading: sessionLoading || signingOut }), [profile, role, sessionLoading, signingOut]);
+  const sessionValue = useMemo(() => ({
+    profile,
+    role,
+    permissions: rolePermissions,
+    loading: sessionLoading || signingOut,
+    hasPermission: (permission: Permission) => hasPermissionFromList(role, rolePermissions, permission)
+  }), [profile, role, rolePermissions, sessionLoading, signingOut]);
   const isPortalRole = role === "parent";
   const mainNav = useMemo(
     () => navForRole(
@@ -936,11 +1002,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         if (!isPortalRole && role === "accountant" && item.href === "/admin/dashboard") return { ...item, href: "/admin/finance", activePrefixes: ["/admin/finance"] };
         return item;
       }),
-      role
+      role,
+      rolePermissions
     ),
-    [role, isPortalRole, pendingApprovals]
+    [role, rolePermissions, isPortalRole, pendingApprovals]
   );
-  const generalNav = useMemo(() => (isPortalRole ? [] : navForRole(secondaryNav, role)), [role, isPortalRole]);
+  const generalNav = useMemo(() => (isPortalRole ? [] : navForRole(secondaryNav, role, rolePermissions)), [role, rolePermissions, isPortalRole]);
   const contextualSubnav = useMemo(() => {
     if (isPortalRole) return null;
     const section = contextSubnavs.find((candidate) =>
@@ -949,12 +1016,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     if (!section) return null;
 
     const allowedItems = section.items.filter((item) => {
-      if (item.module && (!role || !canAccessModule(role, item.module))) return false;
+      if (item.module && (!role || !canAccessModuleFromList(role, rolePermissions, item.module))) return false;
       return isRoleAllowedForPath(item.href, role);
     });
 
     return allowedItems.length > 0 ? { ...section, items: allowedItems } : null;
-  }, [pathname, role, isPortalRole]);
+  }, [pathname, role, rolePermissions, isPortalRole]);
   useEffect(() => {
     if (!contextualSubnav) setContextSubnavDrawerOpen(false);
   }, [contextualSubnav]);
@@ -973,11 +1040,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       .filter((item) => {
         if (!item?.href || !item.label || !item.short) return false;
         if (!item.module) return true;
-        if (!role || !canAccessModule(role, item.module)) return false;
+        if (!role || !canAccessModuleFromList(role, rolePermissions, item.module)) return false;
         return isPortalRole ? item.href.startsWith("/portal") : !item.href.startsWith("/portal");
       })
       .map((item) => !isPortalRole && role === "accountant" && item.href === "/admin/dashboard" ? { ...item, href: "/admin/finance", label: "Finance", short: "Finance" } : item),
-    [role, isPortalRole]
+    [role, rolePermissions, isPortalRole]
   );
   const currentModule = moduleForPath(pathname);
   // Denied if EITHER the module RBAC matrix OR the central route table blocks the
@@ -986,7 +1053,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const routeDenied =
     !sessionLoading &&
     !signingOut &&
-    ((Boolean(currentModule) && (!role || !canAccessModule(role, currentModule!))) ||
+    ((Boolean(currentModule) && (!role || !canAccessModuleFromList(role, rolePermissions, currentModule!))) ||
       !isRoleAllowedForPath(pathname, role));
   const roleLabel = role ? ROLE_LABELS[role] : "Loading...";
   const notificationLabel =
@@ -1140,7 +1207,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </div>
           ))}
 
-          {role && canAccessModule(role, "attendance") && (
+          {role && canAccessModuleFromList(role, rolePermissions, "attendance") && (
             <div className="space-y-1 pt-1">
               <p className="px-2 pb-1.5 text-[10px] font-extrabold uppercase tracking-[0.13em] text-[#8fa0ed]">Me</p>
               <Link
@@ -1193,7 +1260,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         key={pathname}
         className={clsx(
           "flex min-w-0 flex-1 flex-col transition-[margin] duration-300 ease-out print:ml-0 print:block",
-          contextualSubnav && !contextSubnavCollapsed ? "md:ml-[248px] lg:ml-[472px]" : "md:ml-[248px]"
+          contextualSubnav
+            ? contextSubnavCollapsed
+              ? "md:ml-[248px] lg:ml-[296px]"
+              : "md:ml-[248px] lg:ml-[472px]"
+            : "md:ml-[248px]"
         )}
       >
         <header className="sticky top-0 z-20 flex min-h-[64px] shrink-0 items-center gap-3 border-b border-border bg-card/90 px-3 py-2.5 shadow-sm backdrop-blur md:min-h-[72px] md:gap-4 md:px-6 md:py-3 print:hidden">
@@ -1215,7 +1286,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <AcademicYearBadge />
           <LiveClock className="hidden sm:inline-flex" />
           <DarkModeToggle />
-          {role && canAccessModule(role, "communication") && (
+          {role && canAccessModuleFromList(role, rolePermissions, "communication") && (
             <Link
               href="/admin/notifications"
               aria-label={notificationLabel}
@@ -1239,6 +1310,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <RefreshCw size={19} className={clsx(refreshing && "animate-spin")} />
           </button>
         </header>
+        {contextualSubnav && (
+          <div className="flex min-h-[56px] items-center gap-3 border-b border-border bg-card px-3 py-2 shadow-sm md:px-6 lg:hidden print:hidden">
+            <SubSidebarToggleButton
+              title={contextualSubnav.title}
+              collapsed={!contextSubnavDrawerOpen}
+              drawerOpen={contextSubnavDrawerOpen}
+              onToggle={toggleSubSidebar}
+              className="h-10 w-10"
+            />
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-muted-foreground">{contextualSubnav.eyebrow}</p>
+              <p className="truncate text-sm font-extrabold text-foreground">{contextualSubnav.title}</p>
+            </div>
+          </div>
+        )}
         <div key={pathname} className="page-enter flex-1 overflow-y-auto pb-[76px] md:pb-0 print:overflow-visible print:pb-0 print:opacity-100">
           <ErrorBoundary resetKey={pathname}>
             {sessionLoading || signingOut ? <BrandLoader message={signingOut ? "Signing out…" : "Loading secure workspace…"} /> : routeDenied ? <AccessDeniedState module={currentModule} /> : (<>{!contextualSubnav && <SectionTabs />}{children}</>)}

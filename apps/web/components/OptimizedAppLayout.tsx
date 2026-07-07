@@ -27,7 +27,9 @@ export function OptimizedAppLayout({ children }: AppLayoutProps) {
     // useRefreshOnFocus (throttled) — the correct, read-efficient pattern.
 
     return () => {
-      perfMonitor.printReport();
+      if (process.env.NODE_ENV !== 'production') {
+        perfMonitor.printReport();
+      }
     };
   }, []);
 

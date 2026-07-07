@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, type ReactNode } from "react";
-import type { Role } from "@sri-narayana/shared";
+import type { Permission, Role } from "@sri-narayana/shared";
 
 export type AdminProfile = {
   uid: string;
@@ -13,13 +13,17 @@ export type AdminProfile = {
 type AdminSessionValue = {
   profile: AdminProfile | null;
   role?: Role;
+  permissions?: Permission[];
   loading: boolean;
+  hasPermission: (permission: Permission) => boolean;
 };
 
 const AdminSessionContext = createContext<AdminSessionValue>({
   profile: null,
   role: undefined,
-  loading: true
+  permissions: undefined,
+  loading: true,
+  hasPermission: () => false
 });
 
 export function AdminSessionProvider({

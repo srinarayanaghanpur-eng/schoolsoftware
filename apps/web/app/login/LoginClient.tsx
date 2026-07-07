@@ -1,7 +1,7 @@
 "use client";
 
 import type { FormEvent } from "react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { DarkModeToggle } from "@/components/DarkModeToggle";
 import { isValidRole } from "@sri-narayana/shared";
 import { refreshClaims } from "@/lib/authClaims";
@@ -18,6 +18,7 @@ import {
   EyeOff,
   LockKeyhole,
   LogIn,
+  RefreshCw,
   UserRound,
   UsersRound,
   WalletCards
@@ -29,8 +30,14 @@ const SCHOOL_LOGO_SRC = "/sri-narayana-high-school-logo.jpg";
 type LoginIdCheckStatus = "empty" | "checking" | "matched" | "unknown";
 
 type PublicAcademicYear = { id: string; name: string; isActive: boolean };
+type StoredAcademicYearSelection = { id?: string; name?: string };
+type AcademicYearSyncStatus = "idle" | "syncing" | "slow" | "error";
 
 export const SELECTED_ACADEMIC_YEAR_STORAGE_KEY = "sriNarayana.selectedAcademicYear";
+const PUBLIC_ACADEMIC_YEARS_CACHE_KEY = "sriNarayana.publicAcademicYears";
+const PUBLIC_ACADEMIC_YEARS_FETCHED_SESSION_KEY = "sriNarayana.publicAcademicYearsFetched";
+const ACTIVE_ACADEMIC_YEAR_STORAGE_KEY = "sriNarayana.activeAcademicYearId";
+const ACADEMIC_YEARS_TIMEOUT_MS = 5_000;
 
 type Feature = {
   title: string;
@@ -60,6 +67,73 @@ const featureCards: Feature[] = [
     icon: BarChart3
   }
 ];
+
+function normalizePublicAcademicYears(years: unknown): PublicAcademicYear[] {
+  if (!Array.isArray(years)) return [];
+  return years
+    .map((year) => {
+      const candidate = year as Partial<PublicAcademicYear>;
+      return {
+        id: typeof candidate.id === "string" ? candidate.id : "",
+        name: typeof candidate.name === "string" ? candidate.name : "",
+        isActive: Boolean(candidate.isActive)
+      };
+    })
+    .filter((year) => year.id && year.name);
+}
+
+function readStoredSelectedAcademicYear(): StoredAcademicYearSelection | null {
+  try {
+    const raw = window.localStorage.getItem(SELECTED_ACADEMIC_YEAR_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as StoredAcademicYearSelection;
+    return typeof parsed.id === "string" && parsed.id ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function readCachedPublicAcademicYears(): PublicAcademicYear[] {
+  try {
+    const raw = window.localStorage.getItem(PUBLIC_ACADEMIC_YEARS_CACHE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as { years?: unknown };
+    return normalizePublicAcademicYears(parsed.years);
+  } catch {
+    return [];
+  }
+}
+
+function cachePublicAcademicYears(years: PublicAcademicYear[]) {
+  try {
+    const active = years.find((year) => year.isActive);
+    window.localStorage.setItem(PUBLIC_ACADEMIC_YEARS_CACHE_KEY, JSON.stringify({ years, cachedAt: Date.now() }));
+    if (active?.id) window.localStorage.setItem(ACTIVE_ACADEMIC_YEAR_STORAGE_KEY, active.id);
+  } catch {
+    // Storage can be full or blocked; login should still continue.
+  }
+}
+
+function chooseInitialAcademicYearId(years: PublicAcademicYear[], stored: StoredAcademicYearSelection | null) {
+  if (stored?.id && (years.length === 0 || years.some((year) => year.id === stored.id))) return stored.id;
+  return years.find((year) => year.isActive)?.id ?? "";
+}
+
+function hasFetchedAcademicYearsThisSession() {
+  try {
+    return window.sessionStorage.getItem(PUBLIC_ACADEMIC_YEARS_FETCHED_SESSION_KEY) === "true";
+  } catch {
+    return false;
+  }
+}
+
+function markAcademicYearsFetchedThisSession() {
+  try {
+    window.sessionStorage.setItem(PUBLIC_ACADEMIC_YEARS_FETCHED_SESSION_KEY, "true");
+  } catch {
+    // ignore
+  }
+}
 
 async function signInAndResolveRole(loginId: string, password: string, rememberMe: boolean) {
   const [{ browserLocalPersistence, browserSessionPersistence, setPersistence, signInWithEmailAndPassword, signOut }, { doc, getDoc }, firebaseClient] =
@@ -392,13 +466,78 @@ function useTeacherLoginController() {
   const [forgotLoading, setForgotLoading] = useState(false);
   const [inactiveReason, setInactiveReason] = useState(false);
   const [sessionExpiredReason, setSessionExpiredReason] = useState(false);
-  const [academicYears, setAcademicYears] = useState<PublicAcademicYear[]>([]);
-  const [selectedYearId, setSelectedYearId] = useState("");
-  const [yearsLoading, setYearsLoading] = useState(true);
+  const [storedSelectedYear] = useState<StoredAcademicYearSelection | null>(() =>
+    typeof window === "undefined" ? null : readStoredSelectedAcademicYear()
+  );
+  const [academicYears, setAcademicYears] = useState<PublicAcademicYear[]>(() =>
+    typeof window === "undefined" ? [] : readCachedPublicAcademicYears()
+  );
+  const [selectedYearId, setSelectedYearId] = useState(() =>
+    typeof window === "undefined" ? "" : chooseInitialAcademicYearId(readCachedPublicAcademicYears(), readStoredSelectedAcademicYear())
+  );
+  const [yearsLoading, setYearsLoading] = useState(false);
+  const [yearSyncStatus, setYearSyncStatus] = useState<AcademicYearSyncStatus>("idle");
+  const [yearSyncMessage, setYearSyncMessage] = useState<string | null>(null);
   const router = useRouter();
   const setUppercaseLoginId = (value: string) => {
     setLoginId(value.toUpperCase());
   };
+
+  const syncAcademicYears = useCallback(async (options?: { force?: boolean }) => {
+    const cachedYears = readCachedPublicAcademicYears();
+    const storedYear = readStoredSelectedAcademicYear();
+
+    if (cachedYears.length > 0) {
+      setAcademicYears(cachedYears);
+      setSelectedYearId((current) => {
+        if (current && cachedYears.some((year) => year.id === current)) return current;
+        return chooseInitialAcademicYearId(cachedYears, storedYear);
+      });
+    }
+
+    if (!options?.force && hasFetchedAcademicYearsThisSession()) {
+      setYearsLoading(false);
+      setYearSyncStatus("idle");
+      return;
+    }
+
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), ACADEMIC_YEARS_TIMEOUT_MS);
+
+    setYearsLoading(true);
+    setYearSyncStatus("syncing");
+    setYearSyncMessage(null);
+
+    try {
+      const response = await fetch("/api/academic-years/public", {
+        cache: "no-store",
+        signal: controller.signal
+      });
+      if (!response.ok) throw new Error("Unable to load academic years");
+
+      const result = (await response.json()) as { ok?: boolean; years?: unknown; stale?: boolean };
+      const years = normalizePublicAcademicYears(result.years);
+      setAcademicYears(years);
+      cachePublicAcademicYears(years);
+      setSelectedYearId((current) => {
+        if (current && years.some((year) => year.id === current)) return current;
+        return chooseInitialAcademicYearId(years, readStoredSelectedAcademicYear());
+      });
+      setYearSyncStatus(result.stale ? "slow" : "idle");
+      setYearSyncMessage(result.stale ? "Online sync is slow. Using cached data." : null);
+    } catch (error) {
+      const timedOut = error instanceof Error && error.name === "AbortError";
+      const fallbackYears = readCachedPublicAcademicYears();
+      if (fallbackYears.length > 0) setAcademicYears(fallbackYears);
+      setYearSyncStatus(timedOut || fallbackYears.length > 0 ? "slow" : "error");
+      setYearSyncMessage(timedOut || fallbackYears.length > 0 ? "Online sync is slow. Using cached data." : "Academic year sync failed. You can still login.");
+    } finally {
+      window.clearTimeout(timeout);
+      controller.abort();
+      markAcademicYearsFetchedThisSession();
+      setYearsLoading(false);
+    }
+  }, []);
 
   // Warm up the destination route bundles + Firebase modules while the user
   // is still typing so navigation after login feels instant.
@@ -406,44 +545,13 @@ function useTeacherLoginController() {
     const reason = new URLSearchParams(window.location.search).get("reason");
     setInactiveReason(reason === "inactive");
     setSessionExpiredReason(reason === "session-expired");
-    router.prefetch("/admin/dashboard");
-    router.prefetch("/portal");
-    router.prefetch("/teacher");
-    void import("firebase/auth");
-    void import("firebase/firestore");
-    void import("@sri-narayana/shared/firebase/client");
   }, [router]);
 
-  // Load academic years for the required login-time selection. Default to the
-  // school's active year so most users just confirm and sign in.
+  // Show cached/local defaults immediately, then sync academic years in the
+  // background. This must never block the login form.
   useEffect(() => {
-    let cancelled = false;
-    fetch("/api/academic-years/public")
-      .then(async (response) => {
-        if (!response.ok) throw new Error("Unable to load academic years");
-        return (await response.json()) as { ok?: boolean; years?: PublicAcademicYear[] };
-      })
-      .then((result) => {
-        if (cancelled) return;
-        const years = Array.isArray(result.years) ? result.years : [];
-        setAcademicYears(years);
-        setSelectedYearId((current) => {
-          if (current && years.some((year) => year.id === current)) return current;
-          const active = years.find((year) => year.isActive);
-          return active?.id ?? years[0]?.id ?? "";
-        });
-      })
-      .catch(() => {
-        // Years unavailable (offline/quota). Login stays usable; selection is
-        // simply skipped downstream and the app falls back to the active year.
-      })
-      .finally(() => {
-        if (!cancelled) setYearsLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    void syncAcademicYears();
+  }, [syncAcademicYears]);
 
   // "Remember me" keeps the Firebase session across browser restarts. If a valid
   // session is still present when the login screen loads, skip the form and send
@@ -503,13 +611,6 @@ function useTeacherLoginController() {
   const onSubmit = async (event: FormEvent) => {
     event.preventDefault();
 
-    // Require a year selection whenever the list loaded (the choice scopes the
-    // back-office session; teacher/parent logins simply ignore it downstream).
-    if (academicYears.length > 0 && !selectedYearId) {
-      setError("Please select an academic year.");
-      return;
-    }
-
     setLoading(true);
     setError(null);
     try {
@@ -523,6 +624,8 @@ function useTeacherLoginController() {
             SELECTED_ACADEMIC_YEAR_STORAGE_KEY,
             JSON.stringify({ id: selectedYear.id, name: selectedYear.name })
           );
+        } else if (!selectedYearId) {
+          window.localStorage.removeItem(SELECTED_ACADEMIC_YEAR_STORAGE_KEY);
         }
       } catch {
         // localStorage may be unavailable; the app falls back to the active year.
@@ -591,7 +694,11 @@ function useTeacherLoginController() {
     academicYears,
     selectedYearId,
     setSelectedYearId,
+    storedSelectedYear,
     yearsLoading,
+    yearSyncStatus,
+    yearSyncMessage,
+    retryAcademicYears: () => syncAcademicYears({ force: true }),
     onSubmit,
     onForgotPassword
   };
@@ -600,17 +707,28 @@ function useTeacherLoginController() {
 function AcademicYearSelect({
   years,
   selectedYearId,
+  selectedYearName,
   onChange,
   loading,
+  syncStatus,
+  syncMessage,
+  onRetry,
   variant
 }: {
   years: PublicAcademicYear[];
   selectedYearId: string;
+  selectedYearName?: string;
   onChange: (id: string) => void;
   loading: boolean;
+  syncStatus: AcademicYearSyncStatus;
+  syncMessage: string | null;
+  onRetry: () => void;
   variant: "desktop" | "mobile";
 }) {
-  if (!loading && years.length === 0) return null;
+  const selectedYearExists = Boolean(selectedYearId && years.some((year) => year.id === selectedYearId));
+  const showStoredSelection = Boolean(selectedYearId && !selectedYearExists);
+  const helperText = loading ? "Syncing academic years..." : syncMessage;
+  const helperTone = syncStatus === "error" || syncStatus === "slow" ? "text-amber-700 dark:text-amber-300" : "text-stone-500 dark:text-[#8b94b8]";
 
   const select = (
     <select
@@ -623,13 +741,16 @@ function AcademicYearSelect({
       }
       value={selectedYearId}
       onChange={(event) => onChange(event.target.value)}
-      required
       aria-label="Academic year"
-      disabled={loading}
     >
-      <option value="" disabled>
-        {loading ? "Loading academic years..." : "Select academic year"}
+      <option value="">
+        Current Academic Year
       </option>
+      {showStoredSelection && (
+        <option value={selectedYearId}>
+          {selectedYearName || "Last selected academic year"}
+        </option>
+      )}
       {years.map((year) => (
         <option key={year.id} value={year.id}>
           {year.name}
@@ -641,13 +762,29 @@ function AcademicYearSelect({
 
   if (variant === "desktop") {
     return (
-      <label className="group relative block">
-        <CalendarCheck className="pointer-events-none absolute left-5 top-1/2 h-5 w-5 -translate-y-1/2 text-stone-500 transition group-focus-within:text-[#3033a1]" />
-        {select}
-        <div className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2">
-          {selectedYearId ? <Check className="h-6 w-6 text-[#3033a1]" strokeWidth={3} /> : null}
-        </div>
-      </label>
+      <div>
+        <label className="group relative block">
+          <CalendarCheck className="pointer-events-none absolute left-5 top-1/2 h-5 w-5 -translate-y-1/2 text-stone-500 transition group-focus-within:text-[#3033a1]" />
+          {select}
+          <div className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2">
+            {loading ? (
+              <span className="block h-5 w-5 animate-spin rounded-full border-2 border-[#c7caf0] border-t-[#3033a1]" aria-hidden="true" />
+            ) : selectedYearId ? (
+              <Check className="h-6 w-6 text-[#3033a1]" strokeWidth={3} />
+            ) : null}
+          </div>
+        </label>
+        {helperText && (
+          <div className={`mt-2 flex items-center justify-between gap-3 text-xs font-semibold ${helperTone}`}>
+            <span>{helperText}</span>
+            {syncStatus !== "syncing" && (
+              <button type="button" onClick={onRetry} className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[#3033a1] hover:bg-[#eef0ff] dark:text-indigo-300 dark:hover:bg-indigo-500/10">
+                <RefreshCw size={12} /> Retry
+              </button>
+            )}
+          </div>
+        )}
+      </div>
     );
   }
 
@@ -661,7 +798,18 @@ function AcademicYearSelect({
       >
         <CalendarCheck className="h-5 w-5 shrink-0 text-slate-500" />
         {select}
+        {loading && <span className="ml-2 h-4 w-4 animate-spin rounded-full border-2 border-[#c7caf0] border-t-[#3033a1]" aria-hidden="true" />}
       </div>
+      {helperText && (
+        <div className={`mt-2 flex items-center justify-between gap-2 text-[11px] font-semibold ${helperTone}`}>
+          <span>{helperText}</span>
+          {syncStatus !== "syncing" && (
+            <button type="button" onClick={onRetry} className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[#3033a1] hover:bg-[#eef0ff] dark:text-indigo-300 dark:hover:bg-indigo-500/10">
+              <RefreshCw size={11} /> Retry
+            </button>
+          )}
+        </div>
+      )}
     </label>
   );
 }
@@ -685,7 +833,11 @@ function DesktopLoginExperience() {
     academicYears,
     selectedYearId,
     setSelectedYearId,
+    storedSelectedYear,
     yearsLoading,
+    yearSyncStatus,
+    yearSyncMessage,
+    retryAcademicYears,
     onSubmit,
     onForgotPassword
   } = useTeacherLoginController();
@@ -742,8 +894,12 @@ function DesktopLoginExperience() {
               <AcademicYearSelect
                 years={academicYears}
                 selectedYearId={selectedYearId}
+                selectedYearName={storedSelectedYear?.name}
                 onChange={setSelectedYearId}
                 loading={yearsLoading}
+                syncStatus={yearSyncStatus}
+                syncMessage={yearSyncMessage}
+                onRetry={retryAcademicYears}
                 variant="desktop"
               />
             </div>
@@ -846,7 +1002,11 @@ function MobileLoginExperience() {
     academicYears,
     selectedYearId,
     setSelectedYearId,
+    storedSelectedYear,
     yearsLoading,
+    yearSyncStatus,
+    yearSyncMessage,
+    retryAcademicYears,
     onSubmit,
     onForgotPassword
   } = useTeacherLoginController();
@@ -917,8 +1077,12 @@ function MobileLoginExperience() {
             <AcademicYearSelect
               years={academicYears}
               selectedYearId={selectedYearId}
+              selectedYearName={storedSelectedYear?.name}
               onChange={setSelectedYearId}
               loading={yearsLoading}
+              syncStatus={yearSyncStatus}
+              syncMessage={yearSyncMessage}
+              onRetry={retryAcademicYears}
               variant="mobile"
             />
           </div>
@@ -961,14 +1125,21 @@ function MobileLoginExperience() {
 }
 
 function LoginForm() {
+  const [isDesktop, setIsDesktop] = useState(() =>
+    typeof window === "undefined" ? true : window.matchMedia("(min-width: 1024px)").matches
+  );
+
+  useEffect(() => {
+    const media = window.matchMedia("(min-width: 1024px)");
+    const update = () => setIsDesktop(media.matches);
+    update();
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
+
   return (
     <main className="min-h-screen bg-[#F5F7FF] text-[#0F172A] dark:bg-[#0f1117] dark:text-[#e2e4ec]">
-      <div className="hidden lg:block">
-        <DesktopLoginExperience />
-      </div>
-      <div className="lg:hidden">
-        <MobileLoginExperience />
-      </div>
+      {isDesktop ? <DesktopLoginExperience /> : <MobileLoginExperience />}
     </main>
   );
 }

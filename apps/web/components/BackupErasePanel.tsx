@@ -9,7 +9,6 @@ import {
   demoLeaveRequests,
   demoPasswordResetHistory,
   demoPasswordResetRequests,
-  demoSalaryReports,
   demoTeachers
 } from "@sri-narayana/shared";
 import { auth, isFirebaseConfigured } from "@sri-narayana/shared/firebase/client";
@@ -44,7 +43,6 @@ function createDemoBackup() {
       attendance: demoAttendance,
       biometric_logs: demoBiometricLogs,
       holidays: demoHolidays,
-      salary_reports: demoSalaryReports,
       password_reset_requests: demoPasswordResetRequests,
       password_reset_history: demoPasswordResetHistory,
       leave_requests: demoLeaveRequests,

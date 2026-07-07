@@ -1,8 +1,9 @@
 import type { DecodedIdToken } from "firebase-admin/auth";
 import type { QueryDocumentSnapshot } from "firebase-admin/firestore";
 import { NextResponse } from "next/server";
-import { hasPermission, isValidRole, type Permission, type Role } from "@sri-narayana/shared";
+import { isValidRole, type Permission, type Role } from "@sri-narayana/shared";
 import { adminDb, verifyBearerToken } from "./firebaseAdmin";
+import { roleHasAllPermissions, roleHasAnyPermission, roleHasPermission } from "./rbacAdmin";
 
 /**
  * Effective role for a request. Prefers the Firestore `users/{uid}` assignment
@@ -36,7 +37,7 @@ export async function requireAdmin(req: Request): Promise<DecodedIdToken | null>
   const decodedToken = await verifyBearerToken(req);
   if (!decodedToken) return null;
   const role = await resolveRole(decodedToken);
-  if (role !== "super_admin" && role !== "settings_manager") return null;
+  if (role !== "super_admin" && role !== "admin" && role !== "settings_manager") return null;
   return decodedToken;
 }
 
@@ -80,9 +81,27 @@ export async function requirePermission(req: Request, permission: Permission): P
   const decodedToken = await verifyBearerToken(req);
   if (!decodedToken) return null;
   const role = await resolveRole(decodedToken);
-  if (!hasPermission(role, permission)) {
+  if (!await roleHasPermission(role, permission)) {
     return null;
   }
+  return decodedToken;
+}
+
+/** Allow the request only if the signed-in user's role grants every permission. */
+export async function requireAllPermissions(req: Request, permissions: readonly Permission[]): Promise<DecodedIdToken | null> {
+  const decodedToken = await verifyBearerToken(req);
+  if (!decodedToken) return null;
+  const role = await resolveRole(decodedToken);
+  if (!await roleHasAllPermissions(role, permissions)) return null;
+  return decodedToken;
+}
+
+/** Allow the request if the signed-in user's role grants at least one permission. */
+export async function requireAnyPermission(req: Request, permissions: readonly Permission[]): Promise<DecodedIdToken | null> {
+  const decodedToken = await verifyBearerToken(req);
+  if (!decodedToken) return null;
+  const role = await resolveRole(decodedToken);
+  if (!await roleHasAnyPermission(role, permissions)) return null;
   return decodedToken;
 }
 

@@ -44,8 +44,15 @@ export async function GET(req: Request) {
 
     const month = new URL(req.url).searchParams.get("month") ?? new Date().toISOString().slice(0, 7);
     const dbTimer = startTimer();
-    const snapshot = await adminDb().collection("salary_reports").where("month", "==", month).get();
+    const db = adminDb();
+    const [snapshot, teachersSnapshot] = await Promise.all([
+      db.collection("salary_reports").where("month", "==", month).get(),
+      db.collection("teachers").where("status", "==", "active").get()
+    ]);
     const dbMs = dbTimer();
+    const activeTeachers = teachersSnapshot.docs.map((doc) => serializeDoc<Teacher>(doc));
+    const activeTeacherIds = new Set(activeTeachers.map((teacher) => teacher.id));
+    const activeTeacherNames = new Map(activeTeachers.map((teacher) => [teacher.id, teacher.fullName]));
 
     // normalizeSalaryReport recomputes deduction/netPayable from the safety
     // formula. This protects against legacy stored docs where a teacher had
@@ -54,10 +61,17 @@ export async function GET(req: Request) {
     // status) instead of the stored wrong number.
     const reports = snapshot.docs
       .map((doc) => normalizeSalaryReport(serializeDoc<SalaryReport>(doc)))
+      .filter((report) => activeTeacherIds.has(report.teacherId))
+      .map((report) => {
+        const teacherName = activeTeacherNames.get(report.teacherId);
+        return teacherName && report.teacherName !== teacherName
+          ? normalizeSalaryReport({ ...report, teacherName })
+          : report;
+      })
       .sort((a, b) => a.teacherName.localeCompare(b.teacherName));
 
     const totalMs = totalTimer();
-    console.log(`[API] /api/admin/salary GET - DB: ${dbMs}ms, Total: ${totalMs}ms, Reports: ${reports.length}`);
+    console.log(`[API] /api/admin/salary GET - DB: ${dbMs}ms, Total: ${totalMs}ms, Reports: ${reports.length}, Active teachers: ${activeTeacherIds.size}`);
 
     return NextResponse.json({ ok: true, reports, _metrics: { dbMs, totalMs } });
   } catch (error) {
@@ -210,7 +224,13 @@ export async function PATCH(req: Request) {
     const paid = Boolean(body.paid);
     if (!month || !teacherId) throw new Error("Month and teacher are required.");
 
-    const reportRef = adminDb().collection("salary_reports").doc(salaryDocId(month, teacherId));
+    const db = adminDb();
+    const teacherSnap = await db.collection("teachers").doc(teacherId).get();
+    if (!teacherSnap.exists || teacherSnap.data()?.status !== "active") {
+      return NextResponse.json({ ok: false, error: "Salary can only be updated for active staff." }, { status: 400 });
+    }
+
+    const reportRef = db.collection("salary_reports").doc(salaryDocId(month, teacherId));
     if (paid) {
       const reportSnap = await reportRef.get();
       if (!reportSnap.exists) {

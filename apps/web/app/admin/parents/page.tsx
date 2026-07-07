@@ -4,7 +4,6 @@ import { PageHeader } from "@/components/PageHeader";
 import { PasswordInput } from "@/components/PasswordInput";
 import { useAdminSession } from "@/components/AdminSessionContext";
 import { AdminApiError, adminApiRequest } from "@/lib/adminApiClient";
-import { hasPermission } from "@sri-narayana/shared";
 import { Link2, Link2Off, Plus, RotateCcw, Search, Unlink, X } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 
@@ -24,7 +23,7 @@ type Link = { id: string; parentUid: string; studentId: string; relationship: st
 const RELATIONS = ["father", "mother", "guardian", "other"] as const;
 
 export default function ParentsPage() {
-  const { role } = useAdminSession();
+  const { hasPermission } = useAdminSession();
   const [parents, setParents] = useState<Parent[]>([]);
   const [error, setError] = useState("");
   const [showCreate, setShowCreate] = useState(false);
@@ -117,7 +116,7 @@ export default function ParentsPage() {
     setEditForm({ fullName: p.displayName, phone: p.phone, email: p.email || "" });
   }
 
-  if (!hasPermission(role, "students.view")) return <section className="p-7"><div className="card p-5 font-semibold text-[#ed515d]">Access denied.</div></section>;
+  if (!hasPermission("parents.view")) return <section className="p-7"><div className="card p-5 font-semibold text-[#ed515d]">Access denied.</div></section>;
 
   return (
     <>

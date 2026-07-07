@@ -1,4 +1,4 @@
-import { demoAttendance, demoBiometricLogs, demoHolidays, demoSalaryReports, demoTeachers } from "./demoData";
+import { demoAttendance, demoBiometricLogs, demoHolidays, demoTeachers } from "./demoData";
 
 console.log(
   JSON.stringify(
@@ -6,8 +6,7 @@ console.log(
       teachers: demoTeachers,
       attendance: demoAttendance,
       biometric_logs: demoBiometricLogs,
-      holidays: demoHolidays,
-      salary_reports: demoSalaryReports
+      holidays: demoHolidays
     },
     null,
     2

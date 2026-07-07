@@ -154,6 +154,14 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // RBAC role documents are read by the app shell for live client-side
+    // permission gating. Writes must go through the admin API so validation,
+    // lockout protection, and audit logging are enforced server-side.
+    match /roles/{roleId} {
+      allow read: if signedIn();
+      allow write: if false;
+    }
+
     // Academic years: any signed-in user can read the active year; writes go via admin SDK.
     match /academic_years/{yearId} {
       allow read: if signedIn();
