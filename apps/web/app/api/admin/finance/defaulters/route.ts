@@ -36,7 +36,9 @@ export async function GET(req: Request) {
   const filteredDocs = snap.docs
     .filter((doc) => {
       const data = doc.data();
-      return (Number(data.dueAmount) || 0) > 0
+      const balanceDue = Math.max(0, Number(data.dueAmount) || 0);
+      return balanceDue > 0
+        && String(data.feeStatus || "") !== "paid"
         && (!schoolId || String(data.schoolId || "") === schoolId)
         && (!branchId || String(data.branchId || "") === branchId)
         && (!academicYearId || String(data.academicYearId || "") === academicYearId)

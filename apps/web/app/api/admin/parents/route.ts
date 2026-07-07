@@ -62,7 +62,7 @@ export async function POST(req: Request) {
     const internalEmail = employeeIdToInternalEmail(loginId);
 
     const db = adminDb();
-    const existingUser = await db.collection("users").where("employeeId", "==", loginId).where("role", "==", "parent").get();
+    const existingUser = await db.collection("users").where("employeeId", "==", loginId).where("role", "==", "parent").limit(1).get();
     if (!existingUser.empty) {
       throw new Error("Login ID already exists for a parent account");
     }

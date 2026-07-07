@@ -212,6 +212,10 @@ service cloud.firestore {
     match /bank_transactions/{id} { allow read, write: if isAdmin(); }
     match /invoices/{id} { allow read, write: if isAdmin(); }
     match /fee_reminders/{id} { allow read, write: if isAdmin(); }
+    match /fee_reminder_settings/{id} { allow read: if signedIn(); allow write: if isAdmin(); }
+    match /fee_reminder_queue/{id} { allow read: if isAdmin() || isAccountant(); allow write: if isAdmin() || isAccountant(); }
+    match /fee_reminder_logs/{id} { allow read: if isAdmin() || isAccountant(); allow write: if isAdmin() || isAccountant(); }
+    match /student_reminder_consent/{id} { allow read: if isAdmin() || isAccountant(); allow write: if isAdmin(); }
     match /counters/{id} { allow read, write: if isFinanceRole(); }
 
     // Phase 4: transport, library, hostel, inventory. Reads for signed-in users;

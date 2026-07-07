@@ -16,6 +16,7 @@ export async function GET(req: Request) {
   let query: FirebaseFirestore.Query = db.collection(COLLECTION);
   if (from) query = query.where("date", ">=", from);
   if (to) query = query.where("date", "<=", to);
+  query = query.limit(500);
   const snap = await query.get();
   const closings = snap.docs.map((d) => ({ id: d.id, ...d.data(), date: String(d.data().date) }));
   return NextResponse.json({ ok: true, closings });
@@ -33,7 +34,7 @@ export async function POST(req: Request) {
 
     const db = adminDb();
     const now = FieldValue.serverTimestamp();
-    const existing = await db.collection(COLLECTION).where("date", "==", date).get();
+    const existing = await db.collection(COLLECTION).where("date", "==", date).limit(1).get();
 
     if (action === "close") {
       if (existing.empty) {

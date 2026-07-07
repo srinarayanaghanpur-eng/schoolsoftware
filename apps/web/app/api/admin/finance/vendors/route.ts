@@ -9,7 +9,7 @@ const COLLECTION = "vendors";
 export async function GET(req: Request) {
   const token = await requirePermission(req, "fees.view");
   if (!token) return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
-  const snap = await adminDb().collection(COLLECTION).orderBy("name").get();
+  const snap = await adminDb().collection(COLLECTION).orderBy("name").limit(500).get();
   return NextResponse.json({ ok: true, vendors: snap.docs.map((d) => serializeDoc(d)) });
 }
 

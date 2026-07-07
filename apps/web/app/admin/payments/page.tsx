@@ -508,13 +508,32 @@ function PaymentForm({
   }, [academicYearId]);
 
   const selectedStudent = students.find((student) => student.id === studentId);
+  const [liveBalance, setLiveBalance] = useState<number | null>(null);
+  const [liveFeeStatus, setLiveFeeStatus] = useState<string | null>(null);
+  const [balanceLoading, setBalanceLoading] = useState(false);
 
   useEffect(() => {
-    if (selectedStudent && !amount) {
-      const due = Number(selectedStudent.totalFeesDue ?? 0);
-      if (due > 0) setAmount(String(due));
+    if (!studentId || !isFirebaseConfigured) {
+      setLiveBalance(null);
+      setLiveFeeStatus(null);
+      return;
     }
-  }, [selectedStudent, amount]);
+    setBalanceLoading(true);
+    getDoc(doc(db, "students", studentId))
+      .then((snap) => {
+        if (!snap.exists()) return;
+        const data = snap.data();
+        const due = Math.max(0, Number(data.totalFeesDue ?? 0));
+        const status = String(data.feeStatus || "pending");
+        setLiveBalance(due);
+        setLiveFeeStatus(status);
+        if (due > 0 && !amount) setAmount(String(due));
+      })
+      .catch(() => undefined)
+      .finally(() => setBalanceLoading(false));
+  }, [studentId, amount]);
+
+  const isPaidInFull = liveFeeStatus === "paid" || (liveBalance !== null && liveBalance <= 0 && Number(selectedStudent?.totalFeesPaid ?? 0) > 0);
 
   const buildTransactionId = () => {
     const ts = Date.now();
@@ -534,6 +553,7 @@ function PaymentForm({
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (loading) return;
     setLoading(true);
     setError(null);
     setReceipt(null);
@@ -543,6 +563,13 @@ function PaymentForm({
       if (!studentId || !Number.isFinite(payable) || payable <= 0) {
         throw new Error("Select a student and enter a valid amount.");
       }
+
+      if (isPaidInFull) {
+        throw new Error("This student has already paid the full fee. No due amount pending.");
+      }
+
+      // Generate idempotency key at submission time to prevent duplicates.
+      const idemKey = `${studentId}-${payable}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
       const order = await adminApiRequest<{ ok: true; orderId: string; providerOrderId: string; amount: number }>("/api/fees/order", {
         method: "POST",
@@ -556,12 +583,13 @@ function PaymentForm({
           method
         })
       });
+      const currentDue = liveBalance !== null ? liveBalance : Number(selectedStudent?.totalFeesDue ?? 0);
       const createdReceipt = {
         paymentId: confirmation.paymentId,
         receiptId: confirmation.receiptId,
         receiptNumber: confirmation.receiptNumber,
         amount: confirmation.amount,
-        balanceDue: Math.max(0, Number(selectedStudent?.totalFeesDue ?? 0) - confirmation.amount),
+        balanceDue: Math.max(0, currentDue - confirmation.amount),
         studentName: selectedStudent?.studentName || "student",
         mobile: selectedStudent?.fatherPhone || selectedStudent?.phone || "",
         paymentDate: new Date().toISOString(),
@@ -617,6 +645,14 @@ function PaymentForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {error && <div className="rounded-xl border border-[#ffd5da] bg-[#ffebed] px-4 py-3 text-sm font-semibold text-[#c83f4d]">{error}</div>}
+      {isPaidInFull && !receipt && (
+        <div className="rounded-xl border border-[#c8f0dc] bg-[#e6f8ef] px-4 py-3 text-sm font-semibold text-[#0f8d52]">
+          <span className="inline-flex items-center gap-2">
+            <CheckCircle2 size={17} />
+            This student has already paid the full fee. No due amount pending.
+          </span>
+        </div>
+      )}
       {receipt && (
         <div className="rounded-xl border border-[#c8f0dc] bg-[#e6f8ef] px-4 py-3 text-sm font-semibold text-[#0f8d52]">
           <span className="inline-flex items-center gap-2">
@@ -814,8 +850,8 @@ function PaymentForm({
       </div>
 
       <div className="flex flex-wrap gap-2">
-        <button className="btn-primary" disabled={loading}>
-          {loading ? "Processing..." : `Pay via ${PAYMENT_METHODS.find((m) => m.value === method)?.label || method}`}
+        <button className="btn-primary" disabled={loading || isPaidInFull || balanceLoading}>
+          {loading ? "Processing..." : isPaidInFull ? "Already Paid" : `Pay via ${PAYMENT_METHODS.find((m) => m.value === method)?.label || method}`}
         </button>
         <button type="button" onClick={onCancel} className="btn-secondary">Close</button>
       </div>

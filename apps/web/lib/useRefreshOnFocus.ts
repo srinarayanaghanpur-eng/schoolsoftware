@@ -16,10 +16,17 @@ export function useRefreshOnFocus(refresh: () => void | Promise<void>, cooldownM
   const ref = useRef(refresh);
   ref.current = refresh;
   const lastRunRef = useRef(Date.now());
+  const initialSkipRef = useRef(true);
 
   useEffect(() => {
     const run = () => {
       if (document.visibilityState !== "visible") return;
+      // Skip the very first focus/visibility event — the initial mount
+      // useEffect already fetched the data, so this avoids a double-load.
+      if (initialSkipRef.current) {
+        initialSkipRef.current = false;
+        return;
+      }
       if (Date.now() - lastRunRef.current < cooldownMs) return;
       lastRunRef.current = Date.now();
       void ref.current();

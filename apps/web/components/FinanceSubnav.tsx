@@ -13,7 +13,7 @@ const TABS = [
   { href: "/admin/finance/income", label: "Income", icon: Banknote },
   { href: "/admin/finance/dues", label: "Dues", icon: FileStack },
   { href: "/admin/finance/installments", label: "Installments", icon: Layers },
-  { href: "/admin/finance/reminders", label: "Reminders", icon: Bell },
+  { href: "/admin/fee-reminders", label: "Auto Reminders", icon: Bell },
   { href: "/admin/finance/collections", label: "Closing", icon: CalendarCheck },
   { href: "/admin/finance/statements", label: "Statements", icon: Users },
   { href: "/admin/finance/defaulters", label: "Defaulters", icon: FileStack },

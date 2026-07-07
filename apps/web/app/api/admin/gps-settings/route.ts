@@ -84,7 +84,7 @@ export async function PATCH(request: Request) {
       });
     }
 
-    const snapshot = await db.collection("teachers").get();
+    const snapshot = await db.collection("teachers").limit(1000).get();
     let batch = db.batch();
     let operationCount = 0;
     let updatedCount = 0;

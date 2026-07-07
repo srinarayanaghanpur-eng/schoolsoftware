@@ -37,6 +37,7 @@ export async function POST(req: Request) {
     const totalPaid = Number(s.totalFeesPaid || 0);
     const totalConcession = Number(s.totalConcessionAmount || 0);
     const dueAmount = Math.max(0, Number(s.totalFeesDue ?? (totalFee - totalPaid - totalConcession)) || 0);
+    const feeStatus: "paid" | "partial" | "pending" = dueAmount <= 0 ? "paid" : totalPaid > 0 ? "partial" : "pending";
 
     const ref = db.collection("studentFeeSummaries").doc(`${doc.id}_${academicYearId}`);
     writer.set(ref, {
@@ -55,6 +56,7 @@ export async function POST(req: Request) {
       totalPaid,
       totalConcession,
       dueAmount,
+      feeStatus,
       updatedAt: now
     }, { merge: true });
     synced += 1;

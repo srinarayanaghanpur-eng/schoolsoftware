@@ -27,6 +27,7 @@ export const MODULES = [
   "academics",
   "exams",
   "fees",
+  "fee_reminders",
   "salary",
   "payroll",
   "transport",
@@ -68,6 +69,7 @@ export const PERMISSION_MATRIX: readonly PermissionGroup[] = [
   { key: "staff", label: "Staff", permissions: ["staff.view", "staff.create", "staff.edit", "staff.delete"] },
   { key: "attendance", label: "Attendance", permissions: ["attendance.view", "attendance.create", "attendance.edit", "attendance.delete"] },
   { key: "fees", label: "Fees & Finance", permissions: ["fees.view", "fees.create", "fees.edit", "fees.delete", "fees.approve", "fees.export"] },
+  { key: "fee_reminders", label: "Fee Reminders", permissions: ["fee_reminders.view", "fee_reminders.manage_settings", "fee_reminders.send_test", "fee_reminders.retry_failed", "fee_reminders.export_logs"] },
   { key: "salary", label: "Salary & Payroll", permissions: ["salary.view", "salary.create", "salary.edit", "salary.delete", "payroll.view", "payroll.create", "payroll.edit", "payroll.approve"] },
   { key: "exams", label: "Exams & Marks", permissions: ["exams.view", "exams.create", "exams.edit", "exams.delete", "exams.approve", "exams.export"] },
   { key: "communication", label: "Communication", permissions: ["communication.view", "communication.create", "communication.edit", "communication.delete"] },
@@ -124,6 +126,7 @@ export const ROLE_PERMISSIONS: Record<Role, readonly (Permission | typeof ALL)[]
     "academics.view", "academics.create", "academics.edit",
     "exams.view", "exams.create", "exams.edit", "exams.export",
     "fees.view", "fees.create", "fees.edit", "fees.approve", "fees.export",
+    "fee_reminders.view", "fee_reminders.manage_settings", "fee_reminders.send_test", "fee_reminders.retry_failed", "fee_reminders.export_logs",
     "salary.view", "salary.create", "salary.edit", "payroll.view", "payroll.create", "payroll.edit", "payroll.approve",
     "transport.view", "transport.create", "transport.edit",
     "communication.view", "communication.create", "communication.edit",
@@ -157,6 +160,7 @@ export const ROLE_PERMISSIONS: Record<Role, readonly (Permission | typeof ALL)[]
     "students.view",
     "parents.view",
     "fees.view", "fees.create", "fees.edit", "fees.approve", "fees.export",
+    "fee_reminders.view", "fee_reminders.manage_settings", "fee_reminders.send_test", "fee_reminders.retry_failed", "fee_reminders.export_logs",
     "inventory.view", "inventory.create", "inventory.edit",
     "bus_finance.view", "bus_finance.create", "bus_finance.edit", "bus_finance.export",
     "reports.view", "reports.export",
@@ -200,6 +204,7 @@ export function hasPermissionFromList(role: Role | undefined, permissions: reado
   if (!role) return false;
   if (!permissions) return hasPermission(role, permission);
   if (role === "super_admin" && SUPER_ADMIN_CRITICAL_PERMISSIONS.includes(permission)) return true;
+  if (permissions.includes(ALL)) return true;
   return permissions.includes(permission);
 }
 

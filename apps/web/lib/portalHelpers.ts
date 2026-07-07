@@ -24,7 +24,10 @@ export async function getPortalLinkedStudents(token: DecodedIdToken) {
   const links = await getStudentsForParent(token.uid);
   const ids = links.map((l) => l.studentId);
   if (ids.length === 0) return [];
-  const snaps = await Promise.all(ids.map((id) => adminDb().collection("students").doc(id).get()));
+  // Safety limit — cap at 50 to prevent unbounded N+1 Firestore reads.
+  const MAX_STUDENTS = 50;
+  const limitedIds = ids.slice(0, MAX_STUDENTS);
+  const snaps = await Promise.all(limitedIds.map((id) => adminDb().collection("students").doc(id).get()));
   return snaps
     .filter((s) => s.exists)
     .map((s) => {

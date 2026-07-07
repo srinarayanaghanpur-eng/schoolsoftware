@@ -3,6 +3,7 @@ import {
   query,
   where,
   orderBy,
+  limit,
   getDocs,
   getDoc,
   addDoc,
@@ -46,7 +47,7 @@ export const concessionService = {
       constraints.unshift(where('studentId', '==', filters.studentId));
     }
 
-    const q = query(collection(db, 'concessions'), ...constraints);
+    const q = query(collection(db, 'concessions'), ...constraints, limit(200));
     const snapshot = await getDocs(q);
 
     return snapshot.docs.map((doc) => ({
@@ -62,7 +63,8 @@ export const concessionService = {
     const q = query(
       collection(db, 'concessions'),
       where('studentId', '==', studentId),
-      orderBy('createdAt', 'desc')
+      orderBy('createdAt', 'desc'),
+      limit(50)
     );
     const snapshot = await getDocs(q);
     return snapshot.docs.map((doc) => ({
@@ -82,7 +84,8 @@ export const concessionService = {
       where('isActive', '==', true),
       where('validFrom', '<=', now),
       where('validUpto', '>=', now),
-      where('status', '==', 'approved')
+      where('status', '==', 'approved'),
+      limit(20)
     );
     const snapshot = await getDocs(q);
     return snapshot.docs.map((doc) => ({
@@ -292,17 +295,22 @@ export const concessionService = {
     activeConcessions: number;
     totalAmount: number;
   }> {
-    const concessions = await this.getAllConcessions();
+    const [approvedSnap, pendingSnap, rejectedSnap] = await Promise.all([
+      getDocs(query(collection(db, 'concessions'), where('status', '==', 'approved'), where('isActive', '==', true), limit(500))),
+      getDocs(query(collection(db, 'concessions'), where('status', '==', 'pending'), limit(500))),
+      getDocs(query(collection(db, 'concessions'), where('status', '==', 'rejected'), limit(500)))
+    ]);
+
+    const approved = approvedSnap.docs.map((d) => d.data() as Concession);
+    const totalAmount = approved.reduce((sum, c) => sum + (c.concessionAmount || 0), 0);
 
     return {
-      totalConcessions: concessions.length,
-      pendingApprovals: concessions.filter((c) => c.status === 'pending').length,
-      approvedConcessions: concessions.filter((c) => c.status === 'approved').length,
-      rejectedConcessions: concessions.filter((c) => c.status === 'rejected').length,
-      activeConcessions: concessions.filter((c) => c.isActive && c.status === 'approved').length,
-      totalAmount: concessions
-        .filter((c) => c.status === 'approved')
-        .reduce((sum, c) => sum + (c.concessionAmount || 0), 0)
+      totalConcessions: approvedSnap.size + pendingSnap.size + rejectedSnap.size,
+      pendingApprovals: pendingSnap.size,
+      approvedConcessions: approvedSnap.size,
+      rejectedConcessions: rejectedSnap.size,
+      activeConcessions: approvedSnap.size,
+      totalAmount
     };
   },
 

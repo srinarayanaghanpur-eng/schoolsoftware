@@ -4,6 +4,7 @@ import { paymentConfirmSchema } from "@sri-narayana/shared";
 import { adminDb, verifyBearerToken } from "@/lib/firebaseAdmin";
 import { getSchoolId } from "@/lib/schoolScope";
 import { buildReceiptRecord, generateReceiptNumber, resolveAcademicYearLabel } from "@/lib/receiptService";
+import { validatePaymentAllowed, recalculateStudentFeeSummary } from "@/lib/feeRecalculation";
 
 // POST /api/fees/confirm — finalize a payment order: mark paid, record the payment,
 // and update the student's fee totals. (A real gateway would verify a signature here.)
@@ -26,6 +27,7 @@ export async function POST(req: Request) {
     let receiptNumber = "";
     let receiptId = receiptRef.id;
     let paymentId = paymentRef.id;
+    let orderStudentId = "";
     // Idempotency: confirming the same order twice (double-click, network
     // retry) returns the FIRST payment instead of erroring or duplicating.
     let existingPaymentId: string | null = null;
@@ -35,6 +37,7 @@ export async function POST(req: Request) {
       if (!orderSnap.exists) throw new Error("Order not found");
 
       const order = orderSnap.data() as { studentId: string; amount: number; paymentType: string; status: string; note?: string; paymentId?: string; receiptId?: string; receiptNumber?: string };
+      orderStudentId = order.studentId;
       if (order.status === "paid") {
         existingPaymentId = String(order.paymentId ?? "");
         paymentId = existingPaymentId;
@@ -50,10 +53,22 @@ export async function POST(req: Request) {
       const student = studentSnap.data() ?? {};
 
       amountPaid = Number(order.amount) || 0;
-      const amountDue = Number(student.totalFeesDue || student.totalFeeAmount || 0);
+
+      // Validate: check if student has pending balance before processing.
+      const sFeeStatus = String(student.feeStatus || "pending");
+      const sTotalFeesDue = Number(student.totalFeesDue ?? 0);
+      const sTotalFeesPaid = Number(student.totalFeesPaid || 0);
+      if (sFeeStatus === "paid" || (sTotalFeesDue <= 0 && sTotalFeesPaid > 0)) {
+        throw new Error("This student has already paid the full fee. No due amount pending.");
+      }
+      if (amountPaid > sTotalFeesDue) {
+        throw new Error(`Payment amount cannot be greater than pending due of ₹${sTotalFeesDue.toLocaleString("en-IN")}.`);
+      }
+
+      const amountDue = Number(student.totalFeesDue ?? 0);
       const remainingAmount = Math.max(0, amountDue - amountPaid);
       const totalPaid = Number(student.totalFeesPaid || 0) + amountPaid;
-      const feeStatus = remainingAmount === 0 ? "paid" : amountPaid > 0 ? "partial" : "pending";
+      const feeStatus: "paid" | "partial" | "pending" = remainingAmount <= 0 ? "paid" : amountPaid > 0 ? "partial" : "pending";
       const schoolId = String(student.schoolId || getSchoolId(token));
       const branchId = String(student.branchId || "default-branch");
       const academicYearId = String(student.academicYearId || "");
@@ -131,6 +146,7 @@ export async function POST(req: Request) {
         totalPaid,
         totalConcession: Number(student.totalConcessionAmount || 0),
         dueAmount: remainingAmount,
+        feeStatus,
         lastPaymentDate: now,
         updatedAt: now
       }, { merge: true });
@@ -144,6 +160,12 @@ export async function POST(req: Request) {
         updatedAt: now
       }, { merge: true });
     });
+
+    if (orderStudentId) {
+      recalculateStudentFeeSummary(orderStudentId).catch((err) => {
+        console.error(`[FeeConfirm] Recalculation failed for ${orderStudentId}:`, err);
+      });
+    }
 
     if (existingPaymentId !== null) {
       return NextResponse.json({ ok: true, duplicate: true, paymentId, receiptId, receiptNumber, amount: amountPaid });

@@ -8,7 +8,7 @@ import { requirePermission, serializeDoc } from "@/lib/apiUtils";
 export async function GET(req: Request, { params }: { params: { id: string } }) {
   const token = await requirePermission(req, "fees.view");
   if (!token) return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
-  const snap = await adminDb().collection("bank_transactions").where("accountId", "==", params.id).get();
+  const snap = await adminDb().collection("bank_transactions").where("accountId", "==", params.id).limit(500).get();
   const transactions = snap.docs.map((d) => serializeDoc(d)).sort((a, b) => String(b.date ?? "").localeCompare(String(a.date ?? "")));
   return NextResponse.json({ ok: true, transactions });
 }

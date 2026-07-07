@@ -21,6 +21,7 @@ export async function GET(req: Request) {
     let query: FirebaseFirestore.Query = adminDb().collection(COLLECTION);
     if (status) query = query.where("status", "==", status);
     if (type) query = query.where("type", "==", type);
+    query = query.limit(500);
 
     // Sort after fetching so filtered tabs do not require a Firestore composite index.
     const snapshot = await query.get();

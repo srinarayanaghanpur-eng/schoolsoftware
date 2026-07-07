@@ -5,6 +5,7 @@ import { requirePermission } from "@/lib/apiUtils";
 import { docCursor, logFirestoreRead, readLimit } from "@/lib/firestoreReadLogger";
 import { getSchoolId } from "@/lib/schoolScope";
 import { buildReceiptRecord, generateReceiptNumber, resolveAcademicYearLabel } from "@/lib/receiptService";
+import { validatePaymentAllowed, recalculateStudentFeeSummary } from "@/lib/feeRecalculation";
 
 /**
  * GET /api/admin/payments
@@ -142,6 +143,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const payable = Number(amountPaid);
+    if (!Number.isFinite(payable) || payable <= 0) {
+      return NextResponse.json(
+        { success: false, error: 'Payment amount must be greater than 0.' },
+        { status: 400 }
+      );
+    }
+
+    // Pre-validation: check if student has pending balance before processing.
+    const validation = await validatePaymentAllowed(studentId, payable, "");
+    if (!validation.allowed) {
+      return NextResponse.json(
+        { success: false, error: validation.error },
+        { status: 400 }
+      );
+    }
+
     // Idempotency: the client sends a unique key per payment attempt. If the
     // same key is submitted twice (double-click, network retry, future offline
     // sync), the second call returns the FIRST payment instead of creating a
@@ -184,9 +202,9 @@ export async function POST(request: NextRequest) {
       const student = studentSnap.data();
       if (!student) throw new Error("Student data unavailable");
 
-      const amountDue = Number(student.totalFeesDue || 0);
-      const remainingAmount = Math.max(0, amountDue - Number(amountPaid));
-      const feeStatus = remainingAmount === 0 ? 'paid' : Number(amountPaid) > 0 ? 'partial' : 'pending';
+      const amountDue = Number(student.totalFeesDue ?? 0);
+      const remainingAmount = Math.max(0, amountDue - payable);
+      const feeStatus: 'paid' | 'partial' | 'pending' = remainingAmount <= 0 ? 'paid' : payable > 0 ? 'partial' : 'pending';
       const branchId = student.branchId || "default-branch";
       const schoolId = student.schoolId || getSchoolId(auth);
       const academicYearId = student.academicYearId || "";
@@ -272,6 +290,7 @@ export async function POST(request: NextRequest) {
         totalPaid: Number(student.totalFeesPaid || 0) + Number(amountPaid),
         totalConcession: Number(student.totalConcessionAmount || 0),
         dueAmount: remainingAmount,
+        feeStatus,
         lastPaymentDate: now,
         updatedAt: now
       }, { merge: true });
@@ -293,6 +312,11 @@ export async function POST(request: NextRequest) {
         userId: userId || auth.uid,
         timestamp: now
       });
+    });
+
+    // After transaction, recalculate fee summary to ensure consistency.
+    recalculateStudentFeeSummary(studentId).catch((err) => {
+      console.error(`[PaymentPost] Recalculation failed for ${studentId}:`, err);
     });
 
     // Duplicate submission: return the original payment (HTTP 200, not 201)

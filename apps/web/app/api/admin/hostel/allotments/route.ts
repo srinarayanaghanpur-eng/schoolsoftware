@@ -9,7 +9,7 @@ const COLLECTION = "hostel_allotments";
 export async function GET(req: Request) {
   const token = await requirePermission(req, "hostel.view");
   if (!token) return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
-  const snap = await adminDb().collection(COLLECTION).where("status", "==", "active").get();
+  const snap = await adminDb().collection(COLLECTION).where("status", "==", "active").limit(500).get();
   return NextResponse.json({ ok: true, allotments: snap.docs.map((d) => serializeDoc(d)) });
 }
 

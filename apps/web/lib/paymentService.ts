@@ -3,6 +3,7 @@ import {
   query,
   where,
   orderBy,
+  limit,
   getDocs,
   getDoc,
   addDoc,
@@ -105,8 +106,7 @@ export const paymentService = {
     const receiptRef = doc(collection(db, 'receipts'));
     batch.set(receiptRef, receiptData);
 
-    // Update payment with receipt reference
-    batch.update(paymentRef, { receiptNumber });
+
 
     // Log audit
     const auditRef = doc(collection(db, 'feeAuditLogs'));
@@ -132,14 +132,22 @@ export const paymentService = {
     status?: string;
     dateRange?: { from: Date; to: Date };
   }): Promise<Payment[]> {
-    const constraints: QueryConstraint[] = [orderBy('createdAt', 'desc')];
+    const constraints: QueryConstraint[] = [];
 
     if (filters?.studentId) {
-      constraints.unshift(where('studentId', '==', filters.studentId));
+      constraints.push(where('studentId', '==', filters.studentId));
     }
     if (filters?.status) {
-      constraints.unshift(where('status', '==', filters.status));
+      constraints.push(where('status', '==', filters.status));
     }
+
+    // Only add orderBy when filters are present (avoids full collection scan)
+    if (filters?.studentId || filters?.status) {
+      constraints.push(orderBy('createdAt', 'desc'));
+    }
+
+    // Always limit results to prevent unbounded reads
+    constraints.push(limit(100));
 
     const q = query(collection(db, 'payments'), ...constraints);
     const snapshot = await getDocs(q);
@@ -169,7 +177,8 @@ export const paymentService = {
     const q = query(
       collection(db, 'payments'),
       where('studentId', '==', studentId),
-      orderBy('paymentDate', 'desc')
+      orderBy('paymentDate', 'desc'),
+      limit(50)
     );
     const snapshot = await getDocs(q);
     return snapshot.docs.map((doc) => ({
@@ -196,17 +205,37 @@ export const paymentService = {
     averagePayment: number;
     pendingPayments: number;
   }> {
-    const payments = await this.getAllPayments();
+    // Use targeted queries with limits instead of unbounded getAllPayments
+    const completedQuery = query(
+      collection(db, 'payments'),
+      where('status', '==', 'completed'),
+      limit(1000)
+    );
+    const completedSnap = await getDocs(completedQuery);
+    const completedPayments = completedSnap.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data()
+    })) as Payment[];
 
-    const totalCollected = payments
-      .filter((p) => p.status === 'completed')
-      .reduce((sum, p) => sum + p.amountPaid, 0);
+    const pendingQuery = query(
+      collection(db, 'payments'),
+      where('status', '==', 'pending'),
+      limit(1000)
+    );
+    const pendingSnap = await getDocs(pendingQuery);
+    const pendingPayments = pendingSnap.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data()
+    })) as Payment[];
+
+    const allPayments = [...completedPayments, ...pendingPayments];
+    const totalCollected = completedPayments.reduce((sum, p) => sum + p.amountPaid, 0);
 
     return {
-      totalPayments: payments.length,
+      totalPayments: allPayments.length,
       totalCollected,
-      averagePayment: payments.length > 0 ? totalCollected / payments.length : 0,
-      pendingPayments: payments.filter((p) => p.status === 'pending').length
+      averagePayment: allPayments.length > 0 ? totalCollected / allPayments.length : 0,
+      pendingPayments: pendingPayments.length
     };
   },
 

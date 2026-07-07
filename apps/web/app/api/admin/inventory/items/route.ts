@@ -9,7 +9,7 @@ const COLLECTION = "inventory_items";
 export async function GET(req: Request) {
   const token = await requirePermission(req, "inventory.view");
   if (!token) return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
-  const snap = await adminDb().collection(COLLECTION).orderBy("name").get();
+  const snap = await adminDb().collection(COLLECTION).orderBy("name").limit(500).get();
   return NextResponse.json({ ok: true, items: snap.docs.map((d) => serializeDoc(d)) });
 }
 

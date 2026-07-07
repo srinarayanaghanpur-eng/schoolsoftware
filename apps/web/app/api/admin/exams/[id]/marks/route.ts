@@ -16,7 +16,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
   const token = await requirePermission(req, "exams.view");
   if (!token) return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
 
-  const snap = await adminDb().collection(MARKS).where("examId", "==", params.id).get();
+  const snap = await adminDb().collection(MARKS).where("examId", "==", params.id).limit(5000).get();
   const marks = snap.docs.map((doc) => serializeDoc(doc));
   return NextResponse.json({ ok: true, marks });
 }

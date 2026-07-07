@@ -1,5 +1,6 @@
 import { FieldValue } from "firebase-admin/firestore";
 import {
+  ALL,
   ALL_KNOWN_PERMISSIONS,
   ROLE_LABELS,
   ROLES,
@@ -72,6 +73,7 @@ export async function roleHasPermission(role: Role | undefined, permission: Perm
   const doc = await getRoleDocument(role);
   if (!doc) return hasPermission(role, permission);
   if (role === "super_admin" && isSuperAdminCriticalPermission(permission)) return true;
+  if (doc.permissions.includes(ALL)) return true;
   return doc.permissions.includes(permission);
 }
 
@@ -81,7 +83,7 @@ export async function roleHasAllPermissions(role: Role | undefined, permissions:
   return permissions.every((permission) =>
     role === "super_admin" && isSuperAdminCriticalPermission(permission)
       ? true
-      : effective.includes(permission)
+      : effective.includes(ALL) || effective.includes(permission)
   );
 }
 
@@ -91,7 +93,7 @@ export async function roleHasAnyPermission(role: Role | undefined, permissions: 
   return permissions.some((permission) =>
     role === "super_admin" && isSuperAdminCriticalPermission(permission)
       ? true
-      : effective.includes(permission)
+      : effective.includes(ALL) || effective.includes(permission)
   );
 }
 

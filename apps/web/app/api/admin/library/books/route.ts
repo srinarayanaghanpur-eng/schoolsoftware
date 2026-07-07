@@ -9,7 +9,7 @@ const COLLECTION = "books";
 export async function GET(req: Request) {
   const token = await requirePermission(req, "library.view");
   if (!token) return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
-  const snap = await adminDb().collection(COLLECTION).orderBy("title").get();
+  const snap = await adminDb().collection(COLLECTION).orderBy("title").limit(500).get();
   return NextResponse.json({ ok: true, books: snap.docs.map((d) => serializeDoc(d)) });
 }
 

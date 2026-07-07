@@ -69,6 +69,7 @@ export async function POST(req: Request) {
       .collection("holidays")
       .where("date", ">=", fromDate)
       .where("date", "<=", toDate)
+      .limit(100)
       .get();
     const alreadyDeclared = new Set(
       existingSnapshot.docs

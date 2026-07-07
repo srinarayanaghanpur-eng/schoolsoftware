@@ -22,7 +22,7 @@ export async function GET(req: Request) {
     db.collection("payments").where("createdAt", ">=", fromDate).where("createdAt", "<=", toDate).orderBy("createdAt", "desc").limit(1000).get(),
     db.collection("incomes").where("createdAt", ">=", fromDate).where("createdAt", "<=", toDate).orderBy("createdAt", "desc").limit(1000).get(),
     db.collection("expenses").where("createdAt", ">=", fromDate).where("createdAt", "<=", toDate).orderBy("createdAt", "desc").limit(1000).get(),
-    db.collection("branches").get()
+    db.collection("branches").limit(500).get()
   ]);
   logFirestoreRead("FinanceBranchAccountsAPI", "payments", paymentsSnap, { from, to, limit: 1000 });
   logFirestoreRead("FinanceBranchAccountsAPI", "incomes", incomesSnap, { from, to, limit: 1000 });

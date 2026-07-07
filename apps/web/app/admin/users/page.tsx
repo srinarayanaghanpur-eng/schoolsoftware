@@ -72,7 +72,7 @@ function roleCellKey(role: Role, permission: Permission) {
 }
 
 export default function UsersRolesPage() {
-  const { role, hasPermission: sessionHasPermission } = useAdminSession();
+  const { role, hasPermission: sessionHasPermission, loading: sessionLoading } = useAdminSession();
   const [users, setUsers] = useState<UserRow[]>([]);
   const [roles, setRoles] = useState<RoleRecord[]>([]);
   const [query, setQuery] = useState("");
@@ -262,6 +262,19 @@ export default function UsersRolesPage() {
       setPendingCell(null);
     }
   };
+
+  if (sessionLoading) {
+    return (
+      <>
+        <PageHeader title="Users & Roles" description="Review module access across school roles." />
+        <section className="flex min-h-[300px] items-center justify-center p-4 md:p-7">
+          <span className="inline-flex items-center gap-2 text-sm font-semibold text-[#7d86a8]">
+            <Loader2 size={16} className="animate-spin" /> Loading session...
+          </span>
+        </section>
+      </>
+    );
+  }
 
   if (!canView) {
     return (

@@ -23,7 +23,7 @@ export const feeService = {
    * Get all fee structures
    */
   async getAllFeeStructures(): Promise<FeeStructure[]> {
-    const snapshot = await getDocs(collection(db, 'fee_structures'));
+    const snapshot = await getDocs(query(collection(db, 'fee_structures'), limit(200)));
     return snapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data()
@@ -36,7 +36,8 @@ export const feeService = {
   async getFeeStructureByClass(classRange: string): Promise<FeeStructure | null> {
     const q = query(
       collection(db, 'fee_structures'),
-      where('classRange', '==', classRange)
+      where('classRange', '==', classRange),
+      limit(1)
     );
     const snapshot = await getDocs(q);
 
@@ -105,7 +106,8 @@ export const feeService = {
       query(
         collection(db, 'concessions'),
         where('status', '==', 'approved'),
-        where('isActive', '==', true)
+        where('isActive', '==', true),
+        limit(500)
       )
     );
     const concessions = concessionsSnapshot.docs.map((d: any) => d.data());
@@ -120,7 +122,8 @@ export const feeService = {
     const pendingSnapshot = await getDocs(
       query(
         collection(db, 'concessions'),
-        where('status', '==', 'pending')
+        where('status', '==', 'pending'),
+        limit(500)
       )
     );
     const pendingApprovals = pendingSnapshot.size;
@@ -186,10 +189,12 @@ export const feeService = {
     if (!studentSnap.exists()) return null;
 
     const student = studentSnap.data();
-    const annualEnrollmentFee = (student as any)?.annualEnrollmentFee || 0;
-    const commitmentFee = (student as any)?.commitmentFee || 0;
-    const totalFeeAmount = (student as any)?.totalFeeAmount || annualEnrollmentFee + commitmentFee;
-    const totalFeeDue = (student as any)?.totalFeesDue || totalFeeAmount;
+    const raw = student as Record<string, unknown>;
+    const annualEnrollmentFee = Math.max(0, Number(raw.annualEnrollmentFee) || 0);
+    const commitmentFee = Math.max(0, Number(raw.commitmentFee) || 0);
+    const totalFeeAmount = Math.max(0, Number(raw.totalFeeAmount) || annualEnrollmentFee + commitmentFee);
+    const rawDue = raw.totalFeesDue;
+    const totalFeeDue = rawDue != null ? Math.max(0, Number(rawDue)) : totalFeeAmount;
     const totalFeePaid = (student as any)?.totalFeesPaid || 0;
     const remainingAmount = totalFeeDue - totalFeePaid;
     const feePaidPercentage = totalFeeDue > 0 ? (totalFeePaid / totalFeeDue) * 100 : 0;
@@ -231,7 +236,8 @@ export const feeService = {
       query(
         collection(db, 'payments'),
         where('studentId', '==', studentId),
-        where('status', '==', 'completed')
+        where('status', '==', 'completed'),
+        limit(200)
       )
     );
 
@@ -264,7 +270,6 @@ export const feeService = {
    * Get fee due students (for follow-up)
    */
   async getFeeDueStudents(threshold: number = 0, max: number = 200): Promise<any[]> {
-    // Server-side filter + order + limit: reads only defaulters, biggest first.
     const studentsSnapshot = await getDocs(
       query(
         collection(db, 'students'),
@@ -273,7 +278,9 @@ export const feeService = {
         limit(max)
       )
     );
-    return studentsSnapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+    return studentsSnapshot.docs
+      .map((d) => ({ id: d.id, ...d.data() }))
+      .filter((s: Record<string, unknown>) => String(s.feeStatus || "") !== "paid");
   },
 
   /**

@@ -37,7 +37,7 @@ export async function GET(req: Request) {
   }
 
   try {
-    const snapshot = await adminDb().collection(COLLECTION).orderBy("startDate", "desc").get();
+    const snapshot = await adminDb().collection(COLLECTION).orderBy("startDate", "desc").limit(500).get();
     const years = snapshot.docs.map((doc) => serializeDoc<AcademicYear>(doc));
     academicYearsCache = { years, expiresAt: Date.now() + ACADEMIC_YEARS_CACHE_MS };
     return NextResponse.json({ ok: true, years });
@@ -79,7 +79,7 @@ export async function POST(req: Request) {
 
     // If this one is active, deactivate the others (only one active year).
     if (parsed.isActive) {
-      const others = await db.collection(COLLECTION).where("isActive", "==", true).get();
+      const others = await db.collection(COLLECTION).where("isActive", "==", true).limit(500).get();
       const batch = db.batch();
       others.docs.forEach((doc) => {
         if (doc.id !== ref.id) batch.update(doc.ref, { isActive: false, updatedAt: now });

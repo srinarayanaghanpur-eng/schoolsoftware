@@ -40,9 +40,15 @@ export async function DELETE(req: Request, { params }: { params: { id: string } 
 
   const db = adminDb();
   await db.collection(COLLECTION).doc(params.id).delete();
-  const marks = await db.collection("exam_marks").where("examId", "==", params.id).get();
-  const batch = db.batch();
-  marks.docs.forEach((d) => batch.delete(d.ref));
-  await batch.commit();
-  return NextResponse.json({ ok: true, deletedMarks: marks.size });
+  let totalDeletedMarks = 0;
+  for (;;) {
+    const marks = await db.collection("exam_marks").where("examId", "==", params.id).limit(500).get();
+    if (marks.empty) break;
+    const batch = db.batch();
+    marks.docs.forEach((d) => batch.delete(d.ref));
+    await batch.commit();
+    totalDeletedMarks += marks.size;
+    if (marks.size < 500) break;
+  }
+  return NextResponse.json({ ok: true, deletedMarks: totalDeletedMarks });
 }

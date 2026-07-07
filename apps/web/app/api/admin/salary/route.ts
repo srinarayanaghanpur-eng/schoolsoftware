@@ -46,8 +46,8 @@ export async function GET(req: Request) {
     const dbTimer = startTimer();
     const db = adminDb();
     const [snapshot, teachersSnapshot] = await Promise.all([
-      db.collection("salary_reports").where("month", "==", month).get(),
-      db.collection("teachers").where("status", "==", "active").get()
+      db.collection("salary_reports").where("month", "==", month).limit(1000).get(),
+      db.collection("teachers").where("status", "==", "active").limit(1000).get()
     ]);
     const dbMs = dbTimer();
     const activeTeachers = teachersSnapshot.docs.map((doc) => serializeDoc<Teacher>(doc));
@@ -95,7 +95,7 @@ export async function POST(req: Request) {
 
     // Query only active teachers (moved filter to DB level) + parallelize all reads
     const dbTimer = startTimer();
-    const attendancePromise = db.collection("attendance").where("month", "==", month).get()
+    const attendancePromise = db.collection("attendance").where("month", "==", month).limit(5000).get()
       .then((snapshot) => ({ snapshot }))
       .catch(() => ({ snapshot: null }));
     const [teachersSnapshot, attendanceRead, holidaysSnapshot, leaveSnapshot, settings] = await Promise.all([
@@ -103,9 +103,10 @@ export async function POST(req: Request) {
         .collection("teachers")
         .where("status", "==", "active") // Filter at DB level (~90% faster than after fetch)
         .orderBy("fullName")
+        .limit(5000)
         .get(),
       attendancePromise,
-      db.collection("holidays").where("date", ">=", `${month}-01`).where("date", "<=", `${month}-${String(monthEndDay).padStart(2, "0")}`).get(),
+      db.collection("holidays").where("date", ">=", `${month}-01`).where("date", "<=", `${month}-${String(monthEndDay).padStart(2, "0")}`).limit(1000).get(),
       // Only leave that can overlap the month: startDate up to month end. The
       // in-memory endDate check below drops old leave that ended before the
       // month started (bounded far tighter than fetching every approved leave).

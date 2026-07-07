@@ -55,6 +55,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import {
+  ALL,
+  ALL_KNOWN_PERMISSIONS,
   ROLE_LABELS,
   SCHOOL_CONTACT,
   canAccessModuleFromList,
@@ -327,7 +329,7 @@ const routeModules: Array<{ prefix: string; module: Module }> = [
   { prefix: "/admin/attendance", module: "attendance" },
   { prefix: "/admin/reports", module: "reports" },
   { prefix: "/admin/payments", module: "fees" },
-  { prefix: "/admin/fee-reminders", module: "fees" },
+  { prefix: "/admin/fee-reminders", module: "fee_reminders" },
   { prefix: "/admin/salary", module: "payroll" },
   { prefix: "/admin/notifications", module: "communication" },
   { prefix: "/admin/calendar", module: "academics" },
@@ -830,7 +832,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           return;
         }
         const data = snapshot.data() as { permissions?: unknown };
-        setRolePermissions(Array.isArray(data.permissions) ? data.permissions.filter((item): item is string => typeof item === "string") : []);
+        const raw = Array.isArray(data.permissions) ? data.permissions.filter((item): item is string => typeof item === "string") : [];
+        setRolePermissions(raw.includes(ALL) ? [...ALL_KNOWN_PERMISSIONS] : raw);
       } catch {
         if (!cancelled) setRolePermissions(undefined);
       }

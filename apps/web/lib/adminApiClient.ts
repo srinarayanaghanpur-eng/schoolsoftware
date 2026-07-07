@@ -30,7 +30,7 @@ export class AdminApiError extends Error {
 //    clearAdminApiCacheForSignOut() wipes persisted copies.
 // ---------------------------------------------------------------------------
 
-const FRESH_TTL_MS = 30_000; // serve from memory without hitting the network
+const FRESH_TTL_MS = 120_000; // 2 min — serve from memory without hitting the network
 const STALE_TTL_MS = 24 * 60 * 60 * 1000; // localStorage fallback lifetime
 const LS_PREFIX = "snapi:"; // localStorage key prefix
 const MAX_LS_ENTRY_BYTES = 200_000; // don't persist huge payloads

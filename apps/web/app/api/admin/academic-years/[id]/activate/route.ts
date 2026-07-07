@@ -17,7 +17,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   }
 
   const now = FieldValue.serverTimestamp();
-  const active = await db.collection(COLLECTION).where("isActive", "==", true).get();
+  const active = await db.collection(COLLECTION).where("isActive", "==", true).limit(500).get();
   const batch = db.batch();
   active.docs.forEach((doc) => {
     if (doc.id !== params.id) batch.update(doc.ref, { isActive: false, updatedAt: now });

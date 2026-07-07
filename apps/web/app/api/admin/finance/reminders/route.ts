@@ -332,7 +332,10 @@ export async function GET(req: Request) {
   const dueDocs = snap.docs
     .filter((doc) => {
       const data = doc.data();
-      return amount(data.dueAmount) > 0
+      const balanceDue = amount(data.dueAmount);
+      const feeSt = asString(data.feeStatus || "");
+      return balanceDue > 0
+        && feeSt !== "paid"
         && (!schoolId || !data.schoolId || asString(data.schoolId) === schoolId)
         && (!academicYearId || asString(data.academicYearId) === academicYearId)
         && (!classFilter || asString(data.classId || data.className) === classFilter)

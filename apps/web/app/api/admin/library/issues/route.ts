@@ -13,6 +13,7 @@ export async function GET(req: Request) {
   const status = new URL(req.url).searchParams.get("status");
   let query: FirebaseFirestore.Query = adminDb().collection(ISSUES);
   if (status) query = query.where("status", "==", status);
+  query = query.limit(500);
   const snap = await query.get();
   const issues = snap.docs.map((d) => serializeDoc(d)).sort((a, b) => String(b.issueDate ?? "").localeCompare(String(a.issueDate ?? "")));
   return NextResponse.json({ ok: true, issues });

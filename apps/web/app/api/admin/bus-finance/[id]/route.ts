@@ -96,16 +96,20 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
     if (!snap.exists) return NextResponse.json({ ok: false, error: "Record not found" }, { status: 404 });
 
     // Remove child EMI rows first (batched), then the parent.
-    const children = await db.collection(BUS_EMI_PAYMENTS_COLLECTION).where("busFinanceId", "==", params.id).get();
     let batch = db.batch();
     let inBatch = 0;
-    for (const child of children.docs) {
-      batch.delete(child.ref);
-      if (++inBatch >= 450) {
-        await batch.commit();
-        batch = db.batch();
-        inBatch = 0;
+    for (;;) {
+      const children = await db.collection(BUS_EMI_PAYMENTS_COLLECTION).where("busFinanceId", "==", params.id).limit(500).get();
+      if (children.empty) break;
+      for (const child of children.docs) {
+        batch.delete(child.ref);
+        if (++inBatch >= 450) {
+          await batch.commit();
+          batch = db.batch();
+          inBatch = 0;
+        }
       }
+      if (children.size < 500) break;
     }
     if (inBatch > 0) await batch.commit();
 
