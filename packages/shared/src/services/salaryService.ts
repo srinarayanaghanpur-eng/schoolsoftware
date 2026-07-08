@@ -95,7 +95,7 @@ export function getSalarySafetyTotals(report: Partial<SalaryReport>): SalarySafe
   const grossEarnedSalary = Math.max(0, payableBase - salaryDeduction);
   const netPayable = Math.max(0, grossEarnedSalary + bonus - manualDeduction);
   const attendanceMissing = report.attendanceDataAvailable === false || report.salaryStatus === "Attendance Missing";
-  const invalidTotals = workingDaysElapsed > 0 && presentDays === 0 && approvedPaidCLDays === 0 && existingUnpaidAbsentDays === 0;
+  const invalidTotals = workingDaysElapsed > 0 && presentDays === 0 && approvedPaidCLDays === 0 && unpaidAbsentDays === 0;
   const salaryStatus: SalaryStatus = attendanceMissing ? "Attendance Missing" : invalidTotals || report.salaryStatus === "Invalid" ? "Invalid" : "Ready";
   const paymentBlockedReason = attendanceMissing
     ? ATTENDANCE_MISSING_WARNING

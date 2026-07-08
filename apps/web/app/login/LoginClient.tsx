@@ -26,6 +26,23 @@ import {
 
 const SCHOOL_NAME = "SRI NARAYANA HIGH SCHOOL";
 const SCHOOL_LOGO_SRC = "/sri-narayana-high-school-logo.jpg";
+const REMEMBERED_SESSION_KEY = "sriNarayana.rememberedSession";
+const REMEMBERED_SESSION_TTL_MS = 24 * 60 * 60 * 1000;
+
+function getCachedRememberedRole(): string | null {
+  try {
+    const raw = localStorage.getItem(REMEMBERED_SESSION_KEY);
+    if (!raw) return null;
+    const data = JSON.parse(raw);
+    if (typeof data.role === "string" && typeof data.at === "number" && Date.now() - data.at < REMEMBERED_SESSION_TTL_MS) {
+      return data.role;
+    }
+    localStorage.removeItem(REMEMBERED_SESSION_KEY);
+    return null;
+  } catch {
+    return null;
+  }
+}
 
 type LoginIdCheckStatus = "empty" | "checking" | "matched" | "unknown";
 
@@ -200,8 +217,18 @@ async function resolveRememberedRole(): Promise<string | null> {
   });
   if (!user) return null;
 
-  const claims = await refreshClaims(auth.currentUser);
-  let role = isValidRole(claims?.role) ? claims?.role : undefined;
+  // Try cached token first (fast, no network), fall back to forced refresh
+  let role: string | undefined;
+  try {
+    const cachedResult = await (user as { getIdTokenResult(forceRefresh?: boolean): Promise<{ claims: Record<string, unknown> }> }).getIdTokenResult(false);
+    if (isValidRole(cachedResult.claims.role)) role = cachedResult.claims.role as string;
+  } catch {
+    // cached token failed — fall through to forced refresh
+  }
+  if (!role) {
+    const freshClaims = await refreshClaims(user);
+    role = isValidRole(freshClaims?.role) ? (freshClaims?.role as string) : undefined;
+  }
 
   try {
     const snapshot = await getDoc(doc(db, "users", user.uid));
@@ -560,6 +587,14 @@ function useTeacherLoginController() {
   useEffect(() => {
     const reason = new URLSearchParams(window.location.search).get("reason");
     if (reason === "inactive" || reason === "session-expired") return;
+
+    // Fast path: checked cached role from localStorage before waiting for Firebase
+    const cached = getCachedRememberedRole();
+    if (cached) {
+      router.replace(destinationForRole(cached));
+      return;
+    }
+
     let cancelled = false;
     void resolveRememberedRole().then((role) => {
       if (cancelled || !role) return;
@@ -629,6 +664,16 @@ function useTeacherLoginController() {
         }
       } catch {
         // localStorage may be unavailable; the app falls back to the active year.
+      }
+      // Persist role in localStorage for instant redirect on next visit
+      try {
+        if (rememberMe) {
+          window.localStorage.setItem(REMEMBERED_SESSION_KEY, JSON.stringify({ role, at: Date.now() }));
+        } else {
+          window.localStorage.removeItem(REMEMBERED_SESSION_KEY);
+        }
+      } catch {
+        // localStorage may be unavailable; navigation still works.
       }
       // Store a short-lived hint so the destination's AuthGate can render
       // instantly instead of re-running the token/Firestore checks first.
