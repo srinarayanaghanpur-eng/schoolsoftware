@@ -16,7 +16,17 @@
     "dev:desktop": "npm --workspace @sri-narayana/desktop run dev",
     "build:desktop": "npm --workspace @sri-narayana/desktop run build:web",
     "dist:desktop": "npm --workspace @sri-narayana/desktop run dist",
-    "dist:portable": "npm --workspace @sri-narayana/desktop run dist:portable"
+    "dist:portable": "npm --workspace @sri-narayana/desktop run dist:portable",
+    "test:e2e": "NEXT_PUBLIC_USE_FIREBASE_EMULATOR=true npx playwright test",
+    "test:e2e:ui": "NEXT_PUBLIC_USE_FIREBASE_EMULATOR=true npx playwright test --ui",
+    "test:report": "npx playwright show-report tests/reports/playwright-report",
+    "test:lighthouse": "npx lhci autorun --config=tests/lighthouse/lighthouserc.js",
+    "test:qa-full": "npm run test:emulator:start && npm run test:seed && npm run test:e2e && npm run test:lighthouse && npm run test:qa-report",
+    "test:seed": "npx tsx tests/seed/seed-test-data.ts",
+    "test:qa-report": "npx tsx tests/qa-report-generator.ts",
+    "test:ai-review": "npx tsx tests/ai-reviewer.ts",
+    "test:emulator:start": "firebase emulators:start --project teacher-nara",
+    "test:emulator:stop": "firebase emulators:stop"
   },
   "dependencies": {
     "@expo/config-plugins": "^55.0.9",
@@ -26,5 +36,12 @@
     "react-dom": "^18.3.1",
     "react-markdown": "^10.1.0",
     "remark-gfm": "^4.0.1"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.10.0",
+    "@lhci/cli": "^0.14.0",
+    "@playwright/test": "^1.61.1",
+    "firebase-admin": "^12.5.0",
+    "tsx": "^4.19.0"
   }
 }
