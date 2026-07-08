@@ -19,6 +19,8 @@ import { useClassSections } from "@/lib/useClassSections";
 
 type PaymentMethod = "cash" | "bank_transfer" | "upi" | "cheque" | "card";
 
+type FeeHeadOption = { name: string; original: number; committed: number };
+
 type StudentOption = {
   id: string;
   admissionNumber?: string;
@@ -31,6 +33,7 @@ type StudentOption = {
   totalFeesDue?: number;
   totalFeeAmount?: number;
   totalFeesPaid?: number;
+  feeHeads?: FeeHeadOption[];
 };
 
 type PaymentSuccessReceipt = {
@@ -445,6 +448,7 @@ function PaymentForm({
   }, [formSectionOptions, studentSection]);
   const [studentSearch, setStudentSearch] = useState("");
   const [studentsLoading, setStudentsLoading] = useState(false);
+  const [studentFeeHeads, setStudentFeeHeads] = useState<FeeHeadOption[] | null>(null);
   const [amount, setAmount] = useState("");
   const [paymentType, setPaymentType] = useState("tuition");
   const [method, setMethod] = useState<PaymentMethod>("cash");
@@ -508,6 +512,21 @@ function PaymentForm({
   }, [academicYearId]);
 
   const selectedStudent = students.find((student) => student.id === studentId);
+
+  useEffect(() => {
+    if (!studentId || !db) { setStudentFeeHeads(null); return; }
+    setStudentFeeHeads(null);
+    getDoc(doc(db, "students", studentId)).then((snap) => {
+      if (!snap.exists()) return;
+      const data = snap.data() as Record<string, unknown>;
+      const heads = data.feeHeads as FeeHeadOption[] | undefined;
+      if (heads && heads.length > 0) {
+        setStudentFeeHeads(heads);
+        setPaymentType(heads[0]!.name.toLowerCase().replace(/\s+/g, "_"));
+      }
+    }).catch(() => {});
+  }, [studentId, db]);
+
   const [liveBalance, setLiveBalance] = useState<number | null>(null);
   const [liveFeeStatus, setLiveFeeStatus] = useState<string | null>(null);
   const [balanceLoading, setBalanceLoading] = useState(false);
@@ -573,7 +592,7 @@ function PaymentForm({
 
       const order = await adminApiRequest<{ ok: true; orderId: string; providerOrderId: string; amount: number }>("/api/fees/order", {
         method: "POST",
-        body: JSON.stringify({ studentId, amount: payable, paymentType, note: buildMethodNote() })
+        body: JSON.stringify({ studentId, amount: payable, paymentType, feeType: paymentType, note: buildMethodNote() })
       });
       const confirmation = await adminApiRequest<{ ok: true; paymentId: string; receiptId: string; receiptNumber: string; amount: number }>("/api/fees/confirm", {
         method: "POST",
@@ -741,14 +760,14 @@ function PaymentForm({
           <input className="field mt-1" type="number" min="1" value={amount} onChange={(event) => setAmount(event.target.value)} required />
         </label>
         <label className="text-sm font-semibold text-[#303247]">
-          Payment type
+          Fee type
           <select className="field mt-1" value={paymentType} onChange={(event) => setPaymentType(event.target.value)}>
-            <option value="tuition">Tuition</option>
-            <option value="term-1">Term 1</option>
-            <option value="term-2">Term 2</option>
-            <option value="books">Books</option>
-            <option value="transport">Transport</option>
-            <option value="other">Other</option>
+            {(studentFeeHeads && studentFeeHeads.length > 0 ? studentFeeHeads : [
+              { name: "Tuition Fee", committed: 0 }, { name: "Books Fee", committed: 0 }, { name: "Transport Fee", committed: 0 }, { name: "Other Fee", committed: 0 }
+            ]).map((head) => {
+              const val = head.name.toLowerCase().replace(/\s+/g, "_");
+              return <option key={val} value={val}>{head.name}</option>;
+            })}
           </select>
         </label>
         <label className="text-sm font-semibold text-[#303247] md:col-span-2">

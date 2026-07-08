@@ -84,7 +84,7 @@ export default function TeacherDashboardPage() {
   const todayKey = new Date().toISOString().slice(0, 10);
   const today = records.find((record) => record.date === todayKey);
   const percentage = getAttendancePercentage(monthRecords);
-  const presentCount = monthRecords.filter((record) => record.status === "present").length;
+  const presentCount = monthRecords.filter((record) => record.status === "present" || record.status === "checked_in" || record.status === "half_day" || record.status === "short_hours").length;
   const lateCount = monthRecords.filter((record) => record.status === "late").length;
   const absentCount = monthRecords.filter((record) => record.status === "absent").length;
   const monthLabel = new Intl.DateTimeFormat("en-IN", { month: "long", year: "numeric" }).format(new Date(`${month}-01T00:00:00`));

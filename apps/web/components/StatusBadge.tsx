@@ -8,7 +8,10 @@ const labelMap: Record<AttendanceStatus, string> = {
   cl: "CL",
   holiday: "Holiday",
   absent: "Absent",
-  not_marked: "Not marked"
+  not_marked: "Not Marked",
+  checked_in: "Checked In",
+  half_day: "Half Day",
+  short_hours: "Short Hours"
 };
 
 function StatusBadgeInner({ status }: { status: AttendanceStatus }) {

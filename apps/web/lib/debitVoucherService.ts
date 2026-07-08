@@ -308,6 +308,8 @@ export async function createDebitVoucherFromExpense(
       voucherId: voucherRef.id,
       voucherNo,
       notes: parsed.notes,
+      transactionType: "expense",
+      voucherType: "debit_voucher",
       createdBy: token.uid,
       createdAt: now,
       updatedAt: now
@@ -351,6 +353,8 @@ export async function createDebitVoucherFromExpense(
       expenseId: expenseRef.id,
       bankTransactionId: bankTxnRef?.id ?? "",
       notes: parsed.notes,
+      transactionType: "expense",
+      voucherType: "debit_voucher",
       ...commonAudit,
       createdAt: now,
       printedAt: null,

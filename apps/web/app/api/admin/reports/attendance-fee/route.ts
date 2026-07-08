@@ -13,7 +13,7 @@ function num(value: unknown) {
 function totalFeeForStudent(student: Record<string, unknown>) {
   const totalFeeAmount = num(student.totalFeeAmount);
   if (totalFeeAmount > 0) return totalFeeAmount;
-  return num(student.annualEnrollmentFee) + num(student.commitmentFee) + num(student.transportFee) + num(student.feeBalanceCarriedForward);
+  return num(student.committedPayableFee) + num(student.transportFee) + num(student.feeBalanceCarriedForward);
 }
 
 function paidForStudent(student: Record<string, unknown>) {

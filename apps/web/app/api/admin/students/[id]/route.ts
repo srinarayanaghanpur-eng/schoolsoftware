@@ -83,9 +83,10 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     }
 
     const existing = snapshot.data() ?? {};
-    const annualEnrollmentFee = Number(body.annualEnrollmentFee ?? existing.annualEnrollmentFee ?? 0);
-    const commitmentFee = Number(body.commitmentFee ?? existing.commitmentFee ?? 0);
-    const totalFeeAmount = annualEnrollmentFee + commitmentFee;
+    const originalFee = Number(body.annualEnrollmentFee ?? existing.annualEnrollmentFee ?? 0);
+    const committedPayableFee = Number(body.commitmentFee ?? body.committedPayableFee ?? existing.commitmentFee ?? existing.committedPayableFee ?? 0);
+    const concessionAmount = Math.max(0, originalFee - committedPayableFee);
+    const totalFeeAmount = committedPayableFee;
     const totalFeesPaid = Number(existing.totalFeesPaid ?? 0);
     const totalFeesDue = Math.max(0, totalFeeAmount - totalFeesPaid);
     const feeStatus = totalFeesDue <= 0 ? 'paid' : totalFeesPaid > 0 ? 'partial' : 'pending';
@@ -120,8 +121,12 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       transportRouteId: transportRouteId ?? existing.transportRouteId ?? '',
       transportStopName: transportStopName ?? existing.transportStopName ?? '',
       transportFee: Number(transportFee ?? existing.transportFee ?? 0),
-      annualEnrollmentFee,
-      commitmentFee,
+      annualEnrollmentFee: originalFee,
+      commitmentFee: committedPayableFee,
+      committedPayableFee,
+      originalFeeAmount: originalFee,
+      totalConcessionAmount: concessionAmount,
+      feeHeads: body.feeHeads !== undefined ? body.feeHeads : existing.feeHeads || null,
       totalFeeAmount,
       totalFeesDue,
       feeStatus,

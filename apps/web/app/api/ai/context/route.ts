@@ -43,8 +43,8 @@ export async function GET(req: Request) {
       studentsByClass[cls] = (studentsByClass[cls] || 0) + 1;
     });
 
-    const totalPresent = todayAttendanceSnap?.docs.filter((d) => d.data().status === "present").length || 0;
-    const totalAbsent = todayAttendanceSnap?.docs.filter((d) => d.data().status === "absent").length || 0;
+    const totalPresent = todayAttendanceSnap?.docs.filter((d) => ["present", "late", "checked_in", "half_day", "short_hours", "cl"].includes(d.data().status)).length || 0;
+    const totalAbsent = todayAttendanceSnap?.docs.filter((d) => d.data().status === "absent" || d.data().status === "not_marked").length || 0;
 
     const context = {
       schoolName: "Sri Narayana High School",

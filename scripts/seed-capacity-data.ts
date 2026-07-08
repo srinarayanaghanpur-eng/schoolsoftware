@@ -170,7 +170,7 @@ function createStudentBase(index: number) {
   const annualEnrollmentFee = 18000 + (classOptions.indexOf(className) + 1) * 1250;
   const commitmentFee = 3500 + (index % 5) * 500;
   const transportFee = index % 3 === 0 ? 6000 + (index % 4) * 500 : 0;
-  const totalFeeAmount = annualEnrollmentFee + commitmentFee + transportFee;
+  const totalFeeAmount = commitmentFee + transportFee;
 
   return {
     id: `loadtest_student_${pad(number, 4)}`,

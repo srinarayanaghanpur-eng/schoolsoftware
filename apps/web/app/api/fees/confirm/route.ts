@@ -36,7 +36,7 @@ export async function POST(req: Request) {
       const orderSnap = await transaction.get(orderRef);
       if (!orderSnap.exists) throw new Error("Order not found");
 
-      const order = orderSnap.data() as { studentId: string; amount: number; paymentType: string; status: string; note?: string; paymentId?: string; receiptId?: string; receiptNumber?: string };
+      const order = orderSnap.data() as { studentId: string; amount: number; paymentType: string; feeType?: string; status: string; note?: string; paymentId?: string; receiptId?: string; receiptNumber?: string };
       orderStudentId = order.studentId;
       if (order.status === "paid") {
         existingPaymentId = String(order.paymentId ?? "");
@@ -92,6 +92,7 @@ export async function POST(req: Request) {
         amountPaid,
         remainingAmount,
         paymentType: order.paymentType,
+        feeType: order.feeType || order.paymentType || "tuition",
         paymentMethod: parsed.method || "cash",
         transactionId: parsed.transactionId || orderSnap.id,
         receiptId: receiptRef.id,
@@ -102,6 +103,8 @@ export async function POST(req: Request) {
         paidBy: token.uid,
         paidByName: token.name ?? token.uid,
         recordedBy: token.uid,
+        transactionType: "income",
+        voucherType: "receipt",
         paymentDate: now,
         createdAt: now,
         updatedAt: now

@@ -144,7 +144,8 @@ export async function POST(req: Request) {
       if (feeBalanceCarryForward) {
         const existingDue = studentData.totalFeesDue || 0;
         const existingPaid = studentData.totalFeesPaid || 0;
-        const totalFeeAmount = (studentData.annualEnrollmentFee || 0) + (studentData.commitmentFee || 0);
+        const committedPayable = studentData.committedPayableFee || studentData.commitmentFee || 0;
+        const totalFeeAmount = studentData.totalFeeAmount || committedPayable;
         updateData.totalFeesDue = existingDue;
         updateData.totalFeesPaid = existingPaid;
         updateData.totalFeeAmount = totalFeeAmount;

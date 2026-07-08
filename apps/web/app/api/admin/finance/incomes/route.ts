@@ -32,7 +32,14 @@ export async function POST(req: Request) {
   try {
     const parsed = incomeCreateSchema.parse(await req.json());
     const now = FieldValue.serverTimestamp();
-    const ref = await adminDb().collection(COLLECTION).add({ ...parsed, createdBy: token.uid, createdAt: now, updatedAt: now });
+    const ref = await adminDb().collection(COLLECTION).add({
+      ...parsed,
+      transactionType: "income",
+      voucherType: "receipt",
+      createdBy: token.uid,
+      createdAt: now,
+      updatedAt: now
+    });
     return NextResponse.json({ ok: true, id: ref.id });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to record income";

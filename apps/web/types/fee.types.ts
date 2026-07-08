@@ -10,15 +10,18 @@ export interface Student {
   parentMobile: string;
   // Fee fields (new school fee model)
   annualEnrollmentFee: number;
+  originalFeeAmount?: number;
   commitmentFee: number;
+  committedPayableFee?: number;
   totalFeeAmount: number;
   totalFeesDue: number;
   totalFeesPaid: number;
+  totalConcessionAmount?: number;
   lastPaymentDate: string | null;
   feeStatus: 'pending' | 'partial' | 'paid';
   attendancePercentage: number;
+  feeHeads?: { name: string; original: number; committed: number }[];
   // Legacy concession summary fields (for backward compatibility)
-  totalConcessionAmount?: number;
   activeConcessionCount?: number;
   concessionStatus?: 'none' | 'pending' | 'approved' | 'rejected';
 }
@@ -59,15 +62,11 @@ export interface ConcessionHistory {
 
 export interface FeeStructure {
   id: string;
-  classRange: string;
-  academicYear: string;
-  tuitionFee: number;
-  transportFee: number;
-  labFee: number;
-  developmentFee: number;
-  otherFees: number;
-  totalFee: number;
-  dueDate: string;
+  className: string;
+  academicYearId: string;
+  heads: { name: string; amount: number }[];
+  total: number;
+  schoolId: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -81,7 +80,8 @@ export interface Payment {
   amountDue: number;
   amountPaid: number;
   remainingAmount: number;
-  paymentType: 'annual_enrollment' | 'commitment' | 'other';
+  paymentType: string;
+  feeType?: string;
   concessionApplied?: boolean;
   concessionId?: string;
   paymentDate: string;

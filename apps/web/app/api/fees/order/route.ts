@@ -23,6 +23,7 @@ export async function POST(req: Request) {
       studentId: parsed.studentId,
       amount: parsed.amount,
       paymentType: parsed.paymentType,
+      feeType: parsed.paymentType,
       note: parsed.note,
       status: "created",
       provider: "manual",

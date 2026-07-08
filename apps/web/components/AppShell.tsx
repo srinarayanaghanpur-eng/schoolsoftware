@@ -648,17 +648,56 @@ function HeaderDateLabel({ now }: { now: Date | null }) {
   return <>{dateText} · Academic Year {selectedYear?.name ?? academicYearLabel(now)}</>;
 }
 
-// Read-only badge: the academic year is chosen at login (per-login scope), so
-// the top bar only DISPLAYS the selection — global switching was removed.
 function AcademicYearBadge() {
-  const { selectedYear, loading } = useAcademicYears();
+  const { selectedYear, loading, years, setSelectedYear } = useAcademicYears();
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
 
   return (
-    <div className="hidden min-w-[172px] items-center gap-2.5 rounded-lg border border-border bg-input px-3.5 py-2.5 md:flex" title="Academic year (selected at login)">
-      <CalendarRange size={17} className="shrink-0 text-[#8490b9]" />
-      <span className="truncate text-sm font-bold text-foreground">
-        {selectedYear ? `AY ${selectedYear.name}` : loading ? "Loading..." : "No academic year"}
-      </span>
+    <div className="relative hidden md:block" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex min-w-[172px] items-center gap-2.5 rounded-lg border border-border bg-input px-3.5 py-2.5 text-left transition hover:border-accent-number"
+        title="Switch academic year"
+      >
+        <CalendarRange size={17} className="shrink-0 text-[#8490b9]" />
+        <span className="flex-1 truncate text-sm font-bold text-foreground">
+          {selectedYear ? `AY ${selectedYear.name}` : loading ? "Loading..." : "No academic year"}
+        </span>
+        <ChevronDown size={14} className={`shrink-0 text-muted-foreground transition ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full z-50 mt-1 w-64 rounded-xl border border-border bg-card p-2 shadow-xl">
+          <p className="px-2 py-1 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Switch academic year</p>
+          <div className="mt-1 max-h-48 overflow-y-auto space-y-0.5">
+            {years.length === 0 ? (
+              <p className="px-2 py-3 text-center text-sm font-medium text-muted-foreground">{loading ? "Loading..." : "No academic years"}</p>
+            ) : (
+              years.map((year) => (
+                <button
+                  key={year.id}
+                  type="button"
+                  onClick={() => { if (year.id) setSelectedYear(year.id); setOpen(false); }}
+                  className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm transition hover:bg-muted ${selectedYear?.id === year.id ? "bg-accent font-bold text-accent-foreground" : "font-medium text-foreground"}`}
+                >
+                  <span className={`h-2 w-2 shrink-0 rounded-full ${year.isActive ? "bg-[#13a961]" : "bg-[#d0d5e8]"}`} />
+                  <span className="flex-1 truncate">{year.name}</span>
+                  {year.isActive && <span className="text-[10px] font-bold uppercase text-[#13a961]">Active</span>}
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

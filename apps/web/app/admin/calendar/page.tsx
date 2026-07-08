@@ -13,16 +13,15 @@ type AttendancePayload = {
   teachers: Teacher[];
 };
 
-function currentMonth() {
-  return new Date().toISOString().slice(0, 7);
-}
-
 export default function CalendarPage() {
   const { selectedYear } = useAcademicYears();
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
   const [selectedTeacherId, setSelectedTeacherId] = useState("");
-  const [month, setMonth] = useState(currentMonth());
+  const [month, setMonth] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 

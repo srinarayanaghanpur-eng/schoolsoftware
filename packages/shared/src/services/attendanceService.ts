@@ -3,6 +3,7 @@ import type {
   AttendanceEventType,
   AttendanceRecord,
   AttendanceSource,
+  AttendanceStatus,
   EmploymentType,
   GpsPoint,
   SchoolSettings
@@ -21,6 +22,9 @@ export type AttendanceEventInput = {
   remarks?: string;
   rawData?: unknown;
 };
+
+export const FULL_DAY_HOURS = 6;
+export const HALF_DAY_HOURS = 3;
 
 export function createAttendanceDocumentId(teacherId: string, date: string) {
   return `${teacherId}_${date}`;
@@ -97,20 +101,47 @@ export function getAttendanceStatus(
   } as const;
 }
 
+/** Calculate working hours (in decimal) between check-in and check-out times. */
+export function calculateWorkingHours(checkInTime: string | undefined, checkOutTime: string | undefined): number {
+  if (!checkInTime || !checkOutTime) return 0;
+  const checkIn = new Date(checkInTime).getTime();
+  const checkOut = new Date(checkOutTime).getTime();
+  if (Number.isNaN(checkIn) || Number.isNaN(checkOut) || checkOut <= checkIn) return 0;
+  return (checkOut - checkIn) / (1000 * 60 * 60);
+}
+
+/** Determine final attendance status based on check-in, check-out, and working hours. */
+export function computeFinalStatus(
+  checkInTime: string | undefined,
+  checkOutTime: string | undefined,
+  isLate: boolean,
+  fullDayHours: number = FULL_DAY_HOURS,
+  halfDayHours: number = HALF_DAY_HOURS
+): AttendanceStatus {
+  if (!checkInTime) return "absent";
+  if (!checkOutTime) return "checked_in";
+  const hours = calculateWorkingHours(checkInTime, checkOutTime);
+  if (hours >= fullDayHours) return isLate ? "late" : "present";
+  if (hours >= halfDayHours) return "half_day";
+  if (hours > 0) return "short_hours";
+  return "checked_in";
+}
+
 export function createAttendanceFromEvent(
   event: AttendanceEventInput,
   settings: SchoolSettings = DEFAULT_SETTINGS,
   employmentType: EmploymentType = "full_time"
 ) {
   const date = toDateKey(event.timestamp, settings.timezone);
-  const status = event.eventType === "checkin" ? getAttendanceStatus(event.timestamp, settings, employmentType) : undefined;
+  const status = event.eventType === "checkin" ? "checked_in" : "not_marked";
   const createdAt = nowIso();
+  const checkInStatus = event.eventType === "checkin" ? getAttendanceStatus(event.timestamp, settings, employmentType) : undefined;
   const record: AttendanceRecord = {
     teacherId: event.teacherId,
     date,
     month: toMonthKey(event.timestamp, settings.timezone),
     year: getYear(event.timestamp, settings.timezone),
-    status: status?.status ?? "not_marked",
+    status: status as AttendanceStatus,
     checkInTime: event.eventType === "checkin" ? event.timestamp : undefined,
     checkOutTime: event.eventType === "checkout" ? event.timestamp : undefined,
     source: event.source,
@@ -120,8 +151,8 @@ export function createAttendanceFromEvent(
     distanceFromCampus: event.distanceFromCampus,
     deviceInfo: event.deviceInfo,
     biometricDeviceId: event.biometricDeviceId,
-    lateMinutes: status?.lateMinutes ?? 0,
-    isLate: status?.isLate ?? false,
+    lateMinutes: checkInStatus?.lateMinutes ?? 0,
+    isLate: checkInStatus?.isLate ?? false,
     remarks: event.remarks,
     adminEdited: false,
     createdAt,
@@ -146,11 +177,11 @@ export function mergeAttendanceEvent(
 
   if (event.eventType === "checkin") {
     if (!updated.checkInTime || new Date(event.timestamp) < new Date(updated.checkInTime)) {
-      const status = getAttendanceStatus(event.timestamp, settings, employmentType);
+      const checkInStatus = getAttendanceStatus(event.timestamp, settings, employmentType);
       updated.checkInTime = event.timestamp;
-      updated.status = status.status;
-      updated.isLate = status.isLate;
-      updated.lateMinutes = status.lateMinutes;
+      updated.isLate = checkInStatus.isLate;
+      updated.lateMinutes = checkInStatus.lateMinutes;
+      updated.status = "checked_in";
       updated.source = event.source;
       updated.latitude = event.gps?.latitude ?? updated.latitude;
       updated.longitude = event.gps?.longitude ?? updated.longitude;
@@ -165,6 +196,9 @@ export function mergeAttendanceEvent(
       updated.checkOutTime = event.timestamp;
       updated.source = updated.source ?? event.source;
       updated.biometricDeviceId = event.biometricDeviceId ?? updated.biometricDeviceId;
+      if (updated.checkInTime) {
+        updated.status = computeFinalStatus(updated.checkInTime, updated.checkOutTime, updated.isLate);
+      }
     }
   }
 
@@ -174,6 +208,8 @@ export function mergeAttendanceEvent(
 export function getAttendancePercentage(records: AttendanceRecord[]) {
   const working = records.filter((item) => item.status !== "holiday");
   if (working.length === 0) return 0;
-  const attended = working.filter((item) => item.status === "present" || item.status === "late" || item.status === "cl");
+  const attended = working.filter(
+    (item) => item.status === "present" || item.status === "late" || item.status === "cl" || item.status === "checked_in" || item.status === "half_day" || item.status === "short_hours"
+  );
   return Math.round((attended.length / working.length) * 100);
 }

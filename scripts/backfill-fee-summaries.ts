@@ -93,8 +93,7 @@ function numberValue(value: unknown) {
 
 function dueForStudent(student: Record<string, unknown>) {
   const totalFee = numberValue(student.totalFeeAmount) ||
-    numberValue(student.annualEnrollmentFee) +
-    numberValue(student.commitmentFee) +
+    numberValue(student.committedPayableFee) +
     numberValue(student.transportFee) +
     numberValue(student.feeBalanceCarriedForward);
   const paid = numberValue(student.totalFeesPaid);
@@ -125,8 +124,7 @@ async function main() {
     const classId = String(student.classId || student.class || "");
     const sectionId = String(student.sectionId || student.section || "");
     const totalFee = numberValue(student.totalFeeAmount) ||
-      numberValue(student.annualEnrollmentFee) +
-      numberValue(student.commitmentFee) +
+      numberValue(student.committedPayableFee) +
       numberValue(student.transportFee) +
       numberValue(student.feeBalanceCarriedForward);
     const totalPaid = numberValue(student.totalFeesPaid);

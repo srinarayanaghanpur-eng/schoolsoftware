@@ -164,7 +164,7 @@ export async function POST(req: Request) {
 
       const clUpdate: Record<string, unknown> = { updatedAt: nowIso() };
 
-      if (attendance.status === "late") {
+      if (attendance.status === "late" || attendance.status === "short_hours") {
         const newLateCount = (latest.lateEntriesThisMonth ?? 0) + 1;
         clUpdate.lateEntriesThisMonth = newLateCount;
         // Every 3 lates = 1 CL deducted
@@ -175,7 +175,7 @@ export async function POST(req: Request) {
         clUpdate.absentDaysThisMonth = (latest.absentDaysThisMonth ?? 0) + 1;
         clUpdate.casualLeaveBalance = Math.max(0, (latest.casualLeaveBalance ?? 3) - 1);
         clUpdate.casualLeaveUsedThisMonth = (latest.casualLeaveUsedThisMonth ?? 0) + 1;
-      } else if (attendance.status === "present") {
+      } else if (["present", "checked_in", "half_day"].includes(attendance.status)) {
         if (latest.lateEntriesThisMonth === undefined) clUpdate.lateEntriesThisMonth = 0;
         if (latest.absentDaysThisMonth === undefined) clUpdate.absentDaysThisMonth = 0;
         if (latest.casualLeaveUsedThisMonth === undefined) clUpdate.casualLeaveUsedThisMonth = 0;

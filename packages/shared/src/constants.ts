@@ -27,7 +27,10 @@ export const ATTENDANCE_COLORS = {
   cl: "bg-rose-500 text-white",
   holiday: "bg-white text-slate-700 border border-slate-200",
   absent: "bg-slate-500 text-white",
-  not_marked: "bg-slate-200 text-slate-700"
+  not_marked: "bg-slate-200 text-slate-700",
+  checked_in: "bg-blue-500 text-white",
+  half_day: "bg-orange-400 text-slate-950",
+  short_hours: "bg-yellow-500 text-slate-950"
 } as const;
 
 export const FEE_HEAD_PRESETS = [

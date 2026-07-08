@@ -77,6 +77,8 @@ export default function AttendancePage() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const todayStr = useMemo(() => new Date().toISOString().slice(0, 10), []);
+
   const managementHolidayByDate = useMemo(
     () =>
       new Map(
@@ -86,6 +88,8 @@ export default function AttendancePage() {
       ),
     [holidays]
   );
+
+  const todayHoliday = managementHolidayByDate.get(todayStr) ?? null;
 
   const visibleManagementHolidays = useMemo(
     () =>
@@ -226,18 +230,21 @@ export default function AttendancePage() {
           loading={loading}
         />
 
-        {visibleManagementHolidays.length > 0 && (
-          <div className="rounded-2xl border border-[#ffe1a6] bg-[#fff8e8] px-4 py-3">
-            <p className="flex items-center gap-2 text-sm font-bold text-[#a76e08]"><CalendarOff size={16} /> Management Declared Holidays</p>
-            <ul className="mt-1.5 space-y-0.5 text-sm font-medium text-[#7a5205]">
-              {visibleManagementHolidays.map((holiday) => (
-                <li key={holiday.id ?? holiday.date}>
-                  {formatDateForDisplay(holiday.date) || holiday.date} — Reason: {holiday.reason || holiday.title}. Teachers are not marked absent on this date.
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
+        <div className="rounded-2xl border px-4 py-3 flex items-center gap-3 text-sm font-bold"
+          style={todayHoliday ? { borderColor: '#ffe1a6', backgroundColor: '#fff8e8', color: '#a76e08' } : { borderColor: '#c8f0dc', backgroundColor: '#e6f8ef', color: '#0f8d52' }}
+        >
+          {todayHoliday ? (
+            <>
+              <CalendarOff size={16} />
+              <span>Today: Holiday — Reason: {todayHoliday.reason || todayHoliday.title}. Attendance marking is disabled for this date.</span>
+            </>
+          ) : (
+            <>
+              <ClipboardList size={16} />
+              <span>Today: Working Day — Attendance marking is active.</span>
+            </>
+          )}
+        </div>
 
         {editing && (
           <form onSubmit={submitEdit} className="card p-4">

@@ -50,7 +50,7 @@ export async function GET(req: Request) {
     const todayHoliday = findHolidayForDate(holidays, today) ?? null;
 
     const totalMs = totalTimer();
-    console.log(`[API] /api/teacher/me - DB: ${dbMs}ms, Total: ${totalMs}ms, Records: ${records.length}`);
+    if (process.env.NODE_ENV === "development") console.log(`[API] /api/teacher/me - DB: ${dbMs}ms, Total: ${totalMs}ms, Records: ${records.length}`);
 
     return NextResponse.json({ ok: true, teacher, records, holidays, todayHoliday, _metrics: { dbMs, totalMs } });
   } catch (error) {

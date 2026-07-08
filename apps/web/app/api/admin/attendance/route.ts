@@ -82,7 +82,7 @@ export async function GET(req: Request) {
       : [];
 
     const totalMs = totalTimer();
-    console.log(`[API] /api/admin/attendance - DB: ${dbMs}ms, Total: ${totalMs}ms, Records: ${records.length}, Teachers: ${teacherDocs.length}`);
+    if (process.env.NODE_ENV === "development") console.log(`[API] /api/admin/attendance - DB: ${dbMs}ms, Total: ${totalMs}ms, Records: ${records.length}, Teachers: ${teacherDocs.length}`);
 
     return NextResponse.json({
       ok: true,

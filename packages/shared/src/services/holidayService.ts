@@ -19,16 +19,15 @@ export function holidayAppliesToBranch(holiday: Holiday, branchId?: string): boo
   return Boolean(branchId) && holiday.branchId === branchId;
 }
 
-/** Active holidays only, optionally scoped to a branch. */
+/** Active holidays only (ignoring date - for history/list views), optionally scoped to a branch. */
 export function filterActiveHolidays(holidays: Holiday[], branchId?: string): Holiday[] {
   return holidays.filter((holiday) => isHolidayActive(holiday) && holidayAppliesToBranch(holiday, branchId));
 }
 
-/** Find the active holiday declared for a date (YYYY-MM-DD), if any. */
+/** Find the active holiday matching a specific date (YYYY-MM-DD), if any. */
 export function findHolidayForDate(holidays: Holiday[], date: string, branchId?: string): Holiday | undefined {
   const dateKey = date.slice(0, 10);
   const matches = filterActiveHolidays(holidays, branchId).filter((holiday) => holiday.date.slice(0, 10) === dateKey);
-  // Prefer management-declared holidays so their reason is surfaced to teachers.
   return matches.find(isManagementDeclaredHoliday) ?? matches[0];
 }
 

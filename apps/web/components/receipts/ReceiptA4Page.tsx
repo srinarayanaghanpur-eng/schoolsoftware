@@ -6,10 +6,6 @@ export function ReceiptA4Page({ receipt }: { receipt: DigitalFeeReceiptRecord })
     <>
       <div id="receipt-print-area" className="receipt-a4-page">
         <DigitalFeeReceipt receipt={receipt} />
-        <div className="receipt-cut-line">CUT HERE</div>
-        <DigitalFeeReceipt receipt={receipt} />
-        <div className="receipt-cut-line">CUT HERE</div>
-        <DigitalFeeReceipt receipt={receipt} />
       </div>
       <style jsx global>{`
         .receipt-a4-page {

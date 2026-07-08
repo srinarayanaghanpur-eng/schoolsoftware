@@ -23,10 +23,13 @@ const STATUS_STYLES: Record<AttendanceStatus, StatusStyle> = {
   cl: { label: "Casual Leave", cell: "bg-rose-50/70 border-rose-100 dark:bg-rose-950/30 dark:border-rose-800/60", dot: "bg-rose-500", badge: "bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300" },
   holiday: { label: "Holiday", cell: "bg-indigo-50/60 border-indigo-100 dark:bg-indigo-950/30 dark:border-indigo-800/60", dot: "bg-indigo-400", badge: "bg-indigo-100 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300" },
   absent: { label: "Absent", cell: "bg-slate-100 border-slate-200 dark:bg-slate-800/60 dark:border-slate-700", dot: "bg-slate-500", badge: "bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200" },
-  not_marked: { label: "Not marked", cell: "bg-card border-border", dot: "bg-slate-300", badge: "bg-muted text-muted-foreground" }
+  not_marked: { label: "Not marked", cell: "bg-card border-border", dot: "bg-slate-300", badge: "bg-muted text-muted-foreground" },
+  checked_in: { label: "Checked In", cell: "bg-blue-50/70 border-blue-100 dark:bg-blue-950/30 dark:border-blue-800/60", dot: "bg-blue-500", badge: "bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300" },
+  half_day: { label: "Half Day", cell: "bg-orange-50/70 border-orange-100 dark:bg-orange-950/30 dark:border-orange-800/60", dot: "bg-orange-500", badge: "bg-orange-100 text-orange-700 dark:bg-orange-500/15 dark:text-orange-300" },
+  short_hours: { label: "Short Hours", cell: "bg-yellow-50/70 border-yellow-100 dark:bg-yellow-950/30 dark:border-yellow-800/60", dot: "bg-yellow-500", badge: "bg-yellow-100 text-yellow-700 dark:bg-yellow-500/15 dark:text-yellow-300" }
 };
 
-const LEGEND_ORDER: AttendanceStatus[] = ["present", "late", "cl", "absent", "holiday", "not_marked"];
+const LEGEND_ORDER: AttendanceStatus[] = ["present", "late", "cl", "checked_in", "half_day", "short_hours", "absent", "holiday", "not_marked"];
 
 function formatTime(iso?: string) {
   return iso ? new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "—";
@@ -57,13 +60,14 @@ function DetailTile({ icon: Icon, label, value, tone }: { icon?: LucideIcon; lab
 }
 
 function AttendanceCalendarInner({ records, month = "2026-05", holidays = [] }: { records: AttendanceRecord[]; month?: string; holidays?: Holiday[] }) {
-  const [yearText, monthText] = month.split("-");
-  const year = Number(yearText);
-  const monthIndex = Number(monthText) - 1;
+  const [yearText, monthText] = (month || "").split("-");
+  const year = Number(yearText) || new Date().getFullYear();
+  const monthIndex = Math.max(0, Math.min(11, (Number(monthText) || 1) - 1));
   const days = new Date(year, monthIndex + 1, 0).getDate();
   const firstDay = new Date(year, monthIndex, 1).getDay();
   const blanks = Array.from({ length: firstDay });
-  const dates = Array.from({ length: days }, (_, index) => `${month}-${String(index + 1).padStart(2, "0")}`);
+  const safeMonth = `${year}-${String(monthIndex + 1).padStart(2, "0")}`;
+  const dates = Array.from({ length: days }, (_, index) => `${safeMonth}-${String(index + 1).padStart(2, "0")}`);
   const recordsByDate = useMemo(() => new Map(records.map((record) => [record.date, record])), [records]);
   const holidaysByDate = useMemo(
     () => new Map(holidays.filter(isHolidayActive).map((holiday) => [holiday.date.slice(0, 10), holiday])),

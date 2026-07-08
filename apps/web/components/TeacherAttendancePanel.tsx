@@ -9,7 +9,7 @@ import {
   type EmploymentType,
   type Holiday
 } from "@sri-narayana/shared";
-import { CalendarOff, LogIn, LogOut, MapPin, ShieldCheck } from "lucide-react";
+import { CalendarDays, CalendarOff, LogIn, LogOut, MapPin, ShieldCheck } from "lucide-react";
 import { useEffect, useState } from "react";
 
 function getBrowserLocation() {
@@ -127,11 +127,16 @@ export function TeacherAttendancePanel({
         </span>
       </div>
 
-      {isManagementHoliday && (
+      {isManagementHoliday ? (
         <div className="mt-4 rounded-xl border border-[#ffd35b]/40 bg-[#f7c548]/15 px-4 py-3.5">
-          <p className="flex items-center gap-2 text-sm font-extrabold text-[#ffd35b]"><CalendarOff size={17} /> Today is a Management Declared Holiday</p>
+          <p className="flex items-center gap-2 text-sm font-extrabold text-[#ffd35b]"><CalendarOff size={17} /> Today: Holiday — Declared by Management</p>
           <p className="mt-1 text-sm font-semibold text-[#eef0ff]">Reason: {todayHoliday?.reason || todayHoliday?.title}</p>
           <p className="mt-0.5 text-sm font-medium text-[#d7dcff]">No attendance required today.</p>
+        </div>
+      ) : (
+        <div className="mt-4 rounded-xl border border-[#4ade80]/40 bg-[#4ade80]/10 px-4 py-3.5">
+          <p className="flex items-center gap-2 text-sm font-extrabold text-[#4ade80]"><CalendarDays size={17} /> Today: Working Day</p>
+          <p className="mt-0.5 text-sm font-medium text-[#d7dcff]">Attendance marking is active for today.</p>
         </div>
       )}
 

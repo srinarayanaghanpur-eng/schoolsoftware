@@ -127,7 +127,13 @@ function formatINR(amount: number) {
 
 function formatDate(value: string) {
   if (!value) return "--";
-  return new Date(`${value}T00:00:00`).toLocaleDateString("en-IN", { day: "2-digit", month: "short" });
+  try {
+    const d = new Date(value + (value.includes("T") ? "" : "T00:00:00"));
+    if (isNaN(d.getTime())) return value;
+    return d.toLocaleDateString("en-IN", { day: "2-digit", month: "short" });
+  } catch {
+    return value;
+  }
 }
 
 function formatRange(from: string, to: string) {
@@ -379,7 +385,7 @@ export default function FinanceDashboardPage() {
         </div>
 
         <div className="grid gap-5 xl:grid-cols-[1fr_320px]">
-          <article className="overflow-hidden rounded-2xl border border-border bg-card text-card-foreground shadow-[0_12px_30px_rgba(31,41,100,0.06)] dark:bg-slate-900 dark:shadow-black/20">
+          <article className="rounded-2xl border border-border bg-card text-card-foreground shadow-[0_12px_30px_rgba(31,41,100,0.06)] dark:bg-slate-900 dark:shadow-black/20">
             <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-4">
               <div>
                 <h2 className="text-base font-extrabold text-foreground dark:text-slate-100">Recent Transactions</h2>
@@ -387,7 +393,8 @@ export default function FinanceDashboardPage() {
               </div>
               <Link href="/admin/finance/ledger" className="text-sm font-extrabold text-accent-number hover:underline">View all</Link>
             </div>
-            <div className="overflow-x-auto">
+            {/* Desktop table: horizontal scroll if needed */}
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full min-w-[780px] text-left text-sm">
                 <thead className="bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
                   <tr>
@@ -418,16 +425,51 @@ export default function FinanceDashboardPage() {
                       </td>
                     </tr>
                   ))}
-                  {!transactions.length && (
-                    <tr className="border-t border-border">
-                      <td className="px-5 py-8 text-center text-sm font-semibold text-muted-foreground" colSpan={6}>
-                        {loading ? "Loading transactions..." : "No transactions for this range."}
-                      </td>
-                    </tr>
-                  )}
                 </tbody>
               </table>
             </div>
+            {/* Mobile/tablet: stacked transaction cards */}
+            <div className="md:hidden divide-y divide-border">
+              {pagedTransactions.length > 0 ? pagedTransactions.map((tx, index) => (
+                <div key={`mobile-${transactionStart + index}-${tx.date}-${tx.type}`} className="px-5 py-4 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-muted-foreground">{formatDate(tx.date)}</span>
+                    <span className={`rounded-full px-2.5 py-1 text-xs font-extrabold ${tx.type === "Income" ? "bg-[#edfdf4] text-[#0a9255]" : "bg-[#fff1f1] text-[#d84d5b]"}`}>
+                      {tx.type}
+                    </span>
+                  </div>
+                  <p className="text-sm font-bold text-foreground dark:text-white">{tx.description}</p>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">{tx.category}</span>
+                    <span className={`text-sm font-extrabold ${tx.type === "Income" ? "text-success" : "text-destructive"}`}>
+                      {tx.type === "Income" ? "+" : "-"}{formatINR(tx.amount)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="rounded-full bg-accent px-2 py-0.5 text-xs font-extrabold text-accent-foreground">{tx.status}</span>
+                  </div>
+                </div>
+              )) : (
+                <div className="px-5 py-8 text-center text-sm font-semibold text-muted-foreground">
+                  {loading ? "Loading transactions..." : "No transactions for this range."}
+                </div>
+              )}
+            </div>
+            {/* Loading skeleton shown only during first load when no transactions exist */}
+            {loading && transactions.length === 0 && (
+              <div className="hidden md:block">
+                {[1,2,3].map((i) => (
+                  <div key={`skeleton-${i}`} className="flex items-center gap-4 border-t border-border px-5 py-4 animate-pulse">
+                    <div className="h-4 w-20 rounded bg-muted" />
+                    <div className="h-6 w-16 rounded-full bg-muted" />
+                    <div className="h-4 flex-1 rounded bg-muted" />
+                    <div className="h-4 w-16 rounded bg-muted" />
+                    <div className="h-4 w-20 rounded bg-muted" />
+                    <div className="h-6 w-16 rounded-full bg-muted" />
+                  </div>
+                ))}
+              </div>
+            )}
             {transactions.length > TRANSACTIONS_PER_PAGE && (
               <div className="flex flex-col gap-3 border-t border-border px-5 py-4 text-sm font-bold text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
                 <span>

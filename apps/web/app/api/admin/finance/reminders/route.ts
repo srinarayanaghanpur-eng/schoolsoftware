@@ -191,7 +191,7 @@ function buildFeeHeads(student: ReminderStudent, studentData: FirebaseFirestore.
   const carriedForward = amount(studentData.feeBalanceCarriedForward || studentData.previousYearDues);
 
   if (heads.length === 0) {
-    const annualFee = amount(studentData.annualEnrollmentFee);
+    const annualFee = amount(studentData.originalFeeAmount || studentData.annualEnrollmentFee);
     if (annualFee > 0) heads.push({ name: "Tuition Fee", amount: annualFee, dueDate: null });
     if (commitmentFee > 0) heads.push({ name: "Commitment Fee", amount: commitmentFee, dueDate: null });
   } else if (commitmentFee > 0 && !hasHead("commitment")) {

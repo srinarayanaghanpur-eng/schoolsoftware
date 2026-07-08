@@ -31,7 +31,7 @@ export function buildDailyAttendanceRows(records: AttendanceRecord[], teachers: 
 export function buildMonthlyAttendanceRows(records: AttendanceRecord[], teachers: Teacher[]) {
   return teachers.map((teacher) => {
     const own = records.filter((record) => record.teacherId === teacher.id);
-    const present = own.filter((record) => record.status === "present").length;
+    const present = own.filter((record) => record.status === "present" || record.status === "checked_in" || record.status === "half_day" || record.status === "short_hours").length;
     const late = own.filter((record) => record.status === "late").length;
     const cl = own.filter((record) => record.status === "cl").length;
     const absent = own.filter((record) => record.status === "absent" || record.status === "not_marked").length;

@@ -31,7 +31,7 @@ export const paymentService = {
   async recordPayment(
     studentId: string,
     amountPaid: number,
-    paymentType: 'annual_enrollment' | 'commitment' | 'other',
+    paymentType: string,
     paymentMethod: 'cash' | 'cheque' | 'online' | 'transfer',
     concessionId: string | null,
     transactionId: string | null,
@@ -48,7 +48,7 @@ export const paymentService = {
     const student = studentSnap.data();
     const amountDue = student.totalFeesDue || 0;
     const remainingAmount = Math.max(0, amountDue - amountPaid);
-    const feeStatus = remainingAmount === 0 ? 'paid' : amountPaid > 0 ? 'partial' : 'pending';
+    const feeStatus = remainingAmount <= 0 ? 'paid' : amountPaid > 0 ? 'partial' : 'pending';
 
     const receiptNumber = await this.generateReceiptNumber();
 

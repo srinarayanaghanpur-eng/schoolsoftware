@@ -71,7 +71,7 @@ export async function GET(req: Request) {
       .sort((a, b) => a.teacherName.localeCompare(b.teacherName));
 
     const totalMs = totalTimer();
-    console.log(`[API] /api/admin/salary GET - DB: ${dbMs}ms, Total: ${totalMs}ms, Reports: ${reports.length}, Active teachers: ${activeTeacherIds.size}`);
+    if (process.env.NODE_ENV === "development") console.log(`[API] /api/admin/salary GET - DB: ${dbMs}ms, Total: ${totalMs}ms, Reports: ${reports.length}, Active teachers: ${activeTeacherIds.size}`);
 
     return NextResponse.json({ ok: true, reports, _metrics: { dbMs, totalMs } });
   } catch (error) {
@@ -205,7 +205,7 @@ export async function POST(req: Request) {
     const batchMs = batchTimer();
 
     const totalMs = totalTimer();
-    console.log(`[API] /api/admin/salary POST - DB: ${dbMs}ms, Batch: ${batchMs}ms, Total: ${totalMs}ms, Reports: ${reports.length}`);
+    if (process.env.NODE_ENV === "development") console.log(`[API] /api/admin/salary POST - DB: ${dbMs}ms, Batch: ${batchMs}ms, Total: ${totalMs}ms, Reports: ${reports.length}`);
 
     return NextResponse.json({ ok: true, reports, attendanceAvailable: true, message: `Generated salary for ${reports.length} teacher(s).`, _metrics: { dbMs, batchMs, totalMs } });
   } catch (error) {

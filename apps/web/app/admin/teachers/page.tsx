@@ -43,7 +43,7 @@ function formFromTeacher(teacher: Teacher): TeacherFormState {
     employeeId: teacher.employeeId,
     subject: teacher.subject,
     phone: teacher.phone ?? "",
-    baseSalary: String(teacher.baseSalary ?? ""),
+    baseSalary: teacher.baseSalary != null ? String(teacher.baseSalary) : "0",
     biometricUserId: teacher.biometricUserId ?? "",
     password: "",
     confirmPassword: "",

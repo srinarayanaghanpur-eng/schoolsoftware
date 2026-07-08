@@ -191,8 +191,8 @@ export const feeService = {
     const student = studentSnap.data();
     const raw = student as Record<string, unknown>;
     const annualEnrollmentFee = Math.max(0, Number(raw.annualEnrollmentFee) || 0);
-    const commitmentFee = Math.max(0, Number(raw.commitmentFee) || 0);
-    const totalFeeAmount = Math.max(0, Number(raw.totalFeeAmount) || annualEnrollmentFee + commitmentFee);
+    const commitmentFee = Math.max(0, Number(raw.committedPayableFee || raw.commitmentFee) || 0);
+    const totalFeeAmount = Math.max(0, Number(raw.totalFeeAmount) || commitmentFee);
     const rawDue = raw.totalFeesDue;
     const totalFeeDue = rawDue != null ? Math.max(0, Number(rawDue)) : totalFeeAmount;
     const totalFeePaid = (student as any)?.totalFeesPaid || 0;
@@ -251,10 +251,9 @@ export const feeService = {
 
     const studentSnap = await getDoc(doc(db, 'students', studentId));
     const student = studentSnap.data();
-    const annualEnrollmentFee = student?.annualEnrollmentFee || 0;
-    const commitmentFee = student?.commitmentFee || 0;
-    const totalFeeAmount = student?.totalFeeAmount || annualEnrollmentFee + commitmentFee;
-    const totalFeeDue = totalFeeAmount - totalFeePaid;
+    const commitmentFee = student?.committedPayableFee || student?.commitmentFee || 0;
+    const totalFeeAmount = student?.totalFeeAmount || commitmentFee;
+    const totalFeeDue = Math.max(0, totalFeeAmount - totalFeePaid);
     const feeStatus = totalFeeDue === 0 ? 'paid' : totalFeePaid > 0 ? 'partial' : 'pending';
 
     await updateDoc(doc(db, 'students', studentId), {
@@ -280,7 +279,11 @@ export const feeService = {
     );
     return studentsSnapshot.docs
       .map((d) => ({ id: d.id, ...d.data() }))
-      .filter((s: Record<string, unknown>) => String(s.feeStatus || "") !== "paid");
+      .filter((s: Record<string, unknown>) => {
+        const status = String(s.feeStatus || "");
+        const due = Number(s.totalFeesDue ?? 0);
+        return status !== "paid" && due > 0;
+      });
   },
 
   /**

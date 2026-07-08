@@ -25,7 +25,10 @@ export type AttendanceStatus =
   | "cl"
   | "holiday"
   | "absent"
-  | "not_marked";
+  | "not_marked"
+  | "checked_in"
+  | "half_day"
+  | "short_hours";
 
 export type AttendanceSource = "mobile" | "biometric" | "admin" | "system";
 

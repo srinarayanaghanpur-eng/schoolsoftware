@@ -177,6 +177,7 @@ export const paymentOrderSchema = z.object({
   studentId: z.string().trim().min(1),
   amount: z.coerce.number().positive(),
   paymentType: z.string().trim().optional().default("tuition"),
+  feeType: z.string().trim().optional().default("tuition"),
   note: z.string().trim().optional().default("")
 });
 

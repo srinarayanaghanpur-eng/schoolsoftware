@@ -37,15 +37,16 @@ export async function recalculateStudentFeeSummary(
 
   const totalFee = safeNumber(student.totalFeeAmount);
   const totalConcession = safeNumber(student.totalConcessionAmount);
-  const assignedFee = totalFee > 0 ? totalFee : safeNumber(student.annualEnrollmentFee) + safeNumber(student.commitmentFee);
+  const committedPayable = safeNumber(student.committedPayableFee || student.commitmentFee);
+  const assignedFee = totalFee > 0 ? totalFee : committedPayable;
 
   const paidAmount = paymentsSnap.docs.reduce(
     (sum, doc) => sum + safeNumber(doc.data().amountPaid),
     0
   );
 
-  const concessionAmount = totalConcession;
-  const balanceDue = Math.max(0, assignedFee - paidAmount - concessionAmount);
+  const concessionAmount = safeNumber(student.totalConcessionAmount) || Math.max(0, safeNumber(student.originalFeeAmount || student.annualEnrollmentFee) - assignedFee);
+  const balanceDue = Math.max(0, assignedFee - paidAmount);
   const feeStatus: "paid" | "partial" | "pending" =
     balanceDue <= 0 ? "paid" : paidAmount > 0 ? "partial" : "pending";
 

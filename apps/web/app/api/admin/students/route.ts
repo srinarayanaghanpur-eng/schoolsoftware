@@ -204,9 +204,10 @@ export async function POST(request: NextRequest) {
     }
     if (typeof body.requireApproval === "boolean") requireApproval = body.requireApproval;
 
-    const annualEnrollmentFee = Number(body.annualEnrollmentFee || 0);
-    const commitmentFee = Number(body.commitmentFee || 0);
-    const totalFeeAmount = annualEnrollmentFee + commitmentFee;
+    const originalFee = Number(body.annualEnrollmentFee || 0);
+    const committedPayableFee = Number(body.commitmentFee || body.committedPayableFee || 0);
+    const concessionAmount = Math.max(0, originalFee - committedPayableFee);
+    const totalFeeAmount = committedPayableFee;
     const totalFeesPaid = 0;
     const totalFeesDue = totalFeeAmount;
     const feeStatus = totalFeeAmount > 0 ? 'pending' : 'paid';
@@ -244,8 +245,12 @@ export async function POST(request: NextRequest) {
       transportRouteId: transportRouteId || '',
       transportStopName: transportStopName || '',
       transportFee: Number(transportFee || 0),
-      annualEnrollmentFee,
-      commitmentFee,
+      annualEnrollmentFee: originalFee,
+      commitmentFee: committedPayableFee,
+      committedPayableFee,
+      originalFeeAmount: originalFee,
+      totalConcessionAmount: concessionAmount,
+      feeHeads: body.feeHeads || null,
       totalFeeAmount,
       totalFeesDue,
       totalFeesPaid,
@@ -278,7 +283,9 @@ export async function POST(request: NextRequest) {
       sectionName: section,
       totalFee: totalFeeAmount,
       totalPaid: 0,
-      totalConcession: 0,
+      totalConcession: concessionAmount,
+      committedPayableFee,
+      originalFeeAmount: originalFee,
       dueAmount: totalFeesDue,
       updatedAt: new Date()
     }, { merge: true });

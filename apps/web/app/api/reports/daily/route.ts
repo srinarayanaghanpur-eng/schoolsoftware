@@ -28,7 +28,7 @@ export async function GET(req: Request) {
   const buildMs = buildTimer();
   
   const totalMs = totalTimer();
-  console.log(`[API] /api/reports/daily - DB: ${dbMs}ms, Build: ${buildMs}ms, Total: ${totalMs}ms`);
+  if (process.env.NODE_ENV === "development") console.log(`[API] /api/reports/daily - DB: ${dbMs}ms, Build: ${buildMs}ms, Total: ${totalMs}ms`);
   
   return NextResponse.json({ ok: true, rows, _metrics: { dbMs, buildMs, totalMs } });
 }

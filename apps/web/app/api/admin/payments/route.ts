@@ -132,7 +132,8 @@ export async function POST(request: NextRequest) {
       transactionId,
       remarks,
       userId,
-      idempotencyKey
+      idempotencyKey,
+      feeType
     } = body;
 
     // Validation
@@ -228,6 +229,7 @@ export async function POST(request: NextRequest) {
         amountPaid: Number(amountPaid),
         remainingAmount,
         paymentType,
+        feeType: feeType || paymentType || 'annual_enrollment',
         concessionApplied: !!concessionId,
         concessionId: concessionId || null,
         paymentDate: now,
@@ -238,6 +240,8 @@ export async function POST(request: NextRequest) {
         remarks: remarks || null,
         recordedBy: userId || auth.uid,
         status: 'completed',
+        transactionType: "income",
+        voucherType: "receipt",
         createdAt: now,
         updatedAt: now
       };

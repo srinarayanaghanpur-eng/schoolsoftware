@@ -830,7 +830,8 @@ export default function StudentsPage() {
     transportStopName: "",
     transportFee: "0",
     annualEnrollmentFee: academicFeeForClass("1"),
-    commitmentFee: "0"
+    commitmentFee: "0",
+    feeHeads: [] as { name: string; original: number; committed: number }[]
   });
 
   // Reload whenever the class/section/year selection changes, so the
@@ -998,7 +999,9 @@ export default function StudentsPage() {
           ? formData.siblingAdmissionNumbers.split(",").map((s) => s.trim()).filter(Boolean)
           : [],
         annualEnrollmentFee: Number(formData.annualEnrollmentFee || 0),
-        commitmentFee: Number(formData.commitmentFee || 0)
+        commitmentFee: Number(formData.commitmentFee || 0),
+        committedPayableFee: Number(formData.commitmentFee || 0),
+        feeHeads: formData.feeHeads.length > 0 ? formData.feeHeads : undefined
       };
 
       if (formData.previousSchoolName) {
@@ -1048,12 +1051,27 @@ export default function StudentsPage() {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-      // Academic fee is locked to the selected class per the official fee structure.
-      ...(name === "class" ? { annualEnrollmentFee: academicFeeForClass(value) } : {})
-    }));
+    setFormData((prev) => {
+      const updates: Partial<typeof prev> = {
+        ...prev,
+        [name]: value
+      };
+      if (name === "class") {
+        const fs = feeStructures.find((s) => s.className === value);
+        const totalFee = fs?.total ?? Number(FALLBACK_FEE_BY_CLASS[value] ?? 0);
+        updates.annualEnrollmentFee = String(totalFee);
+        if (fs?.heads) {
+          updates.feeHeads = fs.heads.map((h) => ({
+            name: h.name,
+            original: h.amount,
+            committed: h.amount
+          }));
+        } else {
+          updates.feeHeads = [{ name: "Tuition Fee", original: totalFee, committed: totalFee }];
+        }
+      }
+      return updates as typeof prev;
+    });
   };
 
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1138,7 +1156,8 @@ export default function StudentsPage() {
       transportStopName: "",
       transportFee: "0",
       annualEnrollmentFee: academicFeeForClass("1"),
-      commitmentFee: "0"
+      commitmentFee: "0",
+      feeHeads: []
     });
   };
 
@@ -1155,6 +1174,15 @@ export default function StudentsPage() {
     setEditingId(student.id);
     const prevSchool = student.previousSchool as { name?: string; address?: string; yearLeft?: string } | null | undefined;
     const emergContact = student.emergencyContact as { name?: string; phone?: string; relation?: string } | null | undefined;
+    const fs = feeStructures.find((s) => s.className === student.class);
+    const existingHeads = (student as any).feeHeads as { name: string; original: number; committed: number }[] | undefined;
+    const studentAny = student as any;
+    const committedPayable = studentAny.commitmentFee ?? studentAny.committedPayableFee ?? student.annualEnrollmentFee ?? 0;
+    const feeHeads = existingHeads && existingHeads.length > 0 ? existingHeads : (fs?.heads.map((h) => ({
+      name: h.name,
+      original: h.amount,
+      committed: h.amount
+    })) ?? [{ name: "Tuition Fee", original: Number(student.annualEnrollmentFee || 0), committed: Number(committedPayable) }]);
     setFormData({
       admissionNumber: student.admissionNumber,
       schoolId: (student as { schoolId?: string }).schoolId ?? "",
@@ -1184,7 +1212,8 @@ export default function StudentsPage() {
       transportStopName: student.transportStopName ?? "",
       transportFee: String(student.transportFee ?? "0"),
       annualEnrollmentFee: academicFeeForClass(student.class),
-      commitmentFee: String(student.commitmentFee ?? "0")
+      commitmentFee: String(feeHeads.reduce((s, h) => s + h.committed, 0)),
+      feeHeads
     });
     setShowForm(true);
   };
@@ -1573,35 +1602,114 @@ export default function StudentsPage() {
                     {/* ---- Fee Details ---- */}
                     <SectionDivider label="Fee Details" />
 
-                    <div>
-                      <label className="block text-sm font-semibold text-[#303247]">Academic Fee (Annual)</label>
-                      <input
-                        type="text"
-                        name="annualEnrollmentFee"
-                        value={`₹${Number(formData.annualEnrollmentFee || 0).toLocaleString("en-IN")}`}
-                        readOnly
-                        className="field mt-1 cursor-not-allowed bg-[#f4f5fb] font-semibold text-[#5a6488]"
-                      />
-                      {(() => {
-                        const fs = feeStructures.find((s) => s.className === formData.class);
-                        if (fs) {
-                          return (
-                            <p className="mt-1 text-xs font-medium text-[#7d86a8]">
-                              {fs.heads.map((h) => `${h.name}: ₹${h.amount.toLocaleString("en-IN")}`).join(" · ")}
-                            </p>
-                          );
-                        }
-                        return (
-                          <p className="mt-1 text-xs font-medium text-[#7d86a8]">
-                            Auto-set from {CLASS_LABELS[formData.class] ?? formData.class} fee structure{feeLoading ? " (loading...)" : " (fallback)"}
-                          </p>
-                        );
-                      })()}
-                    </div>
+                    <div className="md:col-span-2 lg:col-span-3 space-y-4">
+                      <div className="rounded-xl border border-[#edf0f7] bg-[#fafbff] p-4">
+                        <h4 className="text-sm font-bold text-[#303247] mb-3">Fee Breakdown (per fee type)</h4>
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-sm">
+                            <thead>
+                              <tr className="border-b border-[#edf0f7] text-xs font-bold uppercase tracking-wide text-[#6f7898]">
+                                <th className="px-3 py-2 text-left">Fee Type</th>
+                                <th className="px-3 py-2 text-right">Original (₹)</th>
+                                <th className="px-3 py-2 text-right">Committed Payable (₹)</th>
+                                <th className="px-3 py-2 text-right">Concession (₹)</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {(formData.feeHeads.length > 0 ? formData.feeHeads : [{ name: "Tuition Fee", original: Number(formData.annualEnrollmentFee || 0), committed: Number(formData.annualEnrollmentFee || 0) }]).map((head, idx) => (
+                                <tr key={head.name} className="border-b border-[#edf0f7]">
+                                  <td className="px-3 py-2 font-semibold text-[#303247]">{head.name}</td>
+                                  <td className="px-3 py-2 text-right font-medium text-[#7d86a8]">₹{head.original.toLocaleString("en-IN")}</td>
+                                  <td className="px-3 py-2 text-right">
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      className="field w-32 text-right ml-auto"
+                                      value={formData.feeHeads[idx]?.committed ?? head.original}
+                                      onChange={(e) => {
+                                        const val = Math.max(0, Number(e.target.value) || 0);
+                                        setFormData((prev) => {
+                                          const heads = [...prev.feeHeads];
+                                          if (!heads[idx]) heads[idx] = { name: head.name, original: head.original, committed: head.original };
+                                          heads[idx] = { ...heads[idx], committed: val };
+                                          const totalCommitted = heads.reduce((s, h) => s + h.committed, 0);
+                                          return { ...prev, feeHeads: heads, commitmentFee: String(totalCommitted) };
+                                        });
+                                      }}
+                                    />
+                                  </td>
+                                  <td className="px-3 py-2 text-right font-medium text-[#13a961]">
+                                    ₹{Math.max(0, head.original - (formData.feeHeads[idx]?.committed ?? head.original)).toLocaleString("en-IN")}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                            <tfoot>
+                              {(() => {
+                                const heads = formData.feeHeads.length > 0 ? formData.feeHeads : [{ name: "Tuition Fee", original: Number(formData.annualEnrollmentFee || 0), committed: Number(formData.annualEnrollmentFee || 0) }];
+                                const totalOriginal = heads.reduce((s, h) => s + h.original, 0);
+                                const totalCommitted = heads.reduce((s, h) => s + h.committed, 0);
+                                const totalConcession = totalOriginal - totalCommitted;
+                                return (
+                                  <tr className="border-t-2 border-[#3033a1] font-bold text-[#303247]">
+                                    <td className="px-3 py-3">TOTAL</td>
+                                    <td className="px-3 py-3 text-right">₹{totalOriginal.toLocaleString("en-IN")}</td>
+                                    <td className="px-3 py-3 text-right text-[#3033a1]">₹{totalCommitted.toLocaleString("en-IN")}</td>
+                                    <td className={`px-3 py-3 text-right ${totalConcession > 0 ? "text-[#13a961]" : "text-[#7d86a8]"}`}>
+                                      ₹{totalConcession.toLocaleString("en-IN")}
+                                    </td>
+                                  </tr>
+                                );
+                              })()}
+                            </tfoot>
+                          </table>
+                        </div>
+                      </div>
 
-                    <div>
-                      <label className="block text-sm font-semibold text-[#303247]">Commitment Fee</label>
-                      <input type="number" min="0" name="commitmentFee" value={formData.commitmentFee} onChange={handleChange} placeholder="₹0" className="field mt-1" />
+                      <div className="rounded-xl border border-[#edf0f7] bg-[#fafbff] p-4">
+                        <h4 className="text-sm font-bold text-[#303247] mb-3">Fee Summary</h4>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                          {(() => {
+                            const totalOriginal = formData.feeHeads.reduce((s, h) => s + h.original, 0) || Number(formData.annualEnrollmentFee || 0);
+                            const totalCommitted = formData.feeHeads.reduce((s, h) => s + h.committed, 0) || Number(formData.commitmentFee || 0);
+                            const totalConcession = Math.max(0, totalOriginal - totalCommitted);
+                            return (
+                              <>
+                                <div className="rounded-lg bg-[#f0f4ff] p-3">
+                                  <p className="text-xs font-semibold text-[#6f7898]">Original Fee</p>
+                                  <p className="text-lg font-extrabold text-[#303247]">₹{totalOriginal.toLocaleString("en-IN")}</p>
+                                </div>
+                                <div className="rounded-lg bg-[#f0faf0] p-3">
+                                  <p className="text-xs font-semibold text-[#6f7898]">Concession</p>
+                                  <p className="text-lg font-extrabold text-[#13a961]">₹{totalConcession.toLocaleString("en-IN")}</p>
+                                </div>
+                                <div className="rounded-lg bg-[#eef0ff] p-3">
+                                  <p className="text-xs font-semibold text-[#6f7898]">Final Payable</p>
+                                  <p className="text-lg font-extrabold text-[#3033a1]">₹{totalCommitted.toLocaleString("en-IN")}</p>
+                                </div>
+                                <div className="rounded-lg bg-[#fff7e6] p-3">
+                                  <p className="text-xs font-semibold text-[#6f7898]">Due (before payment)</p>
+                                  <p className="text-lg font-extrabold text-[#ad7413]">₹{totalCommitted.toLocaleString("en-IN")}</p>
+                                </div>
+                              </>
+                            );
+                          })()}
+                        </div>
+                      </div>
+
+                      <div className="text-xs font-medium text-[#7d86a8]">
+                        {formData.feeHeads.some((h) => h.committed > h.original) && (
+                          <span className="text-[#ed515d] font-semibold">Warning: Some committed amounts exceed original fee amounts.</span>
+                        )}
+                        {formData.feeHeads.length > 0 && !formData.feeHeads.some((h) => h.committed > h.original) && (
+                          <span>Committed payable is the final fee after any concession. Fee structure total is ₹{(() => {
+                            const totalOriginal = formData.feeHeads.reduce((s, h) => s + h.original, 0) || Number(formData.annualEnrollmentFee || 0);
+                            return totalOriginal.toLocaleString("en-IN");
+                          })()}.</span>
+                        )}
+                      </div>
+
+                      <input type="hidden" name="commitmentFee" value={String(formData.feeHeads.reduce((s, h) => s + h.committed, 0) || Number(formData.commitmentFee || 0))} />
                     </div>
 
                   </div>
