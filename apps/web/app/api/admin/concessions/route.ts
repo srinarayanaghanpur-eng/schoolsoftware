@@ -1,6 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { adminDb } from "@/lib/firebaseAdmin";
-import { requirePermission } from "@/lib/apiUtils";
+import { requirePermission, json } from "@/lib/apiUtils";
 import { logFirestoreRead, readLimit } from "@/lib/firestoreReadLogger";
 import { getSchoolId } from "@/lib/schoolScope";
 
@@ -18,7 +18,7 @@ function timeValue(value: unknown) {
 export async function GET(request: NextRequest) {
   try {
     const auth = await requirePermission(request, "fees.view");
-    if (!auth) return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+    if (!auth) return json({ success: false, error: "Unauthorized" }, { status: 401 });
 
     const db = adminDb();
     const searchParams = request.nextUrl.searchParams;
@@ -56,10 +56,10 @@ export async function GET(request: NextRequest) {
     }));
     const nextCursor = startIndex + pageSize < filteredDocs.length && pageDocs.length > 0 ? pageDocs[pageDocs.length - 1].id : null;
 
-    return NextResponse.json({ success: true, data: concessions, pageSize, nextCursor, hasMore: Boolean(nextCursor) });
+    return json({ success: true, data: concessions, pageSize, nextCursor, hasMore: Boolean(nextCursor) });
   } catch (error) {
     console.error('Error fetching concessions:', error);
-    return NextResponse.json(
+    return json(
       { success: false, error: 'Failed to fetch concessions' },
       { status: 500 }
     );
@@ -73,7 +73,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const auth = await requirePermission(request, "fees.create");
-    if (!auth) return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+    if (!auth) return json({ success: false, error: "Unauthorized" }, { status: 401 });
 
     const db = adminDb();
     const body = await request.json();
@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
 
     // Validation
     if (!studentId || !concessionType || !reason) {
-      return NextResponse.json(
+      return json(
         { success: false, error: 'Missing required fields' },
         { status: 400 }
       );
@@ -143,15 +143,16 @@ export async function POST(request: NextRequest) {
       timestamp: new Date()
     });
 
-    return NextResponse.json(
+    return json(
       { success: true, data: { id: docRef.id, ...concessionData } },
       { status: 201 }
     );
   } catch (error) {
     console.error('Error creating concession:', error);
-    return NextResponse.json(
+    return json(
       { success: false, error: 'Failed to create concession' },
       { status: 500 }
     );
   }
 }
+

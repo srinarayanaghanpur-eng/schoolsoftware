@@ -1,7 +1,6 @@
-import { NextResponse } from "next/server";
 import { AggregateField } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { requirePermission } from "@/lib/apiUtils";
+import { requirePermission, json } from "@/lib/apiUtils";
 import { docDateKey, inRange } from "@/lib/financeUtils";
 import { logFirestoreAggregateRead, logFirestoreRead } from "@/lib/firestoreReadLogger";
 
@@ -75,7 +74,7 @@ function sortEntriesDesc(left: MoneyEntry, right: MoneyEntry) {
 export async function GET(req: Request) {
   const token = await requirePermission(req, "fees.view");
   if (!token) {
-    return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
+    return json({ ok: false, error: "Access denied" }, { status: 403 });
   }
 
   const { from, to } = parseRange(req.url);
@@ -250,7 +249,7 @@ export async function GET(req: Request) {
       expenseLakhs: Number((row.expense / 100000).toFixed(2))
     }));
 
-  return NextResponse.json({
+  return json({
     ok: true,
     range: { from, to },
     kpis: {
@@ -283,3 +282,4 @@ export async function GET(req: Request) {
     transactions: transactions.sort(sortEntriesDesc)
   });
 }
+

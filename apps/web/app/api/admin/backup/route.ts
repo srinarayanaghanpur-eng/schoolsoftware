@@ -1,7 +1,6 @@
-import { NextResponse } from "next/server";
 import { createHash } from "crypto";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { requireAdmin } from "@/lib/apiUtils";
+import { requireAdmin, json } from "@/lib/apiUtils";
 
 const BACKUP_COLLECTIONS = [
   "users",
@@ -34,7 +33,7 @@ export async function GET(req: Request) {
   try {
     const decodedToken = await requireAdmin(req);
     if (!decodedToken) {
-      return NextResponse.json({ ok: false, error: "Admin access required" }, { status: 403 });
+      return json({ ok: false, error: "Admin access required" }, { status: 403 });
     }
 
     const db = adminDb();
@@ -72,9 +71,10 @@ export async function GET(req: Request) {
       usedForErase: false
     });
 
-    return NextResponse.json({ ok: true, backup, checksum, fileName });
+    return json({ ok: true, backup, checksum, fileName });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to generate backup";
-    return NextResponse.json({ ok: false, error: message }, { status: 400 });
+    return json({ ok: false, error: message }, { status: 400 });
   }
 }
+

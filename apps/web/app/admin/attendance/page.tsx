@@ -14,14 +14,17 @@ import {
   type Holiday,
   type Teacher
 } from "@sri-narayana/shared";
-import { CalendarOff, ClipboardList, Pencil, Save, Search, X } from "lucide-react";
+import { CalendarOff, ClipboardList, ChevronDown, Pencil, Save, Search, X } from "lucide-react";
 import type { FormEvent } from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 type AttendancePayload = {
   records: AttendanceRecord[];
   teachers: Teacher[];
   audits: AttendanceEditAudit[];
+  pageSize?: number;
+  nextCursor?: string | null;
+  hasMore?: boolean;
 };
 
 type EditForm = {
@@ -74,8 +77,13 @@ export default function AttendancePage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [editing, setEditing] = useState<EditForm | null>(null);
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const cursorRef = useRef<string | null>(null);
+  const hasMoreRef = useRef(false);
+  const fetchIdRef = useRef(0);
+  const [allTeachers, setAllTeachers] = useState<Teacher[]>([]);
 
   const todayStr = useMemo(() => new Date().toISOString().slice(0, 10), []);
 
@@ -91,30 +99,19 @@ export default function AttendancePage() {
 
   const todayHoliday = managementHolidayByDate.get(todayStr) ?? null;
 
-  const visibleManagementHolidays = useMemo(
-    () =>
-      [...managementHolidayByDate.values()]
-        .filter((holiday) => (!fromDate || holiday.date >= fromDate) && (!toDate || holiday.date <= toDate))
-        .sort((a, b) => b.date.localeCompare(a.date)),
-    [managementHolidayByDate, fromDate, toDate]
-  );
+  // Stable serialised filter key to detect changes and trigger refetch
+  const filterKey = JSON.stringify({
+    academicYearId: selectedYear?.id,
+    teacherId: teacherFilter,
+    status: statusFilter,
+    fromDate,
+    toDate
+  });
 
-  const filteredRecords = useMemo(() => {
-    return records.filter((record) => {
-      const statusMatch = statusFilter === "all" || record.status === statusFilter;
-      const teacherMatch = teacherFilter === "all" || record.teacherId === teacherFilter;
-      const dateMatch = (!fromDate || record.date >= fromDate) && (!toDate || record.date <= toDate);
-      const teacher = teachers.find((t) => t.id === record.teacherId);
-      const searchMatch =
-        searchQuery === "" ||
-        record.date.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        record.teacherId.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (teacher?.fullName?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false) ||
-        (teacher?.subject?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false) ||
-        record.status.toLowerCase().includes(searchQuery.toLowerCase());
-      return statusMatch && teacherMatch && dateMatch && searchMatch;
-    });
-  }, [records, teachers, statusFilter, teacherFilter, fromDate, toDate, searchQuery]);
+  const selectedTeacherName = useMemo(
+    () => (teacherFilter !== "all" ? (allTeachers.find((t) => t.id === teacherFilter)?.fullName ?? teacherFilter) : null),
+    [allTeachers, teacherFilter]
+  );
 
   const apiRequest = async <T,>(path: string, init?: RequestInit): Promise<T> => {
     const token = await auth.currentUser?.getIdToken();
@@ -132,36 +129,115 @@ export default function AttendancePage() {
     return result;
   };
 
-  const loadAttendance = async () => {
-    if (!selectedYear?.id) {
+  // Load all teachers list once (for the teacher dropdown and filter chip)
+  useEffect(() => {
+    let cancelled = false;
+    apiRequest<{ teachers: Teacher[] }>("/api/admin/teachers?pageSize=500")
+      .then((res) => { if (!cancelled) setAllTeachers(res.teachers ?? []); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Build URL search params from current filters (excludes cursor for fresh requests)
+  const buildUrl = useCallback((cursor?: string | null) => {
+    if (!selectedYear?.id) return null;
+    const params = new URLSearchParams();
+    params.set("academicYearId", selectedYear.id);
+    params.set("pageSize", "50");
+    if (teacherFilter !== "all") params.set("teacherId", teacherFilter);
+    if (statusFilter !== "all") params.set("status", statusFilter);
+    if (fromDate) params.set("dateFrom", fromDate);
+    if (toDate) params.set("dateTo", toDate);
+    if (cursor) params.set("cursor", cursor);
+    return params;
+  }, [selectedYear?.id, teacherFilter, statusFilter, fromDate, toDate]);
+
+  // Fetch first page — resets pagination
+  const loadAttendance = useCallback(async () => {
+    const params = buildUrl();
+    if (!params) {
       setRecords([]);
       setTeachers([]);
       setAudits([]);
-      setLoading(false);
       return;
     }
+    const fetchId = ++fetchIdRef.current;
     setLoading(true);
     setError(null);
+    setRecords([]);
+    cursorRef.current = null;
+    hasMoreRef.current = false;
     try {
       const [result, holidayResult] = await Promise.all([
-        apiRequest<AttendancePayload>(`/api/admin/attendance?${new URLSearchParams({ academicYearId: selectedYear.id, pageSize: "25" })}`),
+        apiRequest<AttendancePayload>(`/api/admin/attendance?${params}`),
         apiRequest<{ holidays: Holiday[] }>("/api/admin/holidays").catch(() => ({ holidays: [] as Holiday[] }))
       ]);
+      if (fetchId !== fetchIdRef.current) return;
       setRecords(result.records);
       setTeachers(result.teachers);
       setAudits(result.audits);
       setHolidays(holidayResult.holidays);
+      cursorRef.current = result.nextCursor ?? null;
+      hasMoreRef.current = Boolean(result.hasMore);
     } catch (err) {
+      if (fetchId !== fetchIdRef.current) return;
       setError(err instanceof Error ? err.message : "Unable to load attendance");
     } finally {
-      setLoading(false);
+      if (fetchId === fetchIdRef.current) setLoading(false);
     }
-  };
+  }, [buildUrl]);
 
+  // Fetch next page — appends to existing records
+  const loadMore = useCallback(async () => {
+    if (loadingMore || !hasMoreRef.current) return;
+    const params = buildUrl(cursorRef.current);
+    if (!params) return;
+    const fetchId = ++fetchIdRef.current;
+    setLoadingMore(true);
+    try {
+      const [result, holidayResult] = await Promise.all([
+        apiRequest<AttendancePayload>(`/api/admin/attendance?${params}`),
+        apiRequest<{ holidays: Holiday[] }>("/api/admin/holidays").catch(() => ({ holidays: [] as Holiday[] }))
+      ]);
+      if (fetchId !== fetchIdRef.current) return;
+      setRecords((prev) => [...prev, ...result.records]);
+      setTeachers((prev) => {
+        const existing = new Map(prev.map((t) => [t.id, t]));
+        for (const t of result.teachers) existing.set(t.id, t);
+        return [...existing.values()];
+      });
+      setAudits(result.audits);
+      setHolidays(holidayResult.holidays);
+      cursorRef.current = result.nextCursor ?? null;
+      hasMoreRef.current = Boolean(result.hasMore);
+    } catch (err) {
+      if (fetchId !== fetchIdRef.current) return;
+    } finally {
+      if (fetchId === fetchIdRef.current) setLoadingMore(false);
+    }
+  }, [buildUrl, loadingMore]);
+
+  // Refetch on filter changes
   useEffect(() => {
     void loadAttendance();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedYear?.id]);
+  }, [filterKey]);
+
+  // Search is purely frontend on already-filtered records
+  const searchedRecords = useMemo(() => {
+    if (!searchQuery) return records;
+    return records.filter((record) => {
+      const teacher = teachers.find((t) => t.id === record.teacherId);
+      return (
+        record.date.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        record.teacherId.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (teacher?.fullName?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false) ||
+        (teacher?.subject?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false) ||
+        record.status.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    });
+  }, [records, teachers, searchQuery]);
 
   const submitEdit = async (event: FormEvent) => {
     event.preventDefault();
@@ -191,6 +267,10 @@ export default function AttendancePage() {
     }
   };
 
+  const emptyMessage = teacherFilter !== "all"
+    ? "No attendance record found for this teacher in the selected date range."
+    : "No attendance records found.";
+
   return (
     <>
       <PageHeader title="Attendance Records" description="Review, filter, and manually override attendance with a required audit reason." />
@@ -211,16 +291,32 @@ export default function AttendancePage() {
           </div>
           <select className="field" value={teacherFilter} onChange={(event) => setTeacherFilter(event.target.value)}>
             <option value="all">All teachers</option>
-            {teachers.map((teacher) => <option key={teacher.id} value={teacher.id}>{teacher.fullName}</option>)}
+            {allTeachers.map((teacher) => <option key={teacher.id} value={teacher.id}>{teacher.fullName}</option>)}
           </select>
           <select className="field" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
             <option value="all">All statuses</option>
             {statuses.map((status) => <option key={status} value={status}>{status}</option>)}
           </select>
-          <button className="btn-secondary" onClick={loadAttendance} disabled={loading}>
+          <button className="btn-secondary" onClick={() => loadAttendance()} disabled={loading}>
             <ClipboardList size={16} /> {loading ? "Loading..." : "Refresh"}
           </button>
         </div>
+
+        {/* Active filter chip when a specific teacher is selected */}
+        {teacherFilter !== "all" && selectedTeacherName && (
+          <div className="flex items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-[#3033a1]/20 bg-[#3033a1]/10 px-3 py-1 text-xs font-bold text-[#3033a1]">
+              Teacher: {selectedTeacherName}
+              <button
+                type="button"
+                className="ml-0.5 rounded-full p-0.5 hover:bg-[#3033a1]/20"
+                onClick={() => setTeacherFilter("all")}
+              >
+                <X size={14} />
+              </button>
+            </span>
+          </div>
+        )}
 
         <DateRangeFilter
           from={fromDate}
@@ -273,9 +369,17 @@ export default function AttendancePage() {
           </form>
         )}
 
+        {/* Dynamic table heading */}
+        <div className="flex items-center justify-between">
+          <h2 className="text-base font-extrabold text-[#1f2136]">
+            {selectedTeacherName ? `Attendance records for ${selectedTeacherName}` : "All attendance records"}
+          </h2>
+          <span className="text-xs font-semibold text-[#7d86a8]">{searchedRecords.length} record{searchedRecords.length !== 1 ? "s" : ""}</span>
+        </div>
+
         {/* Mobile: attendance record cards */}
         <div className="space-y-3 md:hidden">
-          {filteredRecords.map((record) => {
+          {searchedRecords.map((record) => {
             const teacher = teachers.find((item) => item.id === record.teacherId);
             const attendanceId = createAttendanceDocumentId(record.teacherId, record.date);
             const managementHoliday = managementHolidayByDate.get(record.date);
@@ -312,8 +416,8 @@ export default function AttendancePage() {
               </div>
             );
           })}
-          {!filteredRecords.length && (
-            <div className="card p-8 text-center text-sm font-medium text-[#7d86a8]">No attendance records found.</div>
+          {!searchedRecords.length && !loading && (
+            <div className="card p-8 text-center text-sm font-medium text-[#7d86a8]">{emptyMessage}</div>
           )}
         </div>
 
@@ -335,7 +439,7 @@ export default function AttendancePage() {
               </tr>
             </thead>
             <tbody>
-              {filteredRecords.map((record) => {
+              {searchedRecords.map((record) => {
                 const teacher = teachers.find((item) => item.id === record.teacherId);
                 const attendanceId = createAttendanceDocumentId(record.teacherId, record.date);
                 const managementHoliday = managementHolidayByDate.get(record.date);
@@ -363,9 +467,20 @@ export default function AttendancePage() {
                   </tr>
                 );
               })}
-              {!filteredRecords.length && <tr><td className="px-4 py-8 text-center text-sm font-medium text-[#7d86a8]" colSpan={10}>No attendance records found.</td></tr>}
+              {!searchedRecords.length && !loading && (
+                <tr><td className="px-4 py-8 text-center text-sm font-medium text-[#7d86a8]" colSpan={10}>{emptyMessage}</td></tr>
+              )}
             </tbody>
           </table>
+
+          {/* Load more */}
+          {hasMoreRef.current && searchedRecords.length > 0 && (
+            <div className="flex justify-center border-t border-stone-100 px-4 py-4">
+              <button className="btn-secondary" onClick={loadMore} disabled={loadingMore}>
+                <ChevronDown size={16} /> {loadingMore ? "Loading..." : "Load more"}
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="card overflow-x-auto">

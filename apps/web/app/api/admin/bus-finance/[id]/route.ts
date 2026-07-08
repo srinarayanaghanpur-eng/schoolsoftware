@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { FieldValue } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { requirePermission } from "@/lib/apiUtils";
+import { requirePermission, json } from "@/lib/apiUtils";
 import { BUS_FINANCE_COLLECTION, BUS_EMI_PAYMENTS_COLLECTION, recalcFinanceSummary } from "@/lib/busFinanceService";
 
 /**
@@ -10,15 +10,15 @@ import { BUS_FINANCE_COLLECTION, BUS_EMI_PAYMENTS_COLLECTION, recalcFinanceSumma
  */
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   const token = await requirePermission(req, "bus_finance.view");
-  if (!token) return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
+  if (!token) return json({ ok: false, error: "Access denied" }, { status: 403 });
 
   try {
     const snap = await adminDb().collection(BUS_FINANCE_COLLECTION).doc(params.id).get();
-    if (!snap.exists) return NextResponse.json({ ok: false, error: "Record not found" }, { status: 404 });
-    return NextResponse.json({ ok: true, record: { id: snap.id, ...snap.data() } });
+    if (!snap.exists) return json({ ok: false, error: "Record not found" }, { status: 404 });
+    return json({ ok: true, record: { id: snap.id, ...snap.data() } });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to load record";
-    return NextResponse.json({ ok: false, error: message }, { status: 500 });
+    return json({ ok: false, error: message }, { status: 500 });
   }
 }
 
@@ -47,12 +47,12 @@ const EDITABLE = [
  */
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   const token = await requirePermission(req, "bus_finance.edit");
-  if (!token) return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
+  if (!token) return json({ ok: false, error: "Access denied" }, { status: 403 });
 
   try {
     const ref = adminDb().collection(BUS_FINANCE_COLLECTION).doc(params.id);
     const snap = await ref.get();
-    if (!snap.exists) return NextResponse.json({ ok: false, error: "Record not found" }, { status: 404 });
+    if (!snap.exists) return json({ ok: false, error: "Record not found" }, { status: 404 });
 
     const body = await req.json();
     const update: Record<string, unknown> = { updatedAt: FieldValue.serverTimestamp() };
@@ -73,10 +73,10 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     await recalcFinanceSummary(params.id);
 
     const fresh = await ref.get();
-    return NextResponse.json({ ok: true, record: { id: fresh.id, ...fresh.data() } });
+    return json({ ok: true, record: { id: fresh.id, ...fresh.data() } });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to update record";
-    return NextResponse.json({ ok: false, error: message }, { status: 400 });
+    return json({ ok: false, error: message }, { status: 400 });
   }
 }
 
@@ -87,13 +87,13 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
  */
 export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
   const token = await requirePermission(req, "bus_finance.delete");
-  if (!token) return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
+  if (!token) return json({ ok: false, error: "Access denied" }, { status: 403 });
 
   try {
     const db = adminDb();
     const ref = db.collection(BUS_FINANCE_COLLECTION).doc(params.id);
     const snap = await ref.get();
-    if (!snap.exists) return NextResponse.json({ ok: false, error: "Record not found" }, { status: 404 });
+    if (!snap.exists) return json({ ok: false, error: "Record not found" }, { status: 404 });
 
     // Remove child EMI rows first (batched), then the parent.
     let batch = db.batch();
@@ -114,9 +114,10 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
     if (inBatch > 0) await batch.commit();
 
     await ref.delete();
-    return NextResponse.json({ ok: true });
+    return json({ ok: true });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to delete record";
-    return NextResponse.json({ ok: false, error: message }, { status: 500 });
+    return json({ ok: false, error: message }, { status: 500 });
   }
 }
+

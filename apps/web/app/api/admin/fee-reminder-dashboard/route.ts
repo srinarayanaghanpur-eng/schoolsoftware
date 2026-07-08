@@ -1,7 +1,6 @@
-import { NextResponse } from "next/server";
 import { FieldValue } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { requirePermission, serializeDoc } from "@/lib/apiUtils";
+import { requirePermission, serializeDoc, json } from "@/lib/apiUtils";
 import { getSchoolId } from "@/lib/schoolScope";
 import { logFirestoreRead, readLimit } from "@/lib/firestoreReadLogger";
 
@@ -26,7 +25,7 @@ function isToday(dateVal: unknown): boolean {
 
 export async function GET(req: Request) {
   const token = await requirePermission(req, "fee_reminders.view");
-  if (!token) return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
+  if (!token) return json({ ok: false, error: "Access denied" }, { status: 403 });
 
   try {
     const { searchParams } = new URL(req.url);
@@ -106,7 +105,7 @@ export async function GET(req: Request) {
     const remindersPending = queueSnapshot.docs.filter((doc) => String(doc.data().status || "") === "pending").length;
     const remindersProcessing = queueSnapshot.docs.filter((doc) => String(doc.data().status || "") === "processing").length;
 
-    return NextResponse.json({
+    return json({
       ok: true,
       totalDueStudents,
       totalDueAmount,
@@ -121,6 +120,7 @@ export async function GET(req: Request) {
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to load dashboard";
-    return NextResponse.json({ ok: false, error: message }, { status: 400 });
+    return json({ ok: false, error: message }, { status: 400 });
   }
 }
+

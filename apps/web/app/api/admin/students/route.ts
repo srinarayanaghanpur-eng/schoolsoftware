@@ -1,10 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { adminDb } from "@/lib/firebaseAdmin";
-import { requirePermission } from "@/lib/apiUtils";
+import { requirePermission, json } from "@/lib/apiUtils";
 import { createApprovalRequest } from "@/lib/approvalEngine";
 import { docCursor, logFirestoreRead, readLimit } from "@/lib/firestoreReadLogger";
 import { firestoreErrorResponse, firestoreQuotaResponse, isFirestoreQuotaPaused } from "@/lib/firebaseErrors";
 import { getSchoolId } from "@/lib/schoolScope";
+import { markSummaryDirty } from "@/lib/markSummaryDirty";
 
 function normalizeText(value: unknown) {
   return String(value ?? "").trim().toLowerCase();
@@ -22,7 +23,7 @@ function searchKeywords(name: string, admissionNumber: string, phone: string) {
 export async function GET(request: NextRequest) {
   try {
     const auth = await requirePermission(request, "students.view");
-    if (!auth) return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+    if (!auth) return json({ success: false, error: "Unauthorized" }, { status: 401 });
 
     if (isFirestoreQuotaPaused()) {
       return firestoreQuotaResponse();
@@ -57,7 +58,7 @@ export async function GET(request: NextRequest) {
     // per 1000 docs instead of reading every matching document).
     if (searchParams.get("count") === "1") {
       const countSnap = await applyScope(db.collection('students')).count().get();
-      return NextResponse.json({ success: true, count: Number(countSnap.data().count || 0) });
+      return json({ success: true, count: Number(countSnap.data().count || 0) });
     }
 
     let query: any = applyScope(db.collection('students'));
@@ -130,7 +131,7 @@ export async function GET(request: NextRequest) {
       ? pageDocs[pageDocs.length - 1].id
       : null;
 
-    return NextResponse.json({ success: true, data: students, pageSize, nextCursor, hasMore: Boolean(nextCursor) });
+    return json({ success: true, data: students, pageSize, nextCursor, hasMore: Boolean(nextCursor) });
   } catch (error) {
     console.error('Error fetching students:', error);
     return firestoreErrorResponse(error, 'Failed to fetch students');
@@ -144,7 +145,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const auth = await requirePermission(request, "students.create");
-    if (!auth) return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+    if (!auth) return json({ success: false, error: "Unauthorized" }, { status: 401 });
 
     const db = adminDb();
     const body = await request.json();
@@ -172,7 +173,7 @@ export async function POST(request: NextRequest) {
 
     // Validation — admission number is auto-generated, never client-supplied.
     if (!studentName || !classStr || !section) {
-      return NextResponse.json(
+      return json(
         { success: false, error: 'Missing required fields' },
         { status: 400 }
       );
@@ -306,7 +307,9 @@ export async function POST(request: NextRequest) {
       console.error("Admission approval request failed (student still created):", approvalError);
     }
 
-    return NextResponse.json({
+    await markSummaryDirty("student:create");
+
+    return json({
       success: true,
       data: { id: docRef.id, ...studentData }
     });
@@ -315,3 +318,4 @@ export async function POST(request: NextRequest) {
     return firestoreErrorResponse(error, 'Failed to create student');
   }
 }
+

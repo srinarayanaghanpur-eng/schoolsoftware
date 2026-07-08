@@ -1,5 +1,4 @@
-import { NextResponse } from "next/server";
-import { errorMessage, requirePermission } from "@/lib/apiUtils";
+import { errorMessage, requirePermission, json } from "@/lib/apiUtils";
 import {
   createDebitVoucherFromExpense,
   listDebitVouchers
@@ -7,7 +6,7 @@ import {
 
 export async function GET(req: Request) {
   const token = await requirePermission(req, "fees.view");
-  if (!token) return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
+  if (!token) return json({ ok: false, error: "Access denied" }, { status: 403 });
 
   const { searchParams } = new URL(req.url);
   const ids = searchParams.get("ids")?.split(",").map((id) => id.trim()).filter(Boolean);
@@ -23,17 +22,17 @@ export async function GET(req: Request) {
     cursor: searchParams.get("cursor")
   });
 
-  return NextResponse.json({ ok: true, ...result });
+  return json({ ok: true, ...result });
 }
 
 export async function POST(req: Request) {
   const token = await requirePermission(req, "fees.create");
-  if (!token) return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
+  if (!token) return json({ ok: false, error: "Access denied" }, { status: 403 });
 
   try {
     const result = await createDebitVoucherFromExpense(await req.json(), token, { expenseStatus: "approved" });
-    return NextResponse.json({ ok: true, ...result });
+    return json({ ok: true, ...result });
   } catch (error) {
-    return NextResponse.json({ ok: false, error: errorMessage(error, "Unable to create debit voucher") }, { status: 400 });
+    return json({ ok: false, error: errorMessage(error, "Unable to create debit voucher") }, { status: 400 });
   }
 }

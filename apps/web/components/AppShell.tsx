@@ -2,7 +2,6 @@
 
 import clsx from "clsx";
 import {
-  Banknote,
   BarChart3,
   Bell,
   BellRing,
@@ -76,8 +75,9 @@ import {
 } from "@sri-narayana/shared";
 import { auth, db, isFirebaseConfigured } from "@sri-narayana/shared/firebase/client";
 import { AcademicYearProvider, useAcademicYears } from "@/components/AcademicYearContext";
+import FloatingCalculator from "@/components/finance/FloatingCalculator";
 import { AdminSessionProvider } from "@/components/AdminSessionContext";
-import { BrandLoader } from "@/components/BrandLoader";
+import AppLoader from "@/components/AppLoader";
 import { LiveClock } from "@/components/LiveClock";
 import { DarkModeToggle } from "@/components/DarkModeToggle";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -216,8 +216,6 @@ const contextSubnavs: ContextSubnav[] = [
       { href: "/admin/payments", label: "Collect Fee", icon: ReceiptIndianRupee, module: "fees" },
       { href: "/admin/fee-structures", label: "Fee Structures", icon: Layers, module: "fees" },
       { href: "/admin/finance/expenses", label: "Expenses", icon: Wallet, module: "fees" },
-      { href: "/admin/finance/debit-vouchers", label: "Debit Vouchers", icon: ReceiptIndianRupee, module: "fees" },
-      { href: "/admin/finance/income", label: "Income", icon: Banknote, module: "fees" },
       { href: "/admin/finance/dues", label: "Dues", icon: FileStack, module: "fees" },
       { href: "/admin/payments", label: "Receipts", icon: ScrollText, module: "fees", activePrefixes: ["/admin/finance/receipt"] },
       { href: "/admin/finance/invoices", label: "Invoices", icon: FileText, module: "fees" },
@@ -316,7 +314,7 @@ const pageTitles: Record<string, string> = {
   "/admin/attendance": "Attendance",
   "/admin/reports": "Reports",
   "/admin/payments": "Fees & Finance",
-  "/admin/finance/debit-vouchers": "Debit Vouchers",
+  "/admin/finance/income": "Other Income",
   "/admin/fee-structures": "Fee Structures",
   "/admin/fee-reminders": "Fee Reminders",
   "/admin/fee-concessions": "Fee Concessions",
@@ -1406,7 +1404,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         )}
         <div key={pathname} className="page-enter flex-1 overflow-y-auto pb-[76px] md:pb-0 print:overflow-visible print:pb-0 print:opacity-100">
           <ErrorBoundary resetKey={pathname}>
-            {sessionLoading || signingOut ? <BrandLoader message={signingOut ? "Signing out…" : "Loading secure workspace…"} /> : routeDenied ? <AccessDeniedState module={currentModule} /> : (<>{!contextualSubnav && <SectionTabs />}{children}</>)}
+            {sessionLoading || signingOut ? <AppLoader message={signingOut ? "Signing out…" : "Preparing your workspace…"} /> : routeDenied ? <AccessDeniedState module={currentModule} /> : (<>{!contextualSubnav && <SectionTabs />}{children}</>)}
           </ErrorBoundary>
           {isPortalRole && !sessionLoading && !signingOut && (
             <footer className="mt-6 border-t border-border bg-card/60 px-4 py-6 text-center md:px-7">
@@ -1445,6 +1443,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         })}
       </nav>
     </div>
+      <FloatingCalculator role={role} />
       </AcademicYearProvider>
     </AdminSessionProvider>
   );

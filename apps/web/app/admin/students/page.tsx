@@ -298,93 +298,110 @@ const CLASS_LABELS = CLASS_SELECTOR_CLASSES.reduce<Record<string, string>>((labe
   return labels;
 }, {});
 
+const UNIFORM_SHIRT = "#dbeafe";
+const UNIFORM_PANTS = "#475569";
+const UNIFORM_TIE = "#2563eb";
+const UNIFORM_BAG = "#b45309";
+const HAIR_DARK = "#2d241c";
+const HAIR_MEDIUM = "#4a3328";
+const HAIR_LIGHT = "#6b4c3a";
+const SKIN = "#f5cba7";
+
 const CHILD_ICON_STYLES: Record<ChildIconVariant, {
   headY: number;
   headRadius: number;
   bodyTop: number;
   bodyHeight: number;
   bodyWidth: number;
-  shirt: string;
-  bottom: string;
-  hair: string;
-  bag?: string;
-  tie?: string;
+  legLength: number;
+  armLength: number;
+  eyeR: number;
+  mouthD: string;
+  hairType: "tufts" | "cap" | "fringe" | "crew" | "side" | "styled" | "teen";
 }> = {
   baby: {
+    headY: 37,
+    headRadius: 18,
+    bodyTop: 55,
+    bodyHeight: 14,
+    bodyWidth: 24,
+    legLength: 8,
+    armLength: 8,
+    eyeR: 3,
+    mouthD: "M44 48 Q48 53 52 48",
+    hairType: "tufts"
+  },
+  tiny: {
+    headY: 34,
+    headRadius: 17,
+    bodyTop: 52,
+    bodyHeight: 17,
+    bodyWidth: 26,
+    legLength: 10,
+    armLength: 10,
+    eyeR: 2.5,
+    mouthD: "M44 45 Q48 50 52 45",
+    hairType: "cap"
+  },
+  kindergarten: {
     headY: 31,
     headRadius: 16,
     bodyTop: 48,
-    bodyHeight: 25,
-    bodyWidth: 30,
-    shirt: "#ffb487",
-    bottom: "#7aa7ff",
-    hair: "#5b3b2d"
-  },
-  tiny: {
-    headY: 29,
-    headRadius: 15,
-    bodyTop: 47,
-    bodyHeight: 29,
-    bodyWidth: 32,
-    shirt: "#ffd166",
-    bottom: "#6fcf97",
-    hair: "#3f2b23"
-  },
-  kindergarten: {
-    headY: 28,
-    headRadius: 15,
-    bodyTop: 46,
-    bodyHeight: 31,
-    bodyWidth: 34,
-    shirt: "#7dd3fc",
-    bottom: "#a78bfa",
-    hair: "#49372f"
+    bodyHeight: 21,
+    bodyWidth: 28,
+    legLength: 12,
+    armLength: 12,
+    eyeR: 2.2,
+    mouthD: "M44 43 Q48 47 52 43",
+    hairType: "fringe"
   },
   primary: {
-    headY: 26,
-    headRadius: 14,
-    bodyTop: 44,
-    bodyHeight: 35,
-    bodyWidth: 36,
-    shirt: "#93c5fd",
-    bottom: "#f9a8d4",
-    hair: "#34251f",
-    bag: "#f97316"
+    headY: 29,
+    headRadius: 15,
+    bodyTop: 45,
+    bodyHeight: 25,
+    bodyWidth: 30,
+    legLength: 14,
+    armLength: 14,
+    eyeR: 2,
+    mouthD: "M44 41 Q48 44 52 41",
+    hairType: "crew"
   },
   "senior-primary": {
-    headY: 25,
-    headRadius: 13,
-    bodyTop: 43,
-    bodyHeight: 38,
-    bodyWidth: 36,
-    shirt: "#86efac",
-    bottom: "#60a5fa",
-    hair: "#2d2522",
-    bag: "#8b5cf6"
+    headY: 27,
+    headRadius: 14,
+    bodyTop: 42,
+    bodyHeight: 29,
+    bodyWidth: 32,
+    legLength: 16,
+    armLength: 16,
+    eyeR: 1.8,
+    mouthD: "M44 39 Q48 42 52 39",
+    hairType: "side"
   },
   preteen: {
-    headY: 24,
+    headY: 25,
     headRadius: 13,
-    bodyTop: 42,
-    bodyHeight: 40,
-    bodyWidth: 37,
-    shirt: "#67e8f9",
-    bottom: "#818cf8",
-    hair: "#2a211f",
-    bag: "#14b8a6",
-    tie: "#2563eb"
+    bodyTop: 39,
+    bodyHeight: 34,
+    bodyWidth: 34,
+    legLength: 18,
+    armLength: 18,
+    eyeR: 1.6,
+    mouthD: "M45 37 Q48 40 51 37",
+    hairType: "styled"
   },
   teen: {
-    headY: 23,
+    headY: 22,
     headRadius: 12,
-    bodyTop: 41,
-    bodyHeight: 43,
-    bodyWidth: 38,
-    shirt: "#fca5a5",
-    bottom: "#475569",
-    hair: "#211816",
-    bag: "#0ea5e9",
-    tie: "#dc2626"
+    bodyTop: 36,
+    bodyHeight: 40,
+    bodyWidth: 36,
+    legLength: 20,
+    armLength: 20,
+    eyeR: 1.5,
+    mouthD: "M45 34 Q48 36 51 34",
+    hairType: "teen"
   }
 };
 
@@ -411,64 +428,164 @@ function SectionDivider({ label }: { label: string }) {
   );
 }
 
+function HairPath({ s, variant }: { s: typeof CHILD_ICON_STYLES[ChildIconVariant]; variant: ChildIconVariant }) {
+  const cx = 48;
+  const r = s.headRadius;
+  const hy = s.headY;
+  const topY = hy - r;
+  if (variant === "baby") {
+    return (
+      <>
+        <path d={`M${cx - r} ${hy - 2} Q${cx} ${topY - 3} ${cx + r} ${hy - 2} Z`} fill={HAIR_LIGHT} />
+        <circle cx={cx - 10} cy={topY - 2} r={6} fill={HAIR_LIGHT} />
+        <circle cx={cx + 10} cy={topY - 2} r={6} fill={HAIR_LIGHT} />
+      </>
+    );
+  }
+  if (variant === "tiny") {
+    return (
+      <path d={`M${cx - r - 2} ${hy - 1} Q${cx} ${topY - 4} ${cx + r + 2} ${hy - 1} Q${cx + 5} ${topY + 2} ${cx} ${topY + 3} Q${cx - 5} ${topY + 2} ${cx - r - 2} ${hy - 1} Z`} fill={HAIR_LIGHT} />
+    );
+  }
+  if (variant === "kindergarten") {
+    return (
+      <path d={`M${cx - r - 1} ${hy} Q${cx - 5} ${topY - 6} ${cx} ${topY - 4} Q${cx + 5} ${topY - 6} ${cx + r + 1} ${hy} Q${cx + 8} ${topY + 2} ${cx} ${topY + 4} Q${cx - 8} ${topY + 2} ${cx - r - 1} ${hy} Z`} fill={HAIR_MEDIUM} />
+    );
+  }
+  if (variant === "primary") {
+    return (
+      <path d={`M${cx - r} ${hy} Q${cx} ${topY - 4} ${cx + r} ${hy} Q${cx + 3} ${topY + 4} ${cx} ${topY + 5} Q${cx - 3} ${topY + 4} ${cx - r} ${hy} Z`} fill={HAIR_MEDIUM} />
+    );
+  }
+  if (variant === "senior-primary") {
+    return (
+      <>
+        <path d={`M${cx - r - 1} ${hy + 1} Q${cx - 4} ${topY - 4} ${cx + 2} ${topY - 3} Q${cx + r + 2} ${topY + 1} ${cx + r + 1} ${hy + 1} Q${cx + 6} ${topY + 5} ${cx} ${topY + 5} Q${cx - 6} ${topY + 5} ${cx - r - 1} ${hy + 1} Z`} fill={HAIR_DARK} />
+        <path d={`M${cx + 4} ${topY + 3} L${cx + r + 4} ${hy + 8}`} stroke={HAIR_DARK} strokeWidth="3" strokeLinecap="round" fill="none" />
+      </>
+    );
+  }
+  if (variant === "preteen") {
+    return (
+      <>
+        <path d={`M${cx - r - 1} ${hy + 1} Q${cx - 6} ${topY - 5} ${cx} ${topY - 4} Q${cx + 6} ${topY - 5} ${cx + r + 1} ${hy + 1} Q${cx + 7} ${topY + 5} ${cx} ${topY + 6} Q${cx - 7} ${topY + 5} ${cx - r - 1} ${hy + 1} Z`} fill={HAIR_DARK} />
+        <path d={`M${cx - r} ${hy + 2} Q${cx - r - 5} ${hy + 4} ${cx - r - 3} ${hy + 8}`} stroke={HAIR_DARK} strokeWidth="2.5" strokeLinecap="round" fill="none" />
+      </>
+    );
+  }
+  return (
+    <>
+      <path d={`M${cx - r - 1} ${hy + 1} Q${cx - 7} ${topY - 6} ${cx} ${topY - 5} Q${cx + 7} ${topY - 6} ${cx + r + 1} ${hy + 1} Q${cx + 8} ${topY + 4} ${cx} ${topY + 6} Q${cx - 8} ${topY + 4} ${cx - r - 1} ${hy + 1} Z`} fill={HAIR_DARK} />
+      <path d={`M${cx - r - 3} ${hy + 3} Q${cx - r - 7} ${hy + 1} ${cx - r - 6} ${hy + 7}`} stroke={HAIR_DARK} strokeWidth="2.5" strokeLinecap="round" fill="none" />
+      <path d={`M${cx + r + 3} ${hy + 3} Q${cx + r + 7} ${hy + 1} ${cx + r + 6} ${hy + 7}`} stroke={HAIR_DARK} strokeWidth="2.5" strokeLinecap="round" fill="none" />
+    </>
+  );
+}
+
 function ChildClassIcon({ variant }: { variant: ChildIconVariant }) {
-  const style = CHILD_ICON_STYLES[variant];
-  const bodyLeft = 48 - style.bodyWidth / 2;
-  const bodyRight = 48 + style.bodyWidth / 2;
-  const bodyBottom = style.bodyTop + style.bodyHeight;
-  const shortTop = style.bodyTop + style.bodyHeight * 0.52;
-  const legTop = bodyBottom - 1;
-  const legBottom = 86;
+  const s = CHILD_ICON_STYLES[variant];
+  const cx = 48;
+  const lx = cx - s.bodyWidth / 2;
+  const rx = cx + s.bodyWidth / 2;
+  const bodyBottom = s.bodyTop + s.bodyHeight;
+  const pantSplit = s.bodyTop + s.bodyHeight * 0.48;
+  const armEnd = s.bodyTop + s.bodyHeight + s.armLength;
+  const legTop = bodyBottom;
+  const footY = legTop + s.legLength;
+  const shoeGap = variant === "baby" || variant === "tiny" ? 4 : 2;
+  const showBag = variant !== "baby" && variant !== "tiny";
+  const showTie = variant === "senior-primary" || variant === "preteen" || variant === "teen";
+  const hasCollar = variant !== "baby";
 
   return (
     <svg viewBox="0 0 96 96" className="h-14 w-14" role="img" aria-label="Student avatar">
-      <ellipse cx="48" cy="88" rx="27" ry="4" fill="#dfe6f4" opacity="0.85" />
-      {style.bag && (
+      {/* Shadow */}
+      <ellipse cx={cx} cy={footY + 2} rx={s.bodyWidth * 0.75 + 2} ry="3.5" fill="#dfe6f4" opacity="0.85" />
+
+      {/* School bag */}
+      {showBag && (
         <path
-          d={`M${bodyLeft - 5} ${style.bodyTop + 7} Q${bodyLeft - 10} ${style.bodyTop + 19} ${bodyLeft - 4} ${bodyBottom - 3} L${bodyLeft + 2} ${bodyBottom - 6} Q${bodyLeft - 1} ${style.bodyTop + 18} ${bodyLeft + 3} ${style.bodyTop + 9} Z`}
-          fill={style.bag}
+          d={`M${lx - 4} ${s.bodyTop + 6} Q${lx - 10} ${s.bodyTop + s.bodyHeight * 0.45} ${lx - 5} ${bodyBottom - 4} L${lx} ${bodyBottom - 7} Q${lx - 2} ${s.bodyTop + s.bodyHeight * 0.4} ${lx + 1} ${s.bodyTop + 8} Z`}
+          fill={UNIFORM_BAG}
           opacity="0.82"
         />
       )}
-      <path
-        d={`M${bodyLeft + 2} ${style.bodyTop + 9} Q${bodyLeft - 10} ${style.bodyTop + 19} ${bodyLeft - 7} ${style.bodyTop + 32}`}
-        fill="none"
-        stroke="#f3c2a4"
-        strokeWidth="6"
-        strokeLinecap="round"
-      />
-      <path
-        d={`M${bodyRight - 2} ${style.bodyTop + 9} Q${bodyRight + 10} ${style.bodyTop + 19} ${bodyRight + 7} ${style.bodyTop + 32}`}
-        fill="none"
-        stroke="#f3c2a4"
-        strokeWidth="6"
-        strokeLinecap="round"
-      />
-      <path
-        d={`M${bodyLeft} ${style.bodyTop + 7} Q48 ${style.bodyTop - 2} ${bodyRight} ${style.bodyTop + 7} L${bodyRight - 4} ${shortTop} L${bodyLeft + 4} ${shortTop} Z`}
-        fill={style.shirt}
-      />
-      {style.tie && <path d={`M47 ${style.bodyTop + 9} L52 ${style.bodyTop + 9} L50 ${shortTop - 2} L45 ${shortTop - 2} Z`} fill={style.tie} />}
-      <path d={`M${bodyLeft + 4} ${shortTop} L${bodyRight - 4} ${shortTop} L${bodyRight - 1} ${bodyBottom} L${bodyLeft + 1} ${bodyBottom} Z`} fill={style.bottom} />
-      <path d={`M40 ${legTop} L38 ${legBottom}`} stroke="#f3c2a4" strokeWidth="6" strokeLinecap="round" />
-      <path d={`M56 ${legTop} L58 ${legBottom}`} stroke="#f3c2a4" strokeWidth="6" strokeLinecap="round" />
-      <path d="M34 88 Q40 82 45 87" fill="none" stroke="#4b5563" strokeWidth="4" strokeLinecap="round" />
-      <path d="M52 87 Q58 82 64 88" fill="none" stroke="#4b5563" strokeWidth="4" strokeLinecap="round" />
-      <circle cx="48" cy={style.headY} r={style.headRadius} fill="#f5c6a6" />
-      <path
-        d={`M${48 - style.headRadius} ${style.headY - 1} Q48 ${style.headY - style.headRadius - 11} ${48 + style.headRadius} ${style.headY - 1} Q57 ${style.headY - style.headRadius + 4} 48 ${style.headY - style.headRadius + 5} Q39 ${style.headY - style.headRadius + 4} ${48 - style.headRadius} ${style.headY - 1} Z`}
-        fill={style.hair}
-      />
-      {variant === "baby" && (
+
+      {/* Arms */}
+      <path d={`M${lx + 2} ${s.bodyTop + 6} Q${lx - 10} ${s.bodyTop + 12} ${lx - 8} ${armEnd}`} fill="none" stroke={SKIN} strokeWidth="5" strokeLinecap="round" />
+      <path d={`M${rx - 2} ${s.bodyTop + 6} Q${rx + 10} ${s.bodyTop + 12} ${rx + 8} ${armEnd}`} fill="none" stroke={SKIN} strokeWidth="5" strokeLinecap="round" />
+
+      {/* Shirt / top */}
+      {hasCollar ? (
         <>
-          <circle cx="33" cy="32" r="6" fill={style.hair} />
-          <circle cx="63" cy="32" r="6" fill={style.hair} />
+          <path d={`M${lx} ${s.bodyTop + 5} Q${cx} ${s.bodyTop - 1} ${rx} ${s.bodyTop + 5} L${rx - 3} ${pantSplit} L${lx + 3} ${pantSplit} Z`} fill={UNIFORM_SHIRT} />
+          {/* Collar */}
+          <path d={`M${cx - 4} ${s.bodyTop + 5} L${cx} ${s.bodyTop + 2} L${cx + 4} ${s.bodyTop + 5} Z`} fill="#bfdbfe" />
+        </>
+      ) : (
+        <path d={`M${lx - 2} ${s.bodyTop + 4} Q${cx} ${s.bodyTop - 2} ${rx + 2} ${s.bodyTop + 4} L${rx} ${bodyBottom} L${lx} ${bodyBottom} Z`} fill="#fcd9b6" rx="3" />
+      )}
+
+      {/* Tie */}
+      {showTie && <path d={`M${cx - 2} ${s.bodyTop + 5} L${cx + 2} ${s.bodyTop + 5} L${cx + 1.5} ${pantSplit - 3} L${cx - 1.5} ${pantSplit - 3} Z`} fill={UNIFORM_TIE} />}
+
+      {/* Pants / bottom */}
+      {variant === "baby" ? (
+        /* Baby onesie - continued body color */
+        <path d={`M${lx + 1} ${s.bodyTop + 4} L${rx - 1} ${s.bodyTop + 4} L${rx - 1} ${bodyBottom + 2} L${lx + 1} ${bodyBottom + 2} Z`} fill="#fcd9b6" />
+      ) : variant === "tiny" || variant === "kindergarten" ? (
+        /* Shorts */
+        <path d={`M${lx + 3} ${pantSplit} L${rx - 3} ${pantSplit} L${rx - 2} ${bodyBottom + 2} L${lx + 2} ${bodyBottom + 2} Z`} fill={UNIFORM_PANTS} />
+      ) : (
+        /* Full pants */
+        <path d={`M${lx + 3} ${pantSplit} L${rx - 3} ${pantSplit} L${rx - 1} ${bodyBottom + 2} L${lx + 1} ${bodyBottom + 2} Z`} fill={UNIFORM_PANTS} />
+      )}
+
+      {/* Legs */}
+      {variant === "baby" ? (
+        <>
+          <path d={`M${cx - 5} ${bodyBottom} L${cx - 6} ${footY}`} stroke={SKIN} strokeWidth="6" strokeLinecap="round" />
+          <path d={`M${cx + 5} ${bodyBottom} L${cx + 6} ${footY}`} stroke={SKIN} strokeWidth="6" strokeLinecap="round" />
+        </>
+      ) : (
+        <>
+          <path d={`M${cx - 6} ${bodyBottom + 2} L${cx - 7} ${footY}`} stroke={SKIN} strokeWidth="5" strokeLinecap="round" />
+          <path d={`M${cx + 6} ${bodyBottom + 2} L${cx + 7} ${footY}`} stroke={SKIN} strokeWidth="5" strokeLinecap="round" />
         </>
       )}
-      <circle cx="43" cy={style.headY + 2} r="1.8" fill="#273244" />
-      <circle cx="53" cy={style.headY + 2} r="1.8" fill="#273244" />
-      <path d={`M43 ${style.headY + 9} Q48 ${style.headY + 13} 54 ${style.headY + 9}`} fill="none" stroke="#9f5a4a" strokeWidth="2.2" strokeLinecap="round" />
-      {variant === "teen" && <path d="M37 15 Q48 4 60 16" fill="none" stroke={style.hair} strokeWidth="5" strokeLinecap="round" />}
+
+      {/* Shoes */}
+      <ellipse cx={cx - 6} cy={footY + 1} rx={shoeGap + 2.5} ry="2.5" fill="#374151" />
+      <ellipse cx={cx + 6} cy={footY + 1} rx={shoeGap + 2.5} ry="2.5" fill="#374151" />
+
+      {/* Head */}
+      <circle cx={cx} cy={s.headY} r={s.headRadius} fill={SKIN} />
+
+      {/* Hair */}
+      <HairPath s={s} variant={variant} />
+
+      {/* Eyes */}
+      <circle cx={cx - 5} cy={s.headY + 2} r={s.eyeR} fill="#1e293b" />
+      <circle cx={cx + 5} cy={s.headY + 2} r={s.eyeR} fill="#1e293b" />
+
+      {/* Eye shine (bigger for younger) */}
+      {s.eyeR >= 2 && (
+        <>
+          <circle cx={cx - 5 - s.eyeR * 0.3} cy={s.headY + 1} r={s.eyeR * 0.4} fill="white" opacity="0.8" />
+          <circle cx={cx + 5 - s.eyeR * 0.3} cy={s.headY + 1} r={s.eyeR * 0.4} fill="white" opacity="0.8" />
+        </>
+      )}
+
+      {/* Cheek blush (only for younger) */}
+      {(variant === "baby" || variant === "tiny" || variant === "kindergarten") && (
+        <>
+          <ellipse cx={cx - s.headRadius * 0.55} cy={s.headY + 5} rx="3.5" ry="2" fill="#fca5a5" opacity="0.35" />
+          <ellipse cx={cx + s.headRadius * 0.55} cy={s.headY + 5} rx="3.5" ry="2" fill="#fca5a5" opacity="0.35" />
+        </>
+      )}
+
+      {/* Mouth */}
+      <path d={s.mouthD} fill="none" stroke="#b05c4a" strokeWidth={variant === "baby" ? 2.5 : 2} strokeLinecap="round" />
     </svg>
   );
 }

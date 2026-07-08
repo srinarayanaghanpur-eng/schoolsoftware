@@ -1,8 +1,7 @@
-import { NextResponse } from "next/server";
 import { FieldValue } from "firebase-admin/firestore";
 import { ROLE_LABELS } from "@sri-narayana/shared";
 import { adminDb, verifyBearerToken } from "@/lib/firebaseAdmin";
-import { serializeDoc } from "@/lib/apiUtils";
+import { serializeDoc, json } from "@/lib/apiUtils";
 import {
   PAYROLL_ACCESS_REQUEST_COLLECTION,
   buildPayrollAccessContext,
@@ -44,13 +43,13 @@ export async function GET(req: Request) {
   const token = await verifyBearerToken(req);
   const role = getPayrollRole(token);
   if (!token || !role) {
-    return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
+    return json({ ok: false, error: "Access denied" }, { status: 403 });
   }
 
   const scope = new URL(req.url).searchParams.get("scope");
   if (scope === "requests") {
     if (role !== "super_admin") {
-      return NextResponse.json({ ok: false, error: "Admin access required" }, { status: 403 });
+      return json({ ok: false, error: "Admin access required" }, { status: 403 });
     }
 
     // Auto-delete requests from previous days: approvals are per-session,
@@ -63,27 +62,27 @@ export async function GET(req: Request) {
       .orderBy("requestedAt", "desc")
       .limit(50)
       .get();
-    return NextResponse.json({
+    return json({
       ok: true,
       requests: snapshot.docs.map((doc) => serializeDoc<PayrollAccessRequest>(doc))
     });
   }
 
   if (await canOpenPayrollDirectly(role)) {
-    return NextResponse.json({ ok: true, access: "direct", role, roleLabel: ROLE_LABELS[role] });
+    return json({ ok: true, access: "direct", role, roleLabel: ROLE_LABELS[role] });
   }
 
   if (role !== "accountant") {
-    return NextResponse.json({ ok: false, error: "Payroll access denied" }, { status: 403 });
+    return json({ ok: false, error: "Payroll access denied" }, { status: 403 });
   }
 
   const context = await buildPayrollAccessContext(req, token);
   if (!context) {
-    return NextResponse.json({ ok: true, access: "locked", status: "missing_session" });
+    return json({ ok: true, access: "locked", status: "missing_session" });
   }
 
   const request = await readPayrollAccessRequest(context);
-  return NextResponse.json({
+  return json({
     ok: true,
     access: isApprovedPayrollRequest(context, request) ? "approved" : "locked",
     status: request?.status ?? "none",
@@ -96,12 +95,12 @@ export async function POST(req: Request) {
   const token = await verifyBearerToken(req);
   const role = getPayrollRole(token);
   if (!token || role !== "accountant") {
-    return NextResponse.json({ ok: false, error: "Only accountants can request payroll approval" }, { status: 403 });
+    return json({ ok: false, error: "Only accountants can request payroll approval" }, { status: 403 });
   }
 
   const context = await buildPayrollAccessContext(req, token);
   if (!context) {
-    return NextResponse.json({ ok: false, error: "Payroll approval session is required" }, { status: 400 });
+    return json({ ok: false, error: "Payroll approval session is required" }, { status: 400 });
   }
 
   // New request from a fresh login: remove this accountant's requests from
@@ -147,5 +146,5 @@ export async function POST(req: Request) {
   });
 
   const request = await readPayrollAccessRequest(context);
-  return NextResponse.json({ ok: true, access: "locked", status: "pending", request });
+  return json({ ok: true, access: "locked", status: "pending", request });
 }

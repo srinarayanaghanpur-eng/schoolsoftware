@@ -1,11 +1,10 @@
-import { NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { requirePermission } from "@/lib/apiUtils";
+import { requirePermission, json } from "@/lib/apiUtils";
 import { logFirestoreRead, readLimit } from "@/lib/firestoreReadLogger";
 // GET /api/admin/finance/defaulters?class=X – students with outstanding dues.
 export async function GET(req: Request) {
   const token = await requirePermission(req, "fees.view");
-  if (!token) return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
+  if (!token) return json({ ok: false, error: "Access denied" }, { status: 403 });
 
   const { searchParams } = new URL(req.url);
   const classFilter = searchParams.get("classId") || searchParams.get("class") || "";
@@ -70,5 +69,6 @@ export async function GET(req: Request) {
   });
 
   const nextCursor = startIndex + pageSize < filteredDocs.length && pageDocs.length > 0 ? pageDocs[pageDocs.length - 1].id : null;
-  return NextResponse.json({ ok: true, data: defaulterList, pageSize, nextCursor, hasMore: Boolean(nextCursor) });
+  return json({ ok: true, data: defaulterList, pageSize, nextCursor, hasMore: Boolean(nextCursor) });
 }
+

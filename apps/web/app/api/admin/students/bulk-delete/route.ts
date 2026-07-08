@@ -1,6 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { requirePermission } from "@/lib/apiUtils";
+import { requirePermission, json } from "@/lib/apiUtils";
 import { firestoreErrorResponse } from "@/lib/firebaseErrors";
 
 const MAX_IDS = 300;
@@ -18,7 +18,7 @@ function chunk<T>(items: T[], size: number): T[][] {
 // their studentFeeSummaries (to avoid orphaned dues). Batched and capped.
 export async function POST(request: NextRequest) {
   const auth = await requirePermission(request, "students.delete");
-  if (!auth) return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+  if (!auth) return json({ success: false, error: "Unauthorized" }, { status: 401 });
 
   try {
     const body = await request.json();
@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
       ? Array.from(new Set<string>(body.ids.map((v: unknown) => String(v)).filter((v: string) => Boolean(v)))).slice(0, MAX_IDS)
       : [];
     if (ids.length === 0) {
-      return NextResponse.json({ success: false, error: "No students selected" }, { status: 400 });
+      return json({ success: false, error: "No students selected" }, { status: 400 });
     }
 
     const db = adminDb();
@@ -52,8 +52,9 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({ success: true, deleted: ids.length, summariesDeleted });
+    return json({ success: true, deleted: ids.length, summariesDeleted });
   } catch (error) {
     return firestoreErrorResponse(error, "Failed to delete students", 500);
   }
 }
+

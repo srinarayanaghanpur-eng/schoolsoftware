@@ -1,13 +1,12 @@
-import { NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { requirePermission, serializeDoc } from "@/lib/apiUtils";
+import { requirePermission, serializeDoc, json } from "@/lib/apiUtils";
 import { docCursor, logFirestoreRead, readLimit } from "@/lib/firestoreReadLogger";
 const db = adminDb();
 
 export async function GET(req: Request) {
   const token = await requirePermission(req, "promotions.view");
   if (!token) {
-    return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
+    return json({ ok: false, error: "Access denied" }, { status: 403 });
   }
 
   try {
@@ -38,9 +37,10 @@ export async function GET(req: Request) {
     const records = pageDocs.map((doc) => serializeDoc(doc));
     const nextCursor = snapshot.docs.length > pageSize && pageDocs.length > 0 ? pageDocs[pageDocs.length - 1].id : null;
 
-    return NextResponse.json({ ok: true, records, pageSize, nextCursor, hasMore: Boolean(nextCursor) });
+    return json({ ok: true, records, pageSize, nextCursor, hasMore: Boolean(nextCursor) });
   } catch (error) {
     console.error("Error fetching promotion history:", error);
-    return NextResponse.json({ ok: false, error: "Failed to fetch promotion history" }, { status: 500 });
+    return json({ ok: false, error: "Failed to fetch promotion history" }, { status: 500 });
   }
 }
+

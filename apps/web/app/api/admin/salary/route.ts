@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { FieldValue } from "firebase-admin/firestore";
 import {
   ATTENDANCE_MISSING_WARNING,
@@ -14,7 +13,7 @@ import {
   type Teacher
 } from "@sri-narayana/shared";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { serializeDoc, startTimer } from "@/lib/apiUtils";
+import { serializeDoc, startTimer, json } from "@/lib/apiUtils";
 import { getSchoolSettings } from "@/lib/firestoreServer";
 import { logPayrollAccessAudit, requirePayrollAccess } from "@/lib/payrollAccess";
 
@@ -30,7 +29,7 @@ export async function GET(req: Request) {
   const totalTimer = startTimer();
   try {
     const access = await requirePayrollAccess(req);
-    if (!access.ok) return NextResponse.json({ ok: false, error: access.error }, { status: access.status });
+    if (!access.ok) return json({ ok: false, error: access.error }, { status: access.status });
     if (access.mode === "approved") {
       await logPayrollAccessAudit({
         action: "accountant_opened_payroll",
@@ -73,10 +72,10 @@ export async function GET(req: Request) {
     const totalMs = totalTimer();
     if (process.env.NODE_ENV === "development") console.log(`[API] /api/admin/salary GET - DB: ${dbMs}ms, Total: ${totalMs}ms, Reports: ${reports.length}, Active teachers: ${activeTeacherIds.size}`);
 
-    return NextResponse.json({ ok: true, reports, _metrics: { dbMs, totalMs } });
+    return json({ ok: true, reports, _metrics: { dbMs, totalMs } });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to load salary reports";
-    return NextResponse.json({ ok: false, error: message }, { status: 400 });
+    return json({ ok: false, error: message }, { status: 400 });
   }
 }
 
@@ -84,7 +83,7 @@ export async function POST(req: Request) {
   const totalTimer = startTimer();
   try {
     const access = await requirePayrollAccess(req);
-    if (!access.ok) return NextResponse.json({ ok: false, error: access.error }, { status: access.status });
+    if (!access.ok) return json({ ok: false, error: access.error }, { status: access.status });
 
     const body = await req.json().catch(() => ({}));
     const month = typeof body.month === "string" && body.month ? body.month : new Date().toISOString().slice(0, 7);
@@ -150,7 +149,7 @@ export async function POST(req: Request) {
         })
       );
       const totalMs = totalTimer();
-      return NextResponse.json({
+      return json({
         ok: true,
         reports,
         attendanceAvailable: false,
@@ -207,17 +206,17 @@ export async function POST(req: Request) {
     const totalMs = totalTimer();
     if (process.env.NODE_ENV === "development") console.log(`[API] /api/admin/salary POST - DB: ${dbMs}ms, Batch: ${batchMs}ms, Total: ${totalMs}ms, Reports: ${reports.length}`);
 
-    return NextResponse.json({ ok: true, reports, attendanceAvailable: true, message: `Generated salary for ${reports.length} teacher(s).`, _metrics: { dbMs, batchMs, totalMs } });
+    return json({ ok: true, reports, attendanceAvailable: true, message: `Generated salary for ${reports.length} teacher(s).`, _metrics: { dbMs, batchMs, totalMs } });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to generate salary";
-    return NextResponse.json({ ok: false, error: message }, { status: 400 });
+    return json({ ok: false, error: message }, { status: 400 });
   }
 }
 
 export async function PATCH(req: Request) {
   try {
     const access = await requirePayrollAccess(req);
-    if (!access.ok) return NextResponse.json({ ok: false, error: access.error }, { status: access.status });
+    if (!access.ok) return json({ ok: false, error: access.error }, { status: access.status });
 
     const body = await req.json();
     const month = String(body.month ?? "");
@@ -228,18 +227,18 @@ export async function PATCH(req: Request) {
     const db = adminDb();
     const teacherSnap = await db.collection("teachers").doc(teacherId).get();
     if (!teacherSnap.exists || teacherSnap.data()?.status !== "active") {
-      return NextResponse.json({ ok: false, error: "Salary can only be updated for active staff." }, { status: 400 });
+      return json({ ok: false, error: "Salary can only be updated for active staff." }, { status: 400 });
     }
 
     const reportRef = db.collection("salary_reports").doc(salaryDocId(month, teacherId));
     if (paid) {
       const reportSnap = await reportRef.get();
       if (!reportSnap.exists) {
-        return NextResponse.json({ ok: false, error: "Salary report not found. Generate salary first." }, { status: 400 });
+        return json({ ok: false, error: "Salary report not found. Generate salary first." }, { status: 400 });
       }
       const report = normalizeSalaryReport(reportSnap.data() as SalaryReport);
       if (isSalaryPaymentBlocked(report)) {
-        return NextResponse.json({ ok: false, error: getSalaryPaymentBlockedReason(report) ?? "Salary payment is blocked for this report." }, { status: 400 });
+        return json({ ok: false, error: getSalaryPaymentBlockedReason(report) ?? "Salary payment is blocked for this report." }, { status: 400 });
       }
     }
 
@@ -252,9 +251,10 @@ export async function PATCH(req: Request) {
       { merge: true }
     );
 
-    return NextResponse.json({ ok: true, message: paid ? "Marked salary as paid." : "Marked salary as unpaid." });
+    return json({ ok: true, message: paid ? "Marked salary as paid." : "Marked salary as unpaid." });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to update salary";
-    return NextResponse.json({ ok: false, error: message }, { status: 400 });
+    return json({ ok: false, error: message }, { status: 400 });
   }
 }
+

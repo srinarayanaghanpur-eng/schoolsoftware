@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { FieldValue } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { requirePermission, serializeDoc } from "@/lib/apiUtils";
+import { requirePermission, serializeDoc, json } from "@/lib/apiUtils";
 import { BUS_FINANCE_COLLECTION, generateEmiSchedule } from "@/lib/busFinanceService";
 import { docCursor, logFirestoreRead, readLimit } from "@/lib/firestoreReadLogger";
 import { getSchoolId } from "@/lib/schoolScope";
@@ -12,7 +12,7 @@ import { getSchoolId } from "@/lib/schoolScope";
  */
 export async function GET(req: NextRequest) {
   const token = await requirePermission(req, "bus_finance.view");
-  if (!token) return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
+  if (!token) return json({ ok: false, error: "Access denied" }, { status: 403 });
 
   try {
     const { searchParams } = new URL(req.url);
@@ -40,10 +40,10 @@ export async function GET(req: NextRequest) {
     const records = pageDocs.map((d) => serializeDoc(d) as Record<string, unknown> & { id: string });
     const nextCursor = snap.docs.length > pageSize && pageDocs.length > 0 ? pageDocs[pageDocs.length - 1].id : null;
 
-    return NextResponse.json({ ok: true, records, pageSize, nextCursor, hasMore: Boolean(nextCursor) });
+    return json({ ok: true, records, pageSize, nextCursor, hasMore: Boolean(nextCursor) });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to load bus finance records";
-    return NextResponse.json({ ok: false, error: message }, { status: 500 });
+    return json({ ok: false, error: message }, { status: 500 });
   }
 }
 
@@ -62,22 +62,22 @@ const REQUIRED = [
  */
 export async function POST(req: NextRequest) {
   const token = await requirePermission(req, "bus_finance.create");
-  if (!token) return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
+  if (!token) return json({ ok: false, error: "Access denied" }, { status: 403 });
 
   try {
     const body = await req.json();
 
     for (const field of REQUIRED) {
       if (!body[field] || String(body[field]).trim() === "") {
-        return NextResponse.json({ ok: false, error: `Missing required field: ${field}` }, { status: 400 });
+        return json({ ok: false, error: `Missing required field: ${field}` }, { status: 400 });
       }
     }
 
     const totalEmis = Math.floor(Number(body.totalEmis) || 0);
     const emiAmount = Number(body.emiAmount) || 0;
     const emiDueDay = Math.min(31, Math.max(1, Math.floor(Number(body.emiDueDay) || 1)));
-    if (totalEmis <= 0) return NextResponse.json({ ok: false, error: "totalEmis must be greater than 0" }, { status: 400 });
-    if (emiAmount <= 0) return NextResponse.json({ ok: false, error: "emiAmount must be greater than 0" }, { status: 400 });
+    if (totalEmis <= 0) return json({ ok: false, error: "totalEmis must be greater than 0" }, { status: 400 });
+    if (emiAmount <= 0) return json({ ok: false, error: "emiAmount must be greater than 0" }, { status: 400 });
 
     const now = FieldValue.serverTimestamp();
     const vehicleNumber = String(body.vehicleNumber).trim();
@@ -121,9 +121,10 @@ export async function POST(req: NextRequest) {
       loanStartDate: String(body.loanStartDate),
     });
 
-    return NextResponse.json({ ok: true, id: ref.id, emisGenerated: generated });
+    return json({ ok: true, id: ref.id, emisGenerated: generated });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to create bus finance record";
-    return NextResponse.json({ ok: false, error: message }, { status: 400 });
+    return json({ ok: false, error: message }, { status: 400 });
   }
 }
+

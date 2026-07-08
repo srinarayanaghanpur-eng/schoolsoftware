@@ -1,11 +1,12 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { FieldValue } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { requirePermission } from "@/lib/apiUtils";
+import { requirePermission, json } from "@/lib/apiUtils";
 import { docCursor, logFirestoreRead, readLimit } from "@/lib/firestoreReadLogger";
 import { getSchoolId } from "@/lib/schoolScope";
 import { buildReceiptRecord, generateReceiptNumber, resolveAcademicYearLabel } from "@/lib/receiptService";
 import { validatePaymentAllowed, recalculateStudentFeeSummary } from "@/lib/feeRecalculation";
+import { markSummaryDirty } from "@/lib/markSummaryDirty";
 
 /**
  * GET /api/admin/payments
@@ -14,7 +15,7 @@ import { validatePaymentAllowed, recalculateStudentFeeSummary } from "@/lib/feeR
 export async function GET(request: NextRequest) {
   try {
     const auth = await requirePermission(request, "fees.view");
-    if (!auth) return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+    if (!auth) return json({ success: false, error: "Unauthorized" }, { status: 401 });
 
     const db = adminDb();
     const searchParams = request.nextUrl.searchParams;
@@ -101,11 +102,11 @@ export async function GET(request: NextRequest) {
       ? pageDocs[pageDocs.length - 1].id
       : null;
 
-    return NextResponse.json({ success: true, data: payments, pageSize, nextCursor, hasMore: Boolean(nextCursor), degraded });
+    return json({ success: true, data: payments, pageSize, nextCursor, hasMore: Boolean(nextCursor), degraded });
   } catch (error) {
     console.error('Error fetching payments:', error);
     const message = error instanceof Error ? error.message : 'Failed to fetch payments';
-    return NextResponse.json(
+    return json(
       { success: false, error: `Failed to fetch payments: ${message.slice(0, 300)}` },
       { status: 500 }
     );
@@ -119,7 +120,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const auth = await requirePermission(request, "fees.create");
-    if (!auth) return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+    if (!auth) return json({ success: false, error: "Unauthorized" }, { status: 401 });
 
     const db = adminDb();
     const body = await request.json();
@@ -138,7 +139,7 @@ export async function POST(request: NextRequest) {
 
     // Validation
     if (!studentId || !amountPaid || !paymentType || !paymentMethod) {
-      return NextResponse.json(
+      return json(
         { success: false, error: 'Missing required fields' },
         { status: 400 }
       );
@@ -146,7 +147,7 @@ export async function POST(request: NextRequest) {
 
     const payable = Number(amountPaid);
     if (!Number.isFinite(payable) || payable <= 0) {
-      return NextResponse.json(
+      return json(
         { success: false, error: 'Payment amount must be greater than 0.' },
         { status: 400 }
       );
@@ -155,7 +156,7 @@ export async function POST(request: NextRequest) {
     // Pre-validation: check if student has pending balance before processing.
     const validation = await validatePaymentAllowed(studentId, payable, "");
     if (!validation.allowed) {
-      return NextResponse.json(
+      return json(
         { success: false, error: validation.error },
         { status: 400 }
       );
@@ -327,14 +328,16 @@ export async function POST(request: NextRequest) {
     // so retries are safe and no second receipt is ever issued.
     if (existingPaymentId) {
       const existingSnap = await db.collection("payments").doc(existingPaymentId).get();
-      return NextResponse.json({
+      return json({
         success: true,
         duplicate: true,
         data: existingSnap.exists ? { id: existingSnap.id, ...existingSnap.data(), receiptId: existingReceiptId } : { id: existingPaymentId, receiptId: existingReceiptId }
       });
     }
 
-    return NextResponse.json(
+    await markSummaryDirty("payment:create");
+
+    return json(
       {
         success: true,
         data: {
@@ -347,9 +350,10 @@ export async function POST(request: NextRequest) {
     );
   } catch (error) {
     console.error('Error recording payment:', error);
-    return NextResponse.json(
+    return json(
       { success: false, error: 'Failed to record payment' },
       { status: 500 }
     );
   }
 }
+

@@ -8,7 +8,7 @@ import { rolesForPath } from "@/lib/routeAccess";
 import { doc, getDoc } from "firebase/firestore";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { BrandLoader } from "./BrandLoader";
+import AppLoader from "./AppLoader";
 import { AutoLogoutProvider } from "./auth/AutoLogoutProvider";
 
 const ROLE_HINT_KEY = "erp-auth-role";
@@ -140,7 +140,7 @@ export function AuthGate({
   }, [allowedRoleKey, allowedRoles, router]);
 
   if (!ready) {
-    return <BrandLoader message="Loading secure workspace…" />;
+    return <AppLoader message="Checking your session…" />;
   }
 
   return <AutoLogoutProvider>{children}</AutoLogoutProvider>;

@@ -4,7 +4,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { DateRangeFilter } from "@/components/DateRangeFilter";
 import { useAdminSession } from "@/components/AdminSessionContext";
 import { AdminApiError, adminApiRequest } from "@/lib/adminApiClient";
-import { hasPermission } from "@sri-narayana/shared";
+import { hasPermission, formatLabel } from "@sri-narayana/shared";
 import { ArrowDownToLine, ArrowUpFromLine, Download, Landmark, Plus, X } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 
@@ -108,7 +108,7 @@ export default function BankingPage() {
                   {filtered.length === 0 ? <tr><td colSpan={5} className="px-4 py-8 text-center text-stone-400">No transactions</td></tr> : withBalance.map((t) => (
                     <tr key={t.id} className="border-t border-stone-100">
                       <td className="px-4 py-3 text-stone-500">{t.date}</td>
-                      <td className="px-4 py-3 capitalize">{t.type}</td>
+                      <td className="px-4 py-3">{formatLabel(t.type)}</td>
                       <td className="px-4 py-3">{t.description}</td>
                       <td className={`px-4 py-3 text-right font-semibold ${t.type === "deposit" ? "text-[#14a762]" : "text-[#ed515d]"}`}>{t.type === "deposit" ? "+" : "−"}{inr(t.amount)}</td>
                       <td className="px-4 py-3 text-right text-stone-600">{inr(t.bal)}</td>

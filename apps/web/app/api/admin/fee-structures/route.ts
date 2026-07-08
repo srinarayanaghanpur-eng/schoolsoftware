@@ -1,8 +1,7 @@
-import { NextResponse } from "next/server";
 import { FieldValue } from "firebase-admin/firestore";
 import { feeStructureCreateSchema } from "@sri-narayana/shared";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { requirePermission, serializeDoc } from "@/lib/apiUtils";
+import { requirePermission, serializeDoc, json } from "@/lib/apiUtils";
 import { logFirestoreRead, readLimit } from "@/lib/firestoreReadLogger";
 import { getSchoolId } from "@/lib/schoolScope";
 
@@ -11,7 +10,7 @@ const COLLECTION = "fee_structures";
 // GET /api/admin/fee-structures?academicYearId=&className=&schoolId=&pageSize=&cursor=
 export async function GET(req: Request) {
   const token = await requirePermission(req, "fees.view");
-  if (!token) return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
+  if (!token) return json({ ok: false, error: "Access denied" }, { status: 403 });
 
   try {
     const { searchParams } = new URL(req.url);
@@ -39,26 +38,27 @@ export async function GET(req: Request) {
     const startIndex = cursor ? Math.max(0, filtered.findIndex((item) => item.id === cursor) + 1) : 0;
     const pageDocs = filtered.slice(startIndex, startIndex + pageSize);
     const nextCursor = startIndex + pageSize < filtered.length && pageDocs.length > 0 ? pageDocs[pageDocs.length - 1].id : null;
-    return NextResponse.json({ ok: true, structures: pageDocs, pageSize, nextCursor, hasMore: Boolean(nextCursor) });
+    return json({ ok: true, structures: pageDocs, pageSize, nextCursor, hasMore: Boolean(nextCursor) });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to load fee structures";
-    return NextResponse.json({ ok: false, error: message }, { status: 400 });
+    return json({ ok: false, error: message }, { status: 400 });
   }
 }
 
 // POST /api/admin/fee-structures — create class-wise fee structure (total computed).
 export async function POST(req: Request) {
   const token = await requirePermission(req, "fees.create");
-  if (!token) return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
+  if (!token) return json({ ok: false, error: "Access denied" }, { status: 403 });
 
   try {
     const parsed = feeStructureCreateSchema.parse(await req.json());
     const total = parsed.heads.reduce((sum, h) => sum + h.amount, 0);
     const now = FieldValue.serverTimestamp();
     const ref = await adminDb().collection(COLLECTION).add({ ...parsed, schoolId: getSchoolId(token), total, createdAt: now, updatedAt: now });
-    return NextResponse.json({ ok: true, id: ref.id, total });
+    return json({ ok: true, id: ref.id, total });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to create fee structure";
-    return NextResponse.json({ ok: false, error: message }, { status: 400 });
+    return json({ ok: false, error: message }, { status: 400 });
   }
 }
+

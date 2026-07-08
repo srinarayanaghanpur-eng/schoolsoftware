@@ -1,7 +1,6 @@
-import { NextResponse } from "next/server";
 import { FieldValue } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { requirePermission, serializeDoc } from "@/lib/apiUtils";
+import { requirePermission, serializeDoc, json } from "@/lib/apiUtils";
 import { getSchoolId } from "@/lib/schoolScope";
 import { logFirestoreRead, readLimit } from "@/lib/firestoreReadLogger";
 
@@ -37,7 +36,7 @@ const DEFAULT_SETTINGS: Record<string, unknown> = {
 
 export async function GET(req: Request) {
   const token = await requirePermission(req, "fee_reminders.view");
-  if (!token) return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
+  if (!token) return json({ ok: false, error: "Access denied" }, { status: 403 });
 
   try {
     const schoolId = getSchoolId(token);
@@ -46,7 +45,7 @@ export async function GET(req: Request) {
     logFirestoreRead("FeeReminderSettingsAPI", COLLECTION, snapshot, { schoolId });
 
     if (snapshot.empty) {
-      return NextResponse.json({
+      return json({
         ok: true,
         settings: { ...DEFAULT_SETTINGS, schoolId, createdAt: null, updatedAt: null },
       });
@@ -54,16 +53,16 @@ export async function GET(req: Request) {
 
     const doc = snapshot.docs[0];
     const settings = serializeDoc(doc);
-    return NextResponse.json({ ok: true, settings });
+    return json({ ok: true, settings });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to load fee reminder settings";
-    return NextResponse.json({ ok: false, error: message }, { status: 400 });
+    return json({ ok: false, error: message }, { status: 400 });
   }
 }
 
 export async function PUT(req: Request) {
   const token = await requirePermission(req, "fee_reminders.manage_settings");
-  if (!token) return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
+  if (!token) return json({ ok: false, error: "Access denied" }, { status: 403 });
 
   try {
     const body = await req.json();
@@ -108,13 +107,14 @@ export async function PUT(req: Request) {
         schoolId,
         createdAt: now,
       });
-      return NextResponse.json({ ok: true, id: ref.id, message: "Settings created." });
+      return json({ ok: true, id: ref.id, message: "Settings created." });
     }
 
     await existing.docs[0].ref.update(data);
-    return NextResponse.json({ ok: true, id: existing.docs[0].id, message: "Settings updated." });
+    return json({ ok: true, id: existing.docs[0].id, message: "Settings updated." });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to update fee reminder settings";
-    return NextResponse.json({ ok: false, error: message }, { status: 400 });
+    return json({ ok: false, error: message }, { status: 400 });
   }
 }
+

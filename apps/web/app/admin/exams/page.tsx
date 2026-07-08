@@ -5,7 +5,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { useAdminSession } from "@/components/AdminSessionContext";
 import { useAcademicYears } from "@/components/AcademicYearContext";
 import { AdminApiError, adminApiRequest } from "@/lib/adminApiClient";
-import { hasPermission } from "@sri-narayana/shared";
+import { hasPermission, formatLabel } from "@sri-narayana/shared";
 import { CheckCircle2, ClipboardList, Plus, Trash2, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState, type FormEvent } from "react";
@@ -88,7 +88,7 @@ export default function ExamsPage() {
               <label className="text-sm font-semibold text-[#303247]">Academic year<select className="field mt-1" required value={form.academicYearId} onChange={(e) => setForm({ ...form, academicYearId: e.target.value })}><option value="">Select</option>{years.map((y) => <option key={y.id} value={y.id}>{y.name}{y.isActive ? " (active)" : ""}</option>)}</select></label>
               <label className="text-sm font-semibold text-[#303247]">Class<input className="field mt-1" required value={form.className} onChange={(e) => setForm({ ...form, className: e.target.value })} placeholder="10" /></label>
               <label className="text-sm font-semibold text-[#303247]">Section (optional)<input className="field mt-1" value={form.section} onChange={(e) => setForm({ ...form, section: e.target.value })} placeholder="A" /></label>
-              <label className="text-sm font-semibold text-[#303247]">Type<select className="field mt-1" value={form.examType} onChange={(e) => setForm({ ...form, examType: e.target.value })}>{TYPES.map((t) => <option key={t} value={t}>{t.replace("_", " ")}</option>)}</select></label>
+              <label className="text-sm font-semibold text-[#303247]">Type<select className="field mt-1" value={form.examType} onChange={(e) => setForm({ ...form, examType: e.target.value })}>{TYPES.map((t) => <option key={t} value={t}>{formatLabel(t)}</option>)}</select></label>
               <label className="text-sm font-semibold text-[#303247]">Start date<div className="mt-1"><DatePicker required value={form.startDate} onChange={(e) => setForm({ ...form, startDate: e.target.value })} /></div></label>
               <label className="text-sm font-semibold text-[#303247]">End date (optional)<div className="mt-1"><DatePicker value={form.endDate} onChange={(e) => setForm({ ...form, endDate: e.target.value })} /></div></label>
               <label className="text-sm font-semibold text-[#303247]">Max marks<input className="field mt-1" type="number" min="1" required value={form.maxMarks} onChange={(e) => setForm({ ...form, maxMarks: e.target.value })} /></label>
@@ -135,9 +135,9 @@ export default function ExamsPage() {
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="truncate text-base font-bold text-[#303247]">{x.name}</p>
-                  <p className="mt-0.5 text-xs font-medium capitalize text-stone-500">Class {x.className}{x.section} · {x.examType.replace("_", " ")}</p>
+                  <p className="mt-0.5 text-xs font-medium text-stone-500">Class {x.className}{x.section} · {formatLabel(x.examType)}</p>
                 </div>
-                <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-bold capitalize ${statusTone[x.status]}`}>{x.status}</span>
+                <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-bold ${statusTone[x.status]}`}>{formatLabel(x.status)}</span>
               </div>
               <p className="mt-2 text-xs font-medium text-stone-500">{x.startDate}{x.endDate ? ` – ${x.endDate}` : ""} · Max {x.maxMarks}{x.timetable?.length ? ` · ${x.timetable.length} subjects` : ""}</p>
               <div className="mt-3 flex gap-2">
@@ -157,10 +157,10 @@ export default function ExamsPage() {
                 <tr key={x.id} className="border-t border-stone-100">
                   <td className="px-4 py-3 font-semibold text-[#303247]">{x.name}</td>
                   <td className="px-4 py-3">{x.className}{x.section}</td>
-                  <td className="px-4 py-3 capitalize">{x.examType.replace("_", " ")}</td>
+                  <td className="px-4 py-3">{formatLabel(x.examType)}</td>
                   <td className="px-4 py-3 text-stone-500">{x.startDate}{x.endDate ? ` – ${x.endDate}` : ""}</td>
                   <td className="px-4 py-3">{x.maxMarks}{x.timetable?.length ? ` (${x.timetable.length} subjects)` : ""}</td>
-                  <td className="px-4 py-3"><span className={`rounded-full px-2.5 py-1 text-xs font-bold capitalize ${statusTone[x.status]}`}>{x.status}</span></td>
+                  <td className="px-4 py-3"><span className={`rounded-full px-2.5 py-1 text-xs font-bold ${statusTone[x.status]}`}>{formatLabel(x.status)}</span></td>
                   <td className="px-4 py-3">
                     <div className="flex gap-2">
                       <Link href={`/admin/exams/${x.id}`} className="inline-flex items-center gap-1 rounded-lg bg-[#eef0ff] px-2.5 py-1 text-xs font-bold text-[#3033a1] hover:bg-[#e0e3ff]"><ClipboardList size={14} /> Marks</Link>

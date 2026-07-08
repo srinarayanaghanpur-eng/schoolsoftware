@@ -1,6 +1,5 @@
-import { NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { requirePermission } from "@/lib/apiUtils";
+import { requirePermission, json } from "@/lib/apiUtils";
 import { docDateKey, inRange } from "@/lib/financeUtils";
 import { logFirestoreRead } from "@/lib/firestoreReadLogger";
 
@@ -8,7 +7,7 @@ type TBEntry = { account: string; type: "debit" | "credit"; amount: number; natu
 
 export async function GET(req: Request) {
   const token = await requirePermission(req, "fees.view");
-  if (!token) return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
+  if (!token) return json({ ok: false, error: "Access denied" }, { status: 403 });
 
   const { searchParams } = new URL(req.url);
   const now = new Date();
@@ -71,7 +70,7 @@ export async function GET(req: Request) {
   const totalDebit = debitEntries.reduce((s, e) => s + e.amount, 0);
   const totalCredit = creditEntries.reduce((s, e) => s + e.amount, 0);
 
-  return NextResponse.json({
+  return json({
     ok: true,
     from: from || "all",
     to: to || "all",
@@ -82,3 +81,4 @@ export async function GET(req: Request) {
     difference: totalDebit - totalCredit
   });
 }
+

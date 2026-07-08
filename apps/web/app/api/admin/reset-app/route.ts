@@ -1,6 +1,5 @@
-import { NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { requireAdmin } from "@/lib/apiUtils";
+import { requireAdmin, json } from "@/lib/apiUtils";
 
 /**
  * POST /api/admin/reset-app — fresh-start reset.
@@ -66,13 +65,13 @@ export async function POST(req: Request) {
   try {
     const decodedToken = await requireAdmin(req);
     if (!decodedToken) {
-      return NextResponse.json({ ok: false, error: "Admin access required" }, { status: 403 });
+      return json({ ok: false, error: "Admin access required" }, { status: 403 });
     }
 
     const body = await req.json().catch(() => ({}));
     const confirmationPhrase = String(body.confirmationPhrase ?? "").trim();
     if (confirmationPhrase !== CONFIRMATION_PHRASE) {
-      return NextResponse.json(
+      return json(
         { ok: false, error: `Confirmation phrase does not match. Type exactly: ${CONFIRMATION_PHRASE}` },
         { status: 400 }
       );
@@ -99,9 +98,10 @@ export async function POST(req: Request) {
       createdBy: decodedToken.uid
     });
 
-    return NextResponse.json({ ok: true, deletedCounts, preserved });
+    return json({ ok: true, deletedCounts, preserved });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to reset app data";
-    return NextResponse.json({ ok: false, error: message }, { status: 400 });
+    return json({ ok: false, error: message }, { status: 400 });
   }
 }
+

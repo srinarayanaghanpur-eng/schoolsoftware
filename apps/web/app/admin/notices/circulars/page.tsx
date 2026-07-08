@@ -4,7 +4,7 @@ import Link from "next/link";
 import { PageHeader } from "@/components/PageHeader";
 import { useAdminSession } from "@/components/AdminSessionContext";
 import { AdminApiError, adminApiRequest } from "@/lib/adminApiClient";
-import { hasPermission, ROLE_LABELS, ROLES, type Role } from "@sri-narayana/shared";
+import { hasPermission, ROLE_LABELS, ROLES, formatLabel, type Role } from "@sri-narayana/shared";
 import { ArrowLeft, Megaphone, Plus, Trash2, X } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 
@@ -104,14 +104,14 @@ export default function CircularsPage() {
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
                     <h3 className="font-bold text-[#1f2136]">{n.title}</h3>
-                    {n.category && <span className="rounded-full bg-[#f0e6ff] px-2 py-0.5 text-xs font-semibold text-[#7c3aed] capitalize">{n.category}</span>}
+                    {n.category && <span className="rounded-full bg-[#f0e6ff] px-2 py-0.5 text-xs font-semibold text-[#7c3aed]">{formatLabel(n.category)}</span>}
                   </div>
                   <p className="mt-1 whitespace-pre-wrap text-sm text-[#475067]">{n.body}</p>
                   <div className="mt-3 flex flex-wrap gap-1.5">
-                    {(n.audienceRoles?.length ? n.audienceRoles : ["everyone"]).map((r) => <span key={r} className="rounded-full bg-[#eef0ff] px-2 py-0.5 text-xs font-semibold text-[#3033a1] capitalize">{r}</span>)}
+                    {(n.audienceRoles?.length ? n.audienceRoles : ["everyone"]).map((r) => <span key={r} className="rounded-full bg-[#eef0ff] px-2 py-0.5 text-xs font-semibold text-[#3033a1]">{formatLabel(r)}</span>)}
                     {n.branch && <span className="rounded-full bg-[#fff4df] px-2 py-0.5 text-xs font-semibold text-[#b8791a]">{n.branch}</span>}
                     {n.audienceClasses?.map((c) => <span key={c} className="rounded-full bg-[#e6f8ef] px-2 py-0.5 text-xs font-semibold text-[#14a762]">Class {c}</span>)}
-                    {n.channels?.map((c) => <span key={c} className="rounded-full bg-[#e6f8ef] px-2 py-0.5 text-xs font-semibold text-[#14a762] capitalize">{c}</span>)}
+                    {n.channels?.map((c) => <span key={c} className="rounded-full bg-[#e6f8ef] px-2 py-0.5 text-xs font-semibold text-[#14a762]">{formatLabel(c)}</span>)}
                   </div>
                 </div>
                 {canCreate && <button onClick={() => remove(n.id)} className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-[#ed515d] hover:bg-[#ffebed]"><Trash2 size={16} /></button>}

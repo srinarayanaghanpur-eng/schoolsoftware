@@ -4,7 +4,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { useAcademicYears } from "@/components/AcademicYearContext";
 import { useAdminSession } from "@/components/AdminSessionContext";
 import { AdminApiError, adminApiRequest } from "@/lib/adminApiClient";
-import { hasPermission } from "@sri-narayana/shared";
+import { hasPermission, formatLabel } from "@sri-narayana/shared";
 import { Plus, Trash2, X } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 
@@ -87,7 +87,7 @@ export default function InvoicesPage() {
             <thead className="bg-stone-50 text-xs uppercase text-stone-500"><tr><th className="px-4 py-3">Invoice #</th><th className="px-4 py-3">Student</th><th className="px-4 py-3">Date</th><th className="px-4 py-3 text-right">Total</th><th className="px-4 py-3">Status</th></tr></thead>
             <tbody>
               {invoices.length === 0 ? <tr><td colSpan={5} className="px-4 py-8 text-center text-stone-400">No invoices yet</td></tr> : invoices.map((x) => (
-                <tr key={x.id} className="border-t border-stone-100"><td className="px-4 py-3 font-bold text-[#3033a1]">{x.invoiceNo}</td><td className="px-4 py-3">{x.studentName}</td><td className="px-4 py-3 text-stone-500">{x.date}</td><td className="px-4 py-3 text-right font-semibold">{inr(x.total)}</td><td className="px-4 py-3"><span className="rounded-full bg-[#eef0ff] px-2 py-0.5 text-xs font-bold capitalize text-[#3033a1]">{x.status}</span></td></tr>
+                <tr key={x.id} className="border-t border-stone-100"><td className="px-4 py-3 font-bold text-[#3033a1]">{x.invoiceNo}</td><td className="px-4 py-3">{x.studentName}</td><td className="px-4 py-3 text-stone-500">{x.date}</td><td className="px-4 py-3 text-right font-semibold">{inr(x.total)}</td><td className="px-4 py-3"><span className="rounded-full bg-[#eef0ff] px-2 py-0.5 text-xs font-bold text-[#3033a1]">{formatLabel(x.status)}</span></td></tr>
               ))}
             </tbody>
           </table>

@@ -1,7 +1,6 @@
-import { NextResponse } from "next/server";
 import { FieldValue } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { requirePermission, serializeDoc } from "@/lib/apiUtils";
+import { requirePermission, serializeDoc, json } from "@/lib/apiUtils";
 import { writeAuditLog } from "@/lib/auditLog";
 import { createApprovalRequest } from "@/lib/approvalEngine";
 import { docCursor, logFirestoreRead, readLimit } from "@/lib/firestoreReadLogger";
@@ -22,7 +21,7 @@ const COLLECTION = "promotions";
 export async function GET(req: Request) {
   const token = await requirePermission(req, "promotions.view");
   if (!token) {
-    return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
+    return json({ ok: false, error: "Access denied" }, { status: 403 });
   }
 
   try {
@@ -55,17 +54,17 @@ export async function GET(req: Request) {
     const records = pageDocs.map((doc) => serializeDoc(doc));
     const nextCursor = snapshot.docs.length > pageSize && pageDocs.length > 0 ? pageDocs[pageDocs.length - 1].id : null;
 
-    return NextResponse.json({ ok: true, records, pageSize, nextCursor, hasMore: Boolean(nextCursor) });
+    return json({ ok: true, records, pageSize, nextCursor, hasMore: Boolean(nextCursor) });
   } catch (error) {
     console.error("Error fetching promotions:", error);
-    return NextResponse.json({ ok: false, error: "Failed to fetch promotions" }, { status: 500 });
+    return json({ ok: false, error: "Failed to fetch promotions" }, { status: 500 });
   }
 }
 
 export async function POST(req: Request) {
   const token = await requirePermission(req, "promotions.create");
   if (!token) {
-    return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
+    return json({ ok: false, error: "Access denied" }, { status: 403 });
   }
 
   try {
@@ -73,11 +72,11 @@ export async function POST(req: Request) {
     const { promotionType, academicYearId, studentIds, fromClass, fromSection, toClass, toSection, feeBalanceCarryForward, requireApproval, notes } = body;
 
     if (!studentIds || !Array.isArray(studentIds) || studentIds.length === 0) {
-      return NextResponse.json({ ok: false, error: "At least one student must be selected" }, { status: 400 });
+      return json({ ok: false, error: "At least one student must be selected" }, { status: 400 });
     }
 
     if (!academicYearId) {
-      return NextResponse.json({ ok: false, error: "Target academic year is required" }, { status: 400 });
+      return json({ ok: false, error: "Target academic year is required" }, { status: 400 });
     }
 
     const studentsSnapshot = await db.collection("students")
@@ -85,7 +84,7 @@ export async function POST(req: Request) {
       .get();
 
     if (studentsSnapshot.empty) {
-      return NextResponse.json({ ok: false, error: "No students found for the given IDs" }, { status: 404 });
+      return json({ ok: false, error: "No students found for the given IDs" }, { status: 404 });
     }
 
     const now = FieldValue.serverTimestamp();
@@ -189,7 +188,7 @@ export async function POST(req: Request) {
       });
     }
 
-    return NextResponse.json({
+    return json({
       ok: true,
       count: promotionRecords.length,
       ids: promotionIds,
@@ -197,6 +196,7 @@ export async function POST(req: Request) {
     });
   } catch (error) {
     console.error("Error processing promotion:", error);
-    return NextResponse.json({ ok: false, error: "Failed to process promotion" }, { status: 500 });
+    return json({ ok: false, error: "Failed to process promotion" }, { status: 500 });
   }
 }
+

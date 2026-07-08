@@ -1,6 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { adminDb } from "@/lib/firebaseAdmin";
-import { requirePermission } from "@/lib/apiUtils";
+import { requirePermission, json } from "@/lib/apiUtils";
 import { createApprovalRequest } from "@/lib/approvalEngine";
 import { writeAuditLog } from "@/lib/auditLog";
 
@@ -16,24 +16,24 @@ export async function GET(
 ) {
   try {
     const auth = await requirePermission(request, "fees.view");
-    if (!auth) return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+    if (!auth) return json({ success: false, error: "Unauthorized" }, { status: 401 });
 
     const docSnap = await db.collection('concessions').doc(params.id).get();
 
     if (!docSnap.exists) {
-      return NextResponse.json(
+      return json(
         { success: false, error: 'Concession not found' },
         { status: 404 }
       );
     }
 
-    return NextResponse.json({
+    return json({
       success: true,
       data: { id: docSnap.id, ...docSnap.data() }
     });
   } catch (error) {
     console.error('Error fetching concession:', error);
-    return NextResponse.json(
+    return json(
       { success: false, error: 'Failed to fetch concession' },
       { status: 500 }
     );
@@ -50,7 +50,7 @@ export async function PATCH(
 ) {
   try {
     const auth = await requirePermission(request, "fees.edit");
-    if (!auth) return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+    if (!auth) return json({ success: false, error: "Unauthorized" }, { status: 401 });
 
     const body = await request.json();
     const { status, approvalNotes, concessionAmount, validUpto, userId } = body;
@@ -59,7 +59,7 @@ export async function PATCH(
     const docSnap = await docRef.get();
 
     if (!docSnap.exists) {
-      return NextResponse.json(
+      return json(
         { success: false, error: 'Concession not found' },
         { status: 404 }
       );
@@ -67,7 +67,7 @@ export async function PATCH(
 
     const concession = docSnap.data();
     if (!concession) {
-      return NextResponse.json(
+      return json(
         { success: false, error: 'Concession data is unavailable' },
         { status: 500 }
       );
@@ -140,7 +140,7 @@ export async function PATCH(
         }
       }
 
-      return NextResponse.json({
+      return json({
         success: true,
         data: { id: params.id, ...concession, ...updateData }
       });
@@ -197,13 +197,13 @@ export async function PATCH(
       reason: approvalNotes ?? undefined
     });
 
-    return NextResponse.json({
+    return json({
       success: true,
       data: { id: params.id, ...concession, ...updateData }
     });
   } catch (error) {
     console.error('Error updating concession:', error);
-    return NextResponse.json(
+    return json(
       { success: false, error: 'Failed to update concession' },
       { status: 500 }
     );
@@ -220,7 +220,7 @@ export async function DELETE(
 ) {
   try {
     const auth = await requirePermission(request, "fees.delete");
-    if (!auth) return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+    if (!auth) return json({ success: false, error: "Unauthorized" }, { status: 401 });
 
     const { userId } = await request.json();
 
@@ -228,7 +228,7 @@ export async function DELETE(
     const docSnap = await docRef.get();
 
     if (!docSnap.exists) {
-      return NextResponse.json(
+      return json(
         { success: false, error: 'Concession not found' },
         { status: 404 }
       );
@@ -236,14 +236,14 @@ export async function DELETE(
 
     const concession = docSnap.data();
     if (!concession) {
-      return NextResponse.json(
+      return json(
         { success: false, error: 'Concession data is unavailable' },
         { status: 500 }
       );
     }
 
     if (concession.status !== 'pending') {
-      return NextResponse.json(
+      return json(
         { success: false, error: 'Can only delete pending concessions' },
         { status: 400 }
       );
@@ -280,12 +280,13 @@ export async function DELETE(
       timestamp: new Date()
     });
 
-    return NextResponse.json({ success: true });
+    return json({ success: true });
   } catch (error) {
     console.error('Error deleting concession:', error);
-    return NextResponse.json(
+    return json(
       { success: false, error: 'Failed to delete concession' },
       { status: 500 }
     );
   }
 }
+

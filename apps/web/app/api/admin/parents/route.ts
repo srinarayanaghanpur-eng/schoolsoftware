@@ -1,8 +1,7 @@
-import { NextResponse } from "next/server";
 import { FieldValue } from "firebase-admin/firestore";
 import { parentCreateSchema } from "@sri-narayana/shared";
 import { adminAuth, adminDb } from "@/lib/firebaseAdmin";
-import { errorMessage, requirePermission } from "@/lib/apiUtils";
+import { errorMessage, requirePermission, json } from "@/lib/apiUtils";
 import { employeeIdToInternalEmail } from "@sri-narayana/shared";
 import { writeAuditLog } from "@/lib/auditLog";
 
@@ -10,7 +9,7 @@ export async function GET(req: Request) {
   try {
     const decodedToken = await requirePermission(req, "parents.view");
     if (!decodedToken) {
-      return NextResponse.json({ ok: false, error: "Missing or insufficient permissions." }, { status: 403 });
+      return json({ ok: false, error: "Missing or insufficient permissions." }, { status: 403 });
     }
 
     const url = new URL(req.url);
@@ -40,10 +39,10 @@ export async function GET(req: Request) {
       );
     }
 
-    return NextResponse.json({ ok: true, parents });
+    return json({ ok: true, parents });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to load parents";
-    return NextResponse.json({ ok: false, error: message }, { status: 400 });
+    return json({ ok: false, error: message }, { status: 400 });
   }
 }
 
@@ -53,7 +52,7 @@ export async function POST(req: Request) {
   try {
     const decodedToken = await requirePermission(req, "parents.create");
     if (!decodedToken) {
-      return NextResponse.json({ ok: false, error: "Missing or insufficient permissions." }, { status: 403 });
+      return json({ ok: false, error: "Missing or insufficient permissions." }, { status: 403 });
     }
 
     const body = await req.json();
@@ -100,7 +99,7 @@ export async function POST(req: Request) {
       newValues: { displayName: parsed.fullName.trim(), phone: parsed.phone.trim(), loginId }
     });
 
-    return NextResponse.json({
+    return json({
       ok: true,
       message: "Parent login created successfully.",
       uid: authUser.uid
@@ -109,6 +108,7 @@ export async function POST(req: Request) {
     if (createdUid) {
       await adminAuth().deleteUser(createdUid).catch(() => undefined);
     }
-    return NextResponse.json({ ok: false, error: errorMessage(error, "Unable to create parent") }, { status: 400 });
+    return json({ ok: false, error: errorMessage(error, "Unable to create parent") }, { status: 400 });
   }
 }
+

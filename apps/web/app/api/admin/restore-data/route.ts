@@ -1,6 +1,5 @@
-import { NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { requireAdmin } from "@/lib/apiUtils";
+import { requireAdmin, json } from "@/lib/apiUtils";
 
 const RESTORABLE_COLLECTIONS = new Set([
   "users",
@@ -44,13 +43,13 @@ export async function POST(req: Request) {
   try {
     const decodedToken = await requireAdmin(req);
     if (!decodedToken) {
-      return NextResponse.json({ ok: false, error: "Admin access required" }, { status: 403 });
+      return json({ ok: false, error: "Admin access required" }, { status: 403 });
     }
 
     const body = await req.json();
     const collections = body.backup?.collections;
     if (!collections || typeof collections !== "object") {
-      return NextResponse.json({ ok: false, error: "Backup file does not contain collections" }, { status: 400 });
+      return json({ ok: false, error: "Backup file does not contain collections" }, { status: 400 });
     }
 
     const db = adminDb();
@@ -88,9 +87,10 @@ export async function POST(req: Request) {
       createdBy: decodedToken.uid
     });
 
-    return NextResponse.json({ ok: true, restoredCounts });
+    return json({ ok: true, restoredCounts });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to restore data";
-    return NextResponse.json({ ok: false, error: message }, { status: 400 });
+    return json({ ok: false, error: message }, { status: 400 });
   }
 }
+

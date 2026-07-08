@@ -1,18 +1,17 @@
-import { NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { requirePermission } from "@/lib/apiUtils";
+import { requirePermission, json } from "@/lib/apiUtils";
 
 export async function GET(req: Request, { params }: { params: { id: string } }) {
   try {
     const token = await requirePermission(req, "exams.view");
-    if (!token) return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
+    if (!token) return json({ ok: false, error: "Access denied" }, { status: 403 });
 
     const url = new URL(req.url);
     const studentId = url.searchParams.get("studentId");
 
     const db = adminDb();
     const examSnap = await db.collection("exams").doc(params.id).get();
-    if (!examSnap.exists) return NextResponse.json({ ok: false, error: "Exam not found" }, { status: 404 });
+    if (!examSnap.exists) return json({ ok: false, error: "Exam not found" }, { status: 404 });
 
     const exam = { id: examSnap.id, ...examSnap.data() } as Record<string, unknown>;
 
@@ -53,7 +52,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
         remarks: exam.status === "published" ? "Published" : "Draft"
       };
 
-      return NextResponse.json({ ok: true, reportCard });
+      return json({ ok: true, reportCard });
     }
 
     const allStudents = await db.collection("students").where("class", "==", exam.className).limit(300).get();
@@ -93,9 +92,10 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
       };
     });
 
-    return NextResponse.json({ ok: true, reportCards });
+    return json({ ok: true, reportCards });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to generate report card";
-    return NextResponse.json({ ok: false, error: message }, { status: 400 });
+    return json({ ok: false, error: message }, { status: 400 });
   }
 }
+

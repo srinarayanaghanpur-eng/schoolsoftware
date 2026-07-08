@@ -1,8 +1,7 @@
-import { NextResponse } from "next/server";
 import { FieldValue } from "firebase-admin/firestore";
 import { parentMessageCreateSchema } from "@sri-narayana/shared";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { requireAdmin, requirePermission, serializeDoc } from "@/lib/apiUtils";
+import { requireAdmin, requirePermission, serializeDoc, json } from "@/lib/apiUtils";
 import { writeAuditLog } from "@/lib/auditLog";
 
 const COLLECTION = "parent_messages";
@@ -11,7 +10,7 @@ export async function GET(req: Request) {
   try {
     const decodedToken = await requireAdmin(req);
     if (!decodedToken) {
-      return NextResponse.json({ ok: false, error: "Admin access required" }, { status: 403 });
+      return json({ ok: false, error: "Admin access required" }, { status: 403 });
     }
 
     const url = new URL(req.url);
@@ -30,10 +29,10 @@ export async function GET(req: Request) {
       .sort((a, b) => String(b.createdAt ?? "").localeCompare(String(a.createdAt ?? "")))
       .slice(0, 100);
 
-    return NextResponse.json({ ok: true, messages });
+    return json({ ok: true, messages });
   } catch (error) {
     console.error("Error loading parent messages:", error);
-    return NextResponse.json({ ok: false, error: "Unable to load parent messages." }, { status: 500 });
+    return json({ ok: false, error: "Unable to load parent messages." }, { status: 500 });
   }
 }
 
@@ -41,7 +40,7 @@ export async function POST(req: Request) {
   try {
     const decodedToken = await requirePermission(req, "communication.create");
     if (!decodedToken) {
-      return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
+      return json({ ok: false, error: "Access denied" }, { status: 403 });
     }
 
     const body = await req.json();
@@ -56,9 +55,10 @@ export async function POST(req: Request) {
       updatedAt: now
     });
 
-    return NextResponse.json({ ok: true, id: ref.id, message: "Message submitted." });
+    return json({ ok: true, id: ref.id, message: "Message submitted." });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to submit message";
-    return NextResponse.json({ ok: false, error: message }, { status: 400 });
+    return json({ ok: false, error: message }, { status: 400 });
   }
 }
+

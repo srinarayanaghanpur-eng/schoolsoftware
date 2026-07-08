@@ -9,8 +9,6 @@ const TABS = [
   { href: "/admin/payments", label: "Collect Fee", icon: ReceiptIndianRupee },
   { href: "/admin/fee-structures", label: "Fee Structures", icon: Layers },
   { href: "/admin/finance/expenses", label: "Expenses", icon: Wallet },
-  { href: "/admin/finance/debit-vouchers", label: "Debit Vouchers", icon: ReceiptIndianRupee },
-  { href: "/admin/finance/income", label: "Income", icon: Banknote },
   { href: "/admin/finance/dues", label: "Dues", icon: FileStack },
   { href: "/admin/finance/installments", label: "Installments", icon: Layers },
   { href: "/admin/fee-reminders", label: "Auto Reminders", icon: Bell },

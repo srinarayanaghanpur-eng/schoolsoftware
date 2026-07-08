@@ -1,8 +1,7 @@
-import { NextResponse } from "next/server";
 import { FieldValue } from "firebase-admin/firestore";
 import { feeReminderCreateSchema } from "@sri-narayana/shared";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { requirePermission } from "@/lib/apiUtils";
+import { requirePermission, json } from "@/lib/apiUtils";
 import { writeAuditLog } from "@/lib/auditLog";
 import { logFirestoreRead, readLimit } from "@/lib/firestoreReadLogger";
 import { getSchoolId } from "@/lib/schoolScope";
@@ -19,7 +18,7 @@ function timeValue(value: unknown) {
 export async function GET(req: Request) {
   try {
     const token = await requirePermission(req, "fees.view");
-    if (!token) return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
+    if (!token) return json({ ok: false, error: "Access denied" }, { status: 403 });
 
     const url = new URL(req.url);
     const studentId = url.searchParams.get("studentId");
@@ -48,17 +47,17 @@ export async function GET(req: Request) {
     const pageDocs = filteredDocs.slice(startIndex, startIndex + pageSize);
     const reminders = pageDocs.map((doc) => ({ id: doc.id, ...doc.data() }));
     const nextCursor = startIndex + pageSize < filteredDocs.length && pageDocs.length > 0 ? pageDocs[pageDocs.length - 1].id : null;
-    return NextResponse.json({ ok: true, reminders, pageSize, nextCursor, hasMore: Boolean(nextCursor) });
+    return json({ ok: true, reminders, pageSize, nextCursor, hasMore: Boolean(nextCursor) });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to load reminders";
-    return NextResponse.json({ ok: false, error: message }, { status: 400 });
+    return json({ ok: false, error: message }, { status: 400 });
   }
 }
 
 export async function POST(req: Request) {
   try {
     const token = await requirePermission(req, "fees.create");
-    if (!token) return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
+    if (!token) return json({ ok: false, error: "Access denied" }, { status: 403 });
 
     const body = await req.json();
     const parsed = feeReminderCreateSchema.parse(body);
@@ -66,7 +65,7 @@ export async function POST(req: Request) {
     const db = adminDb();
     const studentSnap = await db.collection("students").doc(parsed.studentId).get();
     if (!studentSnap.exists) {
-      return NextResponse.json({ ok: false, error: "Student not found" }, { status: 404 });
+      return json({ ok: false, error: "Student not found" }, { status: 404 });
     }
     const student = studentSnap.data() as Record<string, unknown>;
     const academicYearId = String(body.academicYearId ?? student.academicYearId ?? "").trim();
@@ -96,9 +95,10 @@ export async function POST(req: Request) {
       newValues: { studentId: parsed.studentId, amount: parsed.amount, dueDate: parsed.dueDate }
     });
 
-    return NextResponse.json({ ok: true, id: ref.id, message: "Fee reminder created." });
+    return json({ ok: true, id: ref.id, message: "Fee reminder created." });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to create reminder";
-    return NextResponse.json({ ok: false, error: message }, { status: 400 });
+    return json({ ok: false, error: message }, { status: 400 });
   }
 }
+

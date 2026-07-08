@@ -1,13 +1,12 @@
-import { NextResponse } from "next/server";
 import { FieldValue } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { requirePermission } from "@/lib/apiUtils";
+import { requirePermission, json } from "@/lib/apiUtils";
 
 const COLLECTION = "daily_closings";
 
 export async function GET(req: Request) {
   const token = await requirePermission(req, "fees.view");
-  if (!token) return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
+  if (!token) return json({ ok: false, error: "Access denied" }, { status: 403 });
 
   const { searchParams } = new URL(req.url);
   const from = searchParams.get("from");
@@ -19,17 +18,17 @@ export async function GET(req: Request) {
   query = query.limit(500);
   const snap = await query.get();
   const closings = snap.docs.map((d) => ({ id: d.id, ...d.data(), date: String(d.data().date) }));
-  return NextResponse.json({ ok: true, closings });
+  return json({ ok: true, closings });
 }
 
 export async function POST(req: Request) {
   const token = await requirePermission(req, "fees.approve");
-  if (!token) return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
+  if (!token) return json({ ok: false, error: "Access denied" }, { status: 403 });
 
   try {
     const { date, action } = await req.json();
     if (!date || !["close", "open"].includes(action)) {
-      return NextResponse.json({ ok: false, error: "Invalid request. Need date + action (close|open)" }, { status: 400 });
+      return json({ ok: false, error: "Invalid request. Need date + action (close|open)" }, { status: 400 });
     }
 
     const db = adminDb();
@@ -48,8 +47,9 @@ export async function POST(req: Request) {
       }
     }
 
-    return NextResponse.json({ ok: true, date, closed: action === "close" });
+    return json({ ok: true, date, closed: action === "close" });
   } catch (error) {
-    return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : "Failed" }, { status: 400 });
+    return json({ ok: false, error: error instanceof Error ? error.message : "Failed" }, { status: 400 });
   }
 }
+

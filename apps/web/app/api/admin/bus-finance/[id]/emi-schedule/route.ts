@@ -1,6 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { requirePermission, serializeDoc } from "@/lib/apiUtils";
+import { requirePermission, serializeDoc, json } from "@/lib/apiUtils";
 import {
   BUS_FINANCE_COLLECTION,
   BUS_EMI_PAYMENTS_COLLECTION,
@@ -15,7 +15,7 @@ import {
  */
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   const token = await requirePermission(req, "bus_finance.view");
-  if (!token) return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
+  if (!token) return json({ ok: false, error: "Access denied" }, { status: 403 });
 
   try {
     const snap = await adminDb()
@@ -25,10 +25,10 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     const schedule = snap.docs
       .map((d) => serializeDoc(d) as Record<string, unknown> & { id: string; emiNumber: number })
       .sort((a, b) => Number(a.emiNumber) - Number(b.emiNumber));
-    return NextResponse.json({ ok: true, schedule });
+    return json({ ok: true, schedule });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to load EMI schedule";
-    return NextResponse.json({ ok: false, error: message }, { status: 500 });
+    return json({ ok: false, error: message }, { status: 500 });
   }
 }
 
@@ -39,12 +39,12 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
  */
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   const token = await requirePermission(req, "bus_finance.create");
-  if (!token) return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
+  if (!token) return json({ ok: false, error: "Access denied" }, { status: 403 });
 
   try {
     const ref = adminDb().collection(BUS_FINANCE_COLLECTION).doc(params.id);
     const snap = await ref.get();
-    if (!snap.exists) return NextResponse.json({ ok: false, error: "Record not found" }, { status: 404 });
+    if (!snap.exists) return json({ ok: false, error: "Record not found" }, { status: 404 });
 
     const f = snap.data() as Record<string, unknown>;
     const created = await generateEmiSchedule(params.id, {
@@ -56,9 +56,9 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     });
     await recalcFinanceSummary(params.id);
 
-    return NextResponse.json({ ok: true, emisGenerated: created });
+    return json({ ok: true, emisGenerated: created });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to regenerate EMI schedule";
-    return NextResponse.json({ ok: false, error: message }, { status: 400 });
+    return json({ ok: false, error: message }, { status: 400 });
   }
 }

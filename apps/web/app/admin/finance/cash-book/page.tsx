@@ -4,7 +4,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { DateRangeFilter } from "@/components/DateRangeFilter";
 import { useAdminSession } from "@/components/AdminSessionContext";
 import { AdminApiError, adminApiRequest } from "@/lib/adminApiClient";
-import { hasPermission } from "@sri-narayana/shared";
+import { hasPermission, formatLabel } from "@sri-narayana/shared";
 import { useEffect, useState } from "react";
 
 type Entry = { date: string; type: "income" | "expense"; category: string; description: string; amount: number; balance: number; source: string };
@@ -68,7 +68,7 @@ export default function CashBookPage() {
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="truncate text-sm font-bold text-[#303247]">{e.description || e.category}</p>
-                  <p className="mt-0.5 text-xs font-medium capitalize text-stone-500">{e.date} · {e.source}</p>
+                  <p className="mt-0.5 text-xs font-medium text-stone-500">{e.date} · {formatLabel(e.source)}</p>
                 </div>
                 <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-bold ${e.type === "income" ? "bg-[#e6f8ef] text-[#14a762]" : "bg-[#ffebed] text-[#ed515d]"}`}>{e.type}</span>
               </div>

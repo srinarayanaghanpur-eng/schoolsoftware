@@ -1,7 +1,6 @@
-import { NextResponse } from "next/server";
 import { FieldValue } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { requirePermission } from "@/lib/apiUtils";
+import { requirePermission, json } from "@/lib/apiUtils";
 import { firestoreErrorResponse } from "@/lib/firebaseErrors";
 import {
   CLASS_IDS,
@@ -15,7 +14,7 @@ import {
 // GET /api/admin/class-sections — sections configured per class (defaults A/B).
 export async function GET(req: Request) {
   const token = await requirePermission(req, "students.view");
-  if (!token) return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
+  if (!token) return json({ ok: false, error: "Access denied" }, { status: 403 });
 
   try {
     const snap = await adminDb().collection("settings").doc(CLASS_SECTION_SETTINGS_DOC).get();
@@ -27,7 +26,7 @@ export async function GET(req: Request) {
         if (cleaned) sections[classId] = cleaned;
       }
     }
-    return NextResponse.json({ ok: true, sections });
+    return json({ ok: true, sections });
   } catch (error) {
     return firestoreErrorResponse(error, "Unable to load class sections");
   }
@@ -38,17 +37,17 @@ export async function GET(req: Request) {
 // students is rejected — merge them first.
 export async function PUT(req: Request) {
   const token = await requirePermission(req, "students.edit");
-  if (!token) return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
+  if (!token) return json({ ok: false, error: "Access denied" }, { status: 403 });
 
   try {
     const body = await req.json();
     const classId = String(body?.classId ?? "");
     if (!CLASS_IDS.includes(classId)) {
-      return NextResponse.json({ ok: false, error: "Unknown class" }, { status: 400 });
+      return json({ ok: false, error: "Unknown class" }, { status: 400 });
     }
     const sections = sanitizeSections(body?.sections);
     if (!sections) {
-      return NextResponse.json(
+      return json(
         { ok: false, error: `Sections must be 1-${MAX_SECTIONS_PER_CLASS} short letters (A, B, C1...)` },
         { status: 400 }
       );
@@ -70,7 +69,7 @@ export async function PUT(req: Request) {
         .get();
       const count = Number(countSnap.data().count || 0);
       if (count > 0) {
-        return NextResponse.json(
+        return json(
           { ok: false, error: `Section ${section} still has ${count} student(s). Merge them into another section first.` },
           { status: 409 }
         );
@@ -81,7 +80,7 @@ export async function PUT(req: Request) {
       { sections: { [classId]: sections }, updatedAt: FieldValue.serverTimestamp(), updatedBy: token.uid },
       { mergeFields: [`sections.${classId}`, "updatedAt", "updatedBy"] }
     );
-    return NextResponse.json({ ok: true, classId, sections });
+    return json({ ok: true, classId, sections });
   } catch (error) {
     return firestoreErrorResponse(error, "Unable to save class sections", 400);
   }

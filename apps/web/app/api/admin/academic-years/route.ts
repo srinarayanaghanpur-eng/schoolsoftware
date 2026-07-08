@@ -1,8 +1,7 @@
-import { NextResponse } from "next/server";
 import { FieldValue } from "firebase-admin/firestore";
 import { academicYearCreateSchema, type AcademicYear } from "@sri-narayana/shared";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { requirePermission, serializeDoc } from "@/lib/apiUtils";
+import { requirePermission, serializeDoc, json } from "@/lib/apiUtils";
 import {
   firestoreErrorResponse,
   firestoreQuotaResponse,
@@ -19,19 +18,19 @@ let academicYearsCache: { years: AcademicYear[]; expiresAt: number } | null = nu
 // GET /api/admin/academic-years — list all years (newest first), active flagged.
 export async function GET(req: Request) {
   const token = await requirePermission(req, "academic_years.view");
-  if (!token) return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
+  if (!token) return json({ ok: false, error: "Access denied" }, { status: 403 });
 
   const url = new URL(req.url);
   const canBypassCache = token.role === "principal" || token.role === "super_admin" || token.role === "settings_manager";
   const bypassCache = canBypassCache && url.searchParams.get("refresh") === "1";
 
   if (!bypassCache && academicYearsCache && academicYearsCache.expiresAt > Date.now()) {
-    return NextResponse.json({ ok: true, years: academicYearsCache.years, cached: true });
+    return json({ ok: true, years: academicYearsCache.years, cached: true });
   }
 
   if (isFirestoreQuotaPaused()) {
     if (academicYearsCache) {
-      return NextResponse.json({ ok: true, years: academicYearsCache.years, cached: true, stale: true });
+      return json({ ok: true, years: academicYearsCache.years, cached: true, stale: true });
     }
     return firestoreQuotaResponse();
   }
@@ -40,11 +39,11 @@ export async function GET(req: Request) {
     const snapshot = await adminDb().collection(COLLECTION).orderBy("startDate", "desc").limit(500).get();
     const years = snapshot.docs.map((doc) => serializeDoc<AcademicYear>(doc));
     academicYearsCache = { years, expiresAt: Date.now() + ACADEMIC_YEARS_CACHE_MS };
-    return NextResponse.json({ ok: true, years });
+    return json({ ok: true, years });
   } catch (error) {
     if (isFirestoreQuotaExceededError(error) && academicYearsCache) {
       pauseFirestoreAfterQuota();
-      return NextResponse.json({ ok: true, years: academicYearsCache.years, cached: true, stale: true });
+      return json({ ok: true, years: academicYearsCache.years, cached: true, stale: true });
     }
     return firestoreErrorResponse(error, "Unable to load academic years");
   }
@@ -54,7 +53,7 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   const token = await requirePermission(req, "academic_years.view");
   if (!token || (token.role !== "super_admin" && token.role !== "settings_manager")) {
-    return NextResponse.json({ ok: false, error: "Super admin or settings manager access required" }, { status: 403 });
+    return json({ ok: false, error: "Super admin or settings manager access required" }, { status: 403 });
   }
 
   try {
@@ -64,7 +63,7 @@ export async function POST(req: Request) {
     // Names are unique.
     const existing = await db.collection(COLLECTION).where("name", "==", parsed.name).limit(1).get();
     if (!existing.empty) {
-      return NextResponse.json({ ok: false, error: "An academic year with that name already exists" }, { status: 400 });
+      return json({ ok: false, error: "An academic year with that name already exists" }, { status: 400 });
     }
 
     const now = FieldValue.serverTimestamp();
@@ -88,7 +87,7 @@ export async function POST(req: Request) {
     }
 
     academicYearsCache = null;
-    return NextResponse.json({ ok: true, id: ref.id });
+    return json({ ok: true, id: ref.id });
   } catch (error) {
     return firestoreErrorResponse(error, "Unable to create academic year", 400);
   }

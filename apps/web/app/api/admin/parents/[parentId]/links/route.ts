@@ -1,7 +1,6 @@
-import { NextResponse } from "next/server";
 import { parentStudentLinkSchema } from "@sri-narayana/shared";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { requirePermission } from "@/lib/apiUtils";
+import { requirePermission, json } from "@/lib/apiUtils";
 import { linkParentToStudent, unlinkParentFromStudent, getStudentsForParent } from "@/lib/parentStudentLink";
 import { writeAuditLog } from "@/lib/auditLog";
 
@@ -9,7 +8,7 @@ export async function GET(req: Request, { params }: { params: { parentId: string
   try {
     const decodedToken = await requirePermission(req, "parents.view");
     if (!decodedToken) {
-      return NextResponse.json({ ok: false, error: "Missing or insufficient permissions." }, { status: 403 });
+      return json({ ok: false, error: "Missing or insufficient permissions." }, { status: 403 });
     }
 
     const links = await getStudentsForParent(params.parentId);
@@ -26,10 +25,10 @@ export async function GET(req: Request, { params }: { params: { parentId: string
       }
     }
 
-    return NextResponse.json({ ok: true, links, students });
+    return json({ ok: true, links, students });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to fetch links";
-    return NextResponse.json({ ok: false, error: message }, { status: 400 });
+    return json({ ok: false, error: message }, { status: 400 });
   }
 }
 
@@ -37,7 +36,7 @@ export async function POST(req: Request, { params }: { params: { parentId: strin
   try {
     const decodedToken = await requirePermission(req, "parents.edit");
     if (!decodedToken) {
-      return NextResponse.json({ ok: false, error: "Missing or insufficient permissions." }, { status: 403 });
+      return json({ ok: false, error: "Missing or insufficient permissions." }, { status: 403 });
     }
 
     const body = await req.json();
@@ -54,10 +53,10 @@ export async function POST(req: Request, { params }: { params: { parentId: strin
       newValues: parsed as unknown as Record<string, unknown>
     });
 
-    return NextResponse.json({ ok: true, id, message: "Student linked to parent." });
+    return json({ ok: true, id, message: "Student linked to parent." });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to link student";
-    return NextResponse.json({ ok: false, error: message }, { status: 400 });
+    return json({ ok: false, error: message }, { status: 400 });
   }
 }
 
@@ -65,13 +64,13 @@ export async function DELETE(req: Request, { params }: { params: { parentId: str
   try {
     const decodedToken = await requirePermission(req, "parents.edit");
     if (!decodedToken) {
-      return NextResponse.json({ ok: false, error: "Missing or insufficient permissions." }, { status: 403 });
+      return json({ ok: false, error: "Missing or insufficient permissions." }, { status: 403 });
     }
 
     const url = new URL(req.url);
     const linkId = url.searchParams.get("linkId");
     if (!linkId) {
-      return NextResponse.json({ ok: false, error: "linkId query param required" }, { status: 400 });
+      return json({ ok: false, error: "linkId query param required" }, { status: 400 });
     }
 
     await unlinkParentFromStudent(linkId);
@@ -84,9 +83,10 @@ export async function DELETE(req: Request, { params }: { params: { parentId: str
       actorRole: decodedToken.role as string
     });
 
-    return NextResponse.json({ ok: true, message: "Link removed." });
+    return json({ ok: true, message: "Link removed." });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to remove link";
-    return NextResponse.json({ ok: false, error: message }, { status: 400 });
+    return json({ ok: false, error: message }, { status: 400 });
   }
 }
+

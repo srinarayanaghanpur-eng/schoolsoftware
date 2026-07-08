@@ -1,8 +1,7 @@
-import { NextResponse } from "next/server";
 import { FieldValue } from "firebase-admin/firestore";
 import { installmentPlanCreateSchema } from "@sri-narayana/shared";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { requirePermission, serializeDoc } from "@/lib/apiUtils";
+import { requirePermission, serializeDoc, json } from "@/lib/apiUtils";
 import { logFirestoreRead, readLimit } from "@/lib/firestoreReadLogger";
 import { getSchoolId } from "@/lib/schoolScope";
 
@@ -18,7 +17,7 @@ function timeValue(value: unknown) {
 // GET /api/admin/finance/installments?studentId=
 export async function GET(req: Request) {
   const token = await requirePermission(req, "fees.view");
-  if (!token) return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
+  if (!token) return json({ ok: false, error: "Access denied" }, { status: 403 });
 
   const { searchParams } = new URL(req.url);
   const db = adminDb();
@@ -46,13 +45,13 @@ export async function GET(req: Request) {
   const pageDocs = filteredDocs.slice(startIndex, startIndex + pageSize);
   const plans = pageDocs.map((d) => serializeDoc(d));
   const nextCursor = startIndex + pageSize < filteredDocs.length && pageDocs.length > 0 ? pageDocs[pageDocs.length - 1].id : null;
-  return NextResponse.json({ ok: true, plans, pageSize, nextCursor, hasMore: Boolean(nextCursor) });
+  return json({ ok: true, plans, pageSize, nextCursor, hasMore: Boolean(nextCursor) });
 }
 
 // POST /api/admin/finance/installments — create a new installment plan.
 export async function POST(req: Request) {
   const token = await requirePermission(req, "fees.create");
-  if (!token) return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
+  if (!token) return json({ ok: false, error: "Access denied" }, { status: 403 });
 
   try {
     const parsed = installmentPlanCreateSchema.parse(await req.json());
@@ -73,9 +72,10 @@ export async function POST(req: Request) {
     };
 
     const ref = await adminDb().collection(COLLECTION).add(doc);
-    return NextResponse.json({ ok: true, id: ref.id });
+    return json({ ok: true, id: ref.id });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to create installment plan";
-    return NextResponse.json({ ok: false, error: message }, { status: 400 });
+    return json({ ok: false, error: message }, { status: 400 });
   }
 }
+

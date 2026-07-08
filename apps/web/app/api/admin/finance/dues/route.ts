@@ -1,11 +1,10 @@
-import { NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { requirePermission } from "@/lib/apiUtils";
+import { requirePermission, json } from "@/lib/apiUtils";
 import { logFirestoreRead, readLimit } from "@/lib/firestoreReadLogger";
 // GET /api/admin/finance/dues — outstanding fees grouped by class.
 export async function GET(req: Request) {
   const token = await requirePermission(req, "fees.view");
-  if (!token) return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
+  if (!token) return json({ ok: false, error: "Access denied" }, { status: 403 });
 
   const { searchParams } = new URL(req.url);
   const branchId = searchParams.get("branchId") || "";
@@ -76,5 +75,6 @@ export async function GET(req: Request) {
   });
 
   const classes = Array.from(byClass.values()).sort((a, b) => a.className.localeCompare(b.className));
-  return NextResponse.json({ ok: true, classes, grandTotalDue, studentsWithDues: classes.reduce((n, c) => n + c.studentCount, 0), pageSize, nextCursor, hasMore: Boolean(nextCursor), truncated: Boolean(nextCursor) });
+  return json({ ok: true, classes, grandTotalDue, studentsWithDues: classes.reduce((n, c) => n + c.studentCount, 0), pageSize, nextCursor, hasMore: Boolean(nextCursor), truncated: Boolean(nextCursor) });
 }
+

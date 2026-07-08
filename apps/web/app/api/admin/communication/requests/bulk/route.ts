@@ -1,6 +1,5 @@
-import { NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { requireAdmin } from "@/lib/apiUtils";
+import { requireAdmin, json } from "@/lib/apiUtils";
 import { firestoreErrorResponse } from "@/lib/firebaseErrors";
 import { ALL_TYPES, REQUEST_SOURCES, nativeStatusFor, sourceForType } from "@/lib/communicationRequests";
 
@@ -14,7 +13,7 @@ type BulkItem = { id: string; type: string };
 // Actions: "archive" | "delete" | "clearRejected" | "clearApprovedOld"
 export async function POST(req: Request) {
   const token = await requireAdmin(req);
-  if (!token) return NextResponse.json({ ok: false, error: "Admin access required" }, { status: 403 });
+  if (!token) return json({ ok: false, error: "Admin access required" }, { status: 403 });
 
   try {
     const body = await req.json();
@@ -25,7 +24,7 @@ export async function POST(req: Request) {
     // --- Explicit selection: archive or soft-delete the given items ---
     if (action === "archive" || action === "delete") {
       const items: BulkItem[] = Array.isArray(body?.items) ? body.items.slice(0, MAX_ITEMS) : [];
-      if (items.length === 0) return NextResponse.json({ ok: false, error: "No items selected" }, { status: 400 });
+      if (items.length === 0) return json({ ok: false, error: "No items selected" }, { status: 400 });
 
       const batch = db.batch();
       let affected = 0;
@@ -42,7 +41,7 @@ export async function POST(req: Request) {
         affected += 1;
       }
       await batch.commit();
-      return NextResponse.json({ ok: true, affected, message: `${affected} request(s) ${action === "archive" ? "archived" : "removed"}.` });
+      return json({ ok: true, affected, message: `${affected} request(s) ${action === "archive" ? "archived" : "removed"}.` });
     }
 
     // --- Cleanup sweeps: archive rejected, or archive approved older than N days ---
@@ -70,7 +69,7 @@ export async function POST(req: Request) {
         await batch.commit();
         affected += snap.size;
       }
-      return NextResponse.json({
+      return json({
         ok: true,
         affected,
         message: `${affected} ${targetStatus} request(s) archived.`,
@@ -78,8 +77,9 @@ export async function POST(req: Request) {
       });
     }
 
-    return NextResponse.json({ ok: false, error: "Unknown bulk action" }, { status: 400 });
+    return json({ ok: false, error: "Unknown bulk action" }, { status: 400 });
   } catch (error) {
     return firestoreErrorResponse(error, "Unable to run bulk action", 400);
   }
 }
+

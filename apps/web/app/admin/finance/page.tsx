@@ -2,70 +2,40 @@
 
 import { useAdminSession } from "@/components/AdminSessionContext";
 import { adminApiRequest } from "@/lib/adminApiClient";
-import { hasPermission } from "@sri-narayana/shared";
+import { formatLabel, hasPermission } from "@sri-narayana/shared";
 import {
   AlertCircle,
-  BellRing,
-  Circle,
+  ArrowUpRight,
+  Banknote,
+  BookOpen,
+  ClipboardList,
+  CreditCard,
   Download,
   FileText,
+  HandCoins,
   IndianRupee,
-  Plus,
+  Landmark,
+  LucideIcon,
+  Printer,
+  Receipt,
   ReceiptIndianRupee,
   RefreshCw,
   Send,
   TrendingDown,
   TrendingUp,
-  Wallet
+  Users,
+  Wallet,
 } from "lucide-react";
 import Link from "next/link";
-import type { ComponentType, ReactNode } from "react";
-import { useEffect, useMemo, useState } from "react";
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  Pie,
-  PieChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis
-} from "recharts";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
-const ResponsiveContainerAny = ResponsiveContainer as unknown as ComponentType<any>;
-const PieChartAny = PieChart as unknown as ComponentType<any>;
-const PieAny = Pie as unknown as ComponentType<any>;
-const CellAny = Cell as unknown as ComponentType<any>;
-const BarChartAny = BarChart as unknown as ComponentType<any>;
-const BarAny = Bar as unknown as ComponentType<any>;
-const CartesianGridAny = CartesianGrid as unknown as ComponentType<any>;
-const XAxisAny = XAxis as unknown as ComponentType<any>;
-const YAxisAny = YAxis as unknown as ComponentType<any>;
-const TooltipAny = Tooltip as unknown as ComponentType<any>;
-
-const TRANSACTIONS_PER_PAGE = 25;
-
-const chartLabelColor = "hsl(var(--chart-label))";
-const chartGridColor = "hsl(var(--chart-grid))";
-const chartTooltipStyle = {
-  border: "1px solid hsl(var(--border))",
-  borderRadius: "12px",
-  background: "hsl(var(--chart-tooltip))",
-  color: "hsl(var(--chart-tooltip-foreground))",
-  boxShadow: "0 14px 34px rgb(0 0 0 / 0.18)"
-};
-const chartTooltipTextStyle = { color: "hsl(var(--chart-tooltip-foreground))" };
-const chartCursorFill = "hsl(var(--muted) / 0.72)";
-
-const actions = [
-  { label: "Collect Fee", href: "/admin/payments", icon: ReceiptIndianRupee },
-  { label: "Add Expense", href: "/admin/finance/expenses", icon: Plus },
-  { label: "Send Reminder", href: "/admin/finance/reminders", icon: Send },
-  { label: "Generate Invoice", href: "/admin/finance/invoices", icon: FileText },
-  { label: "Export Report", href: "/admin/fee-reports", icon: Download }
-];
+import { AmountText, formatINR, formatSafeDate, formatPersonName, MethodBadge, StatusBadge, TypeBadge } from "@/components/finance";
+import { FinanceActionBar } from "@/components/finance/FinanceActionBar";
+import { FinanceEmptyState } from "@/components/finance/FinanceEmptyState";
+import { FinanceShell } from "@/components/finance/FinanceShell";
+import { FinanceStatCard } from "@/components/finance/FinanceStatCard";
+import { FinanceTabs, FINANCE_TABS } from "@/components/finance/FinanceTabs";
+import { ResponsiveFinanceTable } from "@/components/finance/ResponsiveFinanceTable";
 
 type RangeMode = "month" | "quarter" | "year";
 
@@ -80,18 +50,25 @@ type FinanceDashboardPayload = {
     studentsPending: number;
     todayCollected: number;
     paymentCount: number;
+    monthCollected?: number;
+    pendingTransfers?: number;
   };
-  feeCollection: Array<{ name: string; value: number; percent: number; label: string; color: string }>;
+  feeCollection: Array<{ label: string; value: number; percent?: number; color: string }>;
   collectionTarget: number;
-  bars: Array<{ name: string; income: number; expense: number; incomeLakhs: number; expenseLakhs: number }>;
+  bars: Array<{ name: string; incomeLakhs: number; expenseLakhs: number }>;
   transactions: Array<{
     date: string;
-    type: "Income" | "Expense";
+    type: string;
     description: string;
     category: string;
     amount: number;
     status: string;
+    studentName?: string;
+    method?: string;
   }>;
+  duesByClass?: Array<{ className: string; total: number; dueCount: number; dueAmount: number }>;
+  expenseBreakdown?: Array<{ category: string; amount: number }>;
+  collectionByMethod?: Array<{ method: string; amount: number }>;
 };
 
 function dateKey(date: Date) {
@@ -103,73 +80,35 @@ function rangeForMode(mode: RangeMode) {
   if (mode === "year") {
     return {
       from: dateKey(new Date(now.getFullYear(), 0, 1)),
-      to: dateKey(new Date(now.getFullYear(), 11, 31))
+      to: dateKey(new Date(now.getFullYear(), 11, 31)),
     };
   }
   if (mode === "quarter") {
     const quarterStart = Math.floor(now.getMonth() / 3) * 3;
     return {
       from: dateKey(new Date(now.getFullYear(), quarterStart, 1)),
-      to: dateKey(new Date(now.getFullYear(), quarterStart + 3, 0))
+      to: dateKey(new Date(now.getFullYear(), quarterStart + 3, 0)),
     };
   }
   return {
     from: dateKey(new Date(now.getFullYear(), now.getMonth(), 1)),
-    to: dateKey(new Date(now.getFullYear(), now.getMonth() + 1, 0))
+    to: dateKey(new Date(now.getFullYear(), now.getMonth() + 1, 0)),
   };
-}
-
-function formatINR(amount: number) {
-  if (Math.abs(amount) >= 100000) return `₹${(amount / 100000).toFixed(2)}L`;
-  if (Math.abs(amount) >= 1000) return `₹${(amount / 1000).toFixed(1)}K`;
-  return `₹${Math.round(amount).toLocaleString("en-IN")}`;
-}
-
-function formatDate(value: string) {
-  if (!value) return "--";
-  try {
-    const d = new Date(value + (value.includes("T") ? "" : "T00:00:00"));
-    if (isNaN(d.getTime())) return value;
-    return d.toLocaleDateString("en-IN", { day: "2-digit", month: "short" });
-  } catch {
-    return value;
-  }
-}
-
-function formatRange(from: string, to: string) {
-  return `${formatDate(from)} - ${formatDate(to)}`;
 }
 
 export default function FinanceDashboardPage() {
   const { role } = useAdminSession();
   const [rangeMode, setRangeMode] = useState<RangeMode>("month");
+  const [activeTab, setActiveTab] = useState("overview");
   const [data, setData] = useState<FinanceDashboardPayload | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [transactionPage, setTransactionPage] = useState(1);
 
   const range = useMemo(() => rangeForMode(rangeMode), [rangeMode]);
-  const feeCollection = data?.feeCollection ?? [];
-  const bars = data?.bars ?? [];
   const transactions = data?.transactions ?? [];
-  const transactionPageCount = Math.max(1, Math.ceil(transactions.length / TRANSACTIONS_PER_PAGE));
-  const currentTransactionPage = Math.min(transactionPage, transactionPageCount);
-  const transactionStart = (currentTransactionPage - 1) * TRANSACTIONS_PER_PAGE;
-  const pagedTransactions = transactions.slice(transactionStart, transactionStart + TRANSACTIONS_PER_PAGE);
-  const collectedPercent = feeCollection.find((item) => item.name === "Collected")?.percent ?? 0;
-  const targetLabel = formatINR(data?.collectionTarget ?? 0);
+  const kpis = data?.kpis;
 
-  const kpis = useMemo(() => {
-    const values = data?.kpis;
-    return [
-      { label: "Total Income", value: formatINR(values?.totalIncome ?? 0), delta: "Fees and other income", tone: "bg-[#edf7ff] text-[#246bfe] dark:bg-blue-500/15 dark:text-blue-300", icon: TrendingUp },
-      { label: "Total Expense", value: formatINR(values?.totalExpense ?? 0), delta: "Approved expenses, salary, advances", tone: "bg-[#fff3e8] text-[#c96a10] dark:bg-yellow-400/15 dark:text-yellow-300", icon: TrendingDown },
-      { label: "Net Balance", value: formatINR(values?.netBalance ?? 0), delta: values && values.netBalance >= 0 ? "Surplus for selected range" : "Deficit for selected range", tone: "bg-[#edfdf4] text-[#0a9255] dark:bg-emerald-500/15 dark:text-emerald-300", icon: Wallet },
-      { label: "Outstanding Dues", value: formatINR(values?.outstandingDues ?? 0), delta: `${values?.studentsPending ?? 0} pending student${values?.studentsPending === 1 ? "" : "s"}`, tone: "bg-[#f1edff] text-[#6547d2] dark:bg-indigo-500/15 dark:text-indigo-200", icon: AlertCircle }
-    ];
-  }, [data]);
-
-  const loadDashboard = async () => {
+  const loadDashboard = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -177,24 +116,23 @@ export default function FinanceDashboardPage() {
         `/api/admin/finance/dashboard?from=${encodeURIComponent(range.from)}&to=${encodeURIComponent(range.to)}`
       );
       setData(result);
-      setTransactionPage(1);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to load finance dashboard");
+      setError(err instanceof Error ? err.message : "Unable to load finance data. Please try again.");
     } finally {
       setLoading(false);
     }
-  };
+  }, [range.from, range.to]);
 
   useEffect(() => {
     if (!hasPermission(role, "fees.view")) return;
     void loadDashboard();
-  }, [role, range.from, range.to]);
+  }, [loadDashboard, role]);
 
   const exportTransactions = () => {
     if (!transactions.length) return;
     const rows = [
       ["Date", "Type", "Description", "Category", "Amount", "Status"],
-      ...transactions.map((tx) => [tx.date, tx.type, tx.description, tx.category, String(tx.amount), tx.status])
+      ...transactions.map((tx) => [tx.date, tx.type, tx.description, tx.category, String(tx.amount), tx.status]),
     ];
     const csv = rows.map((row) => row.map((cell) => `"${cell.replace(/"/g, '""')}"`).join(",")).join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
@@ -209,324 +147,328 @@ export default function FinanceDashboardPage() {
   if (!hasPermission(role, "fees.view")) {
     return (
       <section className="p-4 md:p-7">
-        <div className="card flex max-w-2xl items-start gap-4 p-5">
-          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[#ffebed] text-[#d84d5b] dark:bg-rose-500/15 dark:text-rose-300">
+        <div className="flex max-w-2xl items-start gap-4 rounded-2xl border border-[#e2e8f0] bg-white p-5 shadow-sm">
+          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[#fef2f2] text-[#dc2626]">
             <AlertCircle size={22} />
           </span>
           <div>
-            <h2 className="text-lg font-extrabold text-foreground dark:text-white">Access denied</h2>
-            <p className="mt-1 text-sm font-medium text-muted-foreground">Your role cannot view finance.</p>
+            <h2 className="text-lg font-extrabold text-[#1e293b]">Access Denied</h2>
+            <p className="mt-1 text-sm font-medium text-[#64748b]">Your role does not have permission to view finance data.</p>
           </div>
         </div>
       </section>
     );
   }
 
-  return (
-    <section className="min-h-full bg-background p-4 md:p-6 xl:p-7">
-      <div className="mx-auto max-w-[1500px] space-y-5">
-        <div className="flex flex-col gap-4 rounded-2xl border border-border bg-card px-5 py-4 text-card-foreground shadow-[0_14px_38px_rgba(31,41,100,0.07)] dark:bg-slate-900 dark:shadow-black/20 lg:flex-row lg:items-center lg:justify-between">
-          <div className="min-w-0">
-            <h1 className="text-2xl font-extrabold tracking-tight text-foreground dark:text-white md:text-[28px]">Fees & Finance Dashboard</h1>
-            <p className="mt-1 text-sm font-semibold text-muted-foreground">{formatRange(range.from, range.to)}</p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <select className="field h-10 w-[142px] py-0 text-sm" value={rangeMode} onChange={(event) => setRangeMode(event.target.value as RangeMode)} aria-label="Time range">
-              <option value="month">This Month</option>
-              <option value="quarter">This Quarter</option>
-              <option value="year">This Year</option>
-            </select>
-            <IconButton label="Refresh" onClick={loadDashboard} disabled={loading}><RefreshCw size={18} /></IconButton>
-            <IconButton label="Notifications"><BellRing size={18} /></IconButton>
-            <IconButton label="Download" onClick={exportTransactions} disabled={!transactions.length}><Download size={18} /></IconButton>
-          </div>
-        </div>
+  const summaryCards = [
+    { icon: <TrendingUp size={20} />, label: "Today Collection", value: formatINR(kpis?.todayCollected ?? 0), subtext: "Fee collected today", bgClass: "bg-[#eff6ff]" },
+    { icon: <IndianRupee size={20} />, label: "Month Collection", value: formatINR(kpis?.monthCollected ?? kpis?.totalIncome ?? 0), subtext: `${kpis?.paymentCount ?? 0} payments`, bgClass: "bg-[#f0fdf4]" },
+    { icon: <AlertCircle size={20} />, label: "Total Due", value: formatINR(kpis?.outstandingDues ?? 0), subtext: `${kpis?.studentsPending ?? 0} students pending`, bgClass: "bg-[#fefce8]" },
+    { icon: <TrendingDown size={20} />, label: "Total Expense", value: formatINR(kpis?.totalExpense ?? 0), subtext: "Approved & pending expenses", bgClass: "bg-[#fef2f2]" },
+    { icon: <Wallet size={20} />, label: "Net Balance", value: formatINR(kpis?.netBalance ?? 0), subtext: (kpis?.netBalance ?? 0) >= 0 ? "Positive balance" : "Deficit", bgClass: "bg-[#f0fdf4]" },
+    { icon: <Landmark size={20} />, label: "Pending Transfers", value: String(kpis?.pendingTransfers ?? 0), subtext: "Bank transfers to verify", bgClass: "bg-[#faf5ff]" },
+  ];
 
-        {error && (
-          <div className="rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm font-semibold text-destructive dark:text-rose-300">
-            {error}
+  const quickActions = [
+    { label: "Collect Fee", icon: <ReceiptIndianRupee size={17} />, onClick: () => { setActiveTab("collection"); }, primary: true },
+    { label: "Add Expense", icon: <TrendingDown size={17} />, onClick: () => { window.location.href = "/admin/finance/expenses"; } },
+    { label: "Add Concession", icon: <HandCoins size={17} />, onClick: () => { window.location.href = "/admin/students"; } },
+    { label: "Send Reminder", icon: <Send size={17} />, onClick: () => { window.location.href = "/admin/finance/reminders"; } },
+    { label: "Print Receipt", icon: <Printer size={17} />, onClick: () => { window.location.href = "/admin/finance/receipts"; } },
+    { label: "Export Excel", icon: <Download size={17} />, onClick: exportTransactions, disabled: !transactions.length },
+  ];
+
+  const transactionColumns = [
+    { key: "date", header: "Date", cell: (r: typeof transactions[0]) => <span className="text-xs font-semibold text-[#64748b]">{formatSafeDate(r.date)}</span> },
+    { key: "type", header: "Type", cell: (r: typeof transactions[0]) => <TypeBadge type={r.type} /> },
+    { key: "student", header: "Description", cell: (r: typeof transactions[0]) => (
+      <div className="max-w-[200px]" title={r.description}>
+        <span className="text-sm font-bold text-[#1e293b]">{r.studentName ? formatPersonName(r.studentName) : r.description}</span>
+      </div>
+    ), className: "max-w-[200px]" },
+    { key: "method", header: "Method", cell: (r: typeof transactions[0]) => <MethodBadge method={r.category || r.method} />, hideOnMobile: true },
+    { key: "amount", header: "Amount", align: "right" as const, cell: (r: typeof transactions[0]) => (
+      <span className={`text-sm font-extrabold ${r.type === "Expense" ? "text-[#dc2626]" : "text-[#16a34a]"}`}>
+        {r.type === "Expense" ? "−" : "+"}{formatINR(r.amount)}
+      </span>
+    ) },
+    { key: "status", header: "Status", cell: (r: typeof transactions[0]) => <StatusBadge status={r.status} />, hideOnMobile: true },
+    { key: "actions", header: "", align: "center" as const, cell: () => (
+      <button className="rounded-lg p-1 text-[#94a3b8] hover:bg-[#f1f5f9] hover:text-[#2563eb] transition-colors">
+        <ArrowUpRight size={15} />
+      </button>
+    ) },
+  ];
+
+  const renderCollectionMethodChart = () => {
+    const methods = data?.collectionByMethod ?? [];
+    if (methods.length === 0) return <p className="text-sm text-[#94a3b8]">No data</p>;
+    const total = methods.reduce((s, m) => s + m.amount, 0);
+    return (
+      <div className="space-y-2">
+        {methods.map((m) => {
+          const pct = total > 0 ? ((m.amount / total) * 100).toFixed(0) : 0;
+          return (
+            <div key={m.method} className="flex items-center gap-2">
+              <span className="w-24 text-xs font-bold text-[#64748b]">{m.method === "upi" ? "UPI" : formatLabel(m.method)}</span>
+              <div className="flex-1 h-2 rounded-full bg-[#f1f5f9] overflow-hidden">
+                <div className="h-full rounded-full bg-[#2563eb] transition-all" style={{ width: `${pct}%` }} />
+              </div>
+              <span className="text-xs font-semibold text-[#1e293b] w-20 text-right">{formatINR(m.amount)}</span>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
+  const renderDuesByClass = () => {
+    const classes = data?.duesByClass ?? [];
+    if (classes.length === 0) return <p className="text-sm text-[#94a3b8]">No due data</p>;
+    return (
+      <div className="space-y-2">
+        {classes.slice(0, 8).map((c) => (
+          <div key={c.className} className="flex items-center justify-between rounded-xl bg-[#f8fafc] px-3 py-2">
+            <span className="text-sm font-bold text-[#1e293b]">{formatLabel(c.className)}</span>
+            <div className="text-right">
+              <span className="text-sm font-extrabold text-[#dc2626]">{formatINR(c.dueAmount)}</span>
+              <span className="ml-2 text-xs text-[#94a3b8]">({c.dueCount} due)</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  const renderExpenseBreakdown = () => {
+    const breakdown = data?.expenseBreakdown ?? [];
+    if (breakdown.length === 0) return <p className="text-sm text-[#94a3b8]">No expense data</p>;
+    const colors = ["#2563eb", "#dc2626", "#d97706", "#16a34a", "#7c3aed", "#0891b2"];
+    return (
+      <div className="space-y-2">
+        {breakdown.map((e, i) => (
+          <div key={e.category} className="flex items-center gap-3">
+            <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: colors[i % colors.length] }} />
+            <span className="flex-1 text-xs font-bold text-[#64748b]">{formatLabel(e.category)}</span>
+            <span className="text-xs font-extrabold text-[#1e293b]">{formatINR(e.amount)}</span>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  const renderOverview = () => (
+    <div className="grid gap-5 xl:grid-cols-[1fr_320px]">
+      <div>
+        <h3 className="mb-3 text-sm font-extrabold text-[#1e293b]">Recent Transactions</h3>
+        <ResponsiveFinanceTable columns={transactionColumns} rows={transactions.slice(0, 10)} rowKey={(r) => `${r.date}-${r.description}-${r.amount}`} loading={loading} empty="No transactions for this range." />
+        {transactions.length > 10 && (
+          <div className="mt-3 text-right">
+            <Link href="/admin/finance/ledger" className="text-xs font-bold text-[#2563eb] hover:underline">View all transactions →</Link>
           </div>
         )}
-
-        <article className="rounded-2xl border border-border bg-card p-5 text-card-foreground shadow-[0_12px_30px_rgba(31,41,100,0.06)] dark:bg-slate-900 dark:shadow-black/20">
-          <h2 className="text-base font-extrabold text-foreground dark:text-slate-100">Quick Actions</h2>
-          <p className="mt-1 text-xs font-semibold text-muted-foreground">Common finance workflows in one tap.</p>
-          <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-5">
-            {actions.filter(Boolean).map(({ label, href, icon }) => {
-              const Icon = icon ?? Circle;
-              return (
-                <Link
-                  key={label}
-                  href={href}
-                  className="group flex min-w-[92px] flex-col items-center gap-2 rounded-lg px-2 py-2 text-center transition hover:bg-muted"
-                >
-                  <span className="grid h-11 w-11 place-items-center rounded-lg bg-accent text-accent-foreground transition group-hover:scale-105 dark:bg-indigo-500/15 dark:text-indigo-200">
-                    <Icon size={21} strokeWidth={2.3} />
-                  </span>
-                  <span className="text-xs font-extrabold leading-4 text-foreground">{label}</span>
-                </Link>
-              );
-            })}
-          </div>
-          <div className="mt-5 rounded-xl bg-[#17217f] p-4 text-white shadow-[0_14px_28px_rgba(23,33,127,0.20)]">
-            <div className="flex items-center gap-3">
-              <span className="grid h-10 w-10 place-items-center rounded-xl bg-white/12">
-                <IndianRupee size={19} />
-              </span>
-              <div>
-                <p className="text-sm font-extrabold">Today</p>
-                <p className="text-xs font-semibold text-[#c7d0ff]">{formatINR(data?.kpis.todayCollected ?? 0)} collected</p>
-              </div>
-            </div>
-          </div>
-        </article>
-
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          {kpis.filter(Boolean).map(({ label, value, delta, tone, icon }) => {
-            const Icon = icon ?? Circle;
-            return (
-              <article key={label} className="rounded-2xl border border-border bg-card p-5 text-card-foreground shadow-[0_12px_30px_rgba(31,41,100,0.06)] dark:bg-slate-900 dark:shadow-black/20">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <p className="text-xs font-extrabold uppercase tracking-[0.08em] text-muted-foreground">{label}</p>
-                    <p className="mt-2 text-[28px] font-extrabold tracking-tight text-foreground dark:text-white">{value}</p>
-                  </div>
-                  <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl ${tone}`}>
-                    <Icon size={20} />
-                  </span>
-                </div>
-                <p className="mt-3 text-xs font-bold text-muted-foreground">{delta}</p>
-              </article>
-            );
-          })}
+      </div>
+      <div className="space-y-4">
+        <div className="rounded-2xl border border-[#e2e8f0] bg-white p-4 shadow-sm">
+          <h4 className="mb-3 text-xs font-extrabold uppercase tracking-wide text-[#64748b]">Collection by Method</h4>
+          {renderCollectionMethodChart()}
         </div>
-
-        <div className="grid gap-5 xl:grid-cols-[0.95fr_1.35fr]">
-          <article className="rounded-2xl border border-border bg-card p-5 text-card-foreground shadow-[0_12px_30px_rgba(31,41,100,0.06)] dark:bg-slate-900 dark:shadow-black/20">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h2 className="text-base font-extrabold text-foreground dark:text-slate-100">Fee Collection Overview</h2>
-                <p className="mt-1 text-xs font-semibold text-muted-foreground">Total target: {targetLabel}</p>
-              </div>
-              <span className="rounded-full bg-accent px-3 py-1 text-xs font-extrabold text-accent-foreground dark:bg-indigo-500/15 dark:text-indigo-200">{loading ? "Syncing" : "Live"}</span>
-            </div>
-
-            <div className="mt-5 grid gap-5 md:grid-cols-[220px_1fr] md:items-center">
-              <div className="relative h-[220px] min-h-[220px] w-full">
-                {feeCollection.length > 0 ? (
-                  <>
-                    <ResponsiveContainerAny width="100%" height="100%">
-                      <PieChartAny>
-                        <PieAny data={feeCollection} dataKey="value" innerRadius={64} outerRadius={96} paddingAngle={4} stroke="none">
-                          {feeCollection.map((item) => (
-                            <CellAny key={item.name} fill={item.color} />
-                          ))}
-                        </PieAny>
-                        <TooltipAny formatter={(value: number) => [formatINR(Number(value)), "Amount"]} contentStyle={chartTooltipStyle} labelStyle={chartTooltipTextStyle} itemStyle={chartTooltipTextStyle} />
-                      </PieChartAny>
-                    </ResponsiveContainerAny>
-                    <div className="pointer-events-none absolute inset-0 grid place-items-center text-center">
-                      <div>
-                        <p className="text-xs font-bold text-muted-foreground">Collected</p>
-                        <p className="text-2xl font-extrabold text-foreground dark:text-white">{collectedPercent}%</p>
-                      </div>
-                    </div>
-                  </>
-                ) : (
-                  <div className="grid h-full place-items-center rounded-xl bg-muted text-sm font-semibold text-muted-foreground">
-                    No data available yet
-                  </div>
-                )}
-              </div>
-              <div className="space-y-3">
-                {feeCollection.map((item) => (
-                  <div key={item.name} className="flex items-center justify-between rounded-xl bg-muted px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      <span className="h-3 w-3 rounded-full" style={{ backgroundColor: item.color }} />
-                      <span className="text-sm font-bold text-foreground dark:text-white">{item.name}</span>
-                    </div>
-                    <span className="text-sm font-extrabold text-foreground dark:text-white">{item.label}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </article>
-
-          <article className="rounded-2xl border border-border bg-card p-5 text-card-foreground shadow-[0_12px_30px_rgba(31,41,100,0.06)] dark:bg-slate-900 dark:shadow-black/20">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h2 className="text-base font-extrabold text-foreground dark:text-slate-100">Income vs Expense</h2>
-                <p className="mt-1 text-xs font-semibold text-muted-foreground">Weekly movement for selected range</p>
-              </div>
-              <div className="flex gap-3 text-xs font-bold text-muted-foreground">
-                <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-[#4f63f6]" /> Income</span>
-                <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-[#f97373]" /> Expense</span>
-              </div>
-            </div>
-            <div className="mt-5 h-[300px] min-h-[300px] w-full">
-              {bars.length > 0 ? (
-                <ResponsiveContainerAny width="100%" height="100%">
-                  <BarChartAny data={bars} barGap={8}>
-                    <CartesianGridAny stroke={chartGridColor} vertical={false} />
-                    <XAxisAny dataKey="name" axisLine={false} tickLine={false} tick={{ fill: chartLabelColor, fontSize: 12, fontWeight: 700 }} />
-                    <YAxisAny axisLine={false} tickLine={false} tick={{ fill: chartLabelColor, fontSize: 12 }} tickFormatter={(value: number) => `${value}L`} />
-                    <TooltipAny formatter={(value: number) => `₹${Number(value).toFixed(2)}L`} cursor={{ fill: chartCursorFill }} contentStyle={chartTooltipStyle} labelStyle={chartTooltipTextStyle} itemStyle={chartTooltipTextStyle} />
-                    <BarAny dataKey="incomeLakhs" fill="#4f63f6" radius={[8, 8, 0, 0]} maxBarSize={42} name="Income" />
-                    <BarAny dataKey="expenseLakhs" fill="#f97373" radius={[8, 8, 0, 0]} maxBarSize={42} name="Expense" />
-                  </BarChartAny>
-                </ResponsiveContainerAny>
-              ) : (
-                <div className="grid h-full place-items-center rounded-xl bg-muted text-sm font-semibold text-muted-foreground">
-                  No data available yet
-                </div>
-              )}
-            </div>
-          </article>
+        <div className="rounded-2xl border border-[#e2e8f0] bg-white p-4 shadow-sm">
+          <h4 className="mb-3 text-xs font-extrabold uppercase tracking-wide text-[#64748b]">Dues by Class</h4>
+          {renderDuesByClass()}
         </div>
-
-        <div className="grid gap-5 xl:grid-cols-[1fr_320px]">
-          <article className="rounded-2xl border border-border bg-card text-card-foreground shadow-[0_12px_30px_rgba(31,41,100,0.06)] dark:bg-slate-900 dark:shadow-black/20">
-            <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-4">
-              <div>
-                <h2 className="text-base font-extrabold text-foreground dark:text-slate-100">Recent Transactions</h2>
-                <p className="mt-1 text-xs font-semibold text-muted-foreground">Latest fee, expense, and invoice activity</p>
-              </div>
-              <Link href="/admin/finance/ledger" className="text-sm font-extrabold text-accent-number hover:underline">View all</Link>
-            </div>
-            {/* Desktop table: horizontal scroll if needed */}
-            <div className="hidden md:block overflow-x-auto">
-              <table className="w-full min-w-[780px] text-left text-sm">
-                <thead className="bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
-                  <tr>
-                    <th className="px-5 py-3">Date</th>
-                    <th className="px-5 py-3">Type</th>
-                    <th className="px-5 py-3">Description</th>
-                    <th className="px-5 py-3">Category</th>
-                    <th className="px-5 py-3 text-right">Amount</th>
-                    <th className="px-5 py-3">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {pagedTransactions.map((tx, index) => (
-                    <tr key={`${transactionStart + index}-${tx.date}-${tx.type}-${tx.description}-${tx.amount}`} className="border-t border-border">
-                      <td className="px-5 py-4 font-semibold text-muted-foreground">{formatDate(tx.date)}</td>
-                      <td className="px-5 py-4">
-                        <span className={`rounded-full px-2.5 py-1 text-xs font-extrabold ${tx.type === "Income" ? "bg-[#edfdf4] text-[#0a9255] dark:bg-emerald-500/15 dark:text-emerald-300" : "bg-[#fff1f1] text-[#d84d5b] dark:bg-rose-500/15 dark:text-rose-300"}`}>
-                          {tx.type}
-                        </span>
-                      </td>
-                      <td className="px-5 py-4 font-bold text-foreground dark:text-white">{tx.description}</td>
-                      <td className="px-5 py-4 text-muted-foreground">{tx.category}</td>
-                      <td className={`px-5 py-4 text-right font-extrabold ${tx.type === "Income" ? "text-success dark:text-emerald-300" : "text-destructive dark:text-rose-300"}`}>
-                        {tx.type === "Income" ? "+" : "-"}{formatINR(tx.amount)}
-                      </td>
-                      <td className="px-5 py-4">
-                        <span className="rounded-full bg-accent px-2.5 py-1 text-xs font-extrabold text-accent-foreground dark:bg-indigo-500/15 dark:text-indigo-200">{tx.status}</span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            {/* Mobile/tablet: stacked transaction cards */}
-            <div className="md:hidden divide-y divide-border">
-              {pagedTransactions.length > 0 ? pagedTransactions.map((tx, index) => (
-                <div key={`mobile-${transactionStart + index}-${tx.date}-${tx.type}`} className="px-5 py-4 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-muted-foreground">{formatDate(tx.date)}</span>
-                    <span className={`rounded-full px-2.5 py-1 text-xs font-extrabold ${tx.type === "Income" ? "bg-[#edfdf4] text-[#0a9255]" : "bg-[#fff1f1] text-[#d84d5b]"}`}>
-                      {tx.type}
-                    </span>
-                  </div>
-                  <p className="text-sm font-bold text-foreground dark:text-white">{tx.description}</p>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-muted-foreground">{tx.category}</span>
-                    <span className={`text-sm font-extrabold ${tx.type === "Income" ? "text-success" : "text-destructive"}`}>
-                      {tx.type === "Income" ? "+" : "-"}{formatINR(tx.amount)}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="rounded-full bg-accent px-2 py-0.5 text-xs font-extrabold text-accent-foreground">{tx.status}</span>
-                  </div>
-                </div>
-              )) : (
-                <div className="px-5 py-8 text-center text-sm font-semibold text-muted-foreground">
-                  {loading ? "Loading transactions..." : "No transactions for this range."}
-                </div>
-              )}
-            </div>
-            {/* Loading skeleton shown only during first load when no transactions exist */}
-            {loading && transactions.length === 0 && (
-              <div className="hidden md:block">
-                {[1,2,3].map((i) => (
-                  <div key={`skeleton-${i}`} className="flex items-center gap-4 border-t border-border px-5 py-4 animate-pulse">
-                    <div className="h-4 w-20 rounded bg-muted" />
-                    <div className="h-6 w-16 rounded-full bg-muted" />
-                    <div className="h-4 flex-1 rounded bg-muted" />
-                    <div className="h-4 w-16 rounded bg-muted" />
-                    <div className="h-4 w-20 rounded bg-muted" />
-                    <div className="h-6 w-16 rounded-full bg-muted" />
-                  </div>
-                ))}
-              </div>
-            )}
-            {transactions.length > TRANSACTIONS_PER_PAGE && (
-              <div className="flex flex-col gap-3 border-t border-border px-5 py-4 text-sm font-bold text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
-                <span>
-                  Showing {transactionStart + 1}-{Math.min(transactionStart + TRANSACTIONS_PER_PAGE, transactions.length)} of {transactions.length}
-                </span>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    className="rounded-xl border border-border bg-muted px-3 py-2 text-xs font-extrabold text-foreground transition hover:bg-card disabled:cursor-not-allowed disabled:opacity-50"
-                    disabled={currentTransactionPage <= 1}
-                    onClick={() => setTransactionPage((page) => Math.max(1, page - 1))}
-                  >
-                    Previous
-                  </button>
-                  <span className="px-2 text-xs font-extrabold">
-                    Page {currentTransactionPage} of {transactionPageCount}
-                  </span>
-                  <button
-                    type="button"
-                    className="rounded-xl border border-border bg-muted px-3 py-2 text-xs font-extrabold text-foreground transition hover:bg-card disabled:cursor-not-allowed disabled:opacity-50"
-                    disabled={currentTransactionPage >= transactionPageCount}
-                    onClick={() => setTransactionPage((page) => Math.min(transactionPageCount, page + 1))}
-                  >
-                    Next
-                  </button>
-                </div>
-              </div>
-            )}
-          </article>
-
+        <div className="rounded-2xl border border-[#e2e8f0] bg-white p-4 shadow-sm">
+          <h4 className="mb-3 text-xs font-extrabold uppercase tracking-wide text-[#64748b]">Expense Breakdown</h4>
+          {renderExpenseBreakdown()}
         </div>
       </div>
-    </section>
+    </div>
   );
-}
 
-function IconButton({
-  label,
-  children,
-  disabled = false,
-  onClick
-}: {
-  label: string;
-  children: ReactNode;
-  disabled?: boolean;
-  onClick?: () => void;
-}) {
+  const renderCollectionTab = () => (
+    <div className="rounded-2xl border border-[#e2e8f0] bg-white p-6 shadow-sm">
+      <h3 className="text-base font-extrabold text-[#1e293b]">Fee Collection</h3>
+      <p className="mt-1 text-sm text-[#64748b]">Search student, view fee summary, and collect payment.</p>
+      <div className="mt-5">
+        <Link href="/admin/payments" className="inline-flex items-center gap-2 rounded-xl bg-[#2563eb] px-5 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-[#1d4ed8] transition-colors">
+          <ReceiptIndianRupee size={17} />
+          Go to Payment Page
+        </Link>
+      </div>
+    </div>
+  );
+
+  const renderPaymentsTab = () => (
+    <FinanceEmptyState
+      icon={<CreditCard size={40} />}
+      title="Payment History"
+      description="View and manage all fee payments with filters."
+      action={<Link href="/admin/payments" className="inline-flex items-center gap-2 rounded-xl bg-[#2563eb] px-4 py-2 text-sm font-bold text-white hover:bg-[#1d4ed8] transition-colors"><ReceiptIndianRupee size={16} />View Payments</Link>}
+    />
+  );
+
+  const renderDuesTab = () => {
+    const classes = data?.duesByClass ?? [];
+    return (
+      <div>
+        <h3 className="mb-4 text-sm font-extrabold text-[#1e293b]">Class-wise Dues</h3>
+        {classes.length === 0 && !loading ? (
+          <FinanceEmptyState icon={<Users size={40} />} title="No dues found" description="All students are up to date with fee payments." />
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {classes.map((c) => (
+              <div key={c.className} className="rounded-2xl border border-[#e2e8f0] bg-white p-4 shadow-sm hover:shadow-md transition-shadow">
+                <p className="text-sm font-extrabold text-[#1e293b]">{formatLabel(c.className)}</p>
+                <p className="mt-3 text-2xl font-extrabold text-[#dc2626]">{formatINR(c.dueAmount)}</p>
+                <p className="mt-1 text-xs text-[#64748b]">{c.dueCount} of {c.total} students due</p>
+                <button className="mt-3 w-full rounded-xl border border-[#e2e8f0] px-3 py-2 text-xs font-bold text-[#2563eb] hover:bg-[#f8fafc] transition-colors">View Details</button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderExpensesTab = () => (
+    <FinanceEmptyState
+      icon={<FileText size={40} />}
+      title="Expense Management"
+      description="Track, approve, and manage all school expenses."
+      action={<Link href="/admin/finance/expenses" className="inline-flex items-center gap-2 rounded-xl bg-[#2563eb] px-4 py-2 text-sm font-bold text-white hover:bg-[#1d4ed8] transition-colors"><TrendingDown size={16} />Manage Expenses</Link>}
+    />
+  );
+
+  const renderSettlementsTab = () => (
+    <FinanceEmptyState
+      icon={<ClipboardList size={40} />}
+      title="Daily Settlements"
+      description="Verify cash, UPI, and bank transfers for daily closing."
+      action={<button className="rounded-xl bg-[#2563eb] px-4 py-2 text-sm font-bold text-white hover:bg-[#1d4ed8] transition-colors">Create Settlement</button>}
+    />
+  );
+
+  const renderReceiptsTab = () => (
+    <FinanceEmptyState
+      icon={<Receipt size={40} />}
+      title="Receipt Management"
+      description="Search, reprint, or cancel receipts as needed."
+      action={<Link href="/admin/finance/receipts" className="inline-flex items-center gap-2 rounded-xl bg-[#2563eb] px-4 py-2 text-sm font-bold text-white hover:bg-[#1d4ed8] transition-colors"><Receipt size={16} />Manage Receipts</Link>}
+    />
+  );
+
+  const renderTransfersTab = () => (
+    <FinanceEmptyState
+      icon={<Banknote size={40} />}
+      title="Bank Transfers"
+      description="Verify and approve pending UTR / bank payments."
+      action={<button className="rounded-xl bg-[#2563eb] px-4 py-2 text-sm font-bold text-white hover:bg-[#1d4ed8] transition-colors">Refresh Transfers</button>}
+    />
+  );
+
+  const renderReportsTab = () => (
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      {[
+        { icon: <FileText size={20} />, title: "Daily Collection Report", desc: "Day-wise fee collection summary" },
+        { icon: <BookOpen size={20} />, title: "Class-wise Collection", desc: "Fee collection grouped by class" },
+        { icon: <Users size={20} />, title: "Student-wise Ledger", desc: "Individual student fee ledger" },
+        { icon: <AlertCircle size={20} />, title: "Dues Report", desc: "All pending fee dues" },
+        { icon: <TrendingDown size={20} />, title: "Defaulters Report", desc: "Students with overdue fees" },
+        { icon: <FileText size={20} />, title: "Expense Report", desc: "Category-wise expense breakdown" },
+        { icon: <Wallet size={20} />, title: "Cash Book", desc: "Daily cash inflow & outflow" },
+        { icon: <TrendingUp size={20} />, title: "Profit & Loss", desc: "Income vs expense summary" },
+        { icon: <CreditCard size={20} />, title: "Trial Balance", desc: "Accounts trial balance" },
+      ].map((r) => (
+        <div key={r.title} className="rounded-2xl border border-[#e2e8f0] bg-white p-4 shadow-sm hover:shadow-md transition-all cursor-pointer">
+          <div className="flex items-start gap-3">
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[#eff6ff] text-[#2563eb]">{r.icon}</span>
+            <div>
+              <p className="text-sm font-extrabold text-[#1e293b]">{r.title}</p>
+              <p className="text-xs text-[#64748b]">{r.desc}</p>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+
+  const tabContent: Record<string, () => React.ReactNode> = {
+    overview: renderOverview,
+    collection: renderCollectionTab,
+    payments: renderPaymentsTab,
+    dues: renderDuesTab,
+    expenses: renderExpensesTab,
+    settlements: renderSettlementsTab,
+    receipts: renderReceiptsTab,
+    transfers: renderTransfersTab,
+    reports: renderReportsTab,
+  };
+
   return (
-    <button
-      type="button"
-      aria-label={label}
-      title={label}
-      disabled={disabled}
-      onClick={onClick}
-      className="grid h-10 w-10 place-items-center rounded-xl border border-border bg-muted text-accent-number transition hover:bg-card hover:shadow-[0_8px_18px_rgba(44,48,143,0.10)] disabled:cursor-not-allowed disabled:opacity-50"
+    <FinanceShell
+      title="Fees & Finance"
+      description="Manage fee collection, dues, expenses, receipts, and reports."
+      action={
+        <div className="flex items-center gap-2">
+          <select
+            className="h-9 rounded-xl border border-[#e2e8f0] bg-white px-3 text-xs font-bold text-[#1e293b]"
+            value={rangeMode}
+            onChange={(e) => setRangeMode(e.target.value as RangeMode)}
+          >
+            <option value="month">This Month</option>
+            <option value="quarter">This Quarter</option>
+            <option value="year">This Year</option>
+          </select>
+          <button
+            onClick={loadDashboard}
+            disabled={loading}
+            className="grid h-9 w-9 place-items-center rounded-xl border border-[#e2e8f0] bg-white text-[#64748b] hover:bg-[#f8fafc] transition-colors disabled:opacity-50"
+          >
+            <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
+          </button>
+          <button
+            onClick={exportTransactions}
+            disabled={!transactions.length}
+            className="grid h-9 w-9 place-items-center rounded-xl border border-[#e2e8f0] bg-white text-[#64748b] hover:bg-[#f8fafc] transition-colors disabled:opacity-50"
+          >
+            <Download size={16} />
+          </button>
+        </div>
+      }
     >
-      {children}
-    </button>
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
+        {summaryCards.map((card) => (
+          <FinanceStatCard key={card.label} {...card} />
+        ))}
+      </div>
+
+      <FinanceActionBar actions={quickActions} />
+
+      {error && (
+        <div className="flex items-center gap-3 rounded-2xl border border-[#fecaca] bg-[#fef2f2] px-4 py-3 text-sm font-semibold text-[#dc2626]">
+          <AlertCircle size={17} />
+          <span className="flex-1">{error}</span>
+          <button onClick={loadDashboard} className="rounded-lg border border-[#fecaca] px-3 py-1 text-xs font-bold hover:bg-[#fee2e2] transition-colors">Retry</button>
+        </div>
+      )}
+
+      {loading && !data && (
+        <div className="flex items-center justify-center rounded-2xl border border-[#e2e8f0] bg-white p-12">
+          <div className="flex items-center gap-3 text-[#64748b]">
+            <RefreshCw size={20} className="animate-spin" />
+            <span className="text-sm font-bold">Loading finance data...</span>
+          </div>
+        </div>
+      )}
+
+      {data && (
+        <>
+          <FinanceTabs tabs={FINANCE_TABS} active={activeTab} onChange={setActiveTab} />
+          <div className="mt-2">
+            {tabContent[activeTab]?.() ?? renderOverview()}
+          </div>
+        </>
+      )}
+    </FinanceShell>
   );
 }

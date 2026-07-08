@@ -1,6 +1,5 @@
-import { NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { requirePermission } from "@/lib/apiUtils";
+import { requirePermission, json } from "@/lib/apiUtils";
 import { createApprovalRequest } from "@/lib/approvalEngine";
 import { writeAuditLog } from "@/lib/auditLog";
 
@@ -9,23 +8,23 @@ import { writeAuditLog } from "@/lib/auditLog";
 // On approval (handled separately), the receipt status is updated and student balance reversed.
 export async function POST(req: Request, { params }: { params: { paymentId: string } }) {
   const token = await requirePermission(req, "fees.create");
-  if (!token) return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
+  if (!token) return json({ ok: false, error: "Access denied" }, { status: 403 });
 
   try {
     const { reason } = await req.json();
     if (!reason || typeof reason !== "string" || !reason.trim()) {
-      return NextResponse.json({ ok: false, error: "Cancellation reason is required" }, { status: 400 });
+      return json({ ok: false, error: "Cancellation reason is required" }, { status: 400 });
     }
 
     const db = adminDb();
     const paySnap = await db.collection("payments").doc(params.paymentId).get();
     if (!paySnap.exists) {
-      return NextResponse.json({ ok: false, error: "Payment not found" }, { status: 404 });
+      return json({ ok: false, error: "Payment not found" }, { status: 404 });
     }
 
     const payment = paySnap.data() as Record<string, unknown>;
     if (payment.status === "cancelled") {
-      return NextResponse.json({ ok: false, error: "Payment is already cancelled" }, { status: 400 });
+      return json({ ok: false, error: "Payment is already cancelled" }, { status: 400 });
     }
 
     // Store cancellation reason on payment
@@ -65,13 +64,14 @@ export async function POST(req: Request, { params }: { params: { paymentId: stri
       approvalId,
     });
 
-    return NextResponse.json({
+    return json({
       ok: true,
       approvalId,
       message: "Cancellation request submitted for approval.",
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to process cancellation request";
-    return NextResponse.json({ ok: false, error: message }, { status: 500 });
+    return json({ ok: false, error: message }, { status: 500 });
   }
 }
+

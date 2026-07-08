@@ -18,7 +18,7 @@ type ForceRefreshUser = {
  * is still a valid, signed token and its claims are almost always current
  * (roles change rarely). Without this fallback the forced refresh throws, the
  * caller can't resolve the role, and the user is wrongly bounced to
- * "access denied" / a stuck "Loading secure workspace…" screen.
+ * "access denied" / a stuck loading screen.
  */
 export async function refreshClaims(user: unknown): Promise<Record<string, unknown> | undefined> {
   if (!user) return undefined;

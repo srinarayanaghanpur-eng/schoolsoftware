@@ -1,6 +1,5 @@
-import { NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { requirePermission } from "@/lib/apiUtils";
+import { requirePermission, json } from "@/lib/apiUtils";
 import { docDateKey, inRange } from "@/lib/financeUtils";
 import { logFirestoreRead } from "@/lib/firestoreReadLogger";
 
@@ -8,7 +7,7 @@ type Breakdown = { label: string; amount: number };
 
 export async function GET(req: Request) {
   const token = await requirePermission(req, "fees.view");
-  if (!token) return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
+  if (!token) return json({ ok: false, error: "Access denied" }, { status: 403 });
 
   const { searchParams } = new URL(req.url);
   const now = new Date();
@@ -77,7 +76,7 @@ export async function GET(req: Request) {
   const totalExpense = expenseBreakdown.reduce((s, g) => s + g.amount, 0);
   const netProfit = totalIncome - totalExpense;
 
-  return NextResponse.json({
+  return json({
     ok: true,
     from: from || "all",
     to: to || "all",
@@ -86,3 +85,4 @@ export async function GET(req: Request) {
     netProfit
   });
 }
+

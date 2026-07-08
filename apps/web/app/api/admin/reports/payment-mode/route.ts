@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { adminDb } from "@/lib/firebaseAdmin";
 import { QueryDocumentSnapshot } from "firebase-admin/firestore";
-import { requirePermission } from "@/lib/apiUtils";
+import { requirePermission, json } from "@/lib/apiUtils";
 import { logFirestoreRead } from "@/lib/firestoreReadLogger";
 
 export const dynamic = "force-dynamic";
@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
 export async function GET(request: NextRequest) {
   try {
     const auth = await requirePermission(request, "reports.view");
-    if (!auth) return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+    if (!auth) return json({ success: false, error: "Unauthorized" }, { status: 401 });
 
     const db = adminDb();
     const searchParams = request.nextUrl.searchParams;
@@ -50,9 +50,10 @@ export async function GET(request: NextRequest) {
       }))
       .sort((a, b) => b.totalCollected - a.totalCollected);
 
-    return NextResponse.json({ success: true, data });
+    return json({ success: true, data });
   } catch (error) {
     console.error("Error generating payment-mode report:", error);
-    return NextResponse.json({ success: false, error: "Failed to generate report" }, { status: 500 });
+    return json({ success: false, error: "Failed to generate report" }, { status: 500 });
   }
 }
+

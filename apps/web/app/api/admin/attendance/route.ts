@@ -1,8 +1,8 @@
-import { NextResponse } from "next/server";
 import { attendanceEditSchema } from "@sri-narayana/shared";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { requireAdmin, serializeDoc, startTimer } from "@/lib/apiUtils";
+import { requireAdmin, serializeDoc, startTimer, json } from "@/lib/apiUtils";
 import { docCursor, logFirestoreRead, readLimit } from "@/lib/firestoreReadLogger";
+import { markSummaryDirty } from "@/lib/markSummaryDirty";
 function chunk<T>(items: T[], size: number) {
   const chunks: T[][] = [];
   for (let index = 0; index < items.length; index += size) {
@@ -16,20 +16,26 @@ export async function GET(req: Request) {
   try {
     const decodedToken = await requireAdmin(req);
     if (!decodedToken) {
-      return NextResponse.json({ ok: false, error: "Admin access required" }, { status: 403 });
+      return json({ ok: false, error: "Admin access required" }, { status: 403 });
     }
 
     const db = adminDb();
     const { searchParams } = new URL(req.url);
     const academicYearId = searchParams.get("academicYearId") || "";
     const schoolId = searchParams.get("schoolId") || "";
+    const teacherId = searchParams.get("teacherId") || "";
+    const dateFrom = searchParams.get("dateFrom") || "";
+    const dateTo = searchParams.get("dateTo") || "";
+    const status = searchParams.get("status") || "";
     const pageSize = readLimit(searchParams.get("pageSize") ?? searchParams.get("limit"), 25, 100);
     const cursor = docCursor(searchParams.get("cursor"));
 
+    // Use the most selective indexed field as the primary query filter.
+    // All secondary filters are applied in API code to avoid composite indexes.
     let attendanceQuery: FirebaseFirestore.Query = db.collection("attendance");
-    // Avoid a required composite index for academicYearId + schoolId + date.
-    // Query one scoped field, then apply the remaining scope and date sort in API code.
-    if (academicYearId) {
+    if (teacherId) {
+      attendanceQuery = attendanceQuery.where("teacherId", "==", teacherId);
+    } else if (academicYearId) {
       attendanceQuery = attendanceQuery.where("academicYearId", "==", academicYearId);
     } else if (schoolId) {
       attendanceQuery = attendanceQuery.where("schoolId", "==", schoolId);
@@ -46,13 +52,17 @@ export async function GET(req: Request) {
       db.collection("attendance_edit_audit_logs").orderBy("editedAt", "desc").limit(50).get()
     ]);
     const dbMs = dbTimer();
-    logFirestoreRead("AttendanceAPI", "attendance", attendanceSnapshot, { academicYearId, schoolId, pageSize });
+    logFirestoreRead("AttendanceAPI", "attendance", attendanceSnapshot, { academicYearId, schoolId, teacherId, dateFrom, dateTo, status, pageSize });
 
+    // Apply remaining scope filters + secondary filters in API code
     const scopedDocs = attendanceSnapshot.docs
       .filter((doc) => {
         const data = doc.data();
-        if (academicYearId && data.academicYearId !== academicYearId) return false;
-        if (schoolId && data.schoolId !== schoolId) return false;
+        if (!teacherId && academicYearId && data.academicYearId !== academicYearId) return false;
+        if (!teacherId && schoolId && data.schoolId !== schoolId) return false;
+        if (dateFrom && data.date < dateFrom) return false;
+        if (dateTo && data.date > dateTo) return false;
+        if (status && status !== "all" && data.status !== status) return false;
         return true;
       })
       .sort((a, b) => String(b.data().date ?? "").localeCompare(String(a.data().date ?? "")));
@@ -82,9 +92,9 @@ export async function GET(req: Request) {
       : [];
 
     const totalMs = totalTimer();
-    if (process.env.NODE_ENV === "development") console.log(`[API] /api/admin/attendance - DB: ${dbMs}ms, Total: ${totalMs}ms, Records: ${records.length}, Teachers: ${teacherDocs.length}`);
+    if (process.env.NODE_ENV === "development") console.log(`[API] /api/admin/attendance - DB: ${dbMs}ms, Total: ${totalMs}ms, Records: ${records.length}, Teachers: ${teacherDocs.length}, Filters: ${JSON.stringify({ teacherId, dateFrom, dateTo, status })}`);
 
-    return NextResponse.json({
+    return json({
       ok: true,
       records,
       teachers: teacherDocs.map((doc) => serializeDoc(doc)),
@@ -96,7 +106,7 @@ export async function GET(req: Request) {
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to load attendance";
-    return NextResponse.json({ ok: false, error: message }, { status: 400 });
+    return json({ ok: false, error: message }, { status: 400 });
   }
 }
 
@@ -104,7 +114,7 @@ export async function PATCH(req: Request) {
   try {
     const decodedToken = await requireAdmin(req);
     if (!decodedToken) {
-      return NextResponse.json({ ok: false, error: "Admin access required" }, { status: 403 });
+      return json({ ok: false, error: "Admin access required" }, { status: 403 });
     }
 
     const parsed = attendanceEditSchema.parse(await req.json());
@@ -160,9 +170,10 @@ export async function PATCH(req: Request) {
       });
     });
 
-    return NextResponse.json({ ok: true, message: "Attendance updated with audit trail." });
+    return json({ ok: true, message: "Attendance updated with audit trail." });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to update attendance";
-    return NextResponse.json({ ok: false, error: message }, { status: 400 });
+    return json({ ok: false, error: message }, { status: 400 });
   }
 }
+

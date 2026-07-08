@@ -4,7 +4,7 @@ import { AttendanceCalendar } from "@/components/AttendanceCalendar";
 import { LazyTeacherPieChart } from "@/components/LazyDashboardCharts";
 import { StatusBadge } from "@/components/StatusBadge";
 import { TeacherAttendancePanel } from "@/components/TeacherAttendancePanel";
-import { BrandLoader } from "@/components/BrandLoader";
+import AppLoader from "@/components/AppLoader";
 import { auth } from "@sri-narayana/shared/firebase/client";
 import { getAttendancePercentage, type AttendanceRecord, type Holiday, type Teacher } from "@sri-narayana/shared";
 import { signOut } from "firebase/auth";
@@ -125,7 +125,7 @@ export default function TeacherDashboardPage() {
   };
 
   if (loading) {
-    return <BrandLoader message="Preparing your attendance workspace…" />;
+    return <AppLoader message="Loading your attendance…" />;
   }
 
   if (error || !teacher) {

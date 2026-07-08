@@ -5,7 +5,7 @@ import { AuthGate } from "@/components/AuthGate";
 import { PageHeader } from "@/components/PageHeader";
 import { usePortalChild } from "@/components/PortalChildContext";
 import { adminApiRequest } from "@/lib/adminApiClient";
-import { ROLES } from "@sri-narayana/shared";
+import { ROLES, formatLabel } from "@sri-narayana/shared";
 import { BookOpenCheck, TrendingUp, Award } from "lucide-react";
 import { useEffect, useState } from "react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
@@ -166,7 +166,7 @@ function Examinations() {
                       {data.timetable.map((exam) => (
                         <tr key={exam.id} className="border-t border-border">
                           <td className="px-4 py-3 font-semibold text-foreground dark:text-white">{exam.name}</td>
-                          <td className="px-4 py-3 capitalize text-muted-foreground">{exam.examType.replace(/_/g, " ")}</td>
+                          <td className="px-4 py-3 text-muted-foreground">{formatLabel(exam.examType)}</td>
                           <td className="px-4 py-3 text-muted-foreground">{exam.startDate}</td>
                           <td className="px-4 py-3 text-muted-foreground">{exam.endDate || "--"}</td>
                           <td className="px-4 py-3">

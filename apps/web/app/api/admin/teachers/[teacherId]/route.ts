@@ -1,8 +1,7 @@
-import { NextResponse } from "next/server";
 import { FieldValue } from "firebase-admin/firestore";
 import { teacherLoginUpdateSchema, type LateDeductionMode, type EmploymentType } from "@sri-narayana/shared";
 import { adminAuth, adminDb } from "@/lib/firebaseAdmin";
-import { requireAdmin } from "@/lib/apiUtils";
+import { requireAdmin, json } from "@/lib/apiUtils";
 import { assertEmployeeIdAvailable, buildTeacherAuthProfile, serializeTeacherDoc } from "@/lib/teacherAdmin";
 
 function isLateDeductionMode(value: unknown): value is LateDeductionMode {
@@ -26,7 +25,7 @@ export async function PATCH(req: Request, { params }: { params: { teacherId: str
   try {
     const decodedToken = await requireAdmin(req);
     if (!decodedToken) {
-      return NextResponse.json({ ok: false, error: "Admin access required" }, { status: 403 });
+      return json({ ok: false, error: "Admin access required" }, { status: 403 });
     }
 
     const body = await req.json();
@@ -37,7 +36,7 @@ export async function PATCH(req: Request, { params }: { params: { teacherId: str
     const docRef = db.collection("teachers").doc(params.teacherId);
     const snapshot = await docRef.get();
     if (!snapshot.exists) {
-      return NextResponse.json({ ok: false, error: "Teacher not found" }, { status: 404 });
+      return json({ ok: false, error: "Teacher not found" }, { status: 404 });
     }
 
     const existing = snapshot.data() ?? {};
@@ -139,7 +138,7 @@ export async function PATCH(req: Request, { params }: { params: { teacherId: str
     ]);
 
     // Construct response from written data instead of reading again
-    return NextResponse.json({
+    return json({
       ok: true,
       message: "Teacher details updated successfully.",
       teacher: serializeTeacherDoc({ id: params.teacherId, exists: () => true, data: () => updatedTeacherData } as any)
@@ -149,6 +148,7 @@ export async function PATCH(req: Request, { params }: { params: { teacherId: str
     if (process.env.NODE_ENV === "development") {
       console.error("[TeacherEdit] Error:", error);
     }
-    return NextResponse.json({ ok: false, error: message }, { status: 400 });
+    return json({ ok: false, error: message }, { status: 400 });
   }
 }
+

@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { FieldValue } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { requirePermission } from "@/lib/apiUtils";
+import { requirePermission, json } from "@/lib/apiUtils";
 import { BUS_EMI_PAYMENTS_COLLECTION, derivePaymentStatus, recalcFinanceSummary } from "@/lib/busFinanceService";
 
 const VALID_MODES = new Set(["cash", "bank_transfer", "upi", "cheque", "other"]);
@@ -16,13 +16,13 @@ const VALID_STATUS = new Set(["pending", "paid", "partial", "overdue"]);
  */
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   const token = await requirePermission(req, "bus_finance.edit");
-  if (!token) return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
+  if (!token) return json({ ok: false, error: "Access denied" }, { status: 403 });
 
   try {
     const db = adminDb();
     const ref = db.collection(BUS_EMI_PAYMENTS_COLLECTION).doc(params.id);
     const snap = await ref.get();
-    if (!snap.exists) return NextResponse.json({ ok: false, error: "EMI record not found" }, { status: 404 });
+    if (!snap.exists) return json({ ok: false, error: "EMI record not found" }, { status: 404 });
 
     const existing = snap.data() as Record<string, unknown>;
     const body = await req.json();
@@ -39,7 +39,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     if (body.paymentDate !== undefined) update.paymentDate = body.paymentDate ? String(body.paymentDate) : null;
     if (body.paymentMode !== undefined) {
       if (body.paymentMode && !VALID_MODES.has(String(body.paymentMode))) {
-        return NextResponse.json({ ok: false, error: "Invalid payment mode" }, { status: 400 });
+        return json({ ok: false, error: "Invalid payment mode" }, { status: 400 });
       }
       update.paymentMode = body.paymentMode || null;
     }
@@ -63,10 +63,10 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     await recalcFinanceSummary(String(existing.busFinanceId));
 
     const fresh = await ref.get();
-    return NextResponse.json({ ok: true, payment: { id: fresh.id, ...fresh.data() } });
+    return json({ ok: true, payment: { id: fresh.id, ...fresh.data() } });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to update EMI payment";
-    return NextResponse.json({ ok: false, error: message }, { status: 400 });
+    return json({ ok: false, error: message }, { status: 400 });
   }
 }
 
@@ -76,21 +76,22 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
  */
 export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
   const token = await requirePermission(req, "bus_finance.delete");
-  if (!token) return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
+  if (!token) return json({ ok: false, error: "Access denied" }, { status: 403 });
 
   try {
     const db = adminDb();
     const ref = db.collection(BUS_EMI_PAYMENTS_COLLECTION).doc(params.id);
     const snap = await ref.get();
-    if (!snap.exists) return NextResponse.json({ ok: false, error: "EMI record not found" }, { status: 404 });
+    if (!snap.exists) return json({ ok: false, error: "EMI record not found" }, { status: 404 });
 
     const busFinanceId = String((snap.data() as Record<string, unknown>).busFinanceId);
     await ref.delete();
     await recalcFinanceSummary(busFinanceId);
 
-    return NextResponse.json({ ok: true });
+    return json({ ok: true });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to delete EMI payment";
-    return NextResponse.json({ ok: false, error: message }, { status: 500 });
+    return json({ ok: false, error: message }, { status: 500 });
   }
 }
+

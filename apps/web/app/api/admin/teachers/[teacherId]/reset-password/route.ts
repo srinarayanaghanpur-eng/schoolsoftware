@@ -1,14 +1,13 @@
-import { NextResponse } from "next/server";
 import { FieldValue } from "firebase-admin/firestore";
 import { passwordResetSchema } from "@sri-narayana/shared";
 import { adminAuth, adminDb } from "@/lib/firebaseAdmin";
-import { errorMessage, requireAdmin } from "@/lib/apiUtils";
+import { errorMessage, requireAdmin, json } from "@/lib/apiUtils";
 
 export async function POST(req: Request, { params }: { params: { teacherId: string } }) {
   try {
     const decodedToken = await requireAdmin(req);
     if (!decodedToken) {
-      return NextResponse.json({ ok: false, error: "Admin access required" }, { status: 403 });
+      return json({ ok: false, error: "Admin access required" }, { status: 403 });
     }
 
     const body = await req.json();
@@ -16,7 +15,7 @@ export async function POST(req: Request, { params }: { params: { teacherId: stri
     const docRef = adminDb().collection("teachers").doc(params.teacherId);
     const snapshot = await docRef.get();
     if (!snapshot.exists) {
-      return NextResponse.json({ ok: false, error: "Teacher not found" }, { status: 404 });
+      return json({ ok: false, error: "Teacher not found" }, { status: 404 });
     }
 
     const teacherData = snapshot.data();
@@ -59,8 +58,9 @@ export async function POST(req: Request, { params }: { params: { teacherId: stri
       createdBy: decodedToken.uid
     });
 
-    return NextResponse.json({ ok: true, message: "Teacher password reset successfully." });
+    return json({ ok: true, message: "Teacher password reset successfully." });
   } catch (error) {
-    return NextResponse.json({ ok: false, error: errorMessage(error, "Unable to reset password") }, { status: 400 });
+    return json({ ok: false, error: errorMessage(error, "Unable to reset password") }, { status: 400 });
   }
 }
+

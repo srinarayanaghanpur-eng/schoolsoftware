@@ -107,12 +107,6 @@ function parseTimeToMinutes(time: string | undefined, fallbackMinutes: number): 
   return Number(match[1]) * 60 + Number(match[2]);
 }
 
-// Server-side TTL cache: the dashboard is `force-dynamic`, so without this
-// every navigation re-runs every aggregate/list query. 60s staleness is fine
-// for overview stats and cuts Firestore reads for repeat visits to zero.
-const DASHBOARD_CACHE_MS = 60_000;
-let dashboardCache: { key: string; data: DashboardData; at: number } | null = null;
-
 /** Active academic year id — money figures are scoped to it so old-year or
  *  leftover summary docs can't inflate the dashboard. */
 async function getActiveAcademicYearId(db: FirebaseFirestore.Firestore): Promise<string> {
@@ -124,15 +118,35 @@ async function getActiveAcademicYearId(db: FirebaseFirestore.Firestore): Promise
   }
 }
 
+/** Check the sync document: if clean (no mutations since last rebuild) and a
+ *  pre-built summary exists, serve that. Otherwise rebuild from aggregates. */
 async function loadDashboard(): Promise<DashboardData> {
   const db = adminDb();
   const yearId = await getActiveAcademicYearId(db);
-  if (dashboardCache && dashboardCache.key === yearId && Date.now() - dashboardCache.at < DASHBOARD_CACHE_MS) {
-    return dashboardCache.data;
+
+  try {
+    const syncSnap = await db.collection("sync").doc("dashboard_summary").get();
+    const syncData = syncSnap.data();
+    if (syncData) {
+      const dirtyAt = syncData.dirtyAt?.toDate?.() ?? null;
+      const cleanAt = syncData.cleanAt?.toDate?.() ?? null;
+      const isClean = cleanAt && (!dirtyAt || dirtyAt.getTime() <= cleanAt.getTime());
+
+      if (isClean) {
+        const summarySnap = await db.collection("dashboardSummaries").doc("current").get();
+        if (summarySnap.exists) {
+          const summary = summarySnap.data()! as unknown as DashboardData;
+          if (summary.totalStudents !== undefined) {
+            return summary;
+          }
+        }
+      }
+    }
+  } catch {
+    // sync doc missing or malformed — fall through to rebuild
   }
-  const data = await loadDashboardUncached(yearId);
-  dashboardCache = { key: yearId, data, at: Date.now() };
-  return data;
+
+  return loadDashboardUncached(yearId);
 }
 
 async function loadDashboardUncached(yearId: string): Promise<DashboardData> {
@@ -155,7 +169,8 @@ async function loadDashboardUncached(yearId: string): Promise<DashboardData> {
   const activeTeachersCountQuery = db.collection("teachers").where("status", "==", "active").count();
   const feeTotalsQuery = scoped(db.collection("studentFeeSummaries")).aggregate({
     totalFeeAmount: AggregateField.sum("totalFee"),
-    feesOutstanding: AggregateField.sum("dueAmount")
+    feesOutstanding: AggregateField.sum("dueAmount"),
+    totalPaid: AggregateField.sum("totalPaid")
   });
   const studentsPendingQuery = scoped(db.collection("studentFeeSummaries")).where("dueAmount", ">", 0).count();
   const feesCollectedQuery = scoped(db.collection("financeSummaries")).aggregate({
@@ -206,7 +221,7 @@ async function loadDashboardUncached(yearId: string): Promise<DashboardData> {
   const totalFeeAmount = Number(feeTotals.totalFeeAmount || 0);
   const feesOutstanding = Number(feeTotals.feesOutstanding || 0);
   const studentsPending = Number(studentsPendingSnap?.data().count || 0);
-  const feesCollected = Number(feesCollectedSnap?.data().feesCollected || 0);
+  const feesCollected = Number(feesCollectedSnap?.data().feesCollected || feeTotals.totalPaid || 0);
   const feesCollectedToday = Number(feesCollectedTodaySnap?.data().feesCollectedToday || 0);
 
   const present = (status?: string) => status === "present" || status === "late";
@@ -262,7 +277,7 @@ async function loadDashboardUncached(yearId: string): Promise<DashboardData> {
     // settings unavailable → keep "Pending" wording
   }
 
-  return {
+  const result: DashboardData = {
     totalStudents,
     totalTeachers,
     presentToday,
@@ -276,6 +291,17 @@ async function loadDashboardUncached(yearId: string): Promise<DashboardData> {
     notices,
     attendanceCutoffPassed
   };
+
+  // Persist to dashboardSummaries so subsequent loads skip the aggregate queries
+  // until the next mutation marks the summary dirty.
+  try {
+    await db.collection("dashboardSummaries").doc("current").set(result as Record<string, unknown>, { merge: true });
+    await db.collection("sync").doc("dashboard_summary").set({ cleanAt: new Date() }, { merge: true });
+  } catch {
+    // non-critical — next load will rebuild
+  }
+
+  return result;
 }
 
 function MetricCard({

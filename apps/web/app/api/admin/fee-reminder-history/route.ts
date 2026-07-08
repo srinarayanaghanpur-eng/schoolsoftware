@@ -1,7 +1,6 @@
-import { NextResponse } from "next/server";
 import { FieldValue } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { requirePermission, serializeDoc, errorMessage } from "@/lib/apiUtils";
+import { requirePermission, serializeDoc, errorMessage, json } from "@/lib/apiUtils";
 import { getSchoolId } from "@/lib/schoolScope";
 import { logFirestoreRead, readLimit } from "@/lib/firestoreReadLogger";
 
@@ -18,12 +17,12 @@ function timeValue(value: unknown) {
 export async function GET(req: Request) {
   try {
     const token = await requirePermission(req, "fees.view");
-    if (!token) return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
+    if (!token) return json({ ok: false, error: "Access denied" }, { status: 403 });
 
     const url = new URL(req.url);
     const studentId = url.searchParams.get("studentId")?.trim() || "";
     if (!studentId) {
-      return NextResponse.json({ ok: false, error: "studentId is required" }, { status: 400 });
+      return json({ ok: false, error: "studentId is required" }, { status: 400 });
     }
     const academicYearId = url.searchParams.get("academicYearId") || "";
     const pageSize = readLimit(url.searchParams.get("pageSize"), 25, 100);
@@ -57,8 +56,9 @@ export async function GET(req: Request) {
     const history = pageDocs.map((doc) => serializeDoc(doc));
     const nextCursor = startIndex + pageSize < docs.length && pageDocs.length > 0 ? pageDocs[pageDocs.length - 1].id : null;
 
-    return NextResponse.json({ ok: true, history, studentInfo, pageSize, nextCursor, hasMore: Boolean(nextCursor) });
+    return json({ ok: true, history, studentInfo, pageSize, nextCursor, hasMore: Boolean(nextCursor) });
   } catch (error) {
-    return NextResponse.json({ ok: false, error: errorMessage(error) }, { status: 400 });
+    return json({ ok: false, error: errorMessage(error) }, { status: 400 });
   }
 }
+

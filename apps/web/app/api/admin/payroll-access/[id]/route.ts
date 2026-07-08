@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { json } from "@/lib/apiUtils";
 import { FieldValue } from "firebase-admin/firestore";
 import { adminDb, verifyBearerToken } from "@/lib/firebaseAdmin";
 import {
@@ -25,19 +25,19 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   const token = await verifyBearerToken(req);
   const role = getPayrollRole(token);
   if (!token || role !== "super_admin") {
-    return NextResponse.json({ ok: false, error: "Admin access required" }, { status: 403 });
+    return json({ ok: false, error: "Admin access required" }, { status: 403 });
   }
 
   const body = await req.json().catch(() => ({}));
   const action = body?.action === "approve" ? "approve" : body?.action === "reject" ? "reject" : "";
   if (!action) {
-    return NextResponse.json({ ok: false, error: "Action must be approve or reject" }, { status: 400 });
+    return json({ ok: false, error: "Action must be approve or reject" }, { status: 400 });
   }
 
   const docRef = adminDb().collection(PAYROLL_ACCESS_REQUEST_COLLECTION).doc(params.id);
   const snapshot = await docRef.get();
   if (!snapshot.exists) {
-    return NextResponse.json({ ok: false, error: "Payroll approval request not found" }, { status: 404 });
+    return json({ ok: false, error: "Payroll approval request not found" }, { status: 404 });
   }
 
   const now = new Date().toISOString();
@@ -68,5 +68,5 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     metadata: { adminNote }
   });
 
-  return NextResponse.json({ ok: true, id: params.id, status: nextStatus });
+  return json({ ok: true, id: params.id, status: nextStatus });
 }

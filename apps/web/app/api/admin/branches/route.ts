@@ -1,5 +1,4 @@
-import { NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/apiUtils";
+import { requireAdmin, json } from "@/lib/apiUtils";
 import { getBranchById, getBranches, createBranch, updateBranch } from "@/lib/branchContext";
 import { writeAuditLog } from "@/lib/auditLog";
 
@@ -11,14 +10,14 @@ export async function GET(req: Request) {
   try {
     const decodedToken = await requireAdmin(req);
     if (!decodedToken) {
-      return NextResponse.json({ ok: false, error: "Admin access required" }, { status: 403 });
+      return json({ ok: false, error: "Admin access required" }, { status: 403 });
     }
 
     const branches = await getBranches();
-    return NextResponse.json({ ok: true, branches });
+    return json({ ok: true, branches });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to load branches";
-    return NextResponse.json({ ok: false, error: message }, { status: 400 });
+    return json({ ok: false, error: message }, { status: 400 });
   }
 }
 
@@ -26,7 +25,7 @@ export async function POST(req: Request) {
   try {
     const decodedToken = await requireAdmin(req);
     if (!decodedToken) {
-      return NextResponse.json({ ok: false, error: "Admin access required" }, { status: 403 });
+      return json({ ok: false, error: "Admin access required" }, { status: 403 });
     }
 
     const body = await req.json();
@@ -36,12 +35,12 @@ export async function POST(req: Request) {
     const cleanCode = cleanString(code);
 
     if (!cleanName || !cleanCode) {
-      return NextResponse.json({ ok: false, error: "Name and code are required" }, { status: 400 });
+      return json({ ok: false, error: "Name and code are required" }, { status: 400 });
     }
 
     const existing = await getBranches();
     if (existing.some((branch) => branch.code.toLowerCase() === cleanCode.toLowerCase())) {
-      return NextResponse.json({ ok: false, error: "A branch with this code already exists" }, { status: 409 });
+      return json({ ok: false, error: "A branch with this code already exists" }, { status: 409 });
     }
 
     const id = await createBranch({
@@ -62,10 +61,10 @@ export async function POST(req: Request) {
       newValues: { name: cleanName, code: cleanCode }
     });
 
-    return NextResponse.json({ ok: true, id, message: "Branch created." });
+    return json({ ok: true, id, message: "Branch created." });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to create branch";
-    return NextResponse.json({ ok: false, error: message }, { status: 400 });
+    return json({ ok: false, error: message }, { status: 400 });
   }
 }
 
@@ -73,29 +72,29 @@ export async function PATCH(req: Request) {
   try {
     const decodedToken = await requireAdmin(req);
     if (!decodedToken) {
-      return NextResponse.json({ ok: false, error: "Admin access required" }, { status: 403 });
+      return json({ ok: false, error: "Admin access required" }, { status: 403 });
     }
 
     const body = await req.json();
     const id = cleanString(body.id);
     if (!id) {
-      return NextResponse.json({ ok: false, error: "Branch id is required" }, { status: 400 });
+      return json({ ok: false, error: "Branch id is required" }, { status: 400 });
     }
 
     const current = await getBranchById(id);
     if (!current) {
-      return NextResponse.json({ ok: false, error: "Branch not found" }, { status: 404 });
+      return json({ ok: false, error: "Branch not found" }, { status: 404 });
     }
 
     const nextName = body.name === undefined ? current.name : cleanString(body.name);
     const nextCode = body.code === undefined ? current.code : cleanString(body.code);
     if (!nextName || !nextCode) {
-      return NextResponse.json({ ok: false, error: "Name and code are required" }, { status: 400 });
+      return json({ ok: false, error: "Name and code are required" }, { status: 400 });
     }
 
     const existing = await getBranches();
     if (existing.some((branch) => branch.id !== id && branch.code.toLowerCase() === nextCode.toLowerCase())) {
-      return NextResponse.json({ ok: false, error: "A branch with this code already exists" }, { status: 409 });
+      return json({ ok: false, error: "A branch with this code already exists" }, { status: 409 });
     }
 
     const updates = {
@@ -118,9 +117,10 @@ export async function PATCH(req: Request) {
       newValues: updates
     });
 
-    return NextResponse.json({ ok: true, message: "Branch updated." });
+    return json({ ok: true, message: "Branch updated." });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to update branch";
-    return NextResponse.json({ ok: false, error: message }, { status: 400 });
+    return json({ ok: false, error: message }, { status: 400 });
   }
 }
+

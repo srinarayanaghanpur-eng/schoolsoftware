@@ -1,8 +1,7 @@
-import { NextResponse } from "next/server";
 import { FieldValue } from "firebase-admin/firestore";
 import type { Holiday, Role } from "@sri-narayana/shared";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { requireRole, serializeDoc, errorMessage } from "@/lib/apiUtils";
+import { requireRole, serializeDoc, errorMessage, json } from "@/lib/apiUtils";
 
 const MANAGEMENT_ROLES: Role[] = ["super_admin", "principal", "settings_manager"];
 
@@ -27,7 +26,7 @@ export async function GET(req: Request) {
   try {
     const decodedToken = await requireRole(req, MANAGEMENT_ROLES.concat("teacher"));
     if (!decodedToken) {
-      return NextResponse.json({ ok: false, error: "Access denied." }, { status: 403 });
+      return json({ ok: false, error: "Access denied." }, { status: 403 });
     }
 
     const url = new URL(req.url);
@@ -48,15 +47,15 @@ export async function GET(req: Request) {
     const holidays = snapshot.docs.map((doc) => serializeDoc<Holiday>(doc));
 
     if (branchId) {
-      return NextResponse.json({
+      return json({
         ok: true,
         holidays: holidays.filter((h) => !h.branchId || h.branchId === branchId || h.appliesToAllBranches)
       });
     }
 
-    return NextResponse.json({ ok: true, holidays });
+    return json({ ok: true, holidays });
   } catch (error) {
-    return NextResponse.json({ ok: false, error: errorMessage(error, "Unable to load holidays") }, { status: 400 });
+    return json({ ok: false, error: errorMessage(error, "Unable to load holidays") }, { status: 400 });
   }
 }
 
@@ -68,7 +67,7 @@ export async function POST(req: Request) {
   try {
     const decodedToken = await requireRole(req, MANAGEMENT_ROLES);
     if (!decodedToken) {
-      return NextResponse.json({ ok: false, error: "Only admins and principals can declare holidays." }, { status: 403 });
+      return json({ ok: false, error: "Only admins and principals can declare holidays." }, { status: 403 });
     }
 
     const body = await req.json();
@@ -89,7 +88,7 @@ export async function POST(req: Request) {
     if (existing.exists) {
       const data = existing.data() as Holiday;
       if (data.type === "management_declared" && data.isActive !== false) {
-        return NextResponse.json(
+        return json(
           { ok: false, error: `Holiday already declared for ${date}.` },
           { status: 409 }
         );
@@ -105,7 +104,7 @@ export async function POST(req: Request) {
         cancelledByUserId: FieldValue.delete(),
         cancelledAt: FieldValue.delete()
       }, { merge: true });
-      return NextResponse.json({ ok: true, holiday: { id: docRef.id, date, reason }, message: "Holiday reactivated." });
+      return json({ ok: true, holiday: { id: docRef.id, date, reason }, message: "Holiday reactivated." });
     }
 
     let declaredByName = "";
@@ -132,9 +131,9 @@ export async function POST(req: Request) {
       updatedAt: FieldValue.serverTimestamp()
     });
 
-    return NextResponse.json({ ok: true, holiday: { id: docRef.id, date, reason }, message: "Holiday declared." });
+    return json({ ok: true, holiday: { id: docRef.id, date, reason }, message: "Holiday declared." });
   } catch (error) {
-    return NextResponse.json({ ok: false, error: errorMessage(error, "Unable to declare holiday") }, { status: 400 });
+    return json({ ok: false, error: errorMessage(error, "Unable to declare holiday") }, { status: 400 });
   }
 }
 
@@ -146,7 +145,7 @@ export async function PATCH(req: Request) {
   try {
     const decodedToken = await requireRole(req, MANAGEMENT_ROLES);
     if (!decodedToken) {
-      return NextResponse.json({ ok: false, error: "Only admins and principals can edit holidays." }, { status: 403 });
+      return json({ ok: false, error: "Only admins and principals can edit holidays." }, { status: 403 });
     }
 
     const body = await req.json();
@@ -173,9 +172,9 @@ export async function PATCH(req: Request) {
 
     await docRef.set(updates, { merge: true });
 
-    return NextResponse.json({ ok: true, message: "Holiday updated." });
+    return json({ ok: true, message: "Holiday updated." });
   } catch (error) {
-    return NextResponse.json({ ok: false, error: errorMessage(error, "Unable to update holiday") }, { status: 400 });
+    return json({ ok: false, error: errorMessage(error, "Unable to update holiday") }, { status: 400 });
   }
 }
 
@@ -187,7 +186,7 @@ export async function DELETE(req: Request) {
   try {
     const decodedToken = await requireRole(req, MANAGEMENT_ROLES);
     if (!decodedToken) {
-      return NextResponse.json({ ok: false, error: "Only admins and principals can cancel holidays." }, { status: 403 });
+      return json({ ok: false, error: "Only admins and principals can cancel holidays." }, { status: 403 });
     }
 
     const url = new URL(req.url);
@@ -208,8 +207,9 @@ export async function DELETE(req: Request) {
       updatedAt: FieldValue.serverTimestamp()
     }, { merge: true });
 
-    return NextResponse.json({ ok: true, message: "Holiday cancelled." });
+    return json({ ok: true, message: "Holiday cancelled." });
   } catch (error) {
-    return NextResponse.json({ ok: false, error: errorMessage(error, "Unable to cancel holiday") }, { status: 400 });
+    return json({ ok: false, error: errorMessage(error, "Unable to cancel holiday") }, { status: 400 });
   }
 }
+

@@ -1,15 +1,14 @@
-import { NextResponse } from "next/server";
 import { FieldValue } from "firebase-admin/firestore";
 import { parentUpdateSchema } from "@sri-narayana/shared";
 import { adminAuth, adminDb } from "@/lib/firebaseAdmin";
-import { requirePermission } from "@/lib/apiUtils";
+import { requirePermission, json } from "@/lib/apiUtils";
 import { writeAuditLog } from "@/lib/auditLog";
 
 export async function PATCH(req: Request, { params }: { params: { parentId: string } }) {
   try {
     const decodedToken = await requirePermission(req, "parents.edit");
     if (!decodedToken) {
-      return NextResponse.json({ ok: false, error: "Missing or insufficient permissions." }, { status: 403 });
+      return json({ ok: false, error: "Missing or insufficient permissions." }, { status: 403 });
     }
 
     const body = await req.json();
@@ -19,12 +18,12 @@ export async function PATCH(req: Request, { params }: { params: { parentId: stri
     const userRef = db.collection("users").doc(params.parentId);
     const snapshot = await userRef.get();
     if (!snapshot.exists) {
-      return NextResponse.json({ ok: false, error: "Parent not found" }, { status: 404 });
+      return json({ ok: false, error: "Parent not found" }, { status: 404 });
     }
 
     const existing = snapshot.data() ?? {};
     if (existing.role !== "parent") {
-      return NextResponse.json({ ok: false, error: "User is not a parent" }, { status: 400 });
+      return json({ ok: false, error: "User is not a parent" }, { status: 400 });
     }
 
     const timestamp = FieldValue.serverTimestamp();
@@ -49,9 +48,10 @@ export async function PATCH(req: Request, { params }: { params: { parentId: stri
       newValues: updatedData as Record<string, unknown>
     });
 
-    return NextResponse.json({ ok: true, message: "Parent updated successfully." });
+    return json({ ok: true, message: "Parent updated successfully." });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to update parent";
-    return NextResponse.json({ ok: false, error: message }, { status: 400 });
+    return json({ ok: false, error: message }, { status: 400 });
   }
 }
+

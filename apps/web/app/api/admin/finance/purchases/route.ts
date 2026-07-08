@@ -1,15 +1,14 @@
-import { NextResponse } from "next/server";
 import { FieldValue } from "firebase-admin/firestore";
 import { purchaseCreateSchema } from "@sri-narayana/shared";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { requirePermission, serializeDoc } from "@/lib/apiUtils";
+import { requirePermission, serializeDoc, json } from "@/lib/apiUtils";
 
 const COLLECTION = "purchases";
 
 // GET /api/admin/finance/purchases?vendorId=&status=
 export async function GET(req: Request) {
   const token = await requirePermission(req, "fees.view");
-  if (!token) return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
+  if (!token) return json({ ok: false, error: "Access denied" }, { status: 403 });
   const { searchParams } = new URL(req.url);
   let query: FirebaseFirestore.Query = adminDb().collection(COLLECTION);
   const vendorId = searchParams.get("vendorId");
@@ -22,13 +21,13 @@ export async function GET(req: Request) {
     .map((d) => serializeDoc(d))
     .filter((purchase) => (!vendorId || purchase.vendorId === vendorId) && (!status || purchase.status === status))
     .sort((a, b) => String(b.date ?? "").localeCompare(String(a.date ?? "")));
-  return NextResponse.json({ ok: true, purchases });
+  return json({ ok: true, purchases });
 }
 
 // POST /api/admin/finance/purchases — record a vendor bill (payable).
 export async function POST(req: Request) {
   const token = await requirePermission(req, "fees.create");
-  if (!token) return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
+  if (!token) return json({ ok: false, error: "Access denied" }, { status: 403 });
   try {
     const parsed = purchaseCreateSchema.parse(await req.json());
     const db = adminDb();
@@ -45,8 +44,9 @@ export async function POST(req: Request) {
       createdAt: now,
       updatedAt: now
     });
-    return NextResponse.json({ ok: true, id: ref.id });
+    return json({ ok: true, id: ref.id });
   } catch (error) {
-    return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : "Unable to record purchase" }, { status: 400 });
+    return json({ ok: false, error: error instanceof Error ? error.message : "Unable to record purchase" }, { status: 400 });
   }
 }
+

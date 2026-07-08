@@ -1,7 +1,6 @@
-import { NextResponse } from "next/server";
 import { FieldValue } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { requirePermission, serializeDoc } from "@/lib/apiUtils";
+import { requirePermission, serializeDoc, json } from "@/lib/apiUtils";
 import { getSchoolId } from "@/lib/schoolScope";
 import { logFirestoreRead, readLimit } from "@/lib/firestoreReadLogger";
 
@@ -10,7 +9,7 @@ const QUEUE_COLLECTION = "fee_reminder_queue";
 
 export async function POST(req: Request) {
   const token = await requirePermission(req, "fee_reminders.manage_settings");
-  if (!token) return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
+  if (!token) return json({ ok: false, error: "Access denied" }, { status: 403 });
 
   try {
     const body = await req.json();
@@ -25,40 +24,40 @@ export async function POST(req: Request) {
     switch (action) {
       case "start_auto_reminder": {
         const perm = await requirePermission(req, "fee_reminders.manage_settings");
-        if (!perm) return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
+        if (!perm) return json({ ok: false, error: "Access denied" }, { status: 403 });
         const existing = await db.collection(SETTINGS_COLLECTION).where("schoolId", "==", schoolId).limit(1).get();
         if (existing.empty) {
-          return NextResponse.json({ ok: false, error: "Settings not found. Create settings first." }, { status: 400 });
+          return json({ ok: false, error: "Settings not found. Create settings first." }, { status: 400 });
         }
         await existing.docs[0].ref.update({ enabled: true, updatedAt: now });
-        return NextResponse.json({ ok: true, message: "Auto reminder started." });
+        return json({ ok: true, message: "Auto reminder started." });
       }
 
       case "stop_auto_reminder": {
         const perm = await requirePermission(req, "fee_reminders.manage_settings");
-        if (!perm) return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
+        if (!perm) return json({ ok: false, error: "Access denied" }, { status: 403 });
         const existing = await db.collection(SETTINGS_COLLECTION).where("schoolId", "==", schoolId).limit(1).get();
         if (existing.empty) {
-          return NextResponse.json({ ok: false, error: "Settings not found." }, { status: 400 });
+          return json({ ok: false, error: "Settings not found." }, { status: 400 });
         }
         await existing.docs[0].ref.update({ enabled: false, updatedAt: now });
-        return NextResponse.json({ ok: true, message: "Auto reminder stopped." });
+        return json({ ok: true, message: "Auto reminder stopped." });
       }
 
       case "test_reminder": {
         const perm = await requirePermission(req, "fee_reminders.send_test");
-        if (!perm) return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
+        if (!perm) return json({ ok: false, error: "Access denied" }, { status: 403 });
         if (!studentId) {
-          return NextResponse.json({ ok: false, error: "studentId is required" }, { status: 400 });
+          return json({ ok: false, error: "studentId is required" }, { status: 400 });
         }
         const studentSnap = await db.collection("students").doc(studentId).get();
         if (!studentSnap.exists) {
-          return NextResponse.json({ ok: false, error: "Student not found" }, { status: 404 });
+          return json({ ok: false, error: "Student not found" }, { status: 404 });
         }
         const studentData = studentSnap.data() as Record<string, unknown>;
         const studentSchoolId = String(studentData.schoolId || "");
         if (studentSchoolId && studentSchoolId !== schoolId) {
-          return NextResponse.json({ ok: false, error: "Student does not belong to this school" }, { status: 403 });
+          return json({ ok: false, error: "Student does not belong to this school" }, { status: 403 });
         }
         await db.collection(QUEUE_COLLECTION).add({
           schoolId,
@@ -74,12 +73,12 @@ export async function POST(req: Request) {
           createdAt: now,
           updatedAt: now,
         });
-        return NextResponse.json({ ok: true, message: `Test reminder queued for ${studentId}.` });
+        return json({ ok: true, message: `Test reminder queued for ${studentId}.` });
       }
 
       case "dry_run": {
         const perm = await requirePermission(req, "fee_reminders.send_test");
-        if (!perm) return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
+        if (!perm) return json({ ok: false, error: "Access denied" }, { status: 403 });
         const studentsSnap = await db
           .collection("students")
           .where("schoolId", "==", schoolId)
@@ -110,12 +109,12 @@ export async function POST(req: Request) {
           });
         });
         await batch.commit();
-        return NextResponse.json({ ok: true, message: `Dry run completed for ${studentsSnap.size} students.` });
+        return json({ ok: true, message: `Dry run completed for ${studentsSnap.size} students.` });
       }
 
       case "retry_failed": {
         const perm = await requirePermission(req, "fee_reminders.retry_failed");
-        if (!perm) return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
+        if (!perm) return json({ ok: false, error: "Access denied" }, { status: 403 });
         const failedSnap = await db
           .collection(QUEUE_COLLECTION)
           .where("schoolId", "==", schoolId)
@@ -124,21 +123,21 @@ export async function POST(req: Request) {
           .get();
         logFirestoreRead("FeeReminderRetryFailed", QUEUE_COLLECTION, failedSnap, { schoolId });
         if (failedSnap.empty) {
-          return NextResponse.json({ ok: true, message: "No failed reminders to retry." });
+          return json({ ok: true, message: "No failed reminders to retry." });
         }
         const batch = db.batch();
         failedSnap.docs.forEach((doc) => {
           batch.update(doc.ref, { status: "pending", retryCount: FieldValue.increment(1), updatedAt: now });
         });
         await batch.commit();
-        return NextResponse.json({ ok: true, message: `Retrying ${failedSnap.size} failed reminders.` });
+        return json({ ok: true, message: `Retrying ${failedSnap.size} failed reminders.` });
       }
 
       case "retry_student": {
         const perm = await requirePermission(req, "fee_reminders.retry_failed");
-        if (!perm) return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
+        if (!perm) return json({ ok: false, error: "Access denied" }, { status: 403 });
         if (!studentId) {
-          return NextResponse.json({ ok: false, error: "studentId is required" }, { status: 400 });
+          return json({ ok: false, error: "studentId is required" }, { status: 400 });
         }
         const failedSnap = await db
           .collection(QUEUE_COLLECTION)
@@ -149,21 +148,22 @@ export async function POST(req: Request) {
           .get();
         logFirestoreRead("FeeReminderRetryStudent", QUEUE_COLLECTION, failedSnap, { schoolId, studentId });
         if (failedSnap.empty) {
-          return NextResponse.json({ ok: true, message: `No failed reminders for student ${studentId}.` });
+          return json({ ok: true, message: `No failed reminders for student ${studentId}.` });
         }
         const batch = db.batch();
         failedSnap.docs.forEach((doc) => {
           batch.update(doc.ref, { status: "pending", retryCount: FieldValue.increment(1), updatedAt: now });
         });
         await batch.commit();
-        return NextResponse.json({ ok: true, message: `Retrying ${failedSnap.size} failed reminders for student ${studentId}.` });
+        return json({ ok: true, message: `Retrying ${failedSnap.size} failed reminders for student ${studentId}.` });
       }
 
       default:
-        return NextResponse.json({ ok: false, error: `Unknown action: ${action}` }, { status: 400 });
+        return json({ ok: false, error: `Unknown action: ${action}` }, { status: 400 });
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to process action";
-    return NextResponse.json({ ok: false, error: message }, { status: 400 });
+    return json({ ok: false, error: message }, { status: 400 });
   }
 }
+

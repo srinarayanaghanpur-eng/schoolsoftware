@@ -9,3 +9,10 @@ export function currencyInr(value: number) {
 export function percent(value: number) {
   return `${Math.round(value)}%`;
 }
+
+export function formatLabel(value: string): string {
+  return value
+    .replace(/_/g, " ")
+    .replace(/-/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}

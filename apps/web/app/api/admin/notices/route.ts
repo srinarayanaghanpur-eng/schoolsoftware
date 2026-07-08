@@ -1,25 +1,24 @@
-import { NextResponse } from "next/server";
 import { FieldValue } from "firebase-admin/firestore";
 import { noticeCreateSchema } from "@sri-narayana/shared";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { requirePermission, serializeDoc } from "@/lib/apiUtils";
+import { requirePermission, serializeDoc, json } from "@/lib/apiUtils";
 
 const COLLECTION = "notices";
 
 // GET /api/admin/notices — list notices (newest first).
 export async function GET(req: Request) {
   const token = await requirePermission(req, "communication.view");
-  if (!token) return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
+  if (!token) return json({ ok: false, error: "Access denied" }, { status: 403 });
 
   const snapshot = await adminDb().collection(COLLECTION).orderBy("createdAt", "desc").limit(100).get();
   const notices = snapshot.docs.map((doc) => serializeDoc(doc));
-  return NextResponse.json({ ok: true, notices });
+  return json({ ok: true, notices });
 }
 
 // POST /api/admin/notices — create a notice/circular.
 export async function POST(req: Request) {
   const token = await requirePermission(req, "communication.create");
-  if (!token) return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
+  if (!token) return json({ ok: false, error: "Access denied" }, { status: 403 });
 
   try {
     const parsed = noticeCreateSchema.parse(await req.json());
@@ -34,9 +33,10 @@ export async function POST(req: Request) {
       createdAt: now,
       updatedAt: now
     });
-    return NextResponse.json({ ok: true, id: ref.id, pendingChannels: externalChannels });
+    return json({ ok: true, id: ref.id, pendingChannels: externalChannels });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to create notice";
-    return NextResponse.json({ ok: false, error: message }, { status: 400 });
+    return json({ ok: false, error: message }, { status: 400 });
   }
 }
+

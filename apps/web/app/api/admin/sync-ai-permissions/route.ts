@@ -1,5 +1,4 @@
-import { NextResponse } from "next/server";
-import { requireSuperAdmin } from "@/lib/apiUtils";
+import { requireSuperAdmin, json } from "@/lib/apiUtils";
 import { ensureRoleDocuments, updateRolePermission } from "@/lib/rbacAdmin";
 import { AI_AGENT_PERMISSIONS } from "@/lib/ai/aiPermissions";
 import { adminDb } from "@/lib/firebaseAdmin";
@@ -8,7 +7,7 @@ export async function POST(req: Request) {
   try {
     const token = await requireSuperAdmin(req);
     if (!token) {
-      return NextResponse.json({ ok: false, error: "Super admin access required" }, { status: 403 });
+      return json({ ok: false, error: "Super admin access required" }, { status: 403 });
     }
 
     const body = await req.json();
@@ -47,7 +46,7 @@ export async function POST(req: Request) {
         }
       }
 
-      return NextResponse.json({
+      return json({
         ok: true,
         message: `AI permissions synced for all roles. ${updated} permissions updated.`,
         updated,
@@ -76,12 +75,13 @@ export async function POST(req: Request) {
         }
       }
 
-      return NextResponse.json({ ok: true, roles: roleDetails });
+      return json({ ok: true, roles: roleDetails });
     }
 
-    return NextResponse.json({ ok: false, error: "Invalid action" }, { status: 400 });
+    return json({ ok: false, error: "Invalid action" }, { status: 400 });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to sync permissions";
-    return NextResponse.json({ ok: false, error: message }, { status: 400 });
+    return json({ ok: false, error: message }, { status: 400 });
   }
 }
+

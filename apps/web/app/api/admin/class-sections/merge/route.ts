@@ -1,7 +1,6 @@
-import { NextResponse } from "next/server";
 import { FieldValue } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { requirePermission } from "@/lib/apiUtils";
+import { requirePermission, json } from "@/lib/apiUtils";
 import { firestoreErrorResponse } from "@/lib/firebaseErrors";
 import {
   CLASS_IDS,
@@ -20,7 +19,7 @@ const BATCH_LIMIT = 400;
 // list unless keepFromSection is true.
 export async function POST(req: Request) {
   const token = await requirePermission(req, "students.edit");
-  if (!token) return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
+  if (!token) return json({ ok: false, error: "Access denied" }, { status: 403 });
 
   try {
     const body = await req.json();
@@ -30,10 +29,10 @@ export async function POST(req: Request) {
     const keepFromSection = Boolean(body?.keepFromSection);
 
     if (!CLASS_IDS.includes(classId)) {
-      return NextResponse.json({ ok: false, error: "Unknown class" }, { status: 400 });
+      return json({ ok: false, error: "Unknown class" }, { status: 400 });
     }
     if (!fromSection || !toSection || fromSection === toSection) {
-      return NextResponse.json({ ok: false, error: "Pick two different sections to merge" }, { status: 400 });
+      return json({ ok: false, error: "Pick two different sections to merge" }, { status: 400 });
     }
 
     const db = adminDb();
@@ -91,7 +90,7 @@ export async function POST(req: Request) {
       { mergeFields: [`sections.${classId}`, "updatedAt", "updatedBy"] }
     );
 
-    return NextResponse.json({
+    return json({
       ok: true,
       classId,
       fromSection,

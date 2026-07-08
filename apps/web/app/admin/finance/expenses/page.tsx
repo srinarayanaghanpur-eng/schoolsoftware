@@ -4,7 +4,7 @@ import { DatePicker } from "@/components/DatePicker";
 import { PageHeader } from "@/components/PageHeader";
 import { useAdminSession } from "@/components/AdminSessionContext";
 import { AdminApiError, adminApiRequest } from "@/lib/adminApiClient";
-import { hasPermission } from "@sri-narayana/shared";
+import { hasPermission, formatLabel } from "@sri-narayana/shared";
 import { Check, Plus, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
@@ -66,7 +66,7 @@ export default function ExpensesPage() {
         {showForm && (
           <form onSubmit={submit} className="card grid gap-4 p-5 sm:grid-cols-2">
             <label className="text-sm font-semibold text-[#303247]">Category
-              <select className="field mt-1" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>{CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}</select>
+              <select className="field mt-1" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>{CATEGORIES.map((c) => <option key={c} value={c}>{formatLabel(c)}</option>)}</select>
             </label>
             <label className="text-sm font-semibold text-[#303247]">Amount (₹)
               <input className="field mt-1" type="number" min="1" required value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} />
@@ -78,7 +78,7 @@ export default function ExpensesPage() {
               <input className="field mt-1" required value={form.vendor} onChange={(e) => setForm({ ...form, vendor: e.target.value })} placeholder="Vendor, staff or receiver name" />
             </label>
             <label className="text-sm font-semibold text-[#303247]">Payment method
-              <select className="field mt-1" value={form.paymentMethod} onChange={(e) => setForm({ ...form, paymentMethod: e.target.value })}>{METHODS.map((m) => <option key={m} value={m}>{m}</option>)}</select>
+              <select className="field mt-1" value={form.paymentMethod} onChange={(e) => setForm({ ...form, paymentMethod: e.target.value })}>{METHODS.map((m) => <option key={m} value={m}>{formatLabel(m)}</option>)}</select>
             </label>
             <label className="text-sm font-semibold text-[#303247] sm:col-span-2">Description
               <input className="field mt-1" required value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="e.g. Electricity bill — June" />
@@ -98,9 +98,9 @@ export default function ExpensesPage() {
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="truncate text-base font-bold text-[#1f2136]">{x.description || "—"}</p>
-                  <p className="mt-0.5 text-xs font-medium text-stone-500"><span className="capitalize">{x.category}</span> · {x.date}</p>
+                  <p className="mt-0.5 text-xs font-medium text-stone-500"><span>{formatLabel(x.category)}</span> · {x.date}</p>
                 </div>
-                <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-bold capitalize ${statusTone[x.status]}`}>{x.status}</span>
+                <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-bold ${statusTone[x.status]}`}>{formatLabel(x.status)}</span>
               </div>
               <div className="mt-3 flex items-center justify-between gap-3">
                 <span className="text-lg font-extrabold text-[#1b1d32]">{inr(x.amount)}</span>
@@ -125,10 +125,10 @@ export default function ExpensesPage() {
               : items.map((x) => (
                 <tr key={x.id} className="border-t border-stone-100">
                   <td className="px-4 py-3 text-stone-500">{x.date}</td>
-                  <td className="px-4 py-3 capitalize">{x.category}</td>
+                  <td className="px-4 py-3">{formatLabel(x.category)}</td>
                   <td className="px-4 py-3">{x.description}</td>
                   <td className="px-4 py-3 text-right font-semibold">{inr(x.amount)}</td>
-                  <td className="px-4 py-3"><span className={`rounded-full px-2.5 py-1 text-xs font-bold capitalize ${statusTone[x.status]}`}>{x.status}</span></td>
+                  <td className="px-4 py-3"><span className={`rounded-full px-2.5 py-1 text-xs font-bold ${statusTone[x.status]}`}>{formatLabel(x.status)}</span></td>
                   <td className="px-4 py-3">
                     {x.status === "pending" && canApprove ? (
                       <div className="flex gap-2">

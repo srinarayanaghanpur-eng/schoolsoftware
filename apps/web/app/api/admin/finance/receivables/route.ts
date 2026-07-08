@@ -1,10 +1,9 @@
-import { NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { requirePermission } from "@/lib/apiUtils";
+import { requirePermission, json } from "@/lib/apiUtils";
 import { logFirestoreRead, readLimit } from "@/lib/firestoreReadLogger";
 export async function GET(req: Request) {
   const token = await requirePermission(req, "fees.view");
-  if (!token) return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
+  if (!token) return json({ ok: false, error: "Access denied" }, { status: 403 });
 
   const { searchParams } = new URL(req.url);
   const classFilter = searchParams.get("classId") || searchParams.get("class") || "";
@@ -70,7 +69,7 @@ export async function GET(req: Request) {
     byClass[r.className].due += r.due;
   });
 
-  return NextResponse.json({
+  return json({
     ok: true,
     summary: { totalReceivable, totalFees, totalPaid, studentCount: receivables.length },
     byClass: Object.values(byClass).sort((a, b) => a.className.localeCompare(b.className)),
@@ -80,3 +79,4 @@ export async function GET(req: Request) {
     hasMore: Boolean(nextCursor)
   });
 }
+

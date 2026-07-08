@@ -1,6 +1,5 @@
-import { NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { requireAdmin, serializeDoc } from "@/lib/apiUtils";
+import { requireAdmin, serializeDoc, json } from "@/lib/apiUtils";
 
 async function loadCollection(collectionName: string, orderField: string, limit = 50) {
   const snapshot = await adminDb().collection(collectionName).orderBy(orderField, "desc").limit(limit).get();
@@ -11,7 +10,7 @@ export async function GET(req: Request) {
   try {
     const decodedToken = await requireAdmin(req);
     if (!decodedToken) {
-      return NextResponse.json({ ok: false, error: "Admin access required" }, { status: 403 });
+      return json({ ok: false, error: "Admin access required" }, { status: 403 });
     }
 
     const [passwordRequests, leaveRequests, passwordResetHistory, attendanceEditAudits, notifications] = await Promise.all([
@@ -22,7 +21,7 @@ export async function GET(req: Request) {
       loadCollection("admin_notifications", "createdAt", 50)
     ]);
 
-    return NextResponse.json({
+    return json({
       ok: true,
       passwordRequests,
       leaveRequests,
@@ -32,6 +31,7 @@ export async function GET(req: Request) {
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to load notifications";
-    return NextResponse.json({ ok: false, error: message }, { status: 400 });
+    return json({ ok: false, error: message }, { status: 400 });
   }
 }
+

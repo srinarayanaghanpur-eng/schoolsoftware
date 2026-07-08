@@ -1,6 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { adminDb } from "@/lib/firebaseAdmin";
-import { requirePermission } from "@/lib/apiUtils";
+import { requirePermission, json } from "@/lib/apiUtils";
+import { markSummaryDirty } from "@/lib/markSummaryDirty";
 
 const db = adminDb();
 
@@ -20,18 +21,18 @@ function searchKeywords(name: string, admissionNumber: string, phone: string) {
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const auth = await requirePermission(request, "students.view");
-    if (!auth) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    if (!auth) return json({ success: false, error: 'Unauthorized' }, { status: 401 });
 
     const { id } = params;
     const docRef = db.collection('students').doc(id);
     const snapshot = await docRef.get();
     if (!snapshot.exists) {
-      return NextResponse.json({ success: false, error: 'Student not found' }, { status: 404 });
+      return json({ success: false, error: 'Student not found' }, { status: 404 });
     }
-    return NextResponse.json({ success: true, data: { id, ...snapshot.data() } });
+    return json({ success: true, data: { id, ...snapshot.data() } });
   } catch (error) {
     console.error('Error fetching student:', error);
-    return NextResponse.json({ success: false, error: 'Failed to fetch student' }, { status: 500 });
+    return json({ success: false, error: 'Failed to fetch student' }, { status: 500 });
   }
 }
 
@@ -44,7 +45,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   // doc (not as a custom claim) are authorized consistently with GET/POST.
   const authResult = await requirePermission(request, "students.edit");
   if (!authResult) {
-    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    return json({ success: false, error: 'Unauthorized' }, { status: 401 });
   }
   try {
     const { id } = params;
@@ -53,7 +54,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     const docRef = db.collection('students').doc(id);
     const snapshot = await docRef.get();
     if (!snapshot.exists) {
-      return NextResponse.json({ success: false, error: 'Student not found' }, { status: 404 });
+      return json({ success: false, error: 'Student not found' }, { status: 404 });
     }
 
     const {
@@ -79,7 +80,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     } = body;
 
     if (!studentName || !classStr || !section) {
-      return NextResponse.json({ success: false, error: 'Missing required fields' }, { status: 400 });
+      return json({ success: false, error: 'Missing required fields' }, { status: 400 });
     }
 
     const existing = snapshot.data() ?? {};
@@ -137,10 +138,12 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 
     await docRef.update(updateData);
 
-    return NextResponse.json({ success: true, data: { id, ...existing, ...updateData } });
+    await markSummaryDirty("student:update");
+
+    return json({ success: true, data: { id, ...existing, ...updateData } });
   } catch (error) {
     console.error('Error updating student:', error);
-    return NextResponse.json({ success: false, error: 'Failed to update student' }, { status: 500 });
+    return json({ success: false, error: 'Failed to update student' }, { status: 500 });
   }
 }
 
@@ -152,20 +155,22 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
   // Consistent auth with GET/POST: resolves role from custom claim OR users/{uid} doc.
   const authResult = await requirePermission(request, "students.delete");
   if (!authResult) {
-    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    return json({ success: false, error: 'Unauthorized' }, { status: 401 });
   }
   try {
     const { id } = params;
     const docRef = db.collection('students').doc(id);
     const snapshot = await docRef.get();
     if (!snapshot.exists) {
-      return NextResponse.json({ success: false, error: 'Student not found' }, { status: 404 });
+      return json({ success: false, error: 'Student not found' }, { status: 404 });
     }
 
     await docRef.delete();
-    return NextResponse.json({ success: true });
+    await markSummaryDirty("student:delete");
+    return json({ success: true });
   } catch (error) {
     console.error('Error deleting student:', error);
-    return NextResponse.json({ success: false, error: 'Failed to delete student' }, { status: 500 });
+    return json({ success: false, error: 'Failed to delete student' }, { status: 500 });
   }
 }
+

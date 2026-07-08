@@ -1,12 +1,11 @@
-import { NextResponse } from "next/server";
 import { AggregateField } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { requirePermission, serializeDoc } from "@/lib/apiUtils";
+import { requirePermission, serializeDoc, json } from "@/lib/apiUtils";
 import { logFirestoreAggregateRead, logFirestoreRead, readLimit } from "@/lib/firestoreReadLogger";
 
 export async function GET(req: Request) {
   const token = await requirePermission(req, "fees.view");
-  if (!token) return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
+  if (!token) return json({ ok: false, error: "Access denied" }, { status: 403 });
 
   const db = adminDb();
   const { searchParams } = new URL(req.url);
@@ -47,7 +46,7 @@ export async function GET(req: Request) {
     byVendor[vid].count += 1;
   });
 
-  return NextResponse.json({
+  return json({
     ok: true,
     summary: {
       totalPayable,
@@ -63,3 +62,4 @@ export async function GET(req: Request) {
     truncated: billsSnap.size === pageSize
   });
 }
+

@@ -1,7 +1,6 @@
-import { NextResponse } from "next/server";
 import { FieldValue } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { requirePermission } from "@/lib/apiUtils";
+import { requirePermission, json } from "@/lib/apiUtils";
 import { writeAuditLog } from "@/lib/auditLog";
 import { logFirestoreRead, readLimit } from "@/lib/firestoreReadLogger";
 import { getSchoolId } from "@/lib/schoolScope";
@@ -278,7 +277,7 @@ function buildFeeTypeDues(
 
 async function buildStudentDetail(req: Request, studentId: string, academicYearId: string, schoolId: string) {
   const token = await requirePermission(req, "fees.view");
-  if (!token) return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
+  if (!token) return json({ ok: false, error: "Access denied" }, { status: 403 });
 
   const db = adminDb();
   const [summaryDoc, studentSnap] = await Promise.all([
@@ -287,7 +286,7 @@ async function buildStudentDetail(req: Request, studentId: string, academicYearI
   ]);
 
   if (!summaryDoc && !studentSnap.exists) {
-    return NextResponse.json({ ok: false, error: "Student fee summary not found" }, { status: 404 });
+    return json({ ok: false, error: "Student fee summary not found" }, { status: 404 });
   }
 
   const studentData = studentSnap.exists ? studentSnap.data() ?? {} : {};
@@ -301,13 +300,13 @@ async function buildStudentDetail(req: Request, studentId: string, academicYearI
 
   const feeTypes = buildFeeTypeDues(student, studentData, feeStructure, payments);
 
-  return NextResponse.json({ ok: true, student: { ...student, feeTypes } });
+  return json({ ok: true, student: { ...student, feeTypes } });
 }
 
 // GET /api/admin/finance/reminders — class-wise dues and selected-student detail for manual reminders.
 export async function GET(req: Request) {
   const token = await requirePermission(req, "fees.view");
-  if (!token) return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
+  if (!token) return json({ ok: false, error: "Access denied" }, { status: 403 });
 
   const { searchParams } = new URL(req.url);
   const pageSize = readLimit(searchParams.get("pageSize") ?? searchParams.get("limit"), 500, 1000);
@@ -376,7 +375,7 @@ export async function GET(req: Request) {
     }))
     .sort((left, right) => left.className.localeCompare(right.className, undefined, { numeric: true }));
 
-  return NextResponse.json({
+  return json({
     ok: true,
     classes,
     grandTotalDue,
@@ -389,7 +388,7 @@ export async function GET(req: Request) {
 // POST /api/admin/finance/reminders — log manual reminder intent.
 export async function POST(req: Request) {
   const token = await requirePermission(req, "fees.create");
-  if (!token) return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
+  if (!token) return json({ ok: false, error: "Access denied" }, { status: 403 });
 
   try {
     const body = await req.json();
@@ -402,8 +401,8 @@ export async function POST(req: Request) {
     const parentMobile = asString(body?.parentMobile).trim();
     const studentName = asString(body?.studentName).trim();
 
-    if (!studentId) return NextResponse.json({ ok: false, error: "studentId is required" }, { status: 400 });
-    if (!dueAmount) return NextResponse.json({ ok: false, error: "dueAmount must be greater than 0" }, { status: 400 });
+    if (!studentId) return json({ ok: false, error: "studentId is required" }, { status: 400 });
+    if (!dueAmount) return json({ ok: false, error: "dueAmount must be greater than 0" }, { status: 400 });
 
     const db = adminDb();
     const now = FieldValue.serverTimestamp();
@@ -434,8 +433,9 @@ export async function POST(req: Request) {
       newValues: { studentId, parentMobile, feeType, dueAmount, channel, status: "opened/manual_send_required" }
     });
 
-    return NextResponse.json({ ok: true, id: ref.id, status: "opened/manual_send_required" });
+    return json({ ok: true, id: ref.id, status: "opened/manual_send_required" });
   } catch (error) {
-    return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : "Unable to log reminder" }, { status: 400 });
+    return json({ ok: false, error: error instanceof Error ? error.message : "Unable to log reminder" }, { status: 400 });
   }
 }
+

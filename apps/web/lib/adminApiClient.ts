@@ -190,10 +190,22 @@ export async function adminApiRequest<T>(path: string, init?: RequestInit, opts?
   const key = cacheKey(path);
   const ttl = opts?.ttlMs ?? FRESH_TTL_MS;
 
+  function tag(data: unknown, source: "memory" | "network" | "localStorage", age: number | null): unknown {
+    if (data && typeof data === "object" && !Array.isArray(data)) {
+      const obj = data as Record<string, unknown>;
+      obj.__fromCache = source !== "network";
+      obj.__cacheMeta = { source, ageMs: age, servedAt: now() };
+    }
+    return data;
+  }
+
   // 1. Fresh memory cache — no network, no Firestore reads.
   if (!opts?.fresh) {
     const hit = memoryCache.get(key);
-    if (hit && now() - hit.at < ttl) return hit.data as T;
+    if (hit && now() - hit.at < ttl) {
+      emitStatus("ok");
+      return tag(hit.data, "memory", now() - hit.at) as T;
+    }
   }
 
   // 2. In-flight dedupe — concurrent identical GETs share one request.
@@ -206,17 +218,15 @@ export async function adminApiRequest<T>(path: string, init?: RequestInit, opts?
       memoryCache.set(key, { data: result, at: now() });
       writeStale(key, result);
       emitStatus("ok");
-      return result;
+      return tag(result, "network", null) as T;
     } catch (error) {
       // 3. Offline / quota / server error → serve last good copy if we have
       //    one. 401/403/404/etc. always propagate (isFallbackWorthy).
       if (error instanceof AdminApiError && isFallbackWorthy(error.status)) {
         const stale = readStale(key);
         if (stale !== null) {
-          // Mark so UIs can show an "offline / cached" hint if they want to.
-          try { (stale as Record<string, unknown>).__fromCache = true; } catch { /* primitives */ }
           emitStatus("stale-served", path, error.status);
-          return stale as T;
+          return tag(stale, "localStorage", null) as T;
         }
         emitStatus("request-failed", path, error.status);
       }

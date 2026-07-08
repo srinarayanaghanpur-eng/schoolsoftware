@@ -4,6 +4,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { PasswordInput } from "@/components/PasswordInput";
 import { useAdminSession } from "@/components/AdminSessionContext";
 import { AdminApiError, adminApiRequest } from "@/lib/adminApiClient";
+import { formatLabel } from "@sri-narayana/shared";
 import { Link2, Link2Off, Plus, RotateCcw, Search, Unlink, X } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 
@@ -208,7 +209,7 @@ export default function ParentsPage() {
                                 <span className="font-semibold text-[#303247]">
                                   {student?.studentName ?? link.studentId}
                                   <span className="ml-2 text-xs text-[#7d86a8]">
-                                    Class {student?.class}{student?.section} · {link.relationship}
+                                    Class {student?.class}{student?.section} · {formatLabel(link.relationship)}
                                   </span>
                                 </span>
                                 <button onClick={() => void unlinkStudent(p.uid, link.id!)} className="text-[#ed515d] hover:bg-[#ffebed] rounded-lg p-1">
@@ -229,7 +230,7 @@ export default function ParentsPage() {
                             onChange={(e) => setLinkSearch(e.target.value)} />
                         </div>
                         <select className="field w-32 text-sm" value={linkRelation} onChange={(e) => setLinkRelation(e.target.value)}>
-                          {RELATIONS.map((r) => <option key={r} value={r}>{r}</option>)}
+                          {RELATIONS.map((r) => <option key={r} value={r}>{formatLabel(r)}</option>)}
                         </select>
                       </div>
                       <div className="mt-2 max-h-40 overflow-y-auto space-y-1">

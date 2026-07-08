@@ -1,6 +1,5 @@
-import { NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { requireAdmin } from "@/lib/apiUtils";
+import { requireAdmin, json } from "@/lib/apiUtils";
 import { firestoreErrorResponse, isFirestoreQuotaPaused, firestoreQuotaResponse } from "@/lib/firebaseErrors";
 import { readLimit } from "@/lib/firestoreReadLogger";
 import { runCommunicationAutoCleanup } from "@/lib/communicationCleanup";
@@ -25,7 +24,7 @@ export const dynamic = "force-dynamic";
 // source query is bounded by pageSize and ordered by its date field desc.
 export async function GET(req: Request) {
   const token = await requireAdmin(req);
-  if (!token) return NextResponse.json({ ok: false, error: "Admin access required" }, { status: 403 });
+  if (!token) return json({ ok: false, error: "Admin access required" }, { status: 403 });
 
   if (isFirestoreQuotaPaused()) return firestoreQuotaResponse();
 
@@ -63,7 +62,7 @@ export async function GET(req: Request) {
           }).length;
         })
       );
-      return NextResponse.json({ ok: true, pendingCount: counts.reduce((a, b) => a + b, 0) });
+      return json({ ok: true, pendingCount: counts.reduce((a, b) => a + b, 0) });
     } catch (error) {
       return firestoreErrorResponse(error, "Unable to count requests");
     }
@@ -126,7 +125,7 @@ export async function GET(req: Request) {
     const hasMore = rawCount > pageSize || perSource.some((docs) => docs.length === pageSize);
     const nextCursor = hasMore && page.length > 0 ? page[page.length - 1].createdAt : null;
 
-    return NextResponse.json({ ok: true, requests: page, pageSize, nextCursor, hasMore });
+    return json({ ok: true, requests: page, pageSize, nextCursor, hasMore });
   } catch (error) {
     return firestoreErrorResponse(error, "Unable to load requests");
   }

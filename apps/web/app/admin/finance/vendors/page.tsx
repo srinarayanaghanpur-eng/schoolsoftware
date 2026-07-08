@@ -4,7 +4,7 @@ import { DatePicker } from "@/components/DatePicker";
 import { PageHeader } from "@/components/PageHeader";
 import { useAdminSession } from "@/components/AdminSessionContext";
 import { AdminApiError, adminApiRequest } from "@/lib/adminApiClient";
-import { hasPermission } from "@sri-narayana/shared";
+import { hasPermission, formatLabel } from "@sri-narayana/shared";
 import { Plus, X } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 
@@ -80,7 +80,7 @@ export default function VendorsPage() {
                   <tr key={p.id} className="border-t border-stone-100">
                     <td className="px-4 py-3">{p.vendorName}</td><td className="px-4 py-3 text-stone-500">{p.date}</td>
                     <td className="px-4 py-3 text-right font-semibold">{inr(p.amount)}</td><td className="px-4 py-3 text-right text-stone-600">{inr(p.amountPaid)}</td>
-                    <td className="px-4 py-3"><span className={`rounded-full px-2 py-0.5 text-xs font-bold capitalize ${statusTone[p.status]}`}>{p.status}</span></td>
+                    <td className="px-4 py-3"><span className={`rounded-full px-2 py-0.5 text-xs font-bold ${statusTone[p.status]}`}>{formatLabel(p.status)}</span></td>
                     <td className="px-4 py-3">{p.status !== "paid" && canPay && <button onClick={() => pay(p.id, p.amount - p.amountPaid)} className="rounded-lg bg-[#eef0ff] px-2.5 py-1 text-xs font-bold text-[#3033a1] hover:bg-[#e0e3ff]">Pay {inr(p.amount - p.amountPaid)}</button>}</td>
                   </tr>
                 ))}

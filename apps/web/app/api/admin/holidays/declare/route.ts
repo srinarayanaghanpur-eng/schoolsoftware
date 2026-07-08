@@ -1,10 +1,9 @@
-import { NextResponse } from "next/server";
 import { FieldValue } from "firebase-admin/firestore";
 import type { DecodedIdToken } from "firebase-admin/auth";
 import { holidayAppliesToBranch, isHolidayActive, type AppUser, type Holiday } from "@sri-narayana/shared";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { verifyBearerToken } from "@/lib/firebaseAdmin";
-import { resolveRole } from "@/lib/apiUtils";
+import { resolveRole, json } from "@/lib/apiUtils";
 
 async function requireSuperAdmin(req: Request): Promise<DecodedIdToken | null> {
   const decodedToken = await verifyBearerToken(req);
@@ -44,7 +43,7 @@ export async function POST(req: Request) {
   try {
     const decodedToken = await requireSuperAdmin(req);
     if (!decodedToken) {
-      return NextResponse.json({ ok: false, error: "Only the Super Admin can declare holidays." }, { status: 403 });
+      return json({ ok: false, error: "Only the Super Admin can declare holidays." }, { status: 403 });
     }
 
     const body = await req.json();
@@ -85,7 +84,7 @@ export async function POST(req: Request) {
 
     const newDates = dates.filter((date) => !alreadyDeclared.has(date));
     if (newDates.length === 0) {
-      return NextResponse.json(
+      return json(
         { ok: false, error: dates.length === 1 ? "Holiday already declared for this date." : "Holiday already declared for all dates in this range." },
         { status: 409 }
       );
@@ -119,7 +118,7 @@ export async function POST(req: Request) {
         ? "Holiday declared successfully."
         : `Holiday declared successfully for ${newDates.length} day(s).${skipped.length ? ` Already declared: ${skipped.join(", ")}.` : ""}`;
 
-    return NextResponse.json({
+    return json({
       ok: true,
       declaredDates: newDates,
       skippedDates: skipped,
@@ -127,7 +126,7 @@ export async function POST(req: Request) {
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to declare holiday";
-    return NextResponse.json({ ok: false, error: message }, { status: 400 });
+    return json({ ok: false, error: message }, { status: 400 });
   }
 }
 
@@ -136,7 +135,7 @@ export async function PATCH(req: Request) {
   try {
     const decodedToken = await requireSuperAdmin(req);
     if (!decodedToken) {
-      return NextResponse.json({ ok: false, error: "Only the Super Admin can cancel declared holidays." }, { status: 403 });
+      return json({ ok: false, error: "Only the Super Admin can cancel declared holidays." }, { status: 403 });
     }
 
     const body = await req.json();
@@ -156,9 +155,10 @@ export async function PATCH(req: Request) {
       cancelledAt: FieldValue.serverTimestamp()
     }, { merge: true });
 
-    return NextResponse.json({ ok: true, message: "Holiday cancelled successfully." });
+    return json({ ok: true, message: "Holiday cancelled successfully." });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to cancel holiday";
-    return NextResponse.json({ ok: false, error: message }, { status: 400 });
+    return json({ ok: false, error: message }, { status: 400 });
   }
 }
+

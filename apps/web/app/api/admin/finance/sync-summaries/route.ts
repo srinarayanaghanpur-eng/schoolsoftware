@@ -1,6 +1,5 @@
-import { NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { requirePermission } from "@/lib/apiUtils";
+import { requirePermission, json } from "@/lib/apiUtils";
 import { logFirestoreRead } from "@/lib/firestoreReadLogger";
 
 // POST /api/admin/finance/sync-summaries
@@ -10,12 +9,12 @@ import { logFirestoreRead } from "@/lib/firestoreReadLogger";
 // Bounded: max 500 students per call; returns processed count.
 export async function POST(req: Request) {
   const token = await requirePermission(req, "fees.create");
-  if (!token) return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
+  if (!token) return json({ ok: false, error: "Access denied" }, { status: 403 });
 
   const body = await req.json().catch(() => ({}));
   const academicYearId = String(body?.academicYearId ?? "").trim();
   if (!academicYearId) {
-    return NextResponse.json({ ok: false, error: "academicYearId is required" }, { status: 400 });
+    return json({ ok: false, error: "academicYearId is required" }, { status: 400 });
   }
 
   const db = adminDb();
@@ -69,5 +68,6 @@ export async function POST(req: Request) {
   }
   if (inBatch > 0) await writer.commit();
 
-  return NextResponse.json({ ok: true, synced, scanned: snap.size, truncated: snap.size >= 500 });
+  return json({ ok: true, synced, scanned: snap.size, truncated: snap.size >= 500 });
 }
+

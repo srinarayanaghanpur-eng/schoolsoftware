@@ -1,8 +1,7 @@
-import { NextResponse } from "next/server";
 import { FieldValue } from "firebase-admin/firestore";
 import { examCreateSchema } from "@sri-narayana/shared";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { requirePermission, serializeDoc } from "@/lib/apiUtils";
+import { requirePermission, serializeDoc, json } from "@/lib/apiUtils";
 import { docCursor, logFirestoreRead, readLimit } from "@/lib/firestoreReadLogger";
 import { getSchoolId } from "@/lib/schoolScope";
 
@@ -12,7 +11,7 @@ const COLLECTION = "exams";
 // Lists exams with cursor pagination (default 25 rows), newest first.
 export async function GET(req: Request) {
   const token = await requirePermission(req, "exams.view");
-  if (!token) return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
+  if (!token) return json({ ok: false, error: "Access denied" }, { status: 403 });
 
   const { searchParams } = new URL(req.url);
   const academicYearId = searchParams.get("academicYearId") || "";
@@ -38,21 +37,22 @@ export async function GET(req: Request) {
   const pageDocs = snapshot.docs.slice(0, pageSize);
   const exams = pageDocs.map((doc) => serializeDoc(doc));
   const nextCursor = snapshot.docs.length > pageSize && pageDocs.length > 0 ? pageDocs[pageDocs.length - 1].id : null;
-  return NextResponse.json({ ok: true, exams, pageSize, nextCursor, hasMore: Boolean(nextCursor) });
+  return json({ ok: true, exams, pageSize, nextCursor, hasMore: Boolean(nextCursor) });
 }
 
 // POST /api/admin/exams — create an exam.
 export async function POST(req: Request) {
   const token = await requirePermission(req, "exams.create");
-  if (!token) return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
+  if (!token) return json({ ok: false, error: "Access denied" }, { status: 403 });
 
   try {
     const parsed = examCreateSchema.parse(await req.json());
     const now = FieldValue.serverTimestamp();
     const ref = await adminDb().collection(COLLECTION).add({ ...parsed, schoolId: getSchoolId(token), createdAt: now, updatedAt: now });
-    return NextResponse.json({ ok: true, id: ref.id });
+    return json({ ok: true, id: ref.id });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to create exam";
-    return NextResponse.json({ ok: false, error: message }, { status: 400 });
+    return json({ ok: false, error: message }, { status: 400 });
   }
 }
+

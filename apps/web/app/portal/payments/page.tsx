@@ -5,7 +5,7 @@ import { AuthGate } from "@/components/AuthGate";
 import { PageHeader } from "@/components/PageHeader";
 import { usePortalChild } from "@/components/PortalChildContext";
 import { adminApiRequest } from "@/lib/adminApiClient";
-import { ROLES } from "@sri-narayana/shared";
+import { ROLES, formatLabel } from "@sri-narayana/shared";
 import { Download, ReceiptText } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -97,8 +97,8 @@ function PaymentHistory() {
                     <tr key={pmt.id} className="border-t border-[#edf0f7]">
                       <td className="whitespace-nowrap px-4 py-3 font-semibold text-[#303247]">{date}</td>
                       <td className="px-4 py-3 font-mono text-xs text-[#7d86a8]">{pmt.receiptNumber || pmt.id.slice(0, 8)}</td>
-                      <td className="px-4 py-3 capitalize text-[#7d86a8]">{pmt.paymentType.replace(/-/g, " ")}</td>
-                      <td className="px-4 py-3 capitalize text-[#7d86a8]">{pmt.paymentMethod}</td>
+                      <td className="px-4 py-3 text-[#7d86a8]">{formatLabel(pmt.paymentType)}</td>
+                      <td className="px-4 py-3 text-[#7d86a8]">{formatLabel(pmt.paymentMethod)}</td>
                       <td className="px-4 py-3 font-bold text-[#303247]">{formatINR(pmt.amountPaid)}</td>
                       <td className="px-4 py-3">
                         <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold ${

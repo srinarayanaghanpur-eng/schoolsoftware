@@ -5,7 +5,7 @@ import { PasswordInput } from "@/components/PasswordInput";
 import { ActionMenu } from "@/components/ActionMenu";
 import { useAdminSession } from "@/components/AdminSessionContext";
 import { auth, isFirebaseConfigured } from "@sri-narayana/shared/firebase/client";
-import { demoTeachers, type Teacher } from "@sri-narayana/shared";
+import { demoTeachers, formatLabel, type Teacher } from "@sri-narayana/shared";
 import { CheckCircle2, Edit3, KeyRound, Plus, Search, UserX, X } from "lucide-react";
 import type { FormEvent } from "react";
 import { useEffect, useMemo, useState } from "react";
@@ -390,7 +390,7 @@ export default function TeachersPage() {
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
                   <span className={teacher.status === "active" ? "rounded-full bg-[#e6f8ef] px-2.5 py-1 text-xs font-bold text-[#13a961]" : "rounded-full bg-[#eef0f7] px-2.5 py-1 text-xs font-bold text-[#7d86a8]"}>
-                    {teacher.status}
+                    {formatLabel(teacher.status)}
                   </span>
                   {canManageTeachers && (
                     <ActionMenu

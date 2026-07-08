@@ -1,6 +1,5 @@
-import { NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { errorMessage, requirePermission, serializeDoc } from "@/lib/apiUtils";
+import { errorMessage, requirePermission, serializeDoc, json } from "@/lib/apiUtils";
 import { createDebitVoucherFromExpense } from "@/lib/debitVoucherService";
 
 const COLLECTION = "expenses";
@@ -8,7 +7,7 @@ const COLLECTION = "expenses";
 // GET /api/admin/finance/expenses?status=&category=
 export async function GET(req: Request) {
   const token = await requirePermission(req, "fees.view");
-  if (!token) return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
+  if (!token) return json({ ok: false, error: "Access denied" }, { status: 403 });
 
   const { searchParams } = new URL(req.url);
   let query: FirebaseFirestore.Query = adminDb().collection(COLLECTION);
@@ -25,18 +24,19 @@ export async function GET(req: Request) {
     .map((d) => serializeDoc(d))
     .filter((expense) => (!status || expense.status === status) && (!category || expense.category === category))
     .sort((a, b) => String(b.date ?? "").localeCompare(String(a.date ?? "")));
-  return NextResponse.json({ ok: true, expenses });
+  return json({ ok: true, expenses });
 }
 
 // POST /api/admin/finance/expenses — record an expense (starts as "pending").
 export async function POST(req: Request) {
   const token = await requirePermission(req, "fees.create");
-  if (!token) return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
+  if (!token) return json({ ok: false, error: "Access denied" }, { status: 403 });
 
   try {
     const result = await createDebitVoucherFromExpense(await req.json(), token, { expenseStatus: "pending" });
-    return NextResponse.json({ ok: true, id: result.expenseId, ...result });
+    return json({ ok: true, id: result.expenseId, ...result });
   } catch (error) {
-    return NextResponse.json({ ok: false, error: errorMessage(error, "Unable to record expense") }, { status: 400 });
+    return json({ ok: false, error: errorMessage(error, "Unable to record expense") }, { status: 400 });
   }
 }
+

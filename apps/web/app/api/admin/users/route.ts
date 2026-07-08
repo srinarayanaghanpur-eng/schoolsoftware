@@ -1,7 +1,6 @@
-import { NextResponse } from "next/server";
 import { isValidRole, type Permission } from "@sri-narayana/shared";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { requireAllPermissions, serializeDoc } from "@/lib/apiUtils";
+import { requireAllPermissions, serializeDoc, json } from "@/lib/apiUtils";
 import { logFirestoreRead, readLimit } from "@/lib/firestoreReadLogger";
 
 const VIEW_PERMISSIONS: Permission[] = ["users.view", "roles.view", "permissions.view"];
@@ -9,7 +8,7 @@ const VIEW_PERMISSIONS: Permission[] = ["users.view", "roles.view", "permissions
 // GET /api/admin/users — server-side user list for Users & Roles.
 export async function GET(req: Request) {
   const token = await requireAllPermissions(req, VIEW_PERMISSIONS);
-  if (!token) return NextResponse.json({ ok: false, error: "Missing or insufficient permissions." }, { status: 403 });
+  if (!token) return json({ ok: false, error: "Missing or insufficient permissions." }, { status: 403 });
 
   const { searchParams } = new URL(req.url);
   const pageSize = readLimit(searchParams.get("pageSize") ?? searchParams.get("limit"), 250, 1000);
@@ -37,5 +36,6 @@ export async function GET(req: Request) {
     })
     .sort((left, right) => left.displayName.localeCompare(right.displayName));
 
-  return NextResponse.json({ ok: true, users, pageSize, truncated: snap.size >= pageSize });
+  return json({ ok: true, users, pageSize, truncated: snap.size >= pageSize });
 }
+

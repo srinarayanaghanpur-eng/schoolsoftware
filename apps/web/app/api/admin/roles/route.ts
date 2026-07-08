@@ -1,6 +1,5 @@
-import { NextResponse } from "next/server";
 import { ROLE_LABELS, SELF_LOCK_PERMISSIONS, SUPER_ADMIN_CRITICAL_PERMISSIONS, type Permission } from "@sri-narayana/shared";
-import { requireAllPermissions, resolveRole } from "@/lib/apiUtils";
+import { requireAllPermissions, resolveRole, json } from "@/lib/apiUtils";
 import {
   ensureRoleDocuments,
   isKnownPermission,
@@ -17,19 +16,19 @@ const EDIT_PERMISSIONS: Permission[] = ["roles.edit", "permissions.edit"];
 // GET /api/admin/roles — editable RBAC role documents for the Users & Roles matrix.
 export async function GET(req: Request) {
   const token = await requireAllPermissions(req, VIEW_PERMISSIONS);
-  if (!token) return NextResponse.json({ ok: false, error: "Missing or insufficient permissions." }, { status: 403 });
+  if (!token) return json({ ok: false, error: "Missing or insufficient permissions." }, { status: 403 });
 
   const roles = await ensureRoleDocuments(token.uid);
-  return NextResponse.json({ ok: true, roles });
+  return json({ ok: true, roles });
 }
 
 // PATCH /api/admin/roles — toggle one permission on one role.
 export async function PATCH(req: Request) {
   const decoded = await verifyBearerToken(req);
-  if (!decoded) return NextResponse.json({ ok: false, error: "Missing or insufficient permissions." }, { status: 403 });
+  if (!decoded) return json({ ok: false, error: "Missing or insufficient permissions." }, { status: 403 });
   const actorRole = await resolveRole(decoded);
   const canEdit = actorRole === "super_admin" || Boolean(await requireAllPermissions(req, EDIT_PERMISSIONS));
-  if (!canEdit) return NextResponse.json({ ok: false, error: "Missing or insufficient permissions." }, { status: 403 });
+  if (!canEdit) return json({ ok: false, error: "Missing or insufficient permissions." }, { status: 403 });
 
   try {
     const body = await req.json();
@@ -37,15 +36,15 @@ export async function PATCH(req: Request) {
     const permission = String(body?.permission ?? "").trim();
     const allowed = Boolean(body?.allowed);
 
-    if (!role) return NextResponse.json({ ok: false, error: "Invalid role." }, { status: 400 });
-    if (!isKnownPermission(permission)) return NextResponse.json({ ok: false, error: "Invalid permission." }, { status: 400 });
+    if (!role) return json({ ok: false, error: "Invalid role." }, { status: 400 });
+    if (!isKnownPermission(permission)) return json({ ok: false, error: "Invalid permission." }, { status: 400 });
 
     if (role === "super_admin" && !allowed && isSuperAdminCriticalPermission(permission)) {
-      return NextResponse.json({ ok: false, error: "Super Admin permissions cannot be removed." }, { status: 400 });
+      return json({ ok: false, error: "Super Admin permissions cannot be removed." }, { status: 400 });
     }
 
     if (actorRole === role && !allowed && isSelfLockPermission(permission)) {
-      return NextResponse.json({ ok: false, error: "You cannot remove your own permission to manage roles." }, { status: 400 });
+      return json({ ok: false, error: "You cannot remove your own permission to manage roles." }, { status: 400 });
     }
 
     const result = await updateRolePermission({
@@ -56,7 +55,7 @@ export async function PATCH(req: Request) {
       changedByName: String(decoded.name || decoded.email || decoded.uid)
     });
 
-    return NextResponse.json({
+    return json({
       ok: true,
       role: {
         slug: result.role,
@@ -72,6 +71,7 @@ export async function PATCH(req: Request) {
       }
     });
   } catch (error) {
-    return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : "Unable to update permission." }, { status: 400 });
+    return json({ ok: false, error: error instanceof Error ? error.message : "Unable to update permission." }, { status: 400 });
   }
 }
+

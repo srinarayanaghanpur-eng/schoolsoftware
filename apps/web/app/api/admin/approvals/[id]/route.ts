@@ -1,6 +1,5 @@
-import { NextResponse } from "next/server";
 import { approvalRequestReviewSchema } from "@sri-narayana/shared";
-import { requireAdmin } from "@/lib/apiUtils";
+import { requireAdmin, json } from "@/lib/apiUtils";
 import { reviewApprovalRequest } from "@/lib/approvalEngine";
 
 export async function PATCH(
@@ -10,7 +9,7 @@ export async function PATCH(
   try {
     const decodedToken = await requireAdmin(req);
     if (!decodedToken) {
-      return NextResponse.json({ ok: false, error: "Admin access required" }, { status: 403 });
+      return json({ ok: false, error: "Admin access required" }, { status: 403 });
     }
 
     const body = await req.json();
@@ -24,9 +23,10 @@ export async function PATCH(
       reviewedByName: decodedToken.name ?? decodedToken.uid
     });
 
-    return NextResponse.json({ ok: true, message: `Approval request ${parsed.status}.` });
+    return json({ ok: true, message: `Approval request ${parsed.status}.` });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to review approval request";
-    return NextResponse.json({ ok: false, error: message }, { status: 400 });
+    return json({ ok: false, error: message }, { status: 400 });
   }
 }
+

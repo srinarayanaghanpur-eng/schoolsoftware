@@ -1,8 +1,7 @@
-import { NextResponse } from "next/server";
 import { FieldValue } from "firebase-admin/firestore";
 import { teacherLoginCreateSchema } from "@sri-narayana/shared";
 import { adminAuth, adminDb } from "@/lib/firebaseAdmin";
-import { requireAdmin } from "@/lib/apiUtils";
+import { requireAdmin, json } from "@/lib/apiUtils";
 import { firestoreErrorResponse, firestoreQuotaResponse, isFirestoreQuotaPaused } from "@/lib/firebaseErrors";
 import {
   assertEmployeeIdAvailable,
@@ -15,7 +14,7 @@ export async function GET(req: Request) {
   try {
     const decodedToken = await requireAdmin(req);
     if (!decodedToken) {
-      return NextResponse.json({ ok: false, error: "Admin access required" }, { status: 403 });
+      return json({ ok: false, error: "Admin access required" }, { status: 403 });
     }
 
     if (isFirestoreQuotaPaused()) {
@@ -57,7 +56,7 @@ export async function GET(req: Request) {
       })
       .slice(0, limit);
 
-    return NextResponse.json({ ok: true, teachers, count: teachers.length, limit });
+    return json({ ok: true, teachers, count: teachers.length, limit });
   } catch (error) {
     return firestoreErrorResponse(error, "Unable to load teachers", 400);
   }
@@ -69,7 +68,7 @@ export async function POST(req: Request) {
   try {
     const decodedToken = await requireAdmin(req);
     if (!decodedToken) {
-      return NextResponse.json({ ok: false, error: "Admin access required" }, { status: 403 });
+      return json({ ok: false, error: "Admin access required" }, { status: 403 });
     }
 
     const body = await req.json();
@@ -121,7 +120,7 @@ export async function POST(req: Request) {
       updatedAt: timestamp
     });
 
-    return NextResponse.json({
+    return json({
       ok: true,
       message: "Teacher login and Firestore profile created successfully.",
       teacherId: docRef.id,

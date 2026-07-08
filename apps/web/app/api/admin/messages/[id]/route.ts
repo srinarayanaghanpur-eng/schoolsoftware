@@ -1,8 +1,7 @@
-import { NextResponse } from "next/server";
 import { FieldValue } from "firebase-admin/firestore";
 import { parentMessageReplySchema } from "@sri-narayana/shared";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { requireAdmin } from "@/lib/apiUtils";
+import { requireAdmin, json } from "@/lib/apiUtils";
 import { writeAuditLog } from "@/lib/auditLog";
 
 const COLLECTION = "parent_messages";
@@ -11,7 +10,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   try {
     const decodedToken = await requireAdmin(req);
     if (!decodedToken) {
-      return NextResponse.json({ ok: false, error: "Admin access required" }, { status: 403 });
+      return json({ ok: false, error: "Admin access required" }, { status: 403 });
     }
 
     const body = await req.json();
@@ -20,7 +19,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     const ref = adminDb().collection(COLLECTION).doc(params.id);
     const snap = await ref.get();
     if (!snap.exists) {
-      return NextResponse.json({ ok: false, error: "Message not found" }, { status: 404 });
+      return json({ ok: false, error: "Message not found" }, { status: 404 });
     }
 
     await ref.update({
@@ -40,9 +39,10 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       newValues: { status: parsed.status, reply: parsed.reply }
     });
 
-    return NextResponse.json({ ok: true, message: "Reply sent." });
+    return json({ ok: true, message: "Reply sent." });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to reply";
-    return NextResponse.json({ ok: false, error: message }, { status: 400 });
+    return json({ ok: false, error: message }, { status: 400 });
   }
 }
+

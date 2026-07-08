@@ -1,9 +1,8 @@
-import { NextResponse } from "next/server";
 import type { DocumentReference, DocumentSnapshot } from "firebase-admin/firestore";
 import { FieldValue } from "firebase-admin/firestore";
 import { employeeIdToInternalEmail, isValidRole, passwordResetSchema } from "@sri-narayana/shared";
 import { adminAuth, adminDb } from "@/lib/firebaseAdmin";
-import { errorMessage, requireAdmin } from "@/lib/apiUtils";
+import { errorMessage, requireAdmin, json } from "@/lib/apiUtils";
 
 type RouteContext = { params: { requestId: string } };
 
@@ -110,31 +109,31 @@ export async function POST(req: Request, { params }: RouteContext) {
   try {
     const decodedToken = await requireAdmin(req);
     if (!decodedToken) {
-      return NextResponse.json({ ok: false, error: "Admin access required" }, { status: 403 });
+      return json({ ok: false, error: "Admin access required" }, { status: 403 });
     }
 
     const body = await req.json();
     const parsed = passwordResetSchema.parse(body);
     const requestId = params.requestId.trim();
     if (!requestId) {
-      return NextResponse.json({ ok: false, error: "Request ID is required" }, { status: 400 });
+      return json({ ok: false, error: "Request ID is required" }, { status: 400 });
     }
 
     const db = adminDb();
     const requestRef = db.collection("password_reset_requests").doc(requestId);
     const requestSnapshot = await requestRef.get();
     if (!requestSnapshot.exists) {
-      return NextResponse.json({ ok: false, error: "Password request not found" }, { status: 404 });
+      return json({ ok: false, error: "Password request not found" }, { status: 404 });
     }
 
     const requestData = requestSnapshot.data() as Record<string, unknown>;
     if (text(requestData.status).toLowerCase() !== "open") {
-      return NextResponse.json({ ok: false, error: "This password request is already resolved." }, { status: 409 });
+      return json({ ok: false, error: "This password request is already resolved." }, { status: 409 });
     }
 
     const target = await resolveResetTarget(requestData);
     if (target.role === "super_admin" && decodedToken.role !== "super_admin") {
-      return NextResponse.json({ ok: false, error: "Only a super admin can reset a super admin password." }, { status: 403 });
+      return json({ ok: false, error: "Only a super admin can reset a super admin password." }, { status: 403 });
     }
 
     const note = text(body.adminNote);
@@ -184,8 +183,9 @@ export async function POST(req: Request, { params }: RouteContext) {
       createdBy: decodedToken.uid
     });
 
-    return NextResponse.json({ ok: true, message: "Password reset successfully." });
+    return json({ ok: true, message: "Password reset successfully." });
   } catch (error) {
-    return NextResponse.json({ ok: false, error: errorMessage(error, "Unable to reset password") }, { status: 400 });
+    return json({ ok: false, error: errorMessage(error, "Unable to reset password") }, { status: 400 });
   }
 }
+

@@ -1,6 +1,5 @@
-import { NextResponse } from "next/server";
 import { approvalRequestCreateSchema } from "@sri-narayana/shared";
-import { requireAdmin } from "@/lib/apiUtils";
+import { requireAdmin, json } from "@/lib/apiUtils";
 import { createApprovalRequest, getApprovalRequestCount, getApprovalRequests } from "@/lib/approvalEngine";
 import { firestoreErrorResponse, firestoreQuotaResponse, isFirestoreQuotaPaused } from "@/lib/firebaseErrors";
 
@@ -8,7 +7,7 @@ export async function GET(req: Request) {
   try {
     const decodedToken = await requireAdmin(req);
     if (!decodedToken) {
-      return NextResponse.json({ ok: false, error: "Admin access required" }, { status: 403 });
+      return json({ ok: false, error: "Admin access required" }, { status: 403 });
     }
 
     const url = new URL(req.url);
@@ -25,7 +24,7 @@ export async function GET(req: Request) {
         status: status as "pending" | "approved" | "rejected" | undefined,
         requestType: requestType ?? undefined
       });
-      return NextResponse.json({ ok: true, count });
+      return json({ ok: true, count });
     }
 
     const requests = await getApprovalRequests({
@@ -33,7 +32,7 @@ export async function GET(req: Request) {
       requestType: requestType ?? undefined
     });
 
-    return NextResponse.json({ ok: true, requests });
+    return json({ ok: true, requests });
   } catch (error) {
     return firestoreErrorResponse(error, "Unable to load approvals", 400);
   }
@@ -43,7 +42,7 @@ export async function POST(req: Request) {
   try {
     const decodedToken = await requireAdmin(req);
     if (!decodedToken) {
-      return NextResponse.json({ ok: false, error: "Admin access required" }, { status: 403 });
+      return json({ ok: false, error: "Admin access required" }, { status: 403 });
     }
 
     const body = await req.json();
@@ -55,8 +54,9 @@ export async function POST(req: Request) {
       requestedByName: decodedToken.name ?? decodedToken.uid
     });
 
-    return NextResponse.json({ ok: true, id, message: "Approval request created." });
+    return json({ ok: true, id, message: "Approval request created." });
   } catch (error) {
     return firestoreErrorResponse(error, "Unable to create approval request", 400);
   }
 }
+

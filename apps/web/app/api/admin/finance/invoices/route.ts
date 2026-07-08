@@ -1,8 +1,7 @@
-import { NextResponse } from "next/server";
 import { FieldValue } from "firebase-admin/firestore";
 import { invoiceCreateSchema } from "@sri-narayana/shared";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { requirePermission, serializeDoc } from "@/lib/apiUtils";
+import { requirePermission, serializeDoc, json } from "@/lib/apiUtils";
 import { logFirestoreRead, readLimit } from "@/lib/firestoreReadLogger";
 import { getSchoolId } from "@/lib/schoolScope";
 
@@ -10,7 +9,7 @@ const COLLECTION = "invoices";
 
 export async function GET(req: Request) {
   const token = await requirePermission(req, "fees.view");
-  if (!token) return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
+  if (!token) return json({ ok: false, error: "Access denied" }, { status: 403 });
 
   try {
     const db = adminDb();
@@ -39,17 +38,17 @@ export async function GET(req: Request) {
     const startIndex = cursor ? Math.max(0, filtered.findIndex((item) => item.id === cursor) + 1) : 0;
     const invoices = filtered.slice(startIndex, startIndex + pageSize);
     const nextCursor = startIndex + pageSize < filtered.length && invoices.length > 0 ? invoices[invoices.length - 1].id : null;
-    return NextResponse.json({ ok: true, invoices, pageSize, nextCursor, hasMore: Boolean(nextCursor) });
+    return json({ ok: true, invoices, pageSize, nextCursor, hasMore: Boolean(nextCursor) });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to load invoices";
-    return NextResponse.json({ ok: false, error: message }, { status: 400 });
+    return json({ ok: false, error: message }, { status: 400 });
   }
 }
 
 // POST — generate an invoice with a sequential number (INV-0001…).
 export async function POST(req: Request) {
   const token = await requirePermission(req, "fees.create");
-  if (!token) return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
+  if (!token) return json({ ok: false, error: "Access denied" }, { status: 403 });
 
   try {
     const body = await req.json();
@@ -84,8 +83,9 @@ export async function POST(req: Request) {
       createdBy: token.uid,
       createdAt: FieldValue.serverTimestamp()
     });
-    return NextResponse.json({ ok: true, id: ref.id, invoiceNo, total });
+    return json({ ok: true, id: ref.id, invoiceNo, total });
   } catch (error) {
-    return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : "Unable to create invoice" }, { status: 400 });
+    return json({ ok: false, error: error instanceof Error ? error.message : "Unable to create invoice" }, { status: 400 });
   }
 }
+

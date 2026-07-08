@@ -1,6 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { requirePermission } from "@/lib/apiUtils";
+import { requirePermission, json } from "@/lib/apiUtils";
 import { logFirestoreRead, readLimit } from "@/lib/firestoreReadLogger";import { BUS_FINANCE_COLLECTION, BUS_EMI_PAYMENTS_COLLECTION } from "@/lib/busFinanceService";
 import type { BusEmiPayment, BusFinance } from "@/types/busFinance.types";
 
@@ -20,7 +20,7 @@ type ReportType =
  */
 export async function GET(req: NextRequest) {
   const token = await requirePermission(req, "bus_finance.export");
-  if (!token) return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
+  if (!token) return json({ ok: false, error: "Access denied" }, { status: 403 });
 
   try {
     const { searchParams } = new URL(req.url);
@@ -162,12 +162,13 @@ export async function GET(req: NextRequest) {
       }
       rows = Array.from(byYear.values()).sort((a, b) => a.year.localeCompare(b.year));
     } else {
-      return NextResponse.json({ ok: false, error: "Unknown report type" }, { status: 400 });
+      return json({ ok: false, error: "Unknown report type" }, { status: 400 });
     }
 
-    return NextResponse.json({ ok: true, type, rows });
+    return json({ ok: true, type, rows });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to build report";
-    return NextResponse.json({ ok: false, error: message }, { status: 500 });
+    return json({ ok: false, error: message }, { status: 500 });
   }
 }
+

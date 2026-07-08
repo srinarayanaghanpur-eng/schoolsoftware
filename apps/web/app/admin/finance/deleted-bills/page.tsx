@@ -4,7 +4,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { DateRangeFilter } from "@/components/DateRangeFilter";
 import { useAdminSession } from "@/components/AdminSessionContext";
 import { AdminApiError, adminApiRequest } from "@/lib/adminApiClient";
-import { hasPermission } from "@sri-narayana/shared";
+import { hasPermission, formatLabel } from "@sri-narayana/shared";
 import { useEffect, useState } from "react";
 
 type DeletedBill = { id: string; type: string; category: string; amount: number; date: string; description: string; deletedBy?: string; reason?: string };
@@ -61,7 +61,7 @@ export default function DeletedBillsPage() {
               : bills.map((b, i) => (
                 <tr key={i} className="border-t border-stone-100">
                   <td className="px-4 py-3 text-stone-500">{b.date}</td>
-                  <td className="px-4 py-3"><span className={`rounded-full px-2.5 py-0.5 text-xs font-bold capitalize ${typeTone[b.type] || typeTone.expense}`}>{b.type}</span></td>
+                  <td className="px-4 py-3"><span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${typeTone[b.type] || typeTone.expense}`}>{formatLabel(b.type)}</span></td>
                   <td className="px-4 py-3">{b.description || b.category}</td>
                   <td className="px-4 py-3 text-right font-semibold text-[#ed515d]">{inr(b.amount)}</td>
                   <td className="px-4 py-3 text-stone-500">{b.reason || "—"}</td>

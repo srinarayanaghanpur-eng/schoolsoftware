@@ -1,7 +1,6 @@
-import { NextResponse } from "next/server";
 import { FieldValue, type WriteBatch } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { requireAdmin } from "@/lib/apiUtils";
+import { requireAdmin, json } from "@/lib/apiUtils";
 
 type GpsUpdateMode = "teacher" | "all";
 
@@ -54,7 +53,7 @@ export async function PATCH(request: Request) {
   try {
     const decodedToken = await requireAdmin(request);
     if (!decodedToken) {
-      return NextResponse.json({ ok: false, error: "Admin access required" }, { status: 403 });
+      return json({ ok: false, error: "Admin access required" }, { status: 403 });
     }
 
     const payload = validateGpsPayload(await request.json());
@@ -73,11 +72,11 @@ export async function PATCH(request: Request) {
       const teacherRef = db.collection("teachers").doc(payload.teacherId);
       const teacherSnapshot = await teacherRef.get();
       if (!teacherSnapshot.exists) {
-        return NextResponse.json({ ok: false, error: "Teacher not found" }, { status: 404 });
+        return json({ ok: false, error: "Teacher not found" }, { status: 404 });
       }
 
       await teacherRef.set(update, { merge: true });
-      return NextResponse.json({
+      return json({
         ok: true,
         updatedCount: 1,
         message: "Selected teacher GPS settings updated."
@@ -103,13 +102,14 @@ export async function PATCH(request: Request) {
 
     await commitBatch(batch, operationCount);
 
-    return NextResponse.json({
+    return json({
       ok: true,
       updatedCount,
       message: `GPS settings updated for ${updatedCount} teacher${updatedCount === 1 ? "" : "s"}.`
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to update GPS settings.";
-    return NextResponse.json({ ok: false, error: message }, { status: 400 });
+    return json({ ok: false, error: message }, { status: 400 });
   }
 }
+

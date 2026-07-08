@@ -174,6 +174,25 @@ export function startTimer(): () => number {
 }
 
 /**
+ * Wrap a NextResponse with Cache-Control: no-store so Vercel/CDN/browser
+ * never caches admin API responses. Usage:
+ *
+ *   return json({ ok: true, data });   // instead of NextResponse.json
+ *
+ * Applies no-store across all existing cache directives.
+ */
+export function json<T>(body: T, init?: ResponseInit): NextResponse {
+  return new NextResponse(JSON.stringify(body), {
+    status: init?.status ?? 200,
+    headers: {
+      ...init?.headers,
+      "content-type": "application/json",
+      "cache-control": "no-store, max-age=0, must-revalidate"
+    }
+  }) as NextResponse;
+}
+
+/**
  * Wrap an API response with performance metrics
  * Automatically measures total request time and logs slow endpoints
  */

@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { AggregateField } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { requirePermission } from "@/lib/apiUtils";
+import { requirePermission, json } from "@/lib/apiUtils";
 import { logFirestoreAggregateRead, logFirestoreRead } from "@/lib/firestoreReadLogger";
 import { firestoreErrorResponse, firestoreQuotaResponse, isFirestoreQuotaPaused } from "@/lib/firebaseErrors";
 
@@ -14,7 +14,7 @@ export const dynamic = "force-dynamic";
 export async function GET(request: NextRequest) {
   try {
     const auth = await requirePermission(request, "reports.view");
-    if (!auth) return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+    if (!auth) return json({ success: false, error: "Unauthorized" }, { status: 401 });
 
     if (isFirestoreQuotaPaused()) {
       return firestoreQuotaResponse();
@@ -95,7 +95,7 @@ export async function GET(request: NextRequest) {
         ? (totalConcessionAmount / studentsWithConcession).toFixed(2)
         : 0;
 
-    return NextResponse.json({
+    return json({
       success: true,
       data: {
         totalStudents,
@@ -118,3 +118,4 @@ export async function GET(request: NextRequest) {
     return firestoreErrorResponse(error, 'Failed to get stats');
   }
 }
+
