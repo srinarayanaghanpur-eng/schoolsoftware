@@ -4,12 +4,23 @@ import { ServiceWorkerInit, OfflineStatusIndicator } from "@/components/OfflineS
 import { ThemeProvider } from "@/components/ThemeProvider";
 
 export const metadata = {
-  title: "Sri Narayana High School – School ERP",
-  description: "School ERP – attendance, fee, finance, exams, and staff management for Sri Narayana High School",
+  title: "Sri Narayana High School – School Management Software",
+  description: "Sri Narayana High School software – school management ERP for attendance, fee, finance, exams, staff management. The official integrated school management system for Sri Narayana High School.",
   manifest: "/manifest.json",
+  keywords: ["Sri Narayana High School", "srinarayanahighschool", "school software", "school management system", "ERP", "attendance software"],
   icons: {
     icon: "/sri-narayana-high-school-logo.jpg",
     apple: "/sri-narayana-high-school-logo.jpg"
+  },
+  openGraph: {
+    title: "Sri Narayana High School – School Management Software",
+    description: "Official school management ERP for Sri Narayana High School – attendance, fee, finance, exams, and staff management.",
+    siteName: "Sri Narayana High School ERP",
+    type: "website"
+  },
+  robots: {
+    index: true,
+    follow: true
   }
 };
 
