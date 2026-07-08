@@ -24,15 +24,6 @@ function getNonce() {
 }
 
 /**
- * Reset the server-side dashboard cache by bumping the nonce.
- * Import `getSyncNonce()` from this module in the dashboard page to key the
- * server-side TTL cache on the nonce, so a force-sync invalidates it.
- */
-export function getSyncNonce(): string {
-  return getNonce();
-}
-
-/**
  * Force a fresh nonce (called externally from the force-sync API).
  */
 function bumpNonce() {
@@ -79,4 +70,3 @@ export async function POST(req: Request) {
 export async function GET(req: Request) {
   return json({ ok: true, nonce: getNonce() });
 }
-
