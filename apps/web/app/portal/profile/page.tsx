@@ -1,12 +1,10 @@
 "use client";
 
 import { AppShell } from "@/components/AppShell";
-import { AuthGate } from "@/components/AuthGate";
 import { PageHeader } from "@/components/PageHeader";
 import { PasswordInput } from "@/components/PasswordInput";
 import { usePortalChild } from "@/components/PortalChildContext";
 import { adminApiRequest } from "@/lib/adminApiClient";
-import { ROLES } from "@sri-narayana/shared";
 import { auth } from "@sri-narayana/shared/firebase/client";
 import { Camera, Check, Key, Mail, MapPin, Phone, Send, User, Users } from "lucide-react";
 import { EmailAuthProvider, reauthenticateWithCredential, updatePassword } from "firebase/auth";
@@ -231,10 +229,8 @@ function ParentProfile() {
 
 export default function PortalProfilePage() {
   return (
-    <AuthGate roles={ROLES}>
-      <AppShell>
-        <ParentProfile />
-      </AppShell>
-    </AuthGate>
+    <AppShell>
+      <ParentProfile />
+    </AppShell>
   );
 }

@@ -1,12 +1,11 @@
 "use client";
 
 import { AppShell } from "@/components/AppShell";
-import { AuthGate } from "@/components/AuthGate";
 import { PageHeader } from "@/components/PageHeader";
-import { PortalChildProvider, usePortalChild } from "@/components/PortalChildContext";
+import { usePortalChild } from "@/components/PortalChildContext";
 import { UpiQr, DEFAULT_UPI_ID, DEFAULT_UPI_PAYEE_NAME } from "@/components/UpiQr";
 import { adminApiRequest } from "@/lib/adminApiClient";
-import { ROLES, formatLabel } from "@sri-narayana/shared";
+import { formatLabel } from "@sri-narayana/shared";
 import { CreditCard, Download, ReceiptText, TriangleAlert } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -223,10 +222,8 @@ function FeeManagement() {
 
 export default function PortalFeesPage() {
   return (
-    <AuthGate roles={ROLES}>
-      <AppShell>
-        <FeeManagement />
-      </AppShell>
-    </AuthGate>
+    <AppShell>
+      <FeeManagement />
+    </AppShell>
   );
 }

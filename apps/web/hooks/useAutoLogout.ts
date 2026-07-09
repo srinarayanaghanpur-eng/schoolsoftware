@@ -3,6 +3,9 @@
 import { useCallback, useEffect, useRef } from "react";
 import { auth, isFirebaseConfigured } from "@sri-narayana/shared/firebase/client";
 import { signOut } from "firebase/auth";
+import { clearAdminApiCacheForSignOut } from "@/lib/adminApiClient";
+import { clearAuthStorage, markLogoutRedirect } from "@/lib/authStorage";
+import { clearPayrollSessionId } from "@/lib/payrollSessionClient";
 
 const INACTIVITY_TIMEOUT = 30 * 60 * 1000; // 30 minutes
 
@@ -28,16 +31,9 @@ export function useAutoLogout() {
   const startTimer = useCallback(() => {
     clearTimer();
     timerRef.current = setTimeout(async () => {
-      try {
-        window.sessionStorage.removeItem("erp-auth-role");
-      } catch {
-        // ignore
-      }
-      try {
-        window.localStorage.removeItem("sriNarayana.selectedAcademicYear");
-      } catch {
-        // ignore
-      }
+      clearPayrollSessionId();
+      clearAdminApiCacheForSignOut();
+      markLogoutRedirect();
       if (isFirebaseConfigured) {
         try {
           await signOut(auth);
@@ -45,7 +41,8 @@ export function useAutoLogout() {
           // ignore
         }
       }
-      window.location.href = "/login?reason=session-expired";
+      clearAuthStorage();
+      window.location.href = "/login?reason=session-expired&loggedOut=1";
     }, INACTIVITY_TIMEOUT);
   }, [clearTimer]);
 

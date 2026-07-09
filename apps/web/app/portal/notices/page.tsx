@@ -1,11 +1,9 @@
 "use client";
 
 import { AppShell } from "@/components/AppShell";
-import { AuthGate } from "@/components/AuthGate";
 import { PageHeader } from "@/components/PageHeader";
 import { usePortalChild } from "@/components/PortalChildContext";
 import { adminApiRequest } from "@/lib/adminApiClient";
-import { ROLES } from "@sri-narayana/shared";
 import { BellRing, Megaphone, School, CalendarDays, BookOpenCheck, AlertTriangle, DollarSign, Circle } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -136,10 +134,8 @@ function Notices() {
 
 export default function PortalNoticesPage() {
   return (
-    <AuthGate roles={ROLES}>
-      <AppShell>
-        <Notices />
-      </AppShell>
-    </AuthGate>
+    <AppShell>
+      <Notices />
+    </AppShell>
   );
 }

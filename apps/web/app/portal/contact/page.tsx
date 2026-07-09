@@ -1,10 +1,9 @@
 "use client";
 
 import { AppShell } from "@/components/AppShell";
-import { AuthGate } from "@/components/AuthGate";
 import { PageHeader } from "@/components/PageHeader";
 import { adminApiRequest } from "@/lib/adminApiClient";
-import { ROLES, SCHOOL_CONTACT } from "@sri-narayana/shared";
+import { SCHOOL_CONTACT } from "@sri-narayana/shared";
 import { Mail, Phone, MapPin, Send, MessageSquare } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -141,10 +140,8 @@ function Contact() {
 
 export default function PortalContactPage() {
   return (
-    <AuthGate roles={ROLES}>
-      <AppShell>
-        <Contact />
-      </AppShell>
-    </AuthGate>
+    <AppShell>
+      <Contact />
+    </AppShell>
   );
 }

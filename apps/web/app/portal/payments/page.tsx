@@ -1,11 +1,10 @@
 "use client";
 
 import { AppShell } from "@/components/AppShell";
-import { AuthGate } from "@/components/AuthGate";
 import { PageHeader } from "@/components/PageHeader";
 import { usePortalChild } from "@/components/PortalChildContext";
 import { adminApiRequest } from "@/lib/adminApiClient";
-import { ROLES, formatLabel } from "@sri-narayana/shared";
+import { formatLabel } from "@sri-narayana/shared";
 import { Download, ReceiptText } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -131,10 +130,8 @@ function PaymentHistory() {
 
 export default function PortalPaymentsPage() {
   return (
-    <AuthGate roles={ROLES}>
-      <AppShell>
-        <PaymentHistory />
-      </AppShell>
-    </AuthGate>
+    <AppShell>
+      <PaymentHistory />
+    </AppShell>
   );
 }

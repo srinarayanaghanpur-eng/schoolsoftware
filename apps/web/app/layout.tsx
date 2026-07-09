@@ -1,5 +1,6 @@
 import "./globals.css";
 import type { ReactNode } from "react";
+import { AuthProvider } from "@/components/AuthProvider";
 import { ServiceWorkerInit, OfflineStatusIndicator } from "@/components/OfflineStatusIndicator";
 import { ThemeProvider } from "@/components/ThemeProvider";
 
@@ -49,7 +50,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       </head>
       <body>
         <ServiceWorkerInit />
-        <ThemeProvider>{children}</ThemeProvider>
+        <ThemeProvider>
+          <AuthProvider>{children}</AuthProvider>
+        </ThemeProvider>
         <OfflineStatusIndicator />
       </body>
     </html>

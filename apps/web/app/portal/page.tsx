@@ -1,13 +1,11 @@
 "use client";
 
 import { AppShell } from "@/components/AppShell";
-import { AuthGate } from "@/components/AuthGate";
 import { useAdminSession } from "@/components/AdminSessionContext";
 import { PageHeader } from "@/components/PageHeader";
 import { LiveClock } from "@/components/LiveClock";
 import { usePortalChild } from "@/components/PortalChildContext";
 import { adminApiRequest } from "@/lib/adminApiClient";
-import { ROLES } from "@sri-narayana/shared";
 import {
   Award,
   BellRing,
@@ -461,10 +459,8 @@ function PortalDashboard() {
 
 export default function PortalPage() {
   return (
-    <AuthGate roles={ROLES}>
-      <AppShell>
-        <PortalDashboard />
-      </AppShell>
-    </AuthGate>
+    <AppShell>
+      <PortalDashboard />
+    </AppShell>
   );
 }

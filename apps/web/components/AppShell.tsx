@@ -56,25 +56,20 @@ import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { onAuthStateChanged, signOut } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
 import {
-  ALL,
-  ALL_KNOWN_PERMISSIONS,
   ROLE_LABELS,
-  ROLE_PERMISSIONS,
   SCHOOL_CONTACT,
   canAccessModuleFromList,
   hasPermission,
   hasPermissionFromList,
-  isValidRole,
   modulesForRoleFromList,
   type Module,
   type Permission,
   type Role
 } from "@sri-narayana/shared";
-import { auth, db, isFirebaseConfigured } from "@sri-narayana/shared/firebase/client";
+import { auth, isFirebaseConfigured } from "@sri-narayana/shared/firebase/client";
 import { AcademicYearProvider, useAcademicYears } from "@/components/AcademicYearContext";
+import { useAuth } from "@/components/AuthProvider";
 import FloatingCalculator from "@/components/finance/FloatingCalculator";
 import { AdminSessionProvider } from "@/components/AdminSessionContext";
 import AppLoader from "@/components/AppLoader";
@@ -82,8 +77,7 @@ import { LiveClock } from "@/components/LiveClock";
 import { DarkModeToggle } from "@/components/DarkModeToggle";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { SectionTabs } from "@/components/SectionTabs";
-import { clearPayrollSessionId } from "@/lib/payrollSessionClient";
-import { API_STATUS_EVENT, clearAdminApiCacheForSignOut } from "@/lib/adminApiClient";
+import { API_STATUS_EVENT } from "@/lib/adminApiClient";
 import { refreshClaims } from "@/lib/authClaims";
 import { isRoleAllowedForPath } from "@/lib/routeAccess";
 import { lazyLoad } from "@/lib/lazyLoad";
@@ -718,8 +712,6 @@ function AccessDeniedState({ module }: { module?: Module }) {
   );
 }
 
-type Profile = { uid: string; name: string; email?: string; role?: Role };
-
 /**
  * Global network status banner. States:
  *  - online: hidden
@@ -841,81 +833,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return () => clearInterval(id);
   }, []);
 
-  // Signed-in user, synced from the `users/{uid}` profile doc (falls back to
-  // the Firebase Auth display name / email).
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [rolePermissions, setRolePermissions] = useState<Permission[] | undefined>(undefined);
-  const [sessionLoading, setSessionLoading] = useState(true);
+  const { status: authStatus, profile, role, permissions: rolePermissions, signOutAndClear } = useAuth();
+  const sessionLoading = authStatus === "checking";
   const [signingOut, setSigningOut] = useState(false);
-  useEffect(() => {
-    if (!isFirebaseConfigured) {
-      setSessionLoading(false);
-      return;
-    }
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setSessionLoading(true);
-      if (!user) {
-        setProfile(null);
-        setRolePermissions(undefined);
-        setSessionLoading(false);
-        return;
-      }
-      let name = user.displayName ?? "";
-      let role: Role | undefined;
-      try {
-        const claims = await refreshClaims(user);
-        const claimRole = claims?.role;
-        if (isValidRole(claimRole)) role = claimRole;
-        const snapshot = await getDoc(doc(db, "users", user.uid));
-        if (snapshot.exists()) {
-          const data = snapshot.data() as { displayName?: string; role?: unknown };
-          if (data.displayName) name = data.displayName;
-          if (isValidRole(data.role)) role = data.role;
-        }
-      } catch {
-        // Keep the auth-based fallback if the profile read fails.
-      }
-      if (!name) name = user.email ?? "User";
-      setProfile({ uid: user.uid, name, email: user.email ?? undefined, role });
-      setSessionLoading(false);
-    });
-    return unsubscribe;
-  }, []);
-
-  const role = profile?.role;
-
-  useEffect(() => {
-    if (!isFirebaseConfigured || !role) {
-      setRolePermissions(undefined);
-      return;
-    }
-    let cancelled = false;
-    const loadPermissions = async () => {
-      try {
-        const snapshot = await getDoc(doc(db, "roles", role));
-        if (cancelled) return;
-        if (!snapshot.exists()) {
-          setRolePermissions(undefined);
-          return;
-        }
-        const data = snapshot.data() as { permissions?: unknown };
-        const raw = Array.isArray(data.permissions) ? data.permissions.filter((item): item is string => typeof item === "string") : [];
-        setRolePermissions(raw.includes(ALL) ? [...ALL_KNOWN_PERMISSIONS] : raw);
-      } catch {
-        if (!cancelled) setRolePermissions(undefined);
-      }
-    };
-    const handleRbacUpdate = (event: Event) => {
-      const updatedRole = (event as CustomEvent<{ role?: unknown }>).detail?.role;
-      if (!updatedRole || updatedRole === role) void loadPermissions();
-    };
-    void loadPermissions();
-    window.addEventListener("snhs-rbac-updated", handleRbacUpdate);
-    return () => {
-      cancelled = true;
-      window.removeEventListener("snhs-rbac-updated", handleRbacUpdate);
-    };
-  }, [role]);
 
   // Pending approval count badge
   const [pendingApprovals, setPendingApprovals] = useState(0);
@@ -1158,30 +1078,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const handleSignOut = async () => {
     if (signingOut) return;
     setSigningOut(true);
-    clearPayrollSessionId();
-    // Wipe cached API responses so the next account on this device
-    // can't see this user's data.
-    clearAdminApiCacheForSignOut();
     try {
-      window.sessionStorage.removeItem("erp-auth-role");
-    } catch {
-      // ignore
-    }
-    try {
-      // The academic year is a per-login choice; clear it so the next login
-      // starts from the default (active) year.
-      window.localStorage.removeItem("sriNarayana.selectedAcademicYear");
-    } catch {
-      // ignore
-    }
-    if (!isFirebaseConfigured) {
-      router.replace("/login");
-      return;
-    }
-    try {
-      await signOut(auth);
+      await signOutAndClear();
     } finally {
-      router.replace("/login");
+      router.replace("/login?loggedOut=1");
     }
   };
 

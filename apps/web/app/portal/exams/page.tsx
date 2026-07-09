@@ -1,11 +1,10 @@
 "use client";
 
 import { AppShell } from "@/components/AppShell";
-import { AuthGate } from "@/components/AuthGate";
 import { PageHeader } from "@/components/PageHeader";
 import { usePortalChild } from "@/components/PortalChildContext";
 import { adminApiRequest } from "@/lib/adminApiClient";
-import { ROLES, formatLabel } from "@sri-narayana/shared";
+import { formatLabel } from "@sri-narayana/shared";
 import { BookOpenCheck, TrendingUp, Award } from "lucide-react";
 import { useEffect, useState } from "react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
@@ -195,10 +194,8 @@ function Examinations() {
 
 export default function PortalExamsPage() {
   return (
-    <AuthGate roles={ROLES}>
-      <AppShell>
-        <Examinations />
-      </AppShell>
-    </AuthGate>
+    <AppShell>
+      <Examinations />
+    </AppShell>
   );
 }

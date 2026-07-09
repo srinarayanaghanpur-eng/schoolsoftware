@@ -1,7 +1,7 @@
 "use client";
 
+import { useAuth } from "@/components/AuthProvider";
 import { auth } from "@sri-narayana/shared/firebase/client";
-import { onAuthStateChanged } from "firebase/auth";
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 
 export type LinkedStudent = { id: string; name: string; className: string; section?: string };
@@ -27,6 +27,7 @@ const PortalChildContext = createContext<PortalChildContextValue>({
 const STORAGE_KEY = "portal_selected_child";
 
 export function PortalChildProvider({ children }: { children: ReactNode }) {
+  const { status } = useAuth();
   const [allChildren, setAllChildren] = useState<LinkedStudent[]>([]);
   const [selectedChildId, setSelectedChildId] = useState("");
   const [loading, setLoading] = useState(true);
@@ -61,17 +62,15 @@ export function PortalChildProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        void fetchChildren();
-      } else {
-        setLoading(false);
-        setAllChildren([]);
-        setSelectedChildId("");
-      }
-    });
-    return unsub;
-  }, [fetchChildren]);
+    if (status === "checking") return;
+    if (status === "authenticated") {
+      void fetchChildren();
+      return;
+    }
+    setLoading(false);
+    setAllChildren([]);
+    setSelectedChildId("");
+  }, [fetchChildren, status]);
 
   const switchChild = useCallback((studentId: string) => {
     setSelectedChildId(studentId);

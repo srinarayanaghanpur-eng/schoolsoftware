@@ -1,10 +1,11 @@
 "use client";
 
 import type { FormEvent } from "react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { DarkModeToggle } from "@/components/DarkModeToggle";
-import { isValidRole } from "@sri-narayana/shared";
-import { refreshClaims } from "@/lib/authClaims";
+import { useAuth } from "@/components/AuthProvider";
+import { clearAuthStorage } from "@/lib/authStorage";
+import { destinationForRole, resolveAuthSessionUser } from "@/lib/authSession";
 import { employeeIdToInternalEmail, normalizeEmployeeId } from "@sri-narayana/shared/utils/employeeAuth";
 import { useRouter } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
@@ -26,23 +27,6 @@ import {
 
 const SCHOOL_NAME = "SRI NARAYANA HIGH SCHOOL";
 const SCHOOL_LOGO_SRC = "/sri-narayana-high-school-logo.jpg";
-const REMEMBERED_SESSION_KEY = "sriNarayana.rememberedSession";
-const REMEMBERED_SESSION_TTL_MS = 24 * 60 * 60 * 1000;
-
-function getCachedRememberedRole(): string | null {
-  try {
-    const raw = localStorage.getItem(REMEMBERED_SESSION_KEY);
-    if (!raw) return null;
-    const data = JSON.parse(raw);
-    if (typeof data.role === "string" && typeof data.at === "number" && Date.now() - data.at < REMEMBERED_SESSION_TTL_MS) {
-      return data.role;
-    }
-    localStorage.removeItem(REMEMBERED_SESSION_KEY);
-    return null;
-  } catch {
-    return null;
-  }
-}
 
 type LoginIdCheckStatus = "empty" | "checking" | "matched" | "unknown";
 
@@ -136,6 +120,26 @@ function chooseInitialAcademicYearId(years: PublicAcademicYear[], stored: Stored
   return years.find((year) => year.isActive)?.id ?? "";
 }
 
+function getValidAcademicYearForRedirect(years: PublicAcademicYear[], selectedYearId: string): PublicAcademicYear | null {
+  if (years.length === 0) return null;
+  return years.find((year) => year.id === selectedYearId) ?? years.find((year) => year.isActive) ?? years[0] ?? null;
+}
+
+function persistSelectedAcademicYear(year: PublicAcademicYear | null) {
+  try {
+    if (year?.id) {
+      window.localStorage.setItem(
+        SELECTED_ACADEMIC_YEAR_STORAGE_KEY,
+        JSON.stringify({ id: year.id, name: year.name })
+      );
+    } else {
+      window.localStorage.removeItem(SELECTED_ACADEMIC_YEAR_STORAGE_KEY);
+    }
+  } catch {
+    // localStorage may be unavailable; the app falls back to the active year.
+  }
+}
+
 function hasFetchedAcademicYearsThisSession() {
   try {
     return window.sessionStorage.getItem(PUBLIC_ACADEMIC_YEARS_FETCHED_SESSION_KEY) === "true";
@@ -153,13 +157,12 @@ function markAcademicYearsFetchedThisSession() {
 }
 
 async function signInAndResolveRole(loginId: string, password: string, rememberMe: boolean) {
-  const [{ browserLocalPersistence, browserSessionPersistence, setPersistence, signInWithEmailAndPassword, signOut }, { doc, getDoc }, firebaseClient] =
+  const [{ browserLocalPersistence, browserSessionPersistence, setPersistence, signInWithEmailAndPassword, signOut }, firebaseClient] =
     await Promise.all([
       import("firebase/auth"),
-      import("firebase/firestore"),
       import("@sri-narayana/shared/firebase/client")
     ]);
-  const { auth, db, isFirebaseConfigured } = firebaseClient;
+  const { auth, isFirebaseConfigured } = firebaseClient;
 
   if (!isFirebaseConfigured) {
     throw new Error("Firebase is not configured yet. Add Firebase environment values to enable login.");
@@ -167,79 +170,14 @@ async function signInAndResolveRole(loginId: string, password: string, rememberM
 
   await setPersistence(auth, rememberMe ? browserLocalPersistence : browserSessionPersistence);
   const credential = await signInWithEmailAndPassword(auth, employeeIdToInternalEmail(loginId), password);
-  const uid = credential.user.uid;
-  // Force a token refresh so a recently-changed role (updated custom claims)
-  // is picked up immediately instead of using a stale cached token.
-  const claims = await refreshClaims(auth.currentUser);
-  const tokenRole = claims?.role;
-  const userSnapshot = await getDoc(doc(db, "users", uid));
-  const userData = userSnapshot.exists() ? (userSnapshot.data() as { role?: unknown; status?: string }) : undefined;
-  const role = isValidRole(userData?.role) ? userData.role : isValidRole(tokenRole) ? tokenRole : undefined;
-
-  if (!isValidRole(role)) {
-    await signOut(auth);
-    throw new Error("Your login role is missing. Please contact admin.");
-  }
-
-  if (userData?.status && userData.status !== "active") {
-    await signOut(auth);
-    throw new Error("Your login is inactive. Please contact admin.");
-  }
-
-  return role;
-}
-
-function destinationForRole(role: string): string {
-  if (role === "teacher") return "/teacher";
-  if (role === "parent") return "/portal";
-  if (role === "accountant") return "/admin/finance";
-  if (role === "settings_manager") return "/admin/settings";
-  return "/admin/dashboard";
-}
-
-// If "remember me" kept a Firebase session alive, resolve that user's role so
-// the login screen can skip straight to their workspace instead of asking them
-// to sign in again. Returns null when there is no valid remembered session.
-async function resolveRememberedRole(): Promise<string | null> {
-  const [{ onAuthStateChanged }, { doc, getDoc }, firebaseClient] = await Promise.all([
-    import("firebase/auth"),
-    import("firebase/firestore"),
-    import("@sri-narayana/shared/firebase/client")
-  ]);
-  const { auth, db, isFirebaseConfigured } = firebaseClient;
-  if (!isFirebaseConfigured) return null;
-
-  const user = await new Promise<typeof auth.currentUser>((resolve) => {
-    const unsubscribe = onAuthStateChanged(auth, (current) => {
-      unsubscribe();
-      resolve(current);
-    });
-  });
-  if (!user) return null;
-
-  // Try cached token first (fast, no network), fall back to forced refresh
-  let role: string | undefined;
   try {
-    const cachedResult = await (user as { getIdTokenResult(forceRefresh?: boolean): Promise<{ claims: Record<string, unknown> }> }).getIdTokenResult(false);
-    if (isValidRole(cachedResult.claims.role)) role = cachedResult.claims.role as string;
-  } catch {
-    // cached token failed — fall through to forced refresh
+    const session = await resolveAuthSessionUser(credential.user);
+    return session.role;
+  } catch (error) {
+    await signOut(auth);
+    clearAuthStorage();
+    throw error;
   }
-  if (!role) {
-    const freshClaims = await refreshClaims(user);
-    role = isValidRole(freshClaims?.role) ? (freshClaims?.role as string) : undefined;
-  }
-
-  try {
-    const snapshot = await getDoc(doc(db, "users", user.uid));
-    const data = snapshot.exists() ? (snapshot.data() as { role?: unknown; status?: string }) : undefined;
-    if (isValidRole(data?.role)) role = data.role;
-    if (data?.status && data.status !== "active") return null;
-  } catch {
-    // Keep the token role if the profile lookup is temporarily unavailable.
-  }
-
-  return isValidRole(role) ? role : null;
 }
 
 function getLoginErrorMessage(error: unknown) {
@@ -483,6 +421,7 @@ function DesktopInput({
 }
 
 function useTeacherLoginController() {
+  const { status: authStatus, role: resolvedRole, error: authError, clearAuthError } = useAuth();
   const [loginId, setLoginId] = useState("");
   const [loginIdCheckStatus, setLoginIdCheckStatus] = useState<LoginIdCheckStatus>("empty");
   const [password, setPassword] = useState("");
@@ -505,6 +444,11 @@ function useTeacherLoginController() {
   const [yearsLoading, setYearsLoading] = useState(false);
   const [yearSyncStatus, setYearSyncStatus] = useState<AcademicYearSyncStatus>("idle");
   const [yearSyncMessage, setYearSyncMessage] = useState<string | null>(null);
+  const [sessionCheckTimedOut, setSessionCheckTimedOut] = useState(false);
+  const [skipAutoRedirect] = useState(() =>
+    typeof window !== "undefined" && new URLSearchParams(window.location.search).get("loggedOut") === "1"
+  );
+  const redirectedRef = useRef(false);
   const router = useRouter();
   const setUppercaseLoginId = (value: string) => {
     setLoginId(value.toUpperCase());
@@ -569,10 +513,14 @@ function useTeacherLoginController() {
   // Warm up the destination route bundles + Firebase modules while the user
   // is still typing so navigation after login feels instant.
   useEffect(() => {
-    const reason = new URLSearchParams(window.location.search).get("reason");
+    const params = new URLSearchParams(window.location.search);
+    const reason = params.get("reason");
     setInactiveReason(reason === "inactive");
     setSessionExpiredReason(reason === "session-expired");
-  }, [router]);
+    if (reason === "auth-error") {
+      setError("Your login session could not be verified. Please sign in again.");
+    }
+  }, []);
 
   // Show cached/local defaults immediately, then sync academic years in the
   // background. This must never block the login form.
@@ -580,30 +528,53 @@ function useTeacherLoginController() {
     void syncAcademicYears();
   }, [syncAcademicYears]);
 
-  // "Remember me" keeps the Firebase session across browser restarts. If a valid
-  // session is still present when the login screen loads, skip the form and send
-  // the user straight to their workspace. Skipped when we were bounced here for
-  // an inactive account (there is no valid session to resume in that case).
   useEffect(() => {
-    const reason = new URLSearchParams(window.location.search).get("reason");
-    if (reason === "inactive" || reason === "session-expired") return;
-
-    // Fast path: checked cached role from localStorage before waiting for Firebase
-    const cached = getCachedRememberedRole();
-    if (cached) {
-      router.replace(destinationForRole(cached));
+    if (authStatus !== "checking") {
+      setSessionCheckTimedOut(false);
       return;
     }
 
-    let cancelled = false;
-    void resolveRememberedRole().then((role) => {
-      if (cancelled || !role) return;
-      router.replace(destinationForRole(role));
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [router]);
+    const timeout = window.setTimeout(() => {
+      setSessionCheckTimedOut(true);
+    }, 4_000);
+
+    return () => window.clearTimeout(timeout);
+  }, [authStatus]);
+
+  useEffect(() => {
+    if (skipAutoRedirect || redirectedRef.current) return;
+
+    if (authStatus === "error") {
+      if (authError) setError(authError);
+      clearAuthError();
+      return;
+    }
+
+    if (authStatus !== "authenticated" || !resolvedRole) return;
+    if (yearsLoading) return;
+
+    const selectedYear = getValidAcademicYearForRedirect(academicYears, selectedYearId);
+    if (academicYears.length > 0 && !selectedYear) return;
+
+    persistSelectedAcademicYear(selectedYear);
+    if (selectedYear?.id && selectedYear.id !== selectedYearId) {
+      setSelectedYearId(selectedYear.id);
+    }
+
+    redirectedRef.current = true;
+    router.replace(destinationForRole(resolvedRole));
+  }, [
+    academicYears,
+    authError,
+    authStatus,
+    clearAuthError,
+    resolvedRole,
+    router,
+    selectedYearId,
+    sessionCheckTimedOut,
+    skipAutoRedirect,
+    yearsLoading
+  ]);
 
   useEffect(() => {
     const normalizedLoginId = normalizeEmployeeId(loginId);
@@ -645,43 +616,21 @@ function useTeacherLoginController() {
 
   const onSubmit = async (event: FormEvent) => {
     event.preventDefault();
+    if (loading) return;
 
+    const selectedYear = getValidAcademicYearForRedirect(academicYears, selectedYearId);
+    if (academicYears.length > 0 && !selectedYear) {
+      setError("Please select a valid academic year.");
+      return;
+    }
+
+    clearAuthError();
     setLoading(true);
     setError(null);
     try {
       const role = await signInAndResolveRole(loginId, password, rememberMe);
-      // Persist the chosen academic year for the session before navigating so
-      // AcademicYearContext can pick it up on first render.
-      try {
-        const selectedYear = academicYears.find((year) => year.id === selectedYearId);
-        if (selectedYear) {
-          window.localStorage.setItem(
-            SELECTED_ACADEMIC_YEAR_STORAGE_KEY,
-            JSON.stringify({ id: selectedYear.id, name: selectedYear.name })
-          );
-        } else if (!selectedYearId) {
-          window.localStorage.removeItem(SELECTED_ACADEMIC_YEAR_STORAGE_KEY);
-        }
-      } catch {
-        // localStorage may be unavailable; the app falls back to the active year.
-      }
-      // Persist role in localStorage for instant redirect on next visit
-      try {
-        if (rememberMe) {
-          window.localStorage.setItem(REMEMBERED_SESSION_KEY, JSON.stringify({ role, at: Date.now() }));
-        } else {
-          window.localStorage.removeItem(REMEMBERED_SESSION_KEY);
-        }
-      } catch {
-        // localStorage may be unavailable; navigation still works.
-      }
-      // Store a short-lived hint so the destination's AuthGate can render
-      // instantly instead of re-running the token/Firestore checks first.
-      try {
-        window.sessionStorage.setItem("erp-auth-role", JSON.stringify({ role, at: Date.now() }));
-      } catch {
-        // sessionStorage may be unavailable; navigation still works.
-      }
+      persistSelectedAcademicYear(selectedYear);
+      redirectedRef.current = true;
       router.replace(destinationForRole(role));
     } catch (err) {
       setError(getLoginErrorMessage(err));

@@ -1,13 +1,13 @@
 "use client";
 
 import { AttendanceCalendar } from "@/components/AttendanceCalendar";
+import { useAuth } from "@/components/AuthProvider";
 import { LazyTeacherPieChart } from "@/components/LazyDashboardCharts";
 import { StatusBadge } from "@/components/StatusBadge";
 import { TeacherAttendancePanel } from "@/components/TeacherAttendancePanel";
 import AppLoader from "@/components/AppLoader";
 import { auth } from "@sri-narayana/shared/firebase/client";
 import { getAttendancePercentage, type AttendanceRecord, type Holiday, type Teacher } from "@sri-narayana/shared";
-import { signOut } from "firebase/auth";
 import { CalendarDays, CalendarOff, CheckCircle2, Circle, Clock3, LogOut, MapPin, Sparkles, UserRound } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -71,6 +71,7 @@ function TeacherMetric({
 
 export default function TeacherDashboardPage() {
   const router = useRouter();
+  const { signOutAndClear } = useAuth();
   const [teacher, setTeacher] = useState<Teacher | null>(null);
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
   const [holidays, setHolidays] = useState<Holiday[]>([]);
@@ -118,9 +119,9 @@ export default function TeacherDashboardPage() {
   const handleLogout = async () => {
     setSigningOut(true);
     try {
-      await signOut(auth);
+      await signOutAndClear();
     } finally {
-      router.replace("/login");
+      router.replace("/login?loggedOut=1");
     }
   };
 
