@@ -6,11 +6,11 @@ export function FinanceTabs({ tabs, active, onChange }: {
   onChange: (id: string) => void;
 }) {
   return (
-    <div className="flex gap-1 overflow-x-auto border-b border-[#e2e8f0]">
+    <div className="flex gap-1 overflow-x-auto border-b border-[#e2e8f0]" style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}>
       {tabs.map((tab) => (
         <button
           key={tab.id}
-          className={`whitespace-nowrap px-4 py-2.5 text-sm font-bold transition border-b-2 -mb-px ${
+          className={`shrink-0 whitespace-nowrap px-4 py-2.5 text-sm font-bold transition border-b-2 -mb-px ${
             active === tab.id
               ? "border-[#2563eb] text-[#2563eb]"
               : "border-transparent text-[#64748b] hover:text-[#1e293b]"

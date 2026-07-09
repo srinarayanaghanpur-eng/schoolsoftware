@@ -1302,7 +1302,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </div>
           </div>
         )}
-        <div key={pathname} className="page-enter flex-1 overflow-y-auto pb-[76px] md:pb-0 print:overflow-visible print:pb-0 print:opacity-100">
+        <div key={pathname} className="page-enter min-w-0 flex-1 overflow-y-auto overflow-x-hidden pb-[76px] md:pb-0 print:overflow-visible print:pb-0 print:opacity-100">
           <ErrorBoundary resetKey={pathname}>
             {sessionLoading || signingOut ? <AppLoader message={signingOut ? "Signing out…" : "Preparing your workspace…"} /> : routeDenied ? <AccessDeniedState module={currentModule} /> : (<>{!contextualSubnav && <SectionTabs />}{children}</>)}
           </ErrorBoundary>

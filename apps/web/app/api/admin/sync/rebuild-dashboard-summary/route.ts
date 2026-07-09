@@ -1,6 +1,6 @@
-import { AggregateField } from "firebase-admin/firestore";
+import { AggregateField, FieldValue } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { json, requireSuperAdmin, startTimer } from "@/lib/apiUtils";
+import { json, requirePermission, startTimer } from "@/lib/apiUtils";
 import { markSummaryClean } from "@/lib/markSummaryDirty";
 
 export const dynamic = "force-dynamic";
@@ -30,8 +30,8 @@ function istMinutesNow(): number {
 export async function POST(req: Request) {
   const totalTimer = startTimer();
   try {
-    const auth = await requireSuperAdmin(req);
-    if (!auth) return json({ ok: false, error: "Unauthorized" }, { status: 401 });
+    const auth = await requirePermission(req, "settings.edit");
+    if (!auth) return json({ ok: false, error: "Unauthorized", reason: "Missing or invalid role" }, { status: 403 });
 
     const db = adminDb();
     const now = new Date();
@@ -163,7 +163,19 @@ export async function POST(req: Request) {
     await db.collection("dashboardSummaries").doc("current").set(summary, { merge: true });
 
     // Mark the sync doc as clean
-    await markSummaryClean();
+    await markSummaryClean(auth.uid);
+
+    // Store last cleaned time in system/dashboardCacheStatus
+    try {
+      await db.collection("system").doc("dashboardCacheStatus").set({
+        lastCleanedAt: FieldValue.serverTimestamp(),
+        lastCleanedBy: auth.uid,
+        status: "ok",
+        error: null
+      }, { merge: true });
+    } catch {
+      // non-critical
+    }
 
     const totalMs = totalTimer();
 

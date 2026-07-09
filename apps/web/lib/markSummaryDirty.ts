@@ -35,8 +35,9 @@ export async function markSummaryDirty(context?: string) {
 
 /**
  * Mark the dashboard summary as clean after a successful rebuild.
+ * Optionally records who triggered the rebuild in the system status doc.
  */
-export async function markSummaryClean() {
+export async function markSummaryClean(cleanedBy?: string) {
   try {
     await db().collection("sync").doc(SYNC_DOC_ID).set(
       {

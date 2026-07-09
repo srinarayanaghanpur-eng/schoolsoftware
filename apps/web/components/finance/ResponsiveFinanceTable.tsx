@@ -39,10 +39,10 @@ export function ResponsiveFinanceTable<T>({ columns, rows, rowKey, loading, empt
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-[#e2e8f0] bg-white shadow-sm">
+    <div className="min-w-0 overflow-hidden rounded-2xl border border-[#e2e8f0] bg-white shadow-sm">
       {/* Desktop table */}
-      <div className="hidden md:block overflow-x-auto">
-        <table className="w-full text-left text-sm">
+      <div className="hidden md:block overflow-x-auto min-w-0">
+        <table className="w-full min-w-[640px] text-left text-sm">
           <thead className="bg-[#f8fafc] text-xs font-bold uppercase text-[#64748b]">
             <tr>
               {columns.map((col) => (

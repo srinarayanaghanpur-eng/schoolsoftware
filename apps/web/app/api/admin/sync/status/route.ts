@@ -12,24 +12,34 @@ export async function GET(req: Request) {
   const timer = startTimer();
   try {
     const auth = await requireAdmin(req);
-    if (!auth) return json({ ok: false, error: "Unauthorized" }, { status: 401 });
+    if (!auth) return json({ ok: false, error: "Unauthorized", reason: "Missing or invalid role" }, { status: 403 });
 
     const db = adminDb();
-    const snap = await db.collection("sync").doc("dashboard_summary").get().catch(() => null);
 
-    if (!snap || !snap.exists) {
+    const [syncSnap, cacheStatusSnap] = await Promise.all([
+      db.collection("sync").doc("dashboard_summary").get().catch(() => null),
+      db.collection("system").doc("dashboardCacheStatus").get().catch(() => null)
+    ]);
+
+    const cacheStatus = cacheStatusSnap?.exists ? cacheStatusSnap.data() : null;
+
+    if (!syncSnap || !syncSnap.exists) {
       return json({
         ok: true,
         status: "never_built",
         dirty: true,
-        lastCleanAt: null,
+        lastCleanAt: cacheStatus?.lastCleanedAt?.toDate?.()?.toISOString() ?? null,
         lastDirtyAt: null,
         lastDirtyContext: null,
-        forcedSyncAt: null
+        forcedSyncAt: null,
+        cacheStatus: cacheStatus ? {
+          lastCleanedBy: cacheStatus.lastCleanedBy ?? null,
+          status: cacheStatus.status ?? null
+        } : null
       });
     }
 
-    const data = snap.data()!;
+    const data = syncSnap.data()!;
     const dirtyAt = data.dirtyAt?.toDate?.() ?? null;
     const cleanAt = data.cleanAt?.toDate?.() ?? null;
     const forcedSyncAt = data.forcedSyncAt ?? null;
@@ -42,10 +52,14 @@ export async function GET(req: Request) {
       ok: true,
       status: isDirty ? "dirty" : "clean",
       dirty: isDirty,
-      lastCleanAt: cleanAt?.toISOString() ?? null,
+      lastCleanAt: cleanAt?.toISOString() ?? cacheStatus?.lastCleanedAt?.toDate?.()?.toISOString() ?? null,
       lastDirtyAt: dirtyAt?.toISOString() ?? null,
       lastDirtyContext: data.lastDirtyContext ?? null,
       forcedSyncAt,
+      cacheStatus: cacheStatus ? {
+        lastCleanedBy: cacheStatus.lastCleanedBy ?? null,
+        status: cacheStatus.status ?? null
+      } : null,
       _metrics: { totalMs }
     });
   } catch (error) {

@@ -258,17 +258,19 @@ export default function FinanceDashboardPage() {
   };
 
   const renderOverview = () => (
-    <div className="grid gap-5 xl:grid-cols-[1fr_320px]">
-      <div>
+    <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
+      <div className="xl:col-span-2 min-w-0">
         <h3 className="mb-3 text-sm font-extrabold text-[#1e293b]">Recent Transactions</h3>
-        <ResponsiveFinanceTable columns={transactionColumns} rows={transactions.slice(0, 10)} rowKey={(r) => `${r.date}-${r.description}-${r.amount}`} loading={loading} empty="No transactions for this range." />
+        <div className="min-w-0 overflow-hidden">
+          <ResponsiveFinanceTable columns={transactionColumns} rows={transactions.slice(0, 10)} rowKey={(r) => `${r.date}-${r.description}-${r.amount}`} loading={loading} empty="No transactions for this range." />
+        </div>
         {transactions.length > 10 && (
           <div className="mt-3 text-right">
             <Link href="/admin/finance/ledger" className="text-xs font-bold text-[#2563eb] hover:underline">View all transactions →</Link>
           </div>
         )}
       </div>
-      <div className="space-y-4">
+      <div className="xl:col-span-1 space-y-4 min-w-0">
         <div className="rounded-2xl border border-[#e2e8f0] bg-white p-4 shadow-sm">
           <h4 className="mb-3 text-xs font-extrabold uppercase tracking-wide text-[#64748b]">Collection by Method</h4>
           {renderCollectionMethodChart()}
@@ -436,7 +438,7 @@ export default function FinanceDashboardPage() {
         </div>
       }
     >
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6 gap-4">
         {summaryCards.map((card) => (
           <FinanceStatCard key={card.label} {...card} />
         ))}
