@@ -39,5 +39,9 @@ export async function verifyBearerToken(request: Request) {
   const header = request.headers.get("authorization");
   const token = header?.startsWith("Bearer ") ? header.slice("Bearer ".length) : undefined;
   if (!token) return null;
-  return adminAuth().verifyIdToken(token);
+  try {
+    return await adminAuth().verifyIdToken(token);
+  } catch {
+    return null;
+  }
 }

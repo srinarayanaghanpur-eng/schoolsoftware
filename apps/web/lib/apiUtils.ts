@@ -50,6 +50,11 @@ export async function requireSuperAdmin(req: Request): Promise<DecodedIdToken | 
   return decodedToken;
 }
 
+/** Returns decoded token or null if auth is missing/expired. Caller should return 401. */
+export async function requireAuthenticated(req: Request): Promise<DecodedIdToken | null> {
+  return verifyBearerToken(req);
+}
+
 export async function requireSignedIn(req: Request): Promise<DecodedIdToken | null> {
   return verifyBearerToken(req);
 }
@@ -96,7 +101,7 @@ export async function checkPermissionWithMessage(req: Request, permission: Permi
     decodedToken = await verifyBearerToken(req);
   }
   if (!decodedToken) {
-    return { ok: false, error: "Authentication required. Please sign in.", status: 403 };
+    return { ok: false, error: "Authentication required. Please sign in.", status: 401 };
   }
   const role = await resolveRole(decodedToken);
   if (!role || !await roleHasPermission(role, permission)) {

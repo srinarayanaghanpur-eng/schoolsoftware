@@ -140,8 +140,8 @@ function isFallbackWorthy(status: number) {
   return status === 0 || status === 429 || status >= 500;
 }
 
-async function rawRequest<T>(path: string, init?: RequestInit): Promise<T> {
-  const token = await auth.currentUser?.getIdToken();
+async function rawRequest<T>(path: string, init?: RequestInit, forceRefresh = false): Promise<T> {
+  const token = await auth.currentUser?.getIdToken(forceRefresh);
   if (!token) {
     throw new AdminApiError("Please sign in again.", 401);
   }
@@ -157,8 +157,29 @@ async function rawRequest<T>(path: string, init?: RequestInit): Promise<T> {
       }
     });
   } catch {
-    // network down / offline
     throw new AdminApiError("You appear to be offline.", 0);
+  }
+
+  if (response.status === 401 && !forceRefresh) {
+    const refreshed = await auth.currentUser?.getIdToken(true);
+    if (!refreshed) {
+      throw new AdminApiError("Session expired. Please sign in again.", 401);
+    }
+    try {
+      response = await fetch(path, {
+        ...init,
+        headers: {
+          "content-type": "application/json",
+          authorization: `Bearer ${refreshed}`,
+          ...(init?.headers ?? {})
+        }
+      });
+    } catch {
+      throw new AdminApiError("You appear to be offline.", 0);
+    }
+    if (response.status === 401) {
+      throw new AdminApiError("Session expired. Please sign in again.", 401);
+    }
   }
 
   const result = await response.json().catch(() => ({}));

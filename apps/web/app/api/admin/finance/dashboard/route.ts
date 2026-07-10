@@ -1,6 +1,7 @@
 import { AggregateField } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { requirePermission, json } from "@/lib/apiUtils";
+import { requireAuthenticated, resolveRole, json } from "@/lib/apiUtils";
+import { roleHasPermission } from "@/lib/rbacAdmin";
 import { docDateKey, inRange } from "@/lib/financeUtils";
 import { logFirestoreAggregateRead, logFirestoreRead } from "@/lib/firestoreReadLogger";
 
@@ -72,9 +73,13 @@ function sortEntriesDesc(left: MoneyEntry, right: MoneyEntry) {
 }
 
 export async function GET(req: Request) {
-  const token = await requirePermission(req, "fees.view");
-  if (!token) {
-    return json({ ok: false, error: "Access denied" }, { status: 403 });
+  const decoded = await requireAuthenticated(req);
+  if (!decoded) {
+    return json({ ok: false, error: "Authentication required. Please sign in again." }, { status: 401 });
+  }
+  const role = await resolveRole(decoded);
+  if (!role || !await roleHasPermission(role, "fees.view")) {
+    return json({ ok: false, error: "Access denied. You do not have permission to view finance." }, { status: 403 });
   }
 
   const { from, to } = parseRange(req.url);

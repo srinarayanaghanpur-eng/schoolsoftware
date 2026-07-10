@@ -90,8 +90,13 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // API requests - network-first with cache fallback
+  // API requests - network-first with cache fallback.
+  // NEVER cache authenticated API responses (those with an Authorization header)
+  // so stale auth errors or user-specific data are never served to the wrong user.
   if (url.pathname.startsWith('/api/')) {
+    if (request.headers.get('authorization')) {
+      return;
+    }
     event.respondWith(networkFirstStrategy(request, API_CACHE));
     return;
   }
