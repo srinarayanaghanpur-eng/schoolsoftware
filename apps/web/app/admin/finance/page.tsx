@@ -179,7 +179,7 @@ export default function FinanceDashboardPage() {
   ];
 
   const transactionColumns = [
-    { key: "date", header: "Date", cell: (r: typeof transactions[0]) => <span className="text-xs font-semibold text-[#64748b]">{formatSafeDate(r.date)}</span> },
+    { key: "date", header: "Date", cell: (r: typeof transactions[0]) => <span className="whitespace-nowrap text-xs font-semibold text-[#64748b]">{formatSafeDate(r.date)}</span> },
     { key: "type", header: "Type", cell: (r: typeof transactions[0]) => <TypeBadge type={r.type} /> },
     { key: "student", header: "Description", cell: (r: typeof transactions[0]) => (
       <div className="max-w-[200px]" title={r.description}>

@@ -1,5 +1,6 @@
 import { FieldValue } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebaseAdmin";
+import { removeUndefinedFields } from "@/lib/firestoreSanitize";
 import { writeAuditLog } from "@/lib/auditLog";
 import type { ApprovalRequest, ApprovalStatus } from "@sri-narayana/shared";
 
@@ -36,7 +37,11 @@ export async function createApprovalRequest(params: CreateApprovalParams): Promi
     academicYearId: params.academicYearId
   };
 
-  await docRef.set(request);
+  // Firestore rejects `undefined` field values, so omit any that weren't provided
+  // (e.g. the receipt-cancel flow doesn't set branch/academicYearId).
+  const cleanRequest = removeUndefinedFields(request);
+
+  await docRef.set(cleanRequest);
 
   await writeAuditLog({
     action: "approval.created",
@@ -44,7 +49,7 @@ export async function createApprovalRequest(params: CreateApprovalParams): Promi
     entityId: params.entityId,
     actorId: params.requestedBy,
     actorRole: "admin",
-    newValues: request as unknown as Record<string, unknown>,
+    newValues: cleanRequest as unknown as Record<string, unknown>,
     approvalId: docRef.id,
     branch: params.branch,
     academicYearId: params.academicYearId

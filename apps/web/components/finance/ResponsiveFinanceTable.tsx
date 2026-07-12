@@ -46,7 +46,7 @@ export function ResponsiveFinanceTable<T>({ columns, rows, rowKey, loading, empt
           <thead className="bg-[#f8fafc] text-xs font-bold uppercase text-[#64748b]">
             <tr>
               {columns.map((col) => (
-                <th key={col.key} className={`px-4 py-3 ${col.align === "right" ? "text-right" : col.align === "center" ? "text-center" : ""} ${col.className || ""}`}>
+                <th key={col.key} className={`whitespace-nowrap px-3 py-3 ${col.align === "right" ? "text-right" : col.align === "center" ? "text-center" : ""} ${col.className || ""}`}>
                   {col.header}
                 </th>
               ))}
@@ -56,7 +56,7 @@ export function ResponsiveFinanceTable<T>({ columns, rows, rowKey, loading, empt
             {rows.map((row, index) => (
               <tr key={rowKey(row, index)} className="border-t border-[#f1f5f9] hover:bg-[#f8fafc] transition-colors">
                 {columns.map((col) => (
-                  <td key={col.key} className={`px-4 py-3 ${col.align === "right" ? "text-right" : col.align === "center" ? "text-center" : ""} ${col.className || ""} ${col.hideOnMobile ? "hidden md:table-cell" : ""}`}>
+                  <td key={col.key} className={`px-3 py-3 ${col.align === "right" ? "text-right" : col.align === "center" ? "text-center" : ""} ${col.className || ""} ${col.hideOnMobile ? "hidden md:table-cell" : ""}`}>
                     {col.cell(row)}
                   </td>
                 ))}
@@ -69,9 +69,9 @@ export function ResponsiveFinanceTable<T>({ columns, rows, rowKey, loading, empt
       {/* Mobile cards */}
       <div className="divide-y divide-[#f1f5f9] md:hidden">
         {rows.map((row, index) => (
-          <div key={rowKey(row, index)} className="p-4">
+          <div key={rowKey(row, index)} className="px-4 py-2.5">
             {columns.filter((c) => !c.hideOnMobile).map((col) => (
-              <div key={col.key} className={`flex items-center justify-between gap-2 py-1 ${col.align === "right" ? "flex-row-reverse" : ""}`}>
+              <div key={col.key} className={`flex items-center justify-between gap-2 py-0.5 ${col.align === "right" ? "flex-row-reverse" : ""}`}>
                 <span className="text-xs font-semibold text-[#64748b]">{col.header}</span>
                 <span className="text-sm font-medium text-[#1e293b] text-right">{col.cell(row)}</span>
               </div>
