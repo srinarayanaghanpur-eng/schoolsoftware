@@ -9,7 +9,7 @@ declare module "firebase/auth" {
     uid: string;
     email?: string | null;
     displayName?: string | null;
-    getIdToken(): Promise<string>;
+    getIdToken(forceRefresh?: boolean): Promise<string>;
     getIdTokenResult(): Promise<{ claims: Record<string, unknown> }>;
   };
   export type Auth = {
