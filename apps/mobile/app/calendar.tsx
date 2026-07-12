@@ -18,7 +18,10 @@ const STATUS_META: Record<AttendanceStatus, { label: string; short: string; bg: 
   cl: { label: "Casual leave", short: "CL", bg: "#fee9ed", fg: "#c9435e", border: "#f9c4cf" },
   holiday: { label: "Holiday", short: "H", bg: "#eeefff", fg: "#3033a1", border: "#ced3ff" },
   absent: { label: "Absent", short: "A", bg: "#fee9ed", fg: "#c9435e", border: "#f9c4cf" },
-  not_marked: { label: "Not marked", short: "—", bg: "#f8f9ff", fg: "#9aa3bd", border: "#e3e6f0" }
+  not_marked: { label: "Not marked", short: "—", bg: "#f8f9ff", fg: "#9aa3bd", border: "#e3e6f0" },
+  checked_in: { label: "Checked in", short: "IN", bg: "#e2f4ea", fg: "#12915d", border: "#b9ebd0" },
+  half_day: { label: "Half day", short: "HD", bg: "#fff2d7", fg: "#b8710b", border: "#ffd993" },
+  short_hours: { label: "Short hours", short: "SH", bg: "#fff2d7", fg: "#b8710b", border: "#ffd993" }
 };
 
 function pad(value: number) {

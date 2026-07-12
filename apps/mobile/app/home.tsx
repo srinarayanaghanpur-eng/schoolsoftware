@@ -116,8 +116,8 @@ export default function Home() {
           <Link href="/history" asChild>
             <Pressable style={({ pressed }) => [styles.shortcut, pressed && styles.pressed]}><View style={[styles.shortcutIcon, styles.historyIcon]}><Text style={[styles.shortcutIconText, { color: "#138659" }]} allowFontScaling={false}>LOG</Text></View><Text style={styles.shortcutText} allowFontScaling={false}>History</Text><Text style={styles.shortcutSubtext} allowFontScaling={false}>Recent entries</Text></Pressable>
           </Link>
-          <Link href="/profile" asChild>
-            <Pressable style={({ pressed }) => [styles.shortcut, pressed && styles.pressed]}><View style={[styles.shortcutIcon, styles.profileIcon]}><Text style={[styles.shortcutIconText, { color: "#d58c10" }]} allowFontScaling={false}>ME</Text></View><Text style={styles.shortcutText} allowFontScaling={false}>Profile</Text><Text style={styles.shortcutSubtext} allowFontScaling={false}>Your details</Text></Pressable>
+          <Link href="/messages" asChild>
+            <Pressable style={({ pressed }) => [styles.shortcut, pressed && styles.pressed]}><View style={[styles.shortcutIcon, styles.profileIcon]}><Text style={[styles.shortcutIconText, { color: "#d58c10" }]} allowFontScaling={false}>MSG</Text></View><Text style={styles.shortcutText} allowFontScaling={false}>Messages</Text><Text style={styles.shortcutSubtext} allowFontScaling={false}>Campus notes</Text></Pressable>
           </Link>
         </View>
       </AnimatedEntrance>

@@ -28,6 +28,7 @@ declare module "firebase/firestore" {
   export function getFirestore(app?: import("@firebase/app").FirebaseApp): Firestore;
   export function collection(firestore: Firestore, path: string, ...pathSegments: string[]): import("@firebase/firestore").CollectionReference<DocumentData>;
   export function doc(db: Firestore, ...pathSegments: string[]): DocumentReference<DocumentData>;
+  export function addDoc(reference: import("@firebase/firestore").CollectionReference<DocumentData>, data: Record<string, unknown>): Promise<DocumentReference<DocumentData>>;
   export function getDoc<T = DocumentData>(reference: DocumentReference<T>): Promise<DocumentSnapshot<T>>;
   export function getDocs<T = DocumentData>(query: import("@firebase/firestore").Query<T>): Promise<QuerySnapshot<T>>;
   export function limit(limit: number): QueryConstraint;

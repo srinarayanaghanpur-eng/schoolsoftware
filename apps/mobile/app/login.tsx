@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Alert,
   Keyboard,
@@ -13,17 +13,28 @@ import {
   View
 } from "react-native";
 import { useRouter } from "expo-router";
-import { signInWithEmailAndPassword, signOut } from "@firebase/auth";
-import { doc, getDoc } from "@firebase/firestore";
-import { employeeIdToInternalEmail, isValidRole } from "@sri-narayana/shared";
-import { auth, db } from "@/lib/firebase";
+import { signInWithEmailAndPassword, signOut } from "firebase/auth";
+import { employeeIdToInternalEmail } from "@sri-narayana/shared";
+import { auth } from "@/lib/firebase";
+import { clearMobileAuthStorage } from "@/lib/authStorage";
+import { dashboardPathForRole } from "@/lib/mobileTheme";
+import { resolveMobileSession, useMobileSession } from "@/lib/mobileSession";
 
 export default function Login() {
   const [employeeId, setEmployeeId] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const router = useRouter();
   const passwordRef = useRef<TextInput>(null);
+  const redirectedRef = useRef(false);
+  const session = useMobileSession();
+
+  useEffect(() => {
+    if (redirectedRef.current || session.status !== "authenticated" || !session.profile) return;
+    redirectedRef.current = true;
+    router.replace(dashboardPathForRole(session.profile.role) as never);
+  }, [router, session.profile, session.status]);
 
   const login = async () => {
     if (!employeeId.trim() || !password.trim()) {
@@ -32,29 +43,20 @@ export default function Login() {
     }
 
     setLoading(true);
+    setErrorMessage(null);
     try {
-      const credential = await signInWithEmailAndPassword(auth, employeeIdToInternalEmail(employeeId.trim()), password);
-      const token = await credential.user.getIdTokenResult();
-
-      const userSnapshot = await getDoc(doc(db, "users", credential.user.uid));
-      const userData = userSnapshot.exists() ? (userSnapshot.data() as { role?: unknown; status?: string }) : undefined;
-      const claimRole = token.claims.role;
-      const docRole = userData?.role;
-      const role = isValidRole(claimRole) ? claimRole : isValidRole(docRole) ? docRole : undefined;
-
-      if (!role) {
-        await signOut(auth);
-        throw new Error("Your login role is missing. Please contact admin.");
-      }
-
-      if (userData?.status && userData.status !== "active") {
-        await signOut(auth);
-        throw new Error("Your login is inactive. Please contact admin.");
-      }
-
-      router.replace("/home");
+      const loginId = employeeId.trim();
+      const loginEmail = loginId.includes("@") ? loginId : employeeIdToInternalEmail(loginId);
+      const credential = await signInWithEmailAndPassword(auth, loginEmail, password);
+      const profile = await resolveMobileSession(credential.user);
+      redirectedRef.current = true;
+      router.replace(dashboardPathForRole(profile.role) as never);
     } catch (error) {
-      Alert.alert("Login failed", error instanceof Error ? error.message : "Please check your credentials.");
+      const message = error instanceof Error ? error.message : "Please check your credentials.";
+      setErrorMessage(message);
+      await signOut(auth).catch(() => undefined);
+      await clearMobileAuthStorage().catch(() => undefined);
+      Alert.alert("Login failed", message);
     } finally {
       setLoading(false);
     }
@@ -68,16 +70,21 @@ export default function Login() {
             <View style={styles.heroGlow} />
             <Text style={styles.kicker} allowFontScaling={false}>Sri Narayana High School</Text>
             <Text style={styles.title} allowFontScaling={false}>School ERP</Text>
-            <Text style={styles.subtitle} allowFontScaling={false}>Sign in to mark GPS-secured attendance and manage school operations.</Text>
+            <Text style={styles.subtitle} allowFontScaling={false}>Sign in to open your Teacher, Parent, Principal, Admin or Accounts workspace.</Text>
           </View>
 
           <View style={styles.formCard}>
             <Text style={styles.formTitle} allowFontScaling={false}>Welcome back</Text>
-            <Text style={styles.formHint} allowFontScaling={false}>Use the Employee ID given by the admin office.</Text>
-            <Text style={styles.label} allowFontScaling={false}>Employee ID</Text>
+            <Text style={styles.formHint} allowFontScaling={false}>Use the login ID given by the school office.</Text>
+            {session.error || errorMessage ? (
+              <View style={styles.errorBox}>
+                <Text style={styles.errorText} allowFontScaling={false}>{session.error ?? errorMessage}</Text>
+              </View>
+            ) : null}
+            <Text style={styles.label} allowFontScaling={false}>Employee / Login ID</Text>
             <TextInput
               style={styles.input}
-              placeholder="Example: TCH001"
+              placeholder="Example: TCH001 or ADM001"
               placeholderTextColor="#9aa3bd"
               autoCapitalize="characters"
               autoCorrect={false}
@@ -137,6 +144,8 @@ const styles = StyleSheet.create({
   },
   formTitle: { color: "#1b1d32", fontSize: 22, fontWeight: "900", letterSpacing: -0.5 },
   formHint: { marginTop: 5, marginBottom: 18, color: "#7d86a8", fontSize: 13, lineHeight: 18, fontWeight: "600" },
+  errorBox: { backgroundColor: "#fbe5ea", borderWidth: 1, borderColor: "#f6bac7", borderRadius: 14, padding: 12, marginBottom: 14 },
+  errorText: { color: "#b1304a", fontSize: 12, lineHeight: 17, fontWeight: "800" },
   label: { marginBottom: 7, color: "#4f587a", fontSize: 12, fontWeight: "900", textTransform: "uppercase", letterSpacing: 0.5 },
   input: {
     backgroundColor: "#f8f9ff",
