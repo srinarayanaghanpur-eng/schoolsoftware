@@ -141,7 +141,13 @@ function isFallbackWorthy(status: number) {
 }
 
 async function rawRequest<T>(path: string, init?: RequestInit, forceRefresh = false): Promise<T> {
-  const token = await auth.currentUser?.getIdToken(forceRefresh);
+  // `getIdToken(forceRefresh?)` accepts a boolean in Firebase v10, but a stale
+  // @firebase/auth-types in the dependency tree can resolve it to a zero-arg
+  // signature. Narrow to the correct signature explicitly (no `any`).
+  const currentUser = auth.currentUser as
+    | { getIdToken(forceRefresh?: boolean): Promise<string> }
+    | null;
+  const token = await currentUser?.getIdToken(forceRefresh);
   if (!token) {
     throw new AdminApiError("Please sign in again.", 401);
   }
