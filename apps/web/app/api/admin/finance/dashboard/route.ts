@@ -3,9 +3,16 @@ import { adminDb } from "@/lib/firebaseAdmin";
 import { requireAuthenticated, resolveRole, json } from "@/lib/apiUtils";
 import { roleHasPermission } from "@/lib/rbacAdmin";
 import { docDateKey, inRange } from "@/lib/financeUtils";
+import { aggregateCollectionByMethod, aggregateDuesByClass, aggregateExpenseBreakdown, isCompletedStatus } from "@/lib/financeAggregation";
 import { logFirestoreAggregateRead, logFirestoreRead } from "@/lib/firestoreReadLogger";
 
 export const dynamic = "force-dynamic";
+
+// In-memory response cache: identical range requests within the TTL reuse the
+// previous result instead of re-running ~10 Firestore queries per page visit.
+// This is the single biggest quota saver for the finance dashboard.
+const CACHE_TTL_MS = 60_000;
+const responseCache = new Map<string, { at: number; payload: unknown }>();
 
 type MoneyEntry = {
   date: string;
@@ -83,6 +90,17 @@ export async function GET(req: Request) {
   }
 
   const { from, to } = parseRange(req.url);
+
+  // Serve from cache unless the caller explicitly refreshes (?refresh=1,
+  // used by the dashboard's refresh button) or the entry expired.
+  const { searchParams } = new URL(req.url);
+  const cacheKey = `${from}_${to}`;
+  const forceRefresh = searchParams.get("refresh") === "1";
+  const cached = responseCache.get(cacheKey);
+  if (!forceRefresh && cached && Date.now() - cached.at < CACHE_TTL_MS) {
+    return json(cached.payload as Record<string, unknown>);
+  }
+
   const db = adminDb();
   const fromDate = new Date(`${from}T00:00:00`);
   const toDate = new Date(`${to}T23:59:59.999`);
@@ -99,7 +117,7 @@ export async function GET(req: Request) {
     ? db.collection("studentFeeSummaries").where("academicYearId", "==", activeYearId)
     : db.collection("studentFeeSummaries");
 
-  const [feeTotalsSnap, studentsPendingSnap, todayPaymentsSnap, paymentsSnap, incomesSnap, expensesSnap, salarySnap, advancesSnap] = await Promise.all([
+  const [feeTotalsSnap, studentsPendingSnap, todayPaymentsSnap, paymentsSnap, incomesSnap, expensesSnap, salarySnap, advancesSnap, duesSummariesSnap, classesSnap] = await Promise.all([
     scopedSummaries.aggregate({
       totalFeeAmount: AggregateField.sum("totalFee"),
       outstandingDues: AggregateField.sum("dueAmount")
@@ -119,7 +137,11 @@ export async function GET(req: Request) {
     db.collection("incomes").where("createdAt", ">=", fromDate).where("createdAt", "<=", toDate).orderBy("createdAt", "desc").limit(300).get().catch(() => null),
     db.collection("expenses").where("createdAt", ">=", fromDate).where("createdAt", "<=", toDate).orderBy("createdAt", "desc").limit(300).get().catch(() => null),
     db.collection("salary_reports").where("paidAt", ">=", fromDate).where("paidAt", "<=", toDate).orderBy("paidAt", "desc").limit(300).get().catch(() => null),
-    db.collection("salary_advances").where("createdAt", ">=", fromDate).where("createdAt", "<=", toDate).orderBy("createdAt", "desc").limit(300).get().catch(() => null)
+    db.collection("salary_advances").where("createdAt", ">=", fromDate).where("createdAt", "<=", toDate).orderBy("createdAt", "desc").limit(300).get().catch(() => null),
+    // Dues by class: reuse the per-student summary docs (one query, no
+    // per-student reads). select() keeps the payload small.
+    scopedSummaries.select("studentId", "className", "classId", "dueAmount", "totalFee", "totalConcession", "totalPaid", "feeStatus", "deleted", "active").limit(2000).get().catch(() => null),
+    db.collection("classes").select("className", "name").limit(200).get().catch(() => null)
   ]);
 
   const EMPTY_DOCS: FirebaseFirestore.QueryDocumentSnapshot[] = [];
@@ -136,6 +158,8 @@ export async function GET(req: Request) {
   logFirestoreRead("FinanceDashboardAPI", "expenses", expensesSnap, { from, to, statusFilter: "approved", limit: 300 });
   logFirestoreRead("FinanceDashboardAPI", "salary_reports", salarySnap, { from, to, paidFilter: true, limit: 300 });
   logFirestoreRead("FinanceDashboardAPI", "salary_advances", advancesSnap, { from, to, limit: 300 });
+  logFirestoreRead("FinanceDashboardAPI", "studentFeeSummaries", duesSummariesSnap, { purpose: "dues-by-class", academicYearId: activeYearId, limit: 2000 });
+  logFirestoreRead("FinanceDashboardAPI", "classes", classesSnap, { purpose: "class-name-map", limit: 200 });
 
   const feeTotals = (feeTotalsSnap?.data() ?? {}) as Record<string, unknown>;
   const totalFeeAmount = amount(feeTotals.totalFeeAmount);
@@ -147,7 +171,7 @@ export async function GET(req: Request) {
   let expenseTotal = 0;
   const todayCollected = (todayPaymentsSnap?.docs ?? EMPTY_DOCS).reduce((sum, doc) => {
     const data = doc.data();
-    if (String(data.status || "").toLowerCase() !== "completed") return sum;
+    if (!isCompletedStatus(data.status)) return sum;
     return sum + amount(data.amountPaid);
   }, 0);
   const byWeek = new Map<string, { name: string; income: number; expense: number }>();
@@ -155,7 +179,9 @@ export async function GET(req: Request) {
 
   paymentsDocs.forEach((doc) => {
     const data = doc.data();
-    if (String(data.status || "").toLowerCase() === "cancelled") return;
+    // Count only genuinely completed payments (handles completed/Completed/
+    // paid; excludes cancelled, failed, refunded, pending).
+    if (!isCompletedStatus(data.status)) return;
     const date = docDateKey(data, "paymentDate");
     const paid = amount(data.amountPaid);
     if (!inRange(date, from, to)) return;
@@ -254,9 +280,37 @@ export async function GET(req: Request) {
       expenseLakhs: Number((row.expense / 100000).toFixed(2))
     }));
 
-  return json({
+  // ---- Summary card aggregations (computed from the docs fetched above; no
+  // extra reads beyond the single summaries/classes queries) ----
+  // Collection by Method uses the SAME payments docs that feed Recent
+  // Transactions, so both cards always agree.
+  const collectionByMethod = aggregateCollectionByMethod([
+    ...paymentsDocs.map((doc) => ({ id: doc.id, data: doc.data() })),
+    ...incomesDocs.map((doc) => ({ id: doc.id, data: { ...doc.data(), status: "completed" } }))
+  ].filter((p) => inRange(docDateKey(p.data, "paymentDate"), from, to)));
+
+  const classNamesById = new Map<string, string>();
+  (classesSnap?.docs ?? EMPTY_DOCS).forEach((doc) => {
+    const d = doc.data();
+    classNamesById.set(doc.id, String(d.className || d.name || doc.id));
+  });
+  const duesByClass = aggregateDuesByClass(
+    (duesSummariesSnap?.docs ?? EMPTY_DOCS).map((doc) => ({ id: doc.id, data: doc.data() })),
+    classNamesById
+  );
+
+  const expenseBreakdown = aggregateExpenseBreakdown(
+    expensesDocs
+      .map((doc) => ({ id: doc.id, data: doc.data() }))
+      .filter((e) => inRange(docDateKey(e.data), from, to))
+  );
+
+  const payload = {
     ok: true,
     range: { from, to },
+    collectionByMethod,
+    duesByClass,
+    expenseBreakdown,
     kpis: {
       totalIncome: incomeTotal,
       totalExpense: expenseTotal,
@@ -285,6 +339,15 @@ export async function GET(req: Request) {
     collectionTarget,
     bars,
     transactions: transactions.sort(sortEntriesDesc)
-  });
+  };
+
+  responseCache.set(cacheKey, { at: Date.now(), payload });
+  // Keep the cache tiny — only a handful of ranges are ever requested.
+  if (responseCache.size > 20) {
+    const oldest = [...responseCache.entries()].sort((a, b) => a[1].at - b[1].at)[0];
+    if (oldest) responseCache.delete(oldest[0]);
+  }
+
+  return json(payload);
 }
 

@@ -14,7 +14,7 @@ type Column<T> = {
 export function ResponsiveFinanceTable<T>({ columns, rows, rowKey, loading, empty }: {
   columns: Column<T>[];
   rows: T[];
-  rowKey: (row: T) => string;
+  rowKey: (row: T, index: number) => string;
   loading?: boolean;
   empty?: string;
 }) {
@@ -53,8 +53,8 @@ export function ResponsiveFinanceTable<T>({ columns, rows, rowKey, loading, empt
             </tr>
           </thead>
           <tbody>
-            {rows.map((row) => (
-              <tr key={rowKey(row)} className="border-t border-[#f1f5f9] hover:bg-[#f8fafc] transition-colors">
+            {rows.map((row, index) => (
+              <tr key={rowKey(row, index)} className="border-t border-[#f1f5f9] hover:bg-[#f8fafc] transition-colors">
                 {columns.map((col) => (
                   <td key={col.key} className={`px-4 py-3 ${col.align === "right" ? "text-right" : col.align === "center" ? "text-center" : ""} ${col.className || ""} ${col.hideOnMobile ? "hidden md:table-cell" : ""}`}>
                     {col.cell(row)}
@@ -68,8 +68,8 @@ export function ResponsiveFinanceTable<T>({ columns, rows, rowKey, loading, empt
 
       {/* Mobile cards */}
       <div className="divide-y divide-[#f1f5f9] md:hidden">
-        {rows.map((row) => (
-          <div key={rowKey(row)} className="p-4">
+        {rows.map((row, index) => (
+          <div key={rowKey(row, index)} className="p-4">
             {columns.filter((c) => !c.hideOnMobile).map((col) => (
               <div key={col.key} className={`flex items-center justify-between gap-2 py-1 ${col.align === "right" ? "flex-row-reverse" : ""}`}>
                 <span className="text-xs font-semibold text-[#64748b]">{col.header}</span>

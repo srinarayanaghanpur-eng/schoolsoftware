@@ -108,12 +108,12 @@ export default function FinanceDashboardPage() {
   const transactions = data?.transactions ?? [];
   const kpis = data?.kpis;
 
-  const loadDashboard = useCallback(async () => {
+  const loadDashboard = useCallback(async (forceRefresh = false) => {
     setLoading(true);
     setError(null);
     try {
       const result = await adminApiRequest<FinanceDashboardPayload>(
-        `/api/admin/finance/dashboard?from=${encodeURIComponent(range.from)}&to=${encodeURIComponent(range.to)}`
+        `/api/admin/finance/dashboard?from=${encodeURIComponent(range.from)}&to=${encodeURIComponent(range.to)}${forceRefresh ? "&refresh=1" : ""}`
       );
       setData(result);
     } catch (err) {
@@ -200,7 +200,21 @@ export default function FinanceDashboardPage() {
     ) },
   ];
 
+  const renderCardSkeleton = () => (
+    <div className="space-y-2 animate-pulse" aria-label="Loading">
+      {[0, 1, 2].map((i) => (
+        <div key={i} className="h-4 rounded-full bg-[#f1f5f9]" />
+      ))}
+    </div>
+  );
+
+  const renderCardError = () => (
+    <p className="text-sm font-semibold text-[#dc2626]">Failed to load. Use the refresh button to retry.</p>
+  );
+
   const renderCollectionMethodChart = () => {
+    if (loading) return renderCardSkeleton();
+    if (error) return renderCardError();
     const methods = data?.collectionByMethod ?? [];
     if (methods.length === 0) return <p className="text-sm text-[#94a3b8]">No data</p>;
     const total = methods.reduce((s, m) => s + m.amount, 0);
@@ -210,7 +224,7 @@ export default function FinanceDashboardPage() {
           const pct = total > 0 ? ((m.amount / total) * 100).toFixed(0) : 0;
           return (
             <div key={m.method} className="flex items-center gap-2">
-              <span className="w-24 text-xs font-bold text-[#64748b]">{m.method === "upi" ? "UPI" : formatLabel(m.method)}</span>
+              <span className="w-24 text-xs font-bold text-[#64748b]">{m.method === "upi" || m.method === "UPI" ? "UPI" : m.method.includes("/") ? m.method : formatLabel(m.method)}</span>
               <div className="flex-1 h-2 rounded-full bg-[#f1f5f9] overflow-hidden">
                 <div className="h-full rounded-full bg-[#2563eb] transition-all" style={{ width: `${pct}%` }} />
               </div>
@@ -223,6 +237,8 @@ export default function FinanceDashboardPage() {
   };
 
   const renderDuesByClass = () => {
+    if (loading) return renderCardSkeleton();
+    if (error) return renderCardError();
     const classes = data?.duesByClass ?? [];
     if (classes.length === 0) return <p className="text-sm text-[#94a3b8]">No due data</p>;
     return (
@@ -241,6 +257,8 @@ export default function FinanceDashboardPage() {
   };
 
   const renderExpenseBreakdown = () => {
+    if (loading) return renderCardSkeleton();
+    if (error) return renderCardError();
     const breakdown = data?.expenseBreakdown ?? [];
     if (breakdown.length === 0) return <p className="text-sm text-[#94a3b8]">No expense data</p>;
     const colors = ["#2563eb", "#dc2626", "#d97706", "#16a34a", "#7c3aed", "#0891b2"];
@@ -262,7 +280,7 @@ export default function FinanceDashboardPage() {
       <div className="xl:col-span-2 min-w-0">
         <h3 className="mb-3 text-sm font-extrabold text-[#1e293b]">Recent Transactions</h3>
         <div className="min-w-0 overflow-hidden">
-          <ResponsiveFinanceTable columns={transactionColumns} rows={transactions.slice(0, 10)} rowKey={(r) => `${r.date}-${r.description}-${r.amount}`} loading={loading} empty="No transactions for this range." />
+          <ResponsiveFinanceTable columns={transactionColumns} rows={transactions.slice(0, 10)} rowKey={(r, index) => `${r.date}-${r.description}-${r.amount}-${index}`} loading={loading} empty="No transactions for this range." />
         </div>
         {transactions.length > 10 && (
           <div className="mt-3 text-right">
@@ -422,7 +440,7 @@ export default function FinanceDashboardPage() {
             <option value="year">This Year</option>
           </select>
           <button
-            onClick={loadDashboard}
+            onClick={() => void loadDashboard(true)}
             disabled={loading}
             className="grid h-9 w-9 place-items-center rounded-xl border border-[#e2e8f0] bg-white text-[#64748b] hover:bg-[#f8fafc] transition-colors disabled:opacity-50"
           >
@@ -438,7 +456,7 @@ export default function FinanceDashboardPage() {
         </div>
       }
     >
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6 gap-4 auto-rows-fr [&>*]:h-full">
         {summaryCards.map((card) => (
           <FinanceStatCard key={card.label} {...card} />
         ))}
@@ -450,7 +468,7 @@ export default function FinanceDashboardPage() {
         <div className="flex items-center gap-3 rounded-2xl border border-[#fecaca] bg-[#fef2f2] px-4 py-3 text-sm font-semibold text-[#dc2626]">
           <AlertCircle size={17} />
           <span className="flex-1">{error}</span>
-          <button onClick={loadDashboard} className="rounded-lg border border-[#fecaca] px-3 py-1 text-xs font-bold hover:bg-[#fee2e2] transition-colors">Retry</button>
+          <button onClick={() => void loadDashboard(true)} className="rounded-lg border border-[#fecaca] px-3 py-1 text-xs font-bold hover:bg-[#fee2e2] transition-colors">Retry</button>
         </div>
       )}
 

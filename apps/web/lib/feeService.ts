@@ -91,12 +91,14 @@ export const feeService = {
       (sum: any, s: any) => sum + (s.totalFeesPaid || 0),
       0
     );
+    // BUGFIX: totalFeesDue already accounts for payments; subtracting
+    // totalFeesPaid again double-counted and understated outstanding dues.
     const totalFeeOutstanding = students.reduce(
-      (sum: any, s: any) => sum + Math.max(0, (s.totalFeesDue || 0) - (s.totalFeesPaid || 0)),
+      (sum: any, s: any) => sum + Math.max(0, Number(s.totalFeesDue) || 0),
       0
     );
     const studentsWithOutstandingFees = students.filter(
-      (s: any) => Math.max(0, (s.totalFeesDue || 0) - (s.totalFeesPaid || 0)) > 0
+      (s: any) => (Number(s.totalFeesDue) || 0) > 0
     ).length;
 
     const averageAnnualFee = totalStudents > 0 ? totalFeeAmount / totalStudents : 0;
@@ -143,10 +145,13 @@ export const feeService = {
     );
     const monthlyPayments = paymentsSnapshot.docs.map((d: any) => d.data());
 
-    const monthlyCollection = monthlyPayments.reduce(
-      (sum, p: any) => sum + p.amountPaid,
-      0
-    );
+    // BUGFIX: exclude cancelled/failed payments and coerce amounts so a
+    // string/missing amountPaid can't turn the total into NaN.
+    const monthlyCollection = monthlyPayments.reduce((sum, p: any) => {
+      const status = String(p.status || "completed").toLowerCase();
+      if (status === "cancelled" || status === "canceled" || status === "failed") return sum;
+      return sum + (Number(p.amountPaid) || 0);
+    }, 0);
 
     return {
       totalStudents,
@@ -195,9 +200,11 @@ export const feeService = {
     const totalFeeAmount = Math.max(0, Number(raw.totalFeeAmount) || commitmentFee);
     const rawDue = raw.totalFeesDue;
     const totalFeeDue = rawDue != null ? Math.max(0, Number(rawDue)) : totalFeeAmount;
-    const totalFeePaid = (student as any)?.totalFeesPaid || 0;
-    const remainingAmount = totalFeeDue - totalFeePaid;
-    const feePaidPercentage = totalFeeDue > 0 ? (totalFeePaid / totalFeeDue) * 100 : 0;
+    const totalFeePaid = Number((student as any)?.totalFeesPaid) || 0;
+    // BUGFIX: totalFeesDue is already (fee − payments); subtracting payments
+    // again understated the balance. Percentage is paid / total fee, not paid / due.
+    const remainingAmount = totalFeeDue;
+    const feePaidPercentage = totalFeeAmount > 0 ? (totalFeePaid / totalFeeAmount) * 100 : 0;
 
     return {
       admissionNumber: student.admissionNumber,
@@ -242,7 +249,7 @@ export const feeService = {
     );
 
     const payments = paymentsSnapshot.docs.map((d) => d.data());
-    const totalFeePaid = payments.reduce((sum, p: any) => sum + p.amountPaid, 0);
+    const totalFeePaid = payments.reduce((sum, p: any) => sum + (Number(p.amountPaid) || 0), 0);
 
     const lastPayment = payments.sort(
       (a: any, b: any) =>
@@ -258,7 +265,10 @@ export const feeService = {
 
     await updateDoc(doc(db, 'students', studentId), {
       totalFeesPaid: totalFeePaid,
-      totalFeeDue,
+      // BUGFIX: field is `totalFeesDue` everywhere else in the app
+      // (feeRecalculation.ts, dues reports). Writing `totalFeeDue` silently
+      // left the real due amount stale.
+      totalFeesDue: totalFeeDue,
       feeStatus,
       lastPaymentDate: lastPayment?.paymentDate || null,
       feeLastUpdated: serverTimestamp()

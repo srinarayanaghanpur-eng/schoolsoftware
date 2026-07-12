@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { RefreshCw, AlertTriangle, CheckCircle2, X } from "lucide-react";
-import { invalidateAdminApiCache } from "@/lib/adminApiClient";
+import { invalidateAdminApiCache, adminApiRequest } from "@/lib/adminApiClient";
 import { useAuth } from "@/components/AuthProvider";
 
 type SyncStatus = "checking" | "clean" | "dirty" | "never_built" | "error";
@@ -23,8 +23,13 @@ export default function SyncStatusBanner() {
 
   const checkStatus = useCallback(async () => {
     try {
-      const res = await fetch("/api/admin/sync/status");
-      const data = await res.json();
+      const data = await adminApiRequest<{
+        ok: boolean;
+        status: SyncStatus;
+        lastCleanAt: string | null;
+        lastDirtyAt: string | null;
+        error?: string;
+      }>("/api/admin/sync/status", undefined, { fresh: true });
       if (data.ok) {
         setStatus(data.status);
         setLastClean(data.lastCleanAt);
@@ -32,11 +37,11 @@ export default function SyncStatusBanner() {
         setErrorMsg(null);
       } else {
         setStatus("error");
-        setErrorMsg(data.error);
+        setErrorMsg(data.error ?? "Unknown error");
       }
-    } catch {
+    } catch (err) {
       setStatus("error");
-      setErrorMsg("Network error");
+      setErrorMsg(err instanceof Error ? err.message : "Network error");
     }
   }, []);
 
@@ -71,8 +76,10 @@ export default function SyncStatusBanner() {
     setRebuilding(true);
     setErrorMsg(null);
     try {
-      const res = await fetch("/api/admin/sync/rebuild-dashboard-summary", { method: "POST" });
-      const data = await res.json();
+      const data = await adminApiRequest<{ ok: boolean; error?: string; reason?: string }>(
+        "/api/admin/sync/rebuild-dashboard-summary",
+        { method: "POST" }
+      );
       if (data.ok) {
         setStatus("clean");
         setToastMsg("Dashboard rebuilt successfully");
