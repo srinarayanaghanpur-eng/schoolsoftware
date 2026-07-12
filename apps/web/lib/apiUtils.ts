@@ -96,7 +96,7 @@ export async function requirePermission(req: Request, permission: Permission): P
  * Same as requirePermission but returns a descriptive error message instead of null.
  * Makes it easier to show the missing permission in the API response.
  */
-export async function checkPermissionWithMessage(req: Request, permission: Permission, decodedToken?: DecodedIdToken | null): Promise<{ ok: true; token: DecodedIdToken } | { ok: false; error: string; status: 403 }> {
+export async function checkPermissionWithMessage(req: Request, permission: Permission, decodedToken?: DecodedIdToken | null): Promise<{ ok: true; token: DecodedIdToken } | { ok: false; error: string; status: 401 | 403 }> {
   if (!decodedToken) {
     decodedToken = await verifyBearerToken(req);
   }
