@@ -6,7 +6,7 @@ import { isAdminWorkspaceRole, useMobileSession, type MobileUserProfile } from "
 import { addDoc, collection, getDocs, limit, orderBy, query } from "firebase/firestore";
 import type { Role } from "@sri-narayana/shared";
 import { useEffect, useMemo, useState } from "react";
-import { Alert, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, Linking, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
 const MESSAGE_COLLECTION = "campus_teacher_messages";
 
@@ -22,12 +22,22 @@ type CampusTeacherMessage = {
   id: string;
   title: string;
   body: string;
+  link: string;
   senderName: string;
   senderRole: Role;
   targetMode: "all" | "selected";
   targetTeacherIds: string[];
   createdAt: string;
 };
+
+// Accept a pasted link with or without a scheme; returns "" when there is nothing usable.
+function normalizeLink(raw: string) {
+  const trimmed = raw.trim();
+  if (!trimmed) return "";
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  if (/^[\w.-]+\.[a-z]{2,}(\/|$|\?)/i.test(trimmed)) return `https://${trimmed}`;
+  return "";
+}
 
 type FirestoreDocLike = { id: string; data: () => unknown };
 
@@ -58,6 +68,7 @@ function normalizeMessage(id: string, data: Record<string, unknown>): CampusTeac
     id,
     title: asString(data.title, "Campus message"),
     body: asString(data.body),
+    link: asString(data.link),
     senderName: asString(data.senderName, "School office"),
     senderRole: data.senderRole as Role,
     targetMode: data.targetMode === "selected" ? "selected" : "all",
@@ -93,6 +104,23 @@ function dateLabel(value: string) {
   return date.toLocaleString("en-IN", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
 }
 
+function shortLink(url: string) {
+  return url.replace(/^https?:\/\//i, "").replace(/\/$/, "");
+}
+
+async function openLink(url: string) {
+  try {
+    const canOpen = await Linking.canOpenURL(url);
+    if (!canOpen) {
+      Alert.alert("Can't open link", "No app on this device can open this link.");
+      return;
+    }
+    await Linking.openURL(url);
+  } catch {
+    Alert.alert("Can't open link", "Something went wrong opening this link.");
+  }
+}
+
 export default function Messages() {
   const { profile } = useMobileSession();
   const theme = themeForRole(profile?.role);
@@ -101,6 +129,7 @@ export default function Messages() {
   const [selectedTeacherIds, setSelectedTeacherIds] = useState<string[]>([]);
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
+  const [link, setLink] = useState("");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -146,12 +175,19 @@ export default function Messages() {
       return;
     }
 
+    const normalizedLink = normalizeLink(link);
+    if (link.trim() && !normalizedLink) {
+      Alert.alert("Check the link", "Enter a valid web link (for example https://meet.google.com/abc) or leave it empty.");
+      return;
+    }
+
     setSending(true);
     try {
       const now = new Date().toISOString();
       await addDoc(collection(db, MESSAGE_COLLECTION), {
         title: title.trim(),
         body: body.trim(),
+        link: normalizedLink,
         senderUid: profile.uid,
         senderName: profile.displayName,
         senderRole: profile.role,
@@ -163,6 +199,7 @@ export default function Messages() {
       });
       setTitle("");
       setBody("");
+      setLink("");
       setSelectedTeacherIds([]);
       await refresh();
       Alert.alert("Message sent", selectedTeacherIds.length > 0 ? "Sent to the selected teachers." : "Sent to all active teachers.");
@@ -181,6 +218,7 @@ export default function Messages() {
           <Text style={styles.helper} allowFontScaling={false}>{selectedLabel}</Text>
           <TextInput style={styles.input} placeholder="Title" placeholderTextColor="#8a90ac" value={title} onChangeText={setTitle} allowFontScaling={false} />
           <TextInput style={[styles.input, styles.bodyInput]} placeholder="Message for teachers" placeholderTextColor="#8a90ac" value={body} onChangeText={setBody} multiline allowFontScaling={false} />
+          <TextInput style={styles.input} placeholder="Share a link (optional) — e.g. meeting or document" placeholderTextColor="#8a90ac" value={link} onChangeText={setLink} autoCapitalize="none" autoCorrect={false} keyboardType="url" allowFontScaling={false} />
           <View style={styles.teacherWrap}>
             {teachers.map((teacher) => {
               const selected = selectedTeacherIds.includes(teacher.id);
@@ -227,6 +265,16 @@ export default function Messages() {
               </View>
             </View>
             <Text style={styles.messageBody} allowFontScaling={false}>{message.body}</Text>
+            {message.link ? (
+              <Pressable
+                accessibilityRole="link"
+                style={({ pressed }) => [styles.linkButton, { borderColor: theme.accent }, pressed && styles.pressed]}
+                onPress={() => openLink(message.link)}
+              >
+                <Text style={[styles.linkIcon, { color: theme.accent }]} allowFontScaling={false}>↗</Text>
+                <Text style={[styles.linkText, { color: theme.accent }]} numberOfLines={1} allowFontScaling={false}>{shortLink(message.link)}</Text>
+              </Pressable>
+            ) : null}
           </Card>
         ))
       )}
@@ -252,6 +300,9 @@ const styles = StyleSheet.create({
   modePill: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6 },
   modeText: { fontSize: 10, fontWeight: "900" },
   messageBody: { marginTop: 12, color: palette.ink2, fontSize: 13, lineHeight: 19, fontWeight: "700" },
+  linkButton: { marginTop: 12, flexDirection: "row", alignItems: "center", gap: 8, borderWidth: 1, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, backgroundColor: palette.surface2 },
+  linkIcon: { fontSize: 14, fontWeight: "900" },
+  linkText: { flex: 1, fontSize: 12.5, fontWeight: "800" },
   errorText: { color: palette.bad, fontSize: 13, lineHeight: 19, fontWeight: "800" },
   disabled: { opacity: 0.62 },
   pressed: { opacity: 0.82, transform: [{ scale: 0.985 }] }
