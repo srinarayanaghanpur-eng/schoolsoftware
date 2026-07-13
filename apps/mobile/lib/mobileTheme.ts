@@ -23,10 +23,11 @@ export const palette = {
   badTint: "#fbe5ea",
   parent: "#0e7c86",
   admin: "#8a3ca8",
+  principal: "#9a3652",
   accountant: "#14764c"
 };
 
-export type WorkspaceKind = "teacher" | "parent" | "admin" | "accountant" | "desktop";
+export type WorkspaceKind = "teacher" | "parent" | "admin" | "principal" | "accountant" | "desktop";
 
 export type WorkspaceTheme = {
   workspace: WorkspaceKind;
@@ -40,14 +41,16 @@ export type WorkspaceTheme = {
 export function workspaceForRole(role?: Role): WorkspaceKind {
   if (role === "parent") return "parent";
   if (role === "accountant") return "accountant";
-  if (role === "admin" || role === "principal" || role === "super_admin") return "admin";
+  if (role === "principal") return "principal";
+  if (role === "admin" || role === "super_admin") return "admin";
   if (role === "settings_manager") return "desktop";
   return "teacher";
 }
 
 export function dashboardPathForRole(role?: Role): string {
   const workspace = workspaceForRole(role);
-  if (workspace === "admin") return "/admin";
+  // Principal shares the Admin home screen, which adapts its copy by role.
+  if (workspace === "admin" || workspace === "principal") return "/admin";
   if (workspace === "accountant") return "/accountant";
   if (workspace === "parent") return "/parent";
   if (workspace === "desktop") return "/profile";
@@ -61,6 +64,9 @@ export function themeForRole(role?: Role): WorkspaceTheme {
   }
   if (workspace === "admin") {
     return { workspace, label: "Admin", accent: palette.admin, accentDeep: "#5f2b78", tint: "#f2e6f6", short: "AD" };
+  }
+  if (workspace === "principal") {
+    return { workspace, label: "Principal", accent: palette.principal, accentDeep: "#6d2239", tint: "#f7e6ec", short: "PR" };
   }
   if (workspace === "accountant") {
     return { workspace, label: "Accountant", accent: palette.accountant, accentDeep: "#0d5c3c", tint: "#e2f4ea", short: "AC" };
