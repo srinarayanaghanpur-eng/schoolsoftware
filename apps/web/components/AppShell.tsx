@@ -22,6 +22,7 @@ import {
   ChevronRight,
   Circle,
   ClipboardCheck,
+  Download,
   FileStack,
   FileText,
   Fuel,
@@ -144,7 +145,7 @@ const primaryNav: NavItem[] = [
     label: "Exams & Marks",
     module: "exams",
     icon: BookOpenCheck,
-    activePrefixes: ["/admin/exams", "/admin/calendar", "/admin/holidays", "/admin/promotions"]
+    activePrefixes: ["/admin/exams", "/admin/calendar", "/admin/holidays", "/admin/promotions", "/admin/homework"]
   },
   { href: "/admin/notices", label: "Communication", module: "communication", icon: Megaphone, activePrefixes: ["/admin/notices", "/admin/messages", "/admin/notifications"] },
   { href: "/admin/reports", label: "Reports", module: "reports", icon: BarChart3, activePrefixes: ["/admin/reports"] },
@@ -245,6 +246,7 @@ const contextSubnavs: ContextSubnav[] = [
     matchPrefixes: ["/admin/exams", "/admin/calendar", "/admin/holidays", "/admin/promotions"],
     items: [
       { href: "/admin/exams", label: "Exams", icon: BookOpenCheck, module: "exams" },
+      { href: "/admin/homework", label: "Homework", icon: BookOpen, module: "exams" },
       { href: "/admin/calendar", label: "Timetable", icon: CalendarDays, module: "academics" },
       { href: "/admin/holidays", label: "Holidays", icon: CalendarRange, module: "academics" },
       { href: "/admin/promotions", label: "Promotions", icon: GraduationCap, module: "promotions" }
@@ -292,6 +294,7 @@ const mobileNav: MobileNavItem[] = [
   { href: "/portal/notices", label: "Notices", short: "Notices", icon: Megaphone, module: "portal" },
   // Admin mobile nav
   { href: "/admin/dashboard", label: "Summary", short: "Summary", icon: Grid2X2, module: "dashboard" },
+  { href: "/admin/homework", label: "Homework", short: "HW", icon: BookOpen, module: "exams" },
   { href: "/admin/reports", label: "Reports", short: "Reports", icon: BarChart3, module: "reports" },
   { href: "/admin/notices", label: "Notices", short: "Notices", icon: Megaphone, module: "communication" },
   { href: "/admin/my-attendance", label: "My Attendance", short: "Attendance", icon: CalendarCheck, module: "attendance" },
@@ -334,6 +337,8 @@ const pageTitles: Record<string, string> = {
   "/admin/settings": "Settings",
   "/admin/biometric": "Biometric Devices",
   "/admin/backup": "Backup & Restore",
+  "/admin/report-cards": "Report Cards",
+  "/admin/homework": "Homework",
   "/admin/ai-agent": "AI Agent",
   "/admin/ai-agent/settings": "AI Settings",
   "/admin/ai-agent/logs": "AI Logs",

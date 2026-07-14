@@ -208,13 +208,9 @@ export default function FinanceDashboardPage() {
     </div>
   );
 
-  const renderCardError = () => (
-    <p className="text-sm font-semibold text-[#dc2626]">Failed to load. Use the refresh button to retry.</p>
-  );
-
   const renderCollectionMethodChart = () => {
     if (loading) return renderCardSkeleton();
-    if (error) return renderCardError();
+    if (error && !data) return <p className="text-sm font-semibold text-[#dc2626]">Failed to load.</p>;
     const methods = data?.collectionByMethod ?? [];
     if (methods.length === 0) return <p className="text-sm text-[#94a3b8]">No data</p>;
     const total = methods.reduce((s, m) => s + m.amount, 0);
@@ -238,7 +234,7 @@ export default function FinanceDashboardPage() {
 
   const renderDuesByClass = () => {
     if (loading) return renderCardSkeleton();
-    if (error) return renderCardError();
+    if (error && !data) return <p className="text-sm font-semibold text-[#dc2626]">Failed to load.</p>;
     const classes = data?.duesByClass ?? [];
     if (classes.length === 0) return <p className="text-sm text-[#94a3b8]">No due data</p>;
     return (
@@ -258,7 +254,7 @@ export default function FinanceDashboardPage() {
 
   const renderExpenseBreakdown = () => {
     if (loading) return renderCardSkeleton();
-    if (error) return renderCardError();
+    if (error && !data) return <p className="text-sm font-semibold text-[#dc2626]">Failed to load.</p>;
     const breakdown = data?.expenseBreakdown ?? [];
     if (breakdown.length === 0) return <p className="text-sm text-[#94a3b8]">No expense data</p>;
     const colors = ["#2563eb", "#dc2626", "#d97706", "#16a34a", "#7c3aed", "#0891b2"];

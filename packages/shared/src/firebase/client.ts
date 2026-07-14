@@ -16,12 +16,26 @@ const firebaseConfig = {
 export const isFirebaseConfigured = Object.values(firebaseConfig).every(Boolean);
 
 export const firebaseApp = isFirebaseConfigured ? (getApps().length ? getApps()[0] : initializeApp(firebaseConfig)) : undefined;
-export const auth = firebaseApp ? getAuth(firebaseApp) : ({ currentUser: null } as ReturnType<typeof getAuth>);
+
+function createAuth(): ReturnType<typeof getAuth> {
+  if (typeof window === "undefined") return { currentUser: null } as ReturnType<typeof getAuth>;
+  if (!firebaseApp) return { currentUser: null } as ReturnType<typeof getAuth>;
+  return getAuth(firebaseApp);
+}
+
+export const auth = createAuth();
 
 function createDb(): Firestore {
+  if (typeof window === "undefined") return {} as Firestore;
   if (!firebaseApp) return {} as Firestore;
   return getFirestore(firebaseApp);
 }
 
+function createStorage(): ReturnType<typeof getStorage> {
+  if (typeof window === "undefined") return {} as ReturnType<typeof getStorage>;
+  if (!firebaseApp) return {} as ReturnType<typeof getStorage>;
+  return getStorage(firebaseApp);
+}
+
 export const db = createDb();
-export const storage = firebaseApp ? getStorage(firebaseApp) : ({} as ReturnType<typeof getStorage>);
+export const storage = createStorage();

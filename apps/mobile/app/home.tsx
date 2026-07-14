@@ -39,12 +39,8 @@ export default function Home() {
     return (
       <Screen title="Welcome" subtitle="Your teaching workspace for today">
         <Card>
-          <Text style={{ color: "#c9435e", fontWeight: "600", marginBottom: 12 }}>{error || "Unable to load profile"}</Text>
-          <Link href="/login" asChild>
-            <Pressable style={{ backgroundColor: "#3033a1", padding: 14, borderRadius: 12, alignItems: "center" }}>
-              <Text style={{ color: "white", fontWeight: "800" }}>Sign in</Text>
-            </Pressable>
-          </Link>
+          <Text style={{ color: "#c9435e", fontWeight: "600", marginBottom: 12, textAlign: "center" }}>{error || "Unable to load profile"}</Text>
+          <Text style={{ color: "#7d86a8", fontSize: 12, fontWeight: "600", textAlign: "center" }}>Data will load automatically when connection restores.</Text>
         </Card>
       </Screen>
     );

@@ -15,7 +15,6 @@ import {
   IndianRupee,
   Library,
   Megaphone,
-  MoreHorizontal,
   Package,
   Send,
   Settings,
@@ -44,8 +43,7 @@ const quickActions = [
   { href: "/admin/notifications", label: "New Notice", icon: Megaphone, tone: "bg-[#fff0f2] text-[#d1485c] dark:bg-rose-500/15 dark:text-rose-300" },
   { href: "/admin/exams", label: "Create Exam", icon: BookOpenCheck, tone: "bg-[#f4efff] text-[#7445bd] dark:bg-indigo-500/15 dark:text-indigo-200" },
   { href: "/admin/reports", label: "Generate Report", icon: FileSpreadsheet, tone: "bg-[#eef7f8] text-[#17808a] dark:bg-cyan-500/15 dark:text-cyan-300" },
-  { href: "/admin/ai-agent", label: "AI Agent", icon: Brain, tone: "bg-[#f0e7ff] text-[#7c3aed] dark:bg-purple-500/15 dark:text-purple-300" },
-  { href: "/admin/settings", label: "View All", icon: MoreHorizontal, tone: "bg-[#f2f4fa] text-[#5a6383] dark:bg-slate-700 dark:text-slate-300" }
+  { href: "/admin/ai-agent", label: "AI Agent", icon: Brain, tone: "bg-[#f0e7ff] text-[#7c3aed] dark:bg-purple-500/15 dark:text-purple-300" }
 ];
 
 const moduleShortcuts = [

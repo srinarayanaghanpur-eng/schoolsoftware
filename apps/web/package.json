@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@firebase/firestore": "^4.7.3",
     "@google/genai": "^2.10.0",
     "@sri-narayana/shared": "*",
     "@swc/helpers": "^0.5.5",
