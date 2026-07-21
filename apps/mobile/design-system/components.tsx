@@ -95,15 +95,25 @@ export function PillButton({
   label,
   onPress,
   bg = color.primary,
-  fg = color.onPrimary
+  fg = color.onPrimary,
+  icon,
+  block = false
 }: {
   label: string;
   onPress?: () => void;
   bg?: string;
   fg?: string;
+  icon?: IconName;
+  /** Stretch to fill the parent instead of hugging the label. */
+  block?: boolean;
 }) {
   return (
-    <PressableScale onPress={onPress} accessibilityLabel={label} style={[styles.pillButton, { backgroundColor: bg }]}>
+    <PressableScale
+      onPress={onPress}
+      accessibilityLabel={label}
+      style={[styles.pillButton, block && styles.pillButtonBlock, { backgroundColor: bg }]}
+    >
+      {icon ? <Icon name={icon} size={17} tint={fg} /> : null}
       <Text style={[styles.pillButtonText, { color: fg }]}>{label}</Text>
     </PressableScale>
   );
@@ -480,7 +490,17 @@ const styles = StyleSheet.create({
   },
   sectionCard: { gap: space.md },
   sectionHeader: { flexDirection: "row", alignItems: "center" },
-  pillButton: { borderRadius: radius.pill, paddingHorizontal: 18, paddingVertical: 10, alignSelf: "flex-start" },
+  pillButton: {
+    borderRadius: radius.pill,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: space.sm
+  },
+  pillButtonBlock: { alignSelf: "stretch" },
   pillButtonText: { fontSize: 13, fontWeight: "600" },
   badge: { borderRadius: radius.pill, paddingHorizontal: 9, paddingVertical: 3, alignSelf: "flex-start" },
   badgeText: { fontSize: 11.5, fontWeight: "700" },

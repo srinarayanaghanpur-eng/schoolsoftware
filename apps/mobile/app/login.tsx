@@ -11,18 +11,13 @@ import {
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { signInWithEmailAndPassword, signOut } from "firebase/auth";
-import type { Role } from "@sri-narayana/shared";
 import { employeeIdToInternalEmail } from "@sri-narayana/shared";
 import { auth } from "@/lib/firebase";
 import { clearMobileAuthStorage } from "@/lib/authStorage";
 import { resolveMobileSession, useMobileSession } from "@/lib/mobileSession";
 import { DSText, PressableScale } from "@/design-system/components";
 import { color, elevation, radius, space } from "@/design-system/tokens";
-
-function dashboardPathForRole(role?: Role): string {
-  if (role === "parent") return "/parent";
-  return "/login"; // other workspaces arrive in later phases
-}
+import { dashboardPathForRole } from "@/lib/roleRouting";
 
 export default function Login() {
   const [employeeId, setEmployeeId] = useState("");

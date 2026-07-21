@@ -5,7 +5,7 @@ import { collection, doc, getDoc, getDocs, limit, query, where } from "firebase/
 import { ROLE_LABELS, type Role, isValidRole } from "@sri-narayana/shared";
 import { auth, db } from "@/lib/firebase";
 import { clearMobileAuthStorage } from "@/lib/authStorage";
-import { dashboardPathForRole } from "@/lib/mobileTheme";
+import { dashboardPathForRole } from "@/lib/roleRouting";
 
 export type MobileAuthStatus = "checking" | "unauthenticated" | "authenticated" | "error";
 

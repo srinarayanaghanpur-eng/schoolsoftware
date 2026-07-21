@@ -20,11 +20,15 @@ export class MobileCache {
   }
 
   /**
-   * Set cached value with TTL
+   * Set cached value with TTL.
+   * @param ttlMinutes TTL in MINUTES (matches the constructor's unit).
+   *   Callers previously passed a bare number here that was treated as
+   *   milliseconds, which expired every entry instantly.
    */
-  async set<T>(key: string, data: T, ttl?: number): Promise<void> {
+  async set<T>(key: string, data: T, ttlMinutes?: number): Promise<void> {
     try {
-      const expiresAt = Date.now() + (ttl || this.ttl);
+      const expiresAt =
+        Date.now() + (ttlMinutes !== undefined ? ttlMinutes * 60 * 1000 : this.ttl);
       const entry: CacheEntry<T> = {
         data,
         timestamp: Date.now(),

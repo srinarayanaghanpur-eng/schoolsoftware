@@ -1,3 +1,3 @@
-/** LEGACY ROUTE — old UI removed (2026-07-21 rebuild). Delete during cleanup. */
+/** Legacy flat route — kept so old deep links keep working. Redirects to the rebuilt workspace. */
 import { Redirect } from "expo-router";
-export default function LegacyPeople() { return <Redirect href={"/" as never} />; }
+export default function LegacyPeople() { return <Redirect href={"/admin/staff" as never} />; }

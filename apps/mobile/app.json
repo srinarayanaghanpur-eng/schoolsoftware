@@ -13,12 +13,6 @@
         {
           "locationAlwaysAndWhenInUsePermission": "Allow Sri Narayana School ERP to use your location for campus attendance."
         }
-      ],
-      [
-        "expo-camera",
-        {
-          "cameraPermission": "Allow Sri Narayana School ERP to use your camera."
-        }
       ]
     ],
     "ios": {
@@ -31,8 +25,7 @@
       "package": "com.srinarayana.attendance",
       "permissions": [
         "ACCESS_FINE_LOCATION",
-        "ACCESS_COARSE_LOCATION",
-        "CAMERA"
+        "ACCESS_COARSE_LOCATION"
       ]
     }
   }
