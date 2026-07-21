@@ -11,11 +11,12 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import {
   Avatar, Badge, DSText, EmptyState, ErrorState, FilterChips, Icon, ListRow,
-  LoadingState, PageTitle, PillButton, ProgressRow, SectionCard, StatTile, useToast
+  LoadingState, PageTitle, PillButton, ProgressRow, SectionCard, StatTile, useToast,
+  type IconName
 } from "@/design-system/components";
 import { color, space } from "@/design-system/tokens";
 import { useMobileSession } from "@/lib/mobileSession";
-import { dashboardPathForRole, workspaceLabel } from "@/lib/roleRouting";
+import { dashboardPathForRole, workspaceForRole, workspaceLabel } from "@/lib/roleRouting";
 import { initials } from "@/features/teacher/hooks";
 import { reviewLeaveRequest } from "./api";
 import {
@@ -206,8 +207,30 @@ export function ManagementProfileScreen() {
   const attendance = useTodayAttendance();
 
   const name = session.profile?.displayName ?? "Administrator";
-  /** Keep in-workspace: a principal's links must stay under /principal. */
+  /**
+   * Only link to routes that exist in THIS workspace — an accountant has no
+   * /accountant/staff, a principal has no /principal/fees. Building the menu
+   * from the workspace kind keeps every link reachable.
+   */
+  const workspace = workspaceForRole(session.profile?.role);
   const base = dashboardPathForRole(session.profile?.role);
+  const manageLinks: { icon: IconName; title: string; href: string }[] =
+    workspace === "accountant"
+      ? [
+          { icon: "receipt-long", title: "Collections", href: `${base}/collections` },
+          { icon: "schedule", title: "Outstanding dues", href: `${base}/dues` }
+        ]
+      : workspace === "principal"
+        ? [
+            { icon: "groups", title: "Staff directory", href: `${base}/staff` },
+            { icon: "fact-check", title: "Leave approvals", href: `${base}/approvals` }
+          ]
+        : [
+            { icon: "groups", title: "Staff directory", href: `${base}/staff` },
+            { icon: "fact-check", title: "Leave approvals", href: `${base}/approvals` },
+            { icon: "payments", title: "Fee collection", href: `${base}/fees` },
+            { icon: "campaign", title: "Notices", href: `${base}/notices` }
+          ];
 
   const logout = async () => {
     try {
@@ -241,24 +264,15 @@ export function ManagementProfileScreen() {
       </View>
 
       <SectionCard heading="MANAGE">
-        <ListRow
-          leading={<Icon name="groups" size={21} tint={color.primary} />}
-          title="Staff directory"
-          chevron
-          onPress={() => router.push(`${base}/staff` as never)}
-        />
-        <ListRow
-          leading={<Icon name="fact-check" size={21} tint={color.primary} />}
-          title="Leave approvals"
-          chevron
-          onPress={() => router.push(`${base}/approvals` as never)}
-        />
-        <ListRow
-          leading={<Icon name="payments" size={21} tint={color.primary} />}
-          title="Fee collection"
-          chevron
-          onPress={() => router.push(`${base}/fees` as never)}
-        />
+        {manageLinks.map((link) => (
+          <ListRow
+            key={link.href}
+            leading={<Icon name={link.icon} size={21} tint={color.primary} />}
+            title={link.title}
+            chevron
+            onPress={() => router.push(link.href as never)}
+          />
+        ))}
       </SectionCard>
 
       <SectionCard heading="MORE">

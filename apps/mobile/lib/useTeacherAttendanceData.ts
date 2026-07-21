@@ -12,6 +12,7 @@ import {
   query,
   where
 } from "firebase/firestore";
+import type { QueryDocumentSnapshot } from "firebase/firestore";
 import type { AttendanceRecord, AttendanceSource, AttendanceStatus, Holiday, Teacher } from "@sri-narayana/shared";
 import { auth, db } from "@/lib/firebase";
 
@@ -189,7 +190,7 @@ export function useTeacherAttendanceData(): TeacherAttendanceState {
               limit(180)
             ),
             (snapshot) => {
-              setRecords(snapshot.docs.map((item) => normalizeAttendanceRecord(asRecord(item.data()))));
+              setRecords(snapshot.docs.map((item: QueryDocumentSnapshot) => normalizeAttendanceRecord(asRecord(item.data()))));
               markReady("records");
             },
             (snapshotError) => {
@@ -203,7 +204,7 @@ export function useTeacherAttendanceData(): TeacherAttendanceState {
           onSnapshot(
             query(collection(db, "holidays"), orderBy("date", "desc"), limit(370)),
             (snapshot) => {
-              setHolidays(snapshot.docs.map((item) => normalizeHoliday(item.id, asRecord(item.data()))));
+              setHolidays(snapshot.docs.map((item: QueryDocumentSnapshot) => normalizeHoliday(item.id, asRecord(item.data()))));
               markReady("holidays");
             },
             (snapshotError) => {

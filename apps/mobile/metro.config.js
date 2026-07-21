@@ -7,8 +7,9 @@ const config = getDefaultConfig(projectRoot);
 const mobileNodeModules = path.resolve(projectRoot, "node_modules");
 const workspaceNodeModules = path.resolve(workspaceRoot, "node_modules");
 const mobileReact = path.resolve(mobileNodeModules, "react");
+const mobileReactDom = path.resolve(mobileNodeModules, "react-dom");
 const mobileReactNative = path.resolve(mobileNodeModules, "react-native");
-const pinnedMobileModules = ["react", "react-native"];
+const pinnedMobileModules = ["react", "react-dom", "react-native"];
 const firebaseCommonJsModules = {
   "@firebase/app": path.resolve(workspaceNodeModules, "@firebase/app/dist/index.cjs.js"),
   "@firebase/component": path.resolve(workspaceNodeModules, "@firebase/component/dist/index.cjs.js"),
@@ -22,6 +23,7 @@ config.resolver.nodeModulesPaths = [mobileNodeModules, workspaceNodeModules];
 config.resolver.extraNodeModules = {
   ...(config.resolver.extraNodeModules ?? {}),
   react: mobileReact,
+  "react-dom": mobileReactDom,
   "react-native": mobileReactNative
 };
 config.resolver.resolveRequest = (context, moduleName, platform) => {

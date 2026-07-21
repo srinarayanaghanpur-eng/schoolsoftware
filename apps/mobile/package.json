@@ -3,7 +3,8 @@
   "private": true,
   "main": "expo-router/entry",
   "scripts": {
-    "start": "expo start"
+    "start": "expo start",
+    "typecheck": "tsc -p tsconfig.check.json"
   },
   "dependencies": {
     "@expo/cli": "^55.0.31",

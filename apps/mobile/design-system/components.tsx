@@ -11,13 +11,15 @@ import {
   StyleSheet,
   Text,
   View,
+  type DimensionValue,
   type StyleProp,
   type ViewStyle
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { color, elevation, motion, radius, space, type } from "./tokens";
 
-type IconName = React.ComponentProps<typeof MaterialIcons>["name"];
+/** Every valid Material Icons glyph name. Exported so screens can type icon maps. */
+export type IconName = React.ComponentProps<typeof MaterialIcons>["name"];
 
 /* ---------------------------------------------------------------- Icon */
 export function Icon({ name, size = 21, tint = color.ink2 }: { name: IconName; size?: number; tint?: string }) {
@@ -363,13 +365,15 @@ export function ProgressBar({
   tint?: string;
 }) {
   const clamped = Math.max(0, Math.min(100, Math.round(percent)));
+  // Template literals widen to `string`, which RN's DimensionValue rejects.
+  const width: DimensionValue = `${clamped}%`;
   return (
     <View
       accessibilityRole="progressbar"
       accessibilityValue={{ min: 0, max: 100, now: clamped }}
       style={styles.progressTrack}
     >
-      <View style={[styles.progressFill, { width: `${clamped}%`, backgroundColor: tint }]} />
+      <View style={[styles.progressFill, { width, backgroundColor: tint }]} />
     </View>
   );
 }
