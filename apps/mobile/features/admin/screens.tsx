@@ -11,8 +11,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import {
   Avatar, Badge, DSText, EmptyState, ErrorState, FilterChips, Icon, ListRow,
-  LoadingState, PageTitle, PillButton, ProgressRow, SectionCard, StatTile,
-  TonalTile, useToast
+  LoadingState, PageTitle, PillButton, ProgressRow, SectionCard, StatTile, useToast
 } from "@/design-system/components";
 import { color, space } from "@/design-system/tokens";
 import { useMobileSession } from "@/lib/mobileSession";
