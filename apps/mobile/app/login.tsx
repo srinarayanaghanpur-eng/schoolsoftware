@@ -1,24 +1,28 @@
-import { useEffect, useRef, useState } from "react";
+/**
+ * Login — rebuilt 2026-07-21 on the new design system.
+ * Auth flow is unchanged (employeeIdToInternalEmail → Firebase sign-in →
+ * resolveMobileSession); only the presentation is new.
+ */
+import React, { useEffect, useRef, useState } from "react";
 import {
-  Alert,
-  Keyboard,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableWithoutFeedback,
-  View
+  Keyboard, KeyboardAvoidingView, Platform, ScrollView, StyleSheet,
+  Text, TextInput, TouchableWithoutFeedback, View
 } from "react-native";
 import { useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { signInWithEmailAndPassword, signOut } from "firebase/auth";
+import type { Role } from "@sri-narayana/shared";
 import { employeeIdToInternalEmail } from "@sri-narayana/shared";
 import { auth } from "@/lib/firebase";
 import { clearMobileAuthStorage } from "@/lib/authStorage";
-import { dashboardPathForRole } from "@/lib/mobileTheme";
 import { resolveMobileSession, useMobileSession } from "@/lib/mobileSession";
+import { DSText, PressableScale } from "@/design-system/components";
+import { color, elevation, radius, space } from "@/design-system/tokens";
+
+function dashboardPathForRole(role?: Role): string {
+  if (role === "parent") return "/parent";
+  return "/login"; // other workspaces arrive in later phases
+}
 
 export default function Login() {
   const [employeeId, setEmployeeId] = useState("");
@@ -26,22 +30,24 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const passwordRef = useRef<TextInput>(null);
   const redirectedRef = useRef(false);
   const session = useMobileSession();
 
   useEffect(() => {
     if (redirectedRef.current || session.status !== "authenticated" || !session.profile) return;
+    const path = dashboardPathForRole(session.profile.role);
+    if (path === "/login") return; // workspace not built yet — stay on login with message
     redirectedRef.current = true;
-    router.replace(dashboardPathForRole(session.profile.role) as never);
+    router.replace(path as never);
   }, [router, session.profile, session.status]);
 
   const login = async () => {
     if (!employeeId.trim() || !password.trim()) {
-      Alert.alert("Missing details", "Please enter your Employee ID and password.");
+      setErrorMessage("Please enter your Login ID and password.");
       return;
     }
-
     setLoading(true);
     setErrorMessage(null);
     try {
@@ -49,72 +55,78 @@ export default function Login() {
       const loginEmail = loginId.includes("@") ? loginId : employeeIdToInternalEmail(loginId);
       const credential = await signInWithEmailAndPassword(auth, loginEmail, password);
       const profile = await resolveMobileSession(credential.user);
+      const path = dashboardPathForRole(profile.role);
+      if (path === "/login") {
+        setErrorMessage("This workspace is not available in the mobile app yet. Please use the web portal.");
+        await signOut(auth).catch(() => undefined);
+        await clearMobileAuthStorage().catch(() => undefined);
+        return;
+      }
       redirectedRef.current = true;
-      router.replace(dashboardPathForRole(profile.role) as never);
+      router.replace(path as never);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Please check your credentials.";
       setErrorMessage(message);
       await signOut(auth).catch(() => undefined);
       await clearMobileAuthStorage().catch(() => undefined);
-      Alert.alert("Login failed", message);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.flex} keyboardVerticalOffset={Platform.OS === "android" ? -200 : 0}>
+    <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.flex}>
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-        <ScrollView contentContainerStyle={styles.page} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-          <View style={styles.hero}>
-            <View style={styles.heroGlow} />
-            <Text style={styles.kicker} allowFontScaling={false}>Sri Narayana High School</Text>
-            <Text style={styles.title} allowFontScaling={false}>School ERP</Text>
-            <Text style={styles.subtitle} allowFontScaling={false}>Sign in to open your Teacher, Parent, Principal, Admin or Accounts workspace.</Text>
+        <ScrollView
+          contentContainerStyle={[styles.page, { paddingTop: insets.top + space.xl, paddingBottom: insets.bottom + space.xl }]}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={[styles.hero, elevation.hero]}>
+            <DSText variant="overline" tint={color.primaryContainer}>SRI NARAYANA HIGH SCHOOL</DSText>
+            <Text style={styles.heroTitle}>School ERP</Text>
+            <Text style={styles.heroSub}>Sign in with the login ID given by the school office.</Text>
           </View>
 
           <View style={styles.formCard}>
-            <Text style={styles.formTitle} allowFontScaling={false}>Welcome back</Text>
-            <Text style={styles.formHint} allowFontScaling={false}>Use the login ID given by the school office.</Text>
-            {session.error || errorMessage ? (
+            <DSText variant="title" style={{ fontSize: 20 }}>Welcome back</DSText>
+            {errorMessage || session.error ? (
               <View style={styles.errorBox}>
-                <Text style={styles.errorText} allowFontScaling={false}>{session.error ?? errorMessage}</Text>
+                <DSText variant="label" tint={color.error}>{errorMessage ?? session.error}</DSText>
               </View>
             ) : null}
-            <Text style={styles.label} allowFontScaling={false}>Employee / Login ID</Text>
+
+            <DSText variant="overline" style={styles.fieldLabel}>LOGIN ID</DSText>
             <TextInput
               style={styles.input}
-              placeholder="Example: TCH001 or ADM001"
-              placeholderTextColor="#9aa3bd"
+              placeholder="e.g. TCH001 or PAR001"
+              placeholderTextColor={color.muted}
               autoCapitalize="characters"
               autoCorrect={false}
               value={employeeId}
               onChangeText={setEmployeeId}
               returnKeyType="next"
               onSubmitEditing={() => passwordRef.current?.focus()}
-              allowFontScaling={false}
             />
-            <Text style={styles.label} allowFontScaling={false}>Password</Text>
+            <DSText variant="overline" style={styles.fieldLabel}>PASSWORD</DSText>
             <TextInput
               ref={passwordRef}
               style={styles.input}
               placeholder="Enter password"
-              placeholderTextColor="#9aa3bd"
+              placeholderTextColor={color.muted}
               secureTextEntry
               value={password}
               onChangeText={setPassword}
               returnKeyType="go"
               onSubmitEditing={login}
-              allowFontScaling={false}
             />
-            <Pressable
-              accessibilityRole="button"
-              style={({ pressed }) => [styles.button, pressed && styles.pressed, loading && styles.disabled]}
-              onPress={login}
-              disabled={loading}
+            <PressableScale
+              accessibilityLabel="Sign in"
+              onPress={loading ? undefined : login}
+              style={[styles.button, loading && { opacity: 0.6 }]}
             >
-              <Text style={styles.buttonText} allowFontScaling={false}>{loading ? "Signing in..." : "Sign in"}</Text>
-            </Pressable>
+              <Text style={styles.buttonText}>{loading ? "Signing in…" : "Sign in"}</Text>
+            </PressableScale>
           </View>
         </ScrollView>
       </TouchableWithoutFeedback>
@@ -123,44 +135,51 @@ export default function Login() {
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1, backgroundColor: "#f5f6fd" },
-  page: { flexGrow: 1, justifyContent: "center", padding: 20, gap: 18 },
-  hero: { overflow: "hidden", borderRadius: 26, backgroundColor: "#2c2f8d", padding: 22, minHeight: 190, justifyContent: "flex-end" },
-  heroGlow: { position: "absolute", width: 220, height: 220, borderRadius: 110, backgroundColor: "#5458bd", opacity: 0.38, right: -72, top: -78 },
-  kicker: { color: "#f7c548", fontWeight: "900", textTransform: "uppercase", letterSpacing: 1, fontSize: 11 },
-  title: { marginTop: 10, fontSize: 34, fontWeight: "900", color: "white", letterSpacing: -1.1 },
-  subtitle: { marginTop: 10, color: "#dbe0ff", fontSize: 14, lineHeight: 20, fontWeight: "600" },
+  flex: { flex: 1, backgroundColor: color.background },
+  page: { flexGrow: 1, justifyContent: "center", paddingHorizontal: space.xl, gap: space.lg },
+  hero: {
+    backgroundColor: color.primaryGradientA,
+    borderRadius: radius.xl + 4,
+    padding: 22,
+    minHeight: 170,
+    justifyContent: "flex-end",
+    gap: 8
+  },
+  heroTitle: { fontSize: 32, fontWeight: "700", color: color.onPrimary, letterSpacing: -0.8 },
+  heroSub: { fontSize: 14, lineHeight: 20, color: color.primaryContainer },
   formCard: {
-    backgroundColor: "white",
+    backgroundColor: color.surface,
     borderWidth: 1,
-    borderColor: "#e3e6f0",
-    borderRadius: 24,
+    borderColor: color.outline,
+    borderRadius: radius.xl,
     padding: 18,
-    shadowColor: "#242a5e",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.08,
-    shadowRadius: 18,
-    elevation: 3
+    gap: space.sm,
+    ...elevation.card
   },
-  formTitle: { color: "#1b1d32", fontSize: 22, fontWeight: "900", letterSpacing: -0.5 },
-  formHint: { marginTop: 5, marginBottom: 18, color: "#7d86a8", fontSize: 13, lineHeight: 18, fontWeight: "600" },
-  errorBox: { backgroundColor: "#fbe5ea", borderWidth: 1, borderColor: "#f6bac7", borderRadius: 14, padding: 12, marginBottom: 14 },
-  errorText: { color: "#b1304a", fontSize: 12, lineHeight: 17, fontWeight: "800" },
-  label: { marginBottom: 7, color: "#4f587a", fontSize: 12, fontWeight: "900", textTransform: "uppercase", letterSpacing: 0.5 },
+  errorBox: {
+    backgroundColor: color.errorContainer,
+    borderRadius: radius.sm,
+    padding: space.md,
+    marginTop: space.xs
+  },
+  fieldLabel: { marginTop: space.sm },
   input: {
-    backgroundColor: "#f8f9ff",
+    backgroundColor: color.surfaceVariant,
     borderWidth: 1,
-    borderColor: "#dfe3f2",
-    borderRadius: 16,
+    borderColor: color.outline,
+    borderRadius: radius.md,
     paddingHorizontal: 14,
-    paddingVertical: 14,
-    marginBottom: 14,
-    color: "#1b1d32",
+    paddingVertical: 13,
     fontSize: 15,
-    fontWeight: "700"
+    color: color.ink
   },
-  button: { minHeight: 54, backgroundColor: "#3033a1", borderRadius: 16, padding: 15, marginTop: 4, justifyContent: "center" },
-  buttonText: { color: "white", textAlign: "center", fontWeight: "900", fontSize: 16 },
-  pressed: { opacity: 0.82, transform: [{ scale: 0.99 }] },
-  disabled: { opacity: 0.62 }
+  button: {
+    minHeight: 52,
+    backgroundColor: color.primary,
+    borderRadius: radius.md,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: space.md
+  },
+  buttonText: { color: color.onPrimary, fontSize: 16, fontWeight: "600" }
 });

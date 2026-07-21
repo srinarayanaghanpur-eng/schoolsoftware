@@ -174,5 +174,5 @@ export function useMobileSession() {
 }
 
 export function isAdminWorkspaceRole(role?: Role) {
-  return role === "admin" || role === "principal" || role === "super_admin";
+  return role === "admin" || role === "principal" || role === "super_admin" || role === "accountant" || role === "settings_manager";
 }

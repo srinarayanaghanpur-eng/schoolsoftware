@@ -145,7 +145,7 @@ const primaryNav: NavItem[] = [
     label: "Exams & Marks",
     module: "exams",
     icon: BookOpenCheck,
-    activePrefixes: ["/admin/exams", "/admin/calendar", "/admin/holidays", "/admin/promotions", "/admin/homework"]
+    activePrefixes: ["/admin/exams", "/admin/calendar", "/admin/holidays", "/admin/promotions", "/admin/homework", "/admin/timetable"]
   },
   { href: "/admin/notices", label: "Communication", module: "communication", icon: Megaphone, activePrefixes: ["/admin/notices", "/admin/messages", "/admin/notifications"] },
   { href: "/admin/reports", label: "Reports", module: "reports", icon: BarChart3, activePrefixes: ["/admin/reports"] },
@@ -158,9 +158,14 @@ const primaryNav: NavItem[] = [
 // primaryNav or they leak into the admin sidebar (duplicate Dashboard, etc.).
 const portalNav: NavItem[] = [
   { href: "/portal", label: "Dashboard", module: "portal", icon: LayoutDashboard },
+  { href: "/portal/attendance", label: "Attendance", module: "portal", icon: Clock, activePrefixes: ["/portal/attendance"] },
+  { href: "/portal/homework", label: "Homework", module: "portal", icon: BookOpenCheck, activePrefixes: ["/portal/homework"] },
   { href: "/portal/fees", label: "Fees", module: "portal", icon: IndianRupee },
-  { href: "/portal/exams", label: "Exams", module: "portal", icon: BookOpenCheck },
+  { href: "/portal/exams", label: "Exams", module: "portal", icon: GraduationCap },
   { href: "/portal/notices", label: "Notices", module: "portal", icon: Megaphone },
+  { href: "/portal/calendar", label: "Calendar", module: "portal", icon: CalendarDays },
+  { href: "/portal/transport", label: "Transport", module: "portal", icon: Bus },
+  { href: "/portal/downloads", label: "Downloads", module: "portal", icon: Download },
   { href: "/portal/contact", label: "Contact", module: "portal", icon: MessageSquare },
   { href: "/portal/profile", label: "Profile", module: "portal", icon: UserCircle }
 ];
@@ -177,6 +182,7 @@ const secondaryNav: NavItem[] = [
   { href: "/admin/library", label: "Library", module: "library", icon: Library },
   { href: "/admin/hostel", label: "Hostel", module: "hostel", icon: Hotel },
   { href: "/admin/inventory", label: "Inventory", module: "inventory", icon: Package },
+  { href: "/admin/certificates", label: "Certificates", module: "certificates", icon: FileText },
   { href: "/admin/branches", label: "Branches", module: "settings", icon: Building2 },
   { href: "/admin/settings", label: "Settings", module: "settings", icon: Settings }
 ];
@@ -243,12 +249,12 @@ const contextSubnavs: ContextSubnav[] = [
   {
     title: "Exams & Marks",
     eyebrow: "Academics",
-    matchPrefixes: ["/admin/exams", "/admin/calendar", "/admin/holidays", "/admin/promotions"],
+    matchPrefixes: ["/admin/exams", "/admin/calendar", "/admin/holidays", "/admin/promotions", "/admin/homework", "/admin/timetable"],
     items: [
       { href: "/admin/exams", label: "Exams", icon: BookOpenCheck, module: "exams" },
       { href: "/admin/homework", label: "Homework", icon: BookOpen, module: "exams" },
-      { href: "/admin/calendar", label: "Timetable", icon: CalendarDays, module: "academics" },
-      { href: "/admin/holidays", label: "Holidays", icon: CalendarRange, module: "academics" },
+      { href: "/admin/timetable", label: "Timetable", icon: CalendarDays, module: "academics" },
+      { href: "/admin/calendar", label: "Attendance Calendar", icon: CalendarRange, module: "academics" },
       { href: "/admin/promotions", label: "Promotions", icon: GraduationCap, module: "promotions" }
     ]
   },
@@ -289,12 +295,17 @@ type MobileNavItem = { href: string; label: string; short: string; icon: LucideI
 const mobileNav: MobileNavItem[] = [
   // Portal (parent) mobile nav
   { href: "/portal", label: "Dashboard", short: "Home", icon: LayoutDashboard, module: "portal" },
+  { href: "/portal/attendance", label: "Attendance", short: "Attendance", icon: Clock, module: "portal" },
+  { href: "/portal/homework", label: "Homework", short: "HW", icon: BookOpenCheck, module: "portal" },
   { href: "/portal/fees", label: "Fees", short: "Fees", icon: IndianRupee, module: "portal" },
-  { href: "/portal/exams", label: "Exams", short: "Exams", icon: BookOpenCheck, module: "portal" },
+  { href: "/portal/exams", label: "Exams", short: "Exams", icon: GraduationCap, module: "portal" },
   { href: "/portal/notices", label: "Notices", short: "Notices", icon: Megaphone, module: "portal" },
+  { href: "/portal/calendar", label: "Calendar", short: "Calendar", icon: CalendarDays, module: "portal" },
   // Admin mobile nav
   { href: "/admin/dashboard", label: "Summary", short: "Summary", icon: Grid2X2, module: "dashboard" },
   { href: "/admin/homework", label: "Homework", short: "HW", icon: BookOpen, module: "exams" },
+  { href: "/admin/timetable", label: "Timetable", short: "TT", icon: CalendarDays, module: "academics" },
+  { href: "/admin/certificates", label: "Certificates", short: "Certs", icon: FileText, module: "certificates" },
   { href: "/admin/reports", label: "Reports", short: "Reports", icon: BarChart3, module: "reports" },
   { href: "/admin/notices", label: "Notices", short: "Notices", icon: Megaphone, module: "communication" },
   { href: "/admin/my-attendance", label: "My Attendance", short: "Attendance", icon: CalendarCheck, module: "attendance" },
@@ -326,11 +337,16 @@ const pageTitles: Record<string, string> = {
   "/admin/users": "Users & Roles",
   "/admin/approvals": "Approvals",
   "/portal": "Dashboard",
+  "/portal/attendance": "Attendance",
+  "/portal/homework": "Homework",
   "/portal/payments": "Payment History",
   "/portal/payments/receipt": "Receipt",
   "/portal/fees": "Fee Management",
   "/portal/exams": "Examinations",
   "/portal/notices": "Notices & Circulars",
+  "/portal/calendar": "School Calendar",
+  "/portal/transport": "Transport Details",
+  "/portal/downloads": "Downloads",
   "/portal/contact": "Contact School",
   "/portal/profile": "Parent Profile",
   "/admin/branches": "Branches",
@@ -339,6 +355,8 @@ const pageTitles: Record<string, string> = {
   "/admin/backup": "Backup & Restore",
   "/admin/report-cards": "Report Cards",
   "/admin/homework": "Homework",
+  "/admin/timetable": "Timetable",
+  "/admin/certificates": "Certificates",
   "/admin/ai-agent": "AI Agent",
   "/admin/ai-agent/settings": "AI Settings",
   "/admin/ai-agent/logs": "AI Logs",

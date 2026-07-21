@@ -8,9 +8,14 @@ coverage
 google-services.json
 GoogleService-Info.plist
 
-# Environment files (all variants)
+# Environment files (all variants — NEVER commit secrets)
 .env*
 !env.example
+
+# Specific env files that may contain credentials
+apps/web/.env.local
+apps/mobile/.env
+apps/desktop/.env
 
 # Firebase service account keys (sensitive — never commit)
 serviceAccount*.json

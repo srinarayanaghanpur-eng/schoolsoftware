@@ -1,4 +1,19 @@
 /** @type {import('next').NextConfig} */
+const cspHeader = `
+  default-src 'self';
+  script-src 'self' 'unsafe-eval' 'unsafe-inline';
+  style-src 'self' 'unsafe-inline';
+  img-src 'self' blob: data: https:;
+  font-src 'self';
+  connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.firebasestorage.app https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firestore.googleapis.com wss://*.firebaseio.com;
+  frame-src 'self' https://*.firebaseapp.com;
+  object-src 'none';
+  base-uri 'self';
+  form-action 'self';
+  frame-ancestors 'none';
+  upgrade-insecure-requests;
+`;
+
 const nextConfig = {
   output: process.env.STANDALONE ? "standalone" : undefined,
   reactStrictMode: true,
@@ -11,13 +26,9 @@ const nextConfig = {
   swcMinify: true,
   productionBrowserSourceMaps: false,
   images: {
-    unoptimized: true,
     minimumCacheTTL: 31536000
   },
-  onDemandEntries: {
-    maxInactiveAge: 25 * 1000,
-    pagesBufferLength: 5
-  },
+  poweredByHeader: false,
   headers: async () => {
     return [
       {
@@ -26,6 +37,26 @@ const nextConfig = {
           {
             key: "Cache-Control",
             value: "public, max-age=0, must-revalidate"
+          },
+          {
+            key: "Content-Security-Policy",
+            value: cspHeader.replace(/\s{2,}/g, " ").trim()
+          },
+          {
+            key: "X-Content-Type-Options",
+            value: "nosniff"
+          },
+          {
+            key: "X-Frame-Options",
+            value: "DENY"
+          },
+          {
+            key: "X-XSS-Protection",
+            value: "1; mode=block"
+          },
+          {
+            key: "Referrer-Policy",
+            value: "strict-origin-when-cross-origin"
           }
         ]
       },

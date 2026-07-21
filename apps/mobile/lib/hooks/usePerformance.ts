@@ -1,71 +1,18 @@
 /**
- * React Native Hooks for Performance Optimization
+ * React Native hooks for performance and app-state utilities.
+ *
+ * Pruned during the 2026-07-21 UI teardown: useLazyLoad and
+ * usePreloadCriticalData were removed because they depended on the deleted
+ * lib/lazyLoad.ts (dead Firestore-direct loaders — the new data layer goes
+ * through /api instead; see features/parent/api.ts for the pattern).
  */
 
-import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { AppState, AppStateStatus } from 'react-native';
 import { mobileCache } from '../cache/mobileCache';
-import { mobileLazyLoad } from '../lazyLoad';
 import { mobilePerformanceMonitor } from '../performanceMonitor';
 import { mobileBackgroundSync } from '../backgroundSync';
 import { debounce, throttle } from '../requestOptimization';
-
-/**
- * Hook for lazy loading data with cache
- */
-export function useLazyLoad<T>(
-  dataType: 'students' | 'teachers' | 'attendance',
-  options?: { filters?: any; skipCache?: boolean }
-) {
-  const [data, setData] = useState<T | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
-  const isMounted = useRef(true);
-
-  useEffect(() => {
-    isMounted.current = true;
-
-    const loadData = async () => {
-      try {
-        setLoading(true);
-        mobilePerformanceMonitor.startMeasure(`load-${dataType}`);
-
-        let result: T | null = null;
-
-        if (dataType === 'students') {
-          result = (await mobileLazyLoad.loadStudents(options?.filters)) as any;
-        } else if (dataType === 'teachers') {
-          result = (await mobileLazyLoad.loadTeachers()) as any;
-        } else if (dataType === 'attendance') {
-          result = (await mobileLazyLoad.loadAttendance(options?.filters)) as any;
-        }
-
-        mobilePerformanceMonitor.endMeasure(`load-${dataType}`);
-
-        if (isMounted.current) {
-          setData(result);
-          setError(null);
-        }
-      } catch (err) {
-        if (isMounted.current) {
-          setError(err as Error);
-        }
-      } finally {
-        if (isMounted.current) {
-          setLoading(false);
-        }
-      }
-    };
-
-    loadData();
-
-    return () => {
-      isMounted.current = false;
-    };
-  }, [dataType, options?.filters]);
-
-  return { data, loading, error };
-}
 
 /**
  * Hook for monitoring app state
@@ -186,21 +133,6 @@ export function useBackgroundSyncStatus() {
     startSync: () => mobileBackgroundSync.startSync(),
     stopSync: () => mobileBackgroundSync.stopSync()
   };
-}
-
-/**
- * Hook for preloading critical data
- */
-export function usePreloadCriticalData() {
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    mobileLazyLoad.preloadCriticalData().finally(() => {
-      setLoading(false);
-    });
-  }, []);
-
-  return { loading };
 }
 
 /**

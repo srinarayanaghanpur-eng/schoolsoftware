@@ -138,14 +138,17 @@ async function applyApprovalEffect(request: ApprovalRequest, status: ApprovalSta
 
       if (status === "approved") {
         await payRef.update({ status: "cancelled", cancelledAt: new Date().toISOString() });
-        // Reverse the student's running paid total.
+        // Recompute the student's fee state from remaining completed payments.
+        // This restores totalFeesPaid, totalFeesDue, feeStatus AND the
+        // studentFeeSummaries read-model in one canonical pass (the previous
+        // implementation only decremented totalFeesPaid, leaving dues/status/
+        // summaries stale after a cancellation).
         const studentId = (payment.studentId as string) || (request.payload?.studentId as string);
-        const amount = Number(payment.amountPaid ?? request.payload?.amount ?? 0);
-        if (studentId && amount > 0) {
-          await db.collection("students").doc(studentId).set(
-            { totalFeesPaid: FieldValue.increment(-amount), feeLastUpdated: new Date() },
-            { merge: true }
-          );
+        if (studentId) {
+          const { recalculateStudentFeeSummary } = await import("@/lib/feeRecalculation");
+          const { markSummaryDirty } = await import("@/lib/markSummaryDirty");
+          await recalculateStudentFeeSummary(studentId, String(payment.academicYearId ?? ""));
+          await markSummaryDirty("receipt_cancel");
         }
       } else {
         // Rejected → restore the payment to completed.

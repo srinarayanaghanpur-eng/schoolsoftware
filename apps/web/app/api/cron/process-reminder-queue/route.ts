@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { FieldValue } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { errorMessage } from "@/lib/apiUtils";
+import { errorMessage, requireAdmin } from "@/lib/apiUtils";
 import { cleanPhoneNumber, getChannelFromPriority } from "@/lib/reminder/messageBuilder";
 import { sendWhatsAppReminder } from "@/lib/reminder/whatsappProvider";
 import { sendSmsReminder } from "@/lib/reminder/smsProvider";
@@ -43,8 +43,23 @@ async function sendOnChannel(
   });
 }
 
+/**
+ * Auth: this endpoint sends real WhatsApp/SMS messages, so it must never be
+ * publicly callable. Allowed callers:
+ *  1. An external scheduler presenting `x-cron-secret` matching CRON_SECRET.
+ *  2. A signed-in admin (manual "run now" from the fee-reminders UI).
+ */
+async function isAuthorizedCronCall(req: Request): Promise<boolean> {
+  const secret = process.env.CRON_SECRET;
+  if (secret && req.headers.get("x-cron-secret") === secret) return true;
+  return Boolean(await requireAdmin(req));
+}
+
 export async function PUT(req: Request) {
   try {
+    if (!(await isAuthorizedCronCall(req))) {
+      return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+    }
     const db = adminDb();
     const settingsSnap = await db.collection("fee_reminder_settings")
       .where("enabled", "==", true)

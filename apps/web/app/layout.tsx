@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { AuthProvider } from "@/components/AuthProvider";
 import { ServiceWorkerInit, OfflineStatusIndicator } from "@/components/OfflineStatusIndicator";
 import { ThemeProvider } from "@/components/ThemeProvider";
+import ThemeScript from "@/components/ThemeScript";
 
 export const metadata = {
   title: "Sri Narayana High School – School Management Software",
@@ -44,9 +45,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="apple-mobile-web-app-title" content="SNHS ERP" />
-        <script dangerouslySetInnerHTML={{
-          __html: `(function(){try{var e=localStorage.getItem("erp-theme"),r=window.matchMedia("(prefers-color-scheme:dark)").matches;document.documentElement.classList.toggle("dark",e==="dark"||(!e&&r))}catch(e){}})()`
-        }} />
+        <ThemeScript />
       </head>
       <body>
         <ServiceWorkerInit />

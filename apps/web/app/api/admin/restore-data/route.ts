@@ -1,5 +1,5 @@
 import { adminDb } from "@/lib/firebaseAdmin";
-import { requireAdmin, json } from "@/lib/apiUtils";
+import { requireSuperAdmin, json } from "@/lib/apiUtils";
 
 const RESTORABLE_COLLECTIONS = new Set([
   "users",
@@ -41,9 +41,9 @@ function normalizeEntries(entries: unknown): Array<{ id?: string; data: Record<s
 
 export async function POST(req: Request) {
   try {
-    const decodedToken = await requireAdmin(req);
+    const decodedToken = await requireSuperAdmin(req);
     if (!decodedToken) {
-      return json({ ok: false, error: "Admin access required" }, { status: 403 });
+      return json({ ok: false, error: "Super admin access required" }, { status: 403 });
     }
 
     const body = await req.json();

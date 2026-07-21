@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { leaveRequestCreateSchema } from "@sri-narayana/shared";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { requireSignedIn, serializeDoc } from "@/lib/apiUtils";
+import { requireAuthenticated, serializeDoc } from "@/lib/apiUtils";
 
 async function getTeacherForToken(uid: string, teacherId?: unknown) {
   const db = adminDb();
@@ -18,7 +18,7 @@ async function getTeacherForToken(uid: string, teacherId?: unknown) {
 
 export async function GET(req: Request) {
   try {
-    const decodedToken = await requireSignedIn(req);
+    const decodedToken = await requireAuthenticated(req);
     if (!decodedToken || decodedToken.role !== "teacher") {
       return NextResponse.json({ ok: false, error: "Teacher access required" }, { status: 403 });
     }
@@ -46,7 +46,7 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
-    const decodedToken = await requireSignedIn(req);
+    const decodedToken = await requireAuthenticated(req);
     if (!decodedToken || decodedToken.role !== "teacher") {
       return NextResponse.json({ ok: false, error: "Teacher access required" }, { status: 403 });
     }

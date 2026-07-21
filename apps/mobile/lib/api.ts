@@ -1,6 +1,10 @@
 import { auth } from "./firebase";
 
-export const API_BASE_URL = process.env.EXPO_PUBLIC_WEB_API_URL ?? "http://localhost:3000";
+const API_URL = process.env.EXPO_PUBLIC_WEB_API_URL;
+if (!API_URL) {
+  console.warn("[MobileAPI] EXPO_PUBLIC_WEB_API_URL is not set. API calls will fail in production.");
+}
+export const API_BASE_URL = API_URL ?? "";
 
 async function getValidToken(): Promise<string> {
   const user = auth.currentUser;
@@ -22,6 +26,10 @@ async function fetchWithTimeout(url: string, options: RequestInit, timeoutMs = 1
 
 export async function postAttendance(payload: Record<string, unknown>) {
   const token = await getValidToken();
+
+  if (!API_BASE_URL) {
+    throw new Error("API URL not configured. Please set EXPO_PUBLIC_WEB_API_URL.");
+  }
 
   const response = await fetchWithTimeout(`${API_BASE_URL}/api/attendance/mark`, {
     method: "POST",

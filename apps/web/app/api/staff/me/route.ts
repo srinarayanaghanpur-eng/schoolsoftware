@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import type { AttendanceRecord, AppUser, Teacher } from "@sri-narayana/shared";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { requireSignedIn, serializeDoc, startTimer } from "@/lib/apiUtils";
+import { requireAuthenticated, serializeDoc, startTimer } from "@/lib/apiUtils";
 
 /**
  * Self-service staff profile + recent attendance for ANY signed-in staff
@@ -12,7 +12,7 @@ import { requireSignedIn, serializeDoc, startTimer } from "@/lib/apiUtils";
 export async function GET(req: Request) {
   const totalTimer = startTimer();
   try {
-    const decodedToken = await requireSignedIn(req);
+    const decodedToken = await requireAuthenticated(req);
     if (!decodedToken) {
       return NextResponse.json({ ok: false, error: "Authentication required" }, { status: 401 });
     }

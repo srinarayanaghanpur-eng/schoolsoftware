@@ -1,5 +1,5 @@
 import { adminDb } from "@/lib/firebaseAdmin";
-import { requireAdmin, json } from "@/lib/apiUtils";
+import { requireSuperAdmin, json } from "@/lib/apiUtils";
 
 // Collections that MUST survive an erase. They record that the erase happened
 // and preserve the tamper-evident audit trail used to authorize it — deleting
@@ -36,9 +36,9 @@ async function deleteCollection(collectionName: string) {
 
 export async function POST(req: Request) {
   try {
-    const decodedToken = await requireAdmin(req);
+    const decodedToken = await requireSuperAdmin(req);
     if (!decodedToken) {
-      return json({ ok: false, error: "Admin access required" }, { status: 403 });
+      return json({ ok: false, error: "Super admin access required" }, { status: 403 });
     }
 
     const body = await req.json();

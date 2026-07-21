@@ -425,6 +425,42 @@ export const parentMessageReplySchema = z.object({
   reply: z.string().trim().min(1, "Reply is required")
 });
 
+// ===== Homework (Phase 3) =====
+export const homeworkStatusSchema = z.enum(["active", "completed", "cancelled"]);
+export const homeworkSubmissionStatusSchema = z.enum(["pending", "submitted", "graded"]);
+
+export const homeworkAttachmentSchema = z.object({
+  name: z.string().trim().min(1),
+  url: z.string().url().or(z.string().trim().min(1)),
+});
+
+export const homeworkCreateSchema = z.object({
+  title: z.string().trim().min(1, "Title is required"),
+  description: z.string().trim().min(1, "Description is required"),
+  subject: z.string().trim().min(1, "Subject is required"),
+  className: z.string().trim().min(1, "Class is required"),
+  section: z.string().trim().optional().default(""),
+  assignedDate: z.string().trim().min(8),
+  dueDate: z.string().trim().min(8, "Due date is required"),
+  attachments: z.array(homeworkAttachmentSchema).optional().default([]),
+  status: homeworkStatusSchema.optional().default("active"),
+  academicYearId: z.string().trim().min(1),
+});
+
+export const homeworkUpdateSchema = homeworkCreateSchema.partial();
+
+export const homeworkSubmissionCreateSchema = z.object({
+  homeworkId: z.string().trim().min(1),
+  content: z.string().trim().optional().default(""),
+  attachments: z.array(homeworkAttachmentSchema).optional().default([]),
+});
+
+export const homeworkSubmissionGradeSchema = z.object({
+  status: homeworkSubmissionStatusSchema,
+  grade: z.string().trim().optional().default(""),
+  remarks: z.string().trim().optional().default(""),
+});
+
 // ===== Fee Reminder =====
 export const feeReminderCreateSchema = z.object({
   studentId: z.string().trim().min(1),
@@ -432,3 +468,50 @@ export const feeReminderCreateSchema = z.object({
   dueDate: z.string().trim().min(8),
   note: z.string().trim().optional().default("")
 });
+
+// ===== Timetable (Phase 4) =====
+export const dayOfWeekSchema = z.union([z.literal(0), z.literal(1), z.literal(2), z.literal(3), z.literal(4), z.literal(5), z.literal(6)]);
+
+export const timetableEntryCreateSchema = z.object({
+  className: z.string().trim().min(1, "Class is required"),
+  section: z.string().trim().optional().default(""),
+  academicYearId: z.string().trim().min(1),
+  dayOfWeek: dayOfWeekSchema,
+  periodNumber: z.number().int().min(1, "Period number is required"),
+  startTime: z.string().trim().regex(/^\d{2}:\d{2}$/, "Invalid time format (HH:MM)"),
+  endTime: z.string().trim().regex(/^\d{2}:\d{2}$/, "Invalid time format (HH:MM)"),
+  subject: z.string().trim().min(1, "Subject is required"),
+  teacherId: z.string().trim().optional().default(""),
+  teacherName: z.string().trim().optional().default(""),
+  room: z.string().trim().optional().default(""),
+  isBreak: z.boolean().optional().default(false),
+});
+
+export const timetableEntryUpdateSchema = timetableEntryCreateSchema.partial();
+
+export const timetableBulkCreateSchema = z.object({
+  entries: z.array(timetableEntryCreateSchema).min(1),
+  replaceExisting: z.boolean().optional().default(false),
+});
+
+// ===== Certificates (Phase 9) =====
+export const certificateTypeSchema = z.enum(["transfer", "character", "bonafide", "conduct", "general"]);
+export const certificateStatusSchema = z.enum(["draft", "issued", "cancelled"]);
+
+export const certificateCreateSchema = z.object({
+  certificateType: certificateTypeSchema,
+  certificateNumber: z.string().trim().min(1, "Certificate number is required"),
+  studentId: z.string().trim().min(1),
+  studentName: z.string().trim().min(1, "Student name is required"),
+  className: z.string().trim().min(1, "Class is required"),
+  section: z.string().trim().optional().default(""),
+  academicYearId: z.string().trim().min(1),
+  issueDate: z.string().trim().min(8),
+  template: z.string().trim().optional().default(""),
+  data: z.record(z.string()).optional().default({}),
+  status: certificateStatusSchema.optional().default("draft"),
+  issuedByName: z.string().trim().optional().default(""),
+  remarks: z.string().trim().optional().default(""),
+});
+
+export const certificateUpdateSchema = certificateCreateSchema.partial();

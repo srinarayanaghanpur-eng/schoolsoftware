@@ -431,6 +431,44 @@ export type ExamMark = {
   updatedAt: FirestoreDate;
 };
 
+// ===== Homework (Phase 3) =====
+export type HomeworkStatus = "active" | "completed" | "cancelled";
+export type HomeworkSubmissionStatus = "pending" | "submitted" | "graded";
+
+export type Homework = {
+  id?: string;
+  title: string;
+  description: string;
+  subject: string;
+  className: string;
+  section?: string;
+  assignedBy: string;
+  assignedDate: string;
+  dueDate: string;
+  attachments: { name: string; url: string }[];
+  status: HomeworkStatus;
+  academicYearId: string;
+  createdAt: FirestoreDate;
+  updatedAt: FirestoreDate;
+};
+
+export type HomeworkSubmission = {
+  id?: string;
+  homeworkId: string;
+  studentId: string;
+  studentName: string;
+  submissionDate: string;
+  content?: string;
+  attachments: { name: string; url: string }[];
+  status: HomeworkSubmissionStatus;
+  grade?: string;
+  remarks?: string;
+  gradedBy?: string;
+  gradedAt?: string;
+  createdAt: FirestoreDate;
+  updatedAt: FirestoreDate;
+};
+
 // ===== Phase 2: Communication (notices / circulars) =====
 export type NoticeChannel = "app" | "whatsapp" | "email";
 export type NoticeCategory = "school" | "branch" | "class" | "holiday" | "exam" | "event" | "fee" | "emergency";
@@ -902,4 +940,49 @@ export type FeeReminder = {
   sentAt?: FirestoreDate;
   createdBy: string;
   createdAt: FirestoreDate;
+};
+
+// ===== Timetable (Phase 4) =====
+export type DayOfWeek = 0 | 1 | 2 | 3 | 4 | 5 | 6;
+
+export type TimetableEntry = {
+  id?: string;
+  className: string;
+  section?: string;
+  academicYearId: string;
+  dayOfWeek: DayOfWeek;
+  periodNumber: number;
+  startTime: string;
+  endTime: string;
+  subject: string;
+  teacherId?: string;
+  teacherName?: string;
+  room?: string;
+  isBreak?: boolean;
+  createdAt: FirestoreDate;
+  updatedAt: FirestoreDate;
+};
+
+// ===== Certificates (Phase 9) =====
+export type CertificateType = "transfer" | "character" | "bonafide" | "conduct" | "general";
+export type CertificateStatus = "draft" | "issued" | "cancelled";
+
+export type Certificate = {
+  id?: string;
+  certificateType: CertificateType;
+  certificateNumber: string;
+  studentId: string;
+  studentName: string;
+  className: string;
+  section?: string;
+  academicYearId: string;
+  issueDate: string;
+  template?: string;
+  data: Record<string, string>;
+  status: CertificateStatus;
+  issuedBy: string;
+  issuedByName?: string;
+  remarks?: string;
+  createdAt: FirestoreDate;
+  updatedAt: FirestoreDate;
 };

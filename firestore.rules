@@ -52,8 +52,7 @@ service cloud.firestore {
       return signedIn() && (
         effectiveRole() == "super_admin" ||
         effectiveRole() == "admin" ||
-        effectiveRole() == "accountant" ||
-        effectiveRole() == "cashier"
+        effectiveRole() == "accountant"
       );
     }
 
@@ -294,6 +293,66 @@ service cloud.firestore {
     // Audit logs for fee operations
     match /feeAuditLogs/{auditId} {
       allow read: if isAdmin();
+      allow write: if isAdmin();
+    }
+
+    // ===== Students & Parent Portal =====
+    match /students/{studentId} {
+      allow read: if isAdmin() || isOwnTeacherId(resource.data.teacherId) || isParentOfStudent(studentId);
+      allow write: if isAdmin();
+    }
+
+    match /parent_student_links/{linkId} {
+      allow read: if isAdmin() || isOwnLink(resource.data.parentUid);
+      allow write: if isAdmin();
+    }
+
+    match /parent_messages/{msgId} {
+      allow read: if isAdmin() || isOwnMessage(resource.data.parentUid);
+      allow create: if signedIn();
+      allow update: if isAdmin();
+    }
+
+    match /approval_requests/{reqId} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    function isParentOfStudent(studentId) {
+      return signedIn() && (
+        effectiveRole() == "parent" &&
+        exists(/databases/$(database)/documents/parent_student_links/$(studentId)) == false &&
+        get(/databases/$(database)/documents/parent_student_links).data.studentId == studentId
+      );
+    }
+
+    function isOwnLink(parentUid) {
+      return signedIn() && request.auth.uid == parentUid;
+    }
+
+    function isOwnMessage(parentUid) {
+      return signedIn() && request.auth.uid == parentUid;
+    }
+
+    // ===== Homework (Phase 3) =====
+    match /homework/{hwId} {
+      allow read: if isAdmin() || isActiveTeacher();
+      allow write: if isAdmin();
+    }
+    match /homework_submissions/{subId} {
+      allow read: if isAdmin() || isActiveTeacher();
+      allow create: if signedIn();
+      allow update: if isAdmin() || isActiveTeacher();
+    }
+
+    // ===== Timetable (Phase 4) =====
+    match /timetable/{entryId} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    match /classes/{classId} {
+      allow read: if signedIn();
       allow write: if isAdmin();
     }
 

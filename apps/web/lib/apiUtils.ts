@@ -28,9 +28,8 @@ export async function resolveRole(decodedToken: DecodedIdToken): Promise<Role | 
   }
   if (fallbackRole) {
     (decodedToken as { role?: string }).role = fallbackRole;
-    return fallbackRole;
   }
-  return undefined;
+  return fallbackRole;
 }
 
 export async function requireAdmin(req: Request): Promise<DecodedIdToken | null> {
@@ -52,10 +51,6 @@ export async function requireSuperAdmin(req: Request): Promise<DecodedIdToken | 
 
 /** Returns decoded token or null if auth is missing/expired. Caller should return 401. */
 export async function requireAuthenticated(req: Request): Promise<DecodedIdToken | null> {
-  return verifyBearerToken(req);
-}
-
-export async function requireSignedIn(req: Request): Promise<DecodedIdToken | null> {
   return verifyBearerToken(req);
 }
 
@@ -218,9 +213,5 @@ export async function withPerformanceTracking<T extends Record<string, any>>(
     console.log(`[PERF] ${operationName} took ${totalMs}ms`);
   }
   
-  // Optionally add metrics to response for monitoring
-  return {
-    ...result,
-    _metrics: { operationMs, totalMs }
-  };
+  return result;
 }

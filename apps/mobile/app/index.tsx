@@ -1,7 +1,20 @@
+/**
+ * Entry route — redirects by session state and role.
+ * Role→path mapping is inlined so this file depends on neither the deleted
+ * mobileTheme.ts nor the teardown-generated roleRouting.ts.
+ */
+import React from "react";
 import { Redirect } from "expo-router";
-import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
-import { dashboardPathForRole, palette } from "@/lib/mobileTheme";
+import type { Role } from "@sri-narayana/shared";
+import { LoadingState } from "@/design-system/components";
 import { useMobileSession } from "@/lib/mobileSession";
+
+function dashboardPathForRole(role?: Role): string {
+  if (role === "parent") return "/parent";
+  // Other workspaces are rebuilt in later phases; until then everyone
+  // non-parent lands on the parent-style login guidance via /login.
+  return "/login";
+}
 
 export default function Index() {
   const session = useMobileSession();
@@ -9,20 +22,8 @@ export default function Index() {
   if (session.status === "authenticated" && session.profile) {
     return <Redirect href={dashboardPathForRole(session.profile.role) as never} />;
   }
-
   if (session.status === "checking") {
-    return (
-      <View style={styles.page}>
-        <ActivityIndicator size="large" color={palette.brand} />
-        <Text style={styles.text} allowFontScaling={false}>Opening workspace...</Text>
-      </View>
-    );
+    return <LoadingState label="Opening workspace…" />;
   }
-
-  return <Redirect href="/login" />;
+  return <Redirect href={"/login" as never} />;
 }
-
-const styles = StyleSheet.create({
-  page: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: palette.ground, gap: 12 },
-  text: { color: palette.ink2, fontSize: 13, fontWeight: "800" }
-});

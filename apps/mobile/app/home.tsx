@@ -4,7 +4,7 @@ import { Screen } from "@/components/Screen";
 import { StatusPill } from "@/components/StatusPill";
 import { useTeacherAttendanceData } from "@/lib/useTeacherAttendanceData";
 import { getAttendancePercentage } from "@sri-narayana/shared";
-import { Link } from "expo-router";
+import { Link, Redirect } from "expo-router";
 import { Pressable, StyleSheet, Text, View, ActivityIndicator } from "react-native";
 
 function greeting() {
@@ -120,6 +120,9 @@ export default function Home() {
     </Screen>
   );
 }
+
+/** LEGACY ROUTE — old UI removed (2026-07-21 rebuild). Delete during cleanup. */
+export function LegacyHome() { return <Redirect href={"/" as never} />; }
 
 const styles = StyleSheet.create({
   hero: { overflow: "hidden", borderRadius: 22, backgroundColor: "#2c2f8d", padding: 18, shadowColor: "#24266f", shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.2, shadowRadius: 18, elevation: 4 },
