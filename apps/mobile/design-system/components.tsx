@@ -6,12 +6,12 @@ import React, { createContext, useCallback, useContext, useEffect, useRef, useSt
 import {
   Animated,
   Easing,
+  Modal,
   Pressable,
   StyleSheet,
   Text,
   View,
   type StyleProp,
-  type TextStyle,
   type ViewStyle
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
@@ -234,6 +234,197 @@ export function ErrorState({ message, onRetry }: { message: string; onRetry?: ()
   );
 }
 
+/* ---------------------------------------------------------------- Screen header */
+/** The greeting block at the top of every workspace home screen. */
+export function ScreenHeader({
+  eyebrow,
+  title,
+  trailing
+}: {
+  eyebrow?: string;
+  title: string;
+  trailing?: React.ReactNode;
+}) {
+  return (
+    <View style={styles.screenHeader}>
+      <View style={{ flex: 1, minWidth: 0 }}>
+        {eyebrow ? (
+          <DSText variant="label" tint={color.ink3} style={{ fontWeight: "500" }}>
+            {eyebrow}
+          </DSText>
+        ) : null}
+        <DSText variant="display" numberOfLines={1}>{title}</DSText>
+      </View>
+      {trailing}
+    </View>
+  );
+}
+
+/** Large page title used on non-home tabs ("Tasks", "Academics"). */
+export function PageTitle({ children }: { children: React.ReactNode }) {
+  return <DSText variant="display" style={styles.pageTitle}>{children}</DSText>;
+}
+
+/* ---------------------------------------------------------------- Hero */
+/**
+ * The filled primary banner (check-in prompt, collections total).
+ * `tone` picks the container: primary for prompts, success for confirmations.
+ */
+export function Hero({
+  tone = "primary",
+  children,
+  style
+}: {
+  tone?: "primary" | "success" | "warning";
+  children: React.ReactNode;
+  style?: StyleProp<ViewStyle>;
+}) {
+  const bg =
+    tone === "success" ? color.successContainer
+      : tone === "warning" ? color.warningSurface
+        : color.primaryGradientA;
+  return (
+    <View style={[styles.hero, { backgroundColor: bg }, tone === "primary" && elevation.hero, style]}>
+      {children}
+    </View>
+  );
+}
+
+/* ---------------------------------------------------------------- Stat tile */
+export function StatTile({
+  value,
+  label,
+  tint
+}: {
+  value: string | number;
+  label: string;
+  tint?: string;
+}) {
+  return (
+    <Card style={styles.statTile}>
+      <DSText variant="display" tint={tint} style={styles.statValue} numberOfLines={1}>
+        {value}
+      </DSText>
+      <DSText variant="label" style={styles.statLabel} numberOfLines={2}>{label}</DSText>
+    </Card>
+  );
+}
+
+/* ---------------------------------------------------------------- Chips */
+export function FilterChips({
+  options,
+  value,
+  onChange
+}: {
+  options: string[];
+  value: string;
+  onChange: (next: string) => void;
+}) {
+  return (
+    <View style={styles.chipRow}>
+      {options.map((option) => {
+        const active = option === value;
+        return (
+          <Pressable
+            key={option}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: active }}
+            onPress={() => onChange(option)}
+            style={({ pressed }) => [
+              styles.chip,
+              active && styles.chipActive,
+              pressed && { transform: [{ scale: motion.pressScale }] }
+            ]}
+          >
+            <Text style={[styles.chipText, active && styles.chipTextActive]}>{option}</Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+/* ---------------------------------------------------------------- Progress */
+export function ProgressBar({
+  percent,
+  tint = color.primary
+}: {
+  percent: number;
+  tint?: string;
+}) {
+  const clamped = Math.max(0, Math.min(100, Math.round(percent)));
+  return (
+    <View
+      accessibilityRole="progressbar"
+      accessibilityValue={{ min: 0, max: 100, now: clamped }}
+      style={styles.progressTrack}
+    >
+      <View style={[styles.progressFill, { width: `${clamped}%`, backgroundColor: tint }]} />
+    </View>
+  );
+}
+
+/** Labelled progress row — "Class 9 — Linear equations · 58%". */
+export function ProgressRow({
+  label,
+  percent,
+  valueLabel,
+  tint
+}: {
+  label: string;
+  percent: number;
+  valueLabel?: string;
+  tint?: string;
+}) {
+  return (
+    <View style={{ gap: space.xs + 2 }}>
+      <View style={{ flexDirection: "row", alignItems: "center" }}>
+        <DSText variant="bodyMedium" style={{ flex: 1 }} numberOfLines={1}>{label}</DSText>
+        <DSText variant="label">{valueLabel ?? `${Math.round(percent)}%`}</DSText>
+      </View>
+      <ProgressBar percent={percent} tint={tint} />
+    </View>
+  );
+}
+
+/* ---------------------------------------------------------------- Bottom sheet */
+export function BottomSheet({
+  visible,
+  title,
+  onClose,
+  children,
+  primaryLabel,
+  onPrimary
+}: {
+  visible: boolean;
+  title: string;
+  onClose: () => void;
+  children?: React.ReactNode;
+  primaryLabel?: string;
+  onPrimary?: () => void;
+}) {
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <Pressable style={styles.sheetScrim} onPress={onClose} accessibilityLabel="Close" />
+      <View style={styles.sheet}>
+        <View style={styles.sheetGrabber} />
+        <View style={styles.sheetHeader}>
+          <DSText variant="title" style={{ flex: 1 }}>{title}</DSText>
+          <PressableScale onPress={onClose} accessibilityLabel="Close">
+            <Icon name="close" size={22} tint={color.ink3} />
+          </PressableScale>
+        </View>
+        {children}
+        {primaryLabel ? (
+          <View style={{ marginTop: space.md }}>
+            <PillButton label={primaryLabel} onPress={onPrimary ?? onClose} />
+          </View>
+        ) : null}
+      </View>
+    </Modal>
+  );
+}
+
 /* ---------------------------------------------------------------- Toast */
 const ToastContext = createContext<{ show: (msg: string) => void }>({ show: () => undefined });
 
@@ -319,5 +510,66 @@ const styles = StyleSheet.create({
     gap: space.sm,
     zIndex: 60
   },
-  toastText: { color: color.onPrimary, fontSize: 13.5, flex: 1 }
+  toastText: { color: color.onPrimary, fontSize: 13.5, flex: 1 },
+
+  screenHeader: { flexDirection: "row", alignItems: "center", gap: space.md, paddingTop: space.sm },
+  pageTitle: { paddingTop: space.sm },
+
+  hero: {
+    borderRadius: radius.xl,
+    padding: space.lg,
+    paddingHorizontal: 18,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14
+  },
+
+  statTile: {
+    flex: 1,
+    padding: space.md,
+    paddingHorizontal: space.sm,
+    alignItems: "center",
+    borderRadius: radius.md
+  },
+  statValue: { fontSize: 17 },
+  statLabel: { fontSize: 11, marginTop: 2, textAlign: "center" },
+
+  chipRow: { flexDirection: "row", gap: space.sm, flexWrap: "wrap" },
+  chip: {
+    borderRadius: radius.pill,
+    paddingHorizontal: space.lg + 4,
+    paddingVertical: space.sm + 2,
+    borderWidth: 1,
+    borderColor: color.outlineStrong,
+    backgroundColor: color.surface
+  },
+  chipActive: { backgroundColor: color.primaryContainer, borderColor: color.primaryContainer },
+  chipText: { fontSize: 13, fontWeight: "600", color: color.ink2 },
+  chipTextActive: { color: color.onPrimaryContainer },
+
+  progressTrack: {
+    height: 6,
+    borderRadius: radius.pill,
+    backgroundColor: color.surfaceVariant,
+    overflow: "hidden"
+  },
+  progressFill: { height: 6, borderRadius: radius.pill },
+
+  sheetScrim: { flex: 1, backgroundColor: "rgba(26,27,34,0.45)" },
+  sheet: {
+    backgroundColor: color.surface,
+    borderTopLeftRadius: radius.xl,
+    borderTopRightRadius: radius.xl,
+    padding: space.xl,
+    paddingBottom: space.xxl,
+    gap: space.md
+  },
+  sheetGrabber: {
+    alignSelf: "center",
+    width: 34,
+    height: 4,
+    borderRadius: radius.pill,
+    backgroundColor: color.outlineStrong
+  },
+  sheetHeader: { flexDirection: "row", alignItems: "center", gap: space.md }
 });
