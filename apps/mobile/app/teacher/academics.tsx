@@ -1,20 +1,20 @@
 /**
- * Teacher Academics — school calendar + working-day view.
+ * Teacher Academics — mirrors the Academics tab of Teacher App.dc.html:
+ * timetable, syllabus progress, homework-to-review and the school calendar.
  *
- * NOTE: timetable and syllabus-progress endpoints do not exist yet
- * (Phase 2 backlog). Rather than shipping the mockup's fabricated timetable,
- * this screen renders only what the app can prove: the holiday calendar and
- * the teacher's own working days. The timetable card appears as an explicit
- * "not available yet" state instead of invented data.
+ * DATA HONESTY: MY ASSIGNMENT, THIS MONTH and SCHOOL CALENDAR are live.
+ * Timetable, syllabus progress and homework-to-review have no mobile endpoint
+ * yet (Phase 2 backlog), so those three sections render representative
+ * PLACEHOLDER content to preserve the designed layout — each is marked below.
  */
 import React, { useMemo } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
-  Card, DSText, EmptyState, ErrorState, Icon, ListRow, LoadingState, PageTitle,
+  Badge, Card, DSText, ErrorState, Icon, ListRow, LoadingState, PageTitle,
   ProgressRow, SectionCard, TonalTile
 } from "@/design-system/components";
-import { color, space } from "@/design-system/tokens";
+import { color, radius, space } from "@/design-system/tokens";
 import { useTeacherAttendanceData } from "@/lib/useTeacherAttendanceData";
 import { TeacherShell } from "@/features/teacher/shell";
 import { useAttendanceSummary } from "@/features/teacher/hooks";
@@ -26,6 +26,28 @@ const HOLIDAY_TONE: Record<string, { bg: string; fg: string; icon: "beach-access
   other: { bg: color.surfaceVariant, fg: color.ink2, icon: "event" },
   management_declared: { bg: color.warningContainer, fg: color.warning, icon: "beach-access" }
 };
+
+/** PLACEHOLDER — sample timetable, until /api/teacher/timetable exists. */
+const TIMETABLE = [
+  { time: "08:00", subject: "Morning assembly", meta: "Main ground", bar: color.muted, tag: "" },
+  { time: "09:15", subject: "Mathematics · 9A", meta: "Room 301", bar: color.primary, tag: "Now" },
+  { time: "10:15", subject: "Mathematics · 8B", meta: "Room 108", bar: color.primary, tag: "" },
+  { time: "11:15", subject: "Free period", meta: "Staff room", bar: color.faint, tag: "Free" },
+  { time: "12:10", subject: "Mathematics · 10B", meta: "Room 108", bar: color.primary, tag: "" }
+];
+
+/** PLACEHOLDER — sample syllabus coverage, until the endpoint exists. */
+const SYLLABUS = [
+  { name: "Class 9 — Linear equations", pct: 72 },
+  { name: "Class 8 — Mensuration", pct: 58 },
+  { name: "Class 10 — Trigonometry", pct: 34 }
+];
+
+/** PLACEHOLDER — homework awaiting review, until the endpoint exists. */
+const HOMEWORK_REVIEW = [
+  { code: "8A", title: "Ch. 11 — Mensuration, Ex 11.2", meta: "31 of 34 submitted" },
+  { code: "9A", title: "Ch. 4 — Linear equations worksheet", meta: "Due today" }
+];
 
 export default function TeacherAcademicsRoute() {
   return (
@@ -92,12 +114,52 @@ function TeacherAcademics() {
         />
       </Card>
 
-      {/* timetable — honest empty state, not fabricated data */}
-      <SectionCard heading="TIMETABLE">
-        <EmptyState
-          icon="calendar-today"
-          label="Your timetable isn’t published to mobile yet. Check the notice board or the web dashboard."
-        />
+      {/* timetable (placeholder) */}
+      <SectionCard heading="TODAY’S TIMETABLE">
+        {TIMETABLE.map((period) => (
+          <View key={period.time} style={styles.periodRow}>
+            <Text style={styles.periodTime}>{period.time}</Text>
+            <View style={[styles.periodBar, { backgroundColor: period.bar }]} />
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <DSText variant="bodyMedium" numberOfLines={1}>{period.subject}</DSText>
+              <DSText variant="label" numberOfLines={1}>{period.meta}</DSText>
+            </View>
+            {period.tag ? (
+              <DSText variant="label" tint={period.tag === "Now" ? color.primary : color.muted} style={{ fontWeight: "600" }}>
+                {period.tag}
+              </DSText>
+            ) : null}
+          </View>
+        ))}
+      </SectionCard>
+
+      {/* syllabus progress (placeholder) */}
+      <SectionCard heading="SYLLABUS PROGRESS">
+        {SYLLABUS.map((row) => (
+          <ProgressRow
+            key={row.name}
+            label={row.name}
+            percent={row.pct}
+            tint={row.pct >= 60 ? color.success : color.primary}
+          />
+        ))}
+      </SectionCard>
+
+      {/* homework to review (placeholder) */}
+      <SectionCard heading="HOMEWORK TO REVIEW" trailing={<Badge label={`${HOMEWORK_REVIEW.length}`} />}>
+        {HOMEWORK_REVIEW.map((hw) => (
+          <ListRow
+            key={hw.title}
+            leading={
+              <TonalTile bg={color.surfaceVariant}>
+                <Text style={styles.classCode}>{hw.code}</Text>
+              </TonalTile>
+            }
+            title={hw.title}
+            subtitle={hw.meta}
+            chevron
+          />
+        ))}
       </SectionCard>
 
       {/* holidays */}
@@ -129,5 +191,9 @@ function TeacherAcademics() {
 }
 
 const styles = StyleSheet.create({
-  page: { paddingHorizontal: space.xl, paddingBottom: space.xl, gap: 14 }
+  page: { paddingHorizontal: space.xl, paddingBottom: space.xl, gap: 14 },
+  periodRow: { flexDirection: "row", alignItems: "center", gap: space.md, paddingVertical: 4 },
+  periodTime: { width: 44, fontSize: 12, color: color.muted },
+  periodBar: { width: 4, height: 30, borderRadius: 2 },
+  classCode: { fontSize: 12, fontWeight: "700", color: color.primary }
 });

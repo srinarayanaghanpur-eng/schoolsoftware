@@ -4,12 +4,12 @@
  * and fee figures are secondary (the reverse of the Admin home).
  */
 import React from "react";
-import { RefreshControl, ScrollView, StyleSheet, View } from "react-native";
+import { RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import {
   Avatar, Badge, DSText, ErrorState, Hero, Icon, ListRow, LoadingState,
-  PillButton, PressableScale, ProgressRow, ScreenHeader, SectionCard, StatTile, TonalTile
+  PillButton, PressableScale, ProgressRow, ScreenHeader, SectionCard, StatTile, TonalTile, useToast
 } from "@/design-system/components";
 import { color, radius, space } from "@/design-system/tokens";
 import { useMobileSession } from "@/lib/mobileSession";
@@ -38,6 +38,7 @@ export default function PrincipalHomeRoute() {
 function PrincipalHome() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const toast = useToast();
   const { profile } = useMobileSession();
   const attendance = useTodayAttendance();
   const { staff } = useStaff();
@@ -116,6 +117,21 @@ function PrincipalHome() {
         />
       </View>
 
+      {/* assign a task prompt (staff task assignment — Phase 2) */}
+      <Hero>
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text style={styles.promptTitle}>Assign a task</Text>
+          <Text style={styles.promptMeta}>Delegate work to any teacher in seconds</Text>
+        </View>
+        <PillButton
+          label="New task"
+          icon="add-task"
+          bg={color.surface}
+          fg={color.onPrimaryContainer}
+          onPress={() => toast.show("Task assignment arrives in the next release.")}
+        />
+      </Hero>
+
       <SectionCard heading="TODAY’S ATTENDANCE">
         <ProgressRow
           label="Staff present"
@@ -177,6 +193,16 @@ function PrincipalHome() {
         )}
       </SectionCard>
 
+      {/* broadcast (staff announcements — Phase 2) */}
+      <PressableScale
+        accessibilityLabel="Send announcement to all staff"
+        onPress={() => toast.show("Staff announcements arrive in the next release.")}
+        style={styles.broadcast}
+      >
+        <Icon name="campaign" size={19} tint={color.primary} />
+        <DSText variant="bodyMedium" tint={color.primary}>Send announcement to all staff</DSText>
+      </PressableScale>
+
       {/* fee position — secondary for this role */}
       <SectionCard heading="FEE POSITION">
         <ListRow
@@ -197,6 +223,8 @@ function PrincipalHome() {
 const styles = StyleSheet.create({
   page: { paddingHorizontal: space.xl, paddingBottom: space.xl, gap: 14 },
   statRow: { flexDirection: "row", gap: 10 },
+  promptTitle: { fontSize: 15, fontWeight: "600", color: color.onPrimary },
+  promptMeta: { fontSize: 12.5, color: color.onPrimary, opacity: 0.8, marginTop: 2 },
   quickGrid: { flexDirection: "row", gap: 10 },
   quickTile: {
     flex: 1,
@@ -205,6 +233,17 @@ const styles = StyleSheet.create({
     paddingVertical: space.md + 4,
     paddingHorizontal: space.xs,
     alignItems: "center",
+    gap: space.sm
+  },
+  broadcast: {
+    borderWidth: 1.5,
+    borderStyle: "dashed",
+    borderColor: color.faint,
+    borderRadius: radius.md,
+    padding: 13,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     gap: space.sm
   }
 });

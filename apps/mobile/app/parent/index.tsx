@@ -135,6 +135,28 @@ function ParentHome() {
         )}
       </SectionCard>
 
+      {/* from teachers (placeholder — no teacher-remark endpoint yet) */}
+      <SectionCard heading="FROM TEACHERS">
+        <View style={styles.remarkRow}>
+          <Avatar label="PS" size={36} />
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <DSText variant="bodyMedium">Ms. Sharma · Class teacher</DSText>
+            <DSText variant="body" style={{ marginTop: 2 }}>
+              {student.name.split(" ")[0]} did very well in the Unit 4 test. Keep encouraging the daily practice.
+            </DSText>
+            <DSText variant="caption" style={{ marginTop: 4 }}>Today, 3:05 PM</DSText>
+          </View>
+        </View>
+        <PressableScale
+          accessibilityLabel="Message the class teacher"
+          onPress={() => router.push("/parent/messages" as never)}
+          style={styles.remarkCta}
+        >
+          <Icon name="chat" size={18} tint={color.primary} />
+          <DSText variant="bodyMedium" tint={color.primary}>Message class teacher</DSText>
+        </PressableScale>
+      </SectionCard>
+
       {/* notices */}
       <SectionCard heading="SCHOOL NOTICES">
         {notices.length === 0 ? (
@@ -189,6 +211,18 @@ const styles = StyleSheet.create({
   },
   statRow: { flexDirection: "row", gap: 10 },
   statTile: { flex: 1, padding: space.md, paddingHorizontal: space.sm, alignItems: "center", borderRadius: radius.md },
+  remarkRow: { flexDirection: "row", alignItems: "flex-start", gap: space.md },
+  remarkCta: {
+    borderWidth: 1.5,
+    borderStyle: "dashed",
+    borderColor: color.faint,
+    borderRadius: radius.md,
+    padding: 11,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: space.sm
+  },
   statValue: { fontSize: 17 },
   statLabel: { fontSize: 11, marginTop: 2, textAlign: "center" },
   messageCta: {

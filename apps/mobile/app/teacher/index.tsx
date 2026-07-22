@@ -1,6 +1,13 @@
 /**
- * Teacher Home — implements the Home tab of the approved Teacher App design.
- * Wired to live attendance data; no fabricated numbers.
+ * Teacher Home — implements the Home tab of the approved Teacher App design
+ * (Teacher App.dc.html): greeting, check-in hero, today's classes, tasks,
+ * quick actions, month stats and notices.
+ *
+ * DATA HONESTY: attendance figures and the school calendar are live. Timetable
+ * and principal-assigned tasks have no mobile endpoint yet (Phase 2 backlog),
+ * so those sections render representative PLACEHOLDER content to preserve the
+ * designed layout. Each placeholder is marked below — swap it for the real
+ * fetch when the endpoint lands; the section structure already handles data.
  */
 import React from "react";
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
@@ -24,6 +31,20 @@ const QUICK_ACTIONS = [
   { key: "tasks", icon: "task-alt" as const, label: "Tasks", href: "/teacher/tasks" },
   { key: "inbox", icon: "mail-outline" as const, label: "Inbox", href: "/teacher/inbox" }
 ];
+
+/**
+ * PLACEHOLDER — sample timetable, shown until /api/teacher/timetable exists.
+ * Replace `TODAY_CLASSES` with the fetched schedule; the render loop below is
+ * already data-driven.
+ */
+const TODAY_CLASSES = [
+  { id: "now", subject: "Mathematics · 9A", meta: "Now · Rm 301", live: true },
+  { id: "free", subject: "Free period", meta: "11:15 – 12:00", live: false },
+  { id: "next", subject: "Mathematics · 10B", meta: "12:10 – 12:55 · Rm 108", live: false }
+];
+
+/** PLACEHOLDER — top principal-assigned task, until /api/tasks exists. */
+const TOP_TASK = { title: "Upload Unit 4 test marks", from: "Principal", due: "Today, 4:00 PM", pending: 3 };
 
 export default function TeacherHomeRoute() {
   return (
@@ -60,9 +81,19 @@ function TeacherHome() {
         eyebrow={`${greeting()} · ${dateLabel()}`}
         title={name}
         trailing={
-          <PressableScale accessibilityLabel="Profile" onPress={() => router.push("/teacher/profile" as never)}>
-            <Avatar label={initials(name)} size={42} />
-          </PressableScale>
+          <View style={styles.headerActions}>
+            <PressableScale
+              accessibilityLabel="Notifications"
+              onPress={() => router.push("/teacher/inbox" as never)}
+              style={styles.bell}
+            >
+              <Icon name="notifications" size={21} tint={color.ink2} />
+              <View style={styles.bellDot} />
+            </PressableScale>
+            <PressableScale accessibilityLabel="Profile" onPress={() => router.push("/teacher/profile" as never)}>
+              <Avatar label={initials(name)} size={42} />
+            </PressableScale>
+          </View>
         }
       />
 
@@ -106,43 +137,45 @@ function TeacherHome() {
         </Hero>
       )}
 
-      {/* month stats */}
-      <View style={styles.statRow}>
-        <StatTile value={`${summary.percentage}%`} label="Attendance" tint={color.primary} />
-        <StatTile value={summary.present} label="Present days" tint={color.success} />
-        <StatTile value={summary.late} label="Late marks" tint={summary.late > 0 ? color.warning : undefined} />
-      </View>
-
-      {/* today */}
+      {/* today's classes (placeholder timetable) */}
       <SectionCard
-        heading="TODAY"
+        heading="TODAY’S CLASSES"
         trailing={
-          <Badge
-            label={today.label}
-            bg={
-              today.tone === "success" ? color.successContainer
-                : today.tone === "warning" ? color.warningContainer
-                  : today.tone === "error" ? color.errorContainer
-                    : color.surfaceVariant
-            }
-            fg={
-              today.tone === "success" ? color.onSuccessContainer
-                : today.tone === "warning" ? color.onWarningDeep
-                  : today.tone === "error" ? color.error
-                    : color.ink2
-            }
-          />
+          <PressableScale accessibilityLabel="Open timetable" onPress={() => router.push("/teacher/academics" as never)}>
+            <DSText variant="bodyMedium" tint={color.primary}>Timetable</DSText>
+          </PressableScale>
         }
       >
+        {TODAY_CLASSES.map((cls) => (
+          <View key={cls.id} style={[styles.classRow, cls.live && styles.classRowLive]}>
+            <View style={[styles.dot, { backgroundColor: cls.live ? color.primary : color.faint }]} />
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <DSText variant="bodyMedium" tint={cls.live ? color.onPrimaryContainer : color.ink} numberOfLines={1}>
+                {cls.subject}
+              </DSText>
+              <DSText variant="label" tint={cls.live ? color.primaryDeep : color.muted} numberOfLines={1}>
+                {cls.meta}
+              </DSText>
+            </View>
+            {cls.live ? (
+              <PillButton
+                label="Mark"
+                icon="how-to-reg"
+                onPress={() => router.push("/teacher/attendance" as never)}
+              />
+            ) : null}
+          </View>
+        ))}
+      </SectionCard>
+
+      {/* tasks summary (placeholder) */}
+      <SectionCard heading="TASKS" trailing={<Badge label={`${TOP_TASK.pending} due`} />}>
         <ListRow
-          leading={<TonalTile bg={color.primaryContainer}><Icon name="login" size={19} tint={color.primary} /></TonalTile>}
-          title="Check in"
-          subtitle={formatTime(summary.today?.checkInTime)}
-        />
-        <ListRow
-          leading={<TonalTile bg={color.surfaceVariant}><Icon name="logout" size={19} tint={color.ink2} /></TonalTile>}
-          title="Check out"
-          subtitle={formatTime(summary.today?.checkOutTime)}
+          leading={<TonalTile bg={color.warningSurface}><Icon name="upload-file" size={19} tint={color.warning} /></TonalTile>}
+          title={TOP_TASK.title}
+          subtitle={`From ${TOP_TASK.from} · due ${TOP_TASK.due}`}
+          chevron
+          onPress={() => router.push("/teacher/tasks" as never)}
         />
       </SectionCard>
 
@@ -161,17 +194,31 @@ function TeacherHome() {
         ))}
       </View>
 
-      {/* upcoming holiday */}
-      <SectionCard heading="UPCOMING">
+      {/* month stats (live) */}
+      <View style={styles.statRow}>
+        <StatTile value={`${summary.percentage}%`} label="Attendance" tint={color.primary} />
+        <StatTile value={summary.present} label="Present days" tint={color.success} />
+        <StatTile value={summary.late} label="Late marks" tint={summary.late > 0 ? color.warning : undefined} />
+      </View>
+
+      {/* notices & events (school calendar is live) */}
+      <SectionCard heading="NOTICES & EVENTS">
         {nextHoliday ? (
           <ListRow
-            leading={<TonalTile bg={color.errorContainer}><Icon name="event" size={19} tint={color.error} /></TonalTile>}
+            leading={<TonalTile bg={color.errorContainer}><Icon name="campaign" size={19} tint={color.error} /></TonalTile>}
             title={nextHoliday.title}
             subtitle={new Date(nextHoliday.date).toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long" })}
           />
         ) : (
-          <DSText variant="label">No holidays scheduled in the coming weeks.</DSText>
+          <DSText variant="label">No notices right now.</DSText>
         )}
+        <ListRow
+          leading={<TonalTile bg={color.primaryContainer}><Icon name="event" size={19} tint={color.primary} /></TonalTile>}
+          title="View full school calendar"
+          subtitle="Holidays, exams and events"
+          chevron
+          onPress={() => router.push("/teacher/academics" as never)}
+        />
       </SectionCard>
 
       <PressableScale
@@ -191,8 +238,38 @@ function TeacherHome() {
 
 const styles = StyleSheet.create({
   page: { paddingHorizontal: space.xl, paddingBottom: space.xl, gap: 14 },
+  headerActions: { flexDirection: "row", alignItems: "center", gap: space.sm },
+  bell: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: color.surfaceVariant,
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  bellDot: {
+    position: "absolute",
+    top: 9,
+    right: 10,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: color.error,
+    borderWidth: 2,
+    borderColor: color.surfaceVariant
+  },
   heroTitle: { fontSize: 15, fontWeight: "600", color: color.onPrimary },
   heroMeta: { fontSize: 12.5, color: color.onPrimary, opacity: 0.8, marginTop: 2 },
+  classRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: space.md,
+    paddingVertical: 10,
+    paddingHorizontal: space.md,
+    borderRadius: radius.sm + 2
+  },
+  classRowLive: { backgroundColor: color.primaryContainer },
+  dot: { width: 8, height: 8, borderRadius: 4 },
   statRow: { flexDirection: "row", gap: 10 },
   quickGrid: { flexDirection: "row", gap: 10 },
   quickTile: {

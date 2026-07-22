@@ -1,10 +1,10 @@
 /**
- * Teacher Tasks.
+ * Teacher Tasks — mirrors the Tasks tab of Teacher App.dc.html.
  *
- * NOTE: there is no /api/tasks endpoint yet (Phase 2 backlog), so this screen
- * ships the design's structure with a truthful empty state rather than the
- * mockup's invented task list. When the endpoint lands, replace `tasks` with
- * the fetch — the layout below already handles data.
+ * PLACEHOLDER: there is no /api/tasks endpoint yet (Phase 2 backlog), so
+ * `TASKS` below is representative sample content that demonstrates the layout.
+ * Replace it with the fetch when the endpoint lands — the render loop is
+ * already data-driven.
  */
 import React, { useMemo, useState } from "react";
 import { ScrollView, StyleSheet } from "react-native";
@@ -31,6 +31,13 @@ const BADGE = {
   approved: { label: "Approved", bg: color.successContainer, fg: color.onSuccessContainer }
 };
 
+const TASKS: TeacherTask[] = [
+  { id: "1", title: "Upload Unit 4 test marks — 8A & 8B", from: "Principal", due: "Today, 4:00 PM", status: "pending" },
+  { id: "2", title: "Submit lesson plan — Week 32", from: "Principal", due: "Today, 5:00 PM", status: "pending" },
+  { id: "3", title: "PTM feedback summary", from: "Vice Principal", due: "Tomorrow", status: "submitted" },
+  { id: "4", title: "Science fair duty roster", from: "Principal", due: "Jul 18", status: "approved" }
+];
+
 export default function TeacherTasksRoute() {
   return (
     <TeacherShell>
@@ -44,7 +51,7 @@ function TeacherTasks() {
   const [filter, setFilter] = useState("All");
 
   /** Replace with a fetch once /api/tasks exists. */
-  const tasks: TeacherTask[] = [];
+  const tasks = TASKS;
 
   const visible = useMemo(() => {
     if (filter === "Pending") return tasks.filter((t) => t.status === "pending");
@@ -94,7 +101,7 @@ function TeacherTasks() {
       </SectionCard>
 
       <DSText variant="caption" style={{ textAlign: "center" }}>
-        Task assignment is rolling out with the next school release.
+        Sample view — live task assignment arrives with the next school release.
       </DSText>
     </ScrollView>
   );

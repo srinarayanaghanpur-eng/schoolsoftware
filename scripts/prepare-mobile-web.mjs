@@ -7,7 +7,7 @@ const repositoryRoot = path.resolve(scriptDir, "..");
 const mobileOutput = path.join(repositoryRoot, "apps", "web", "public", "__mobile");
 const indexPath = path.join(mobileOutput, "index.html");
 
-const desktopReturnScript = `<script>(function(){try{if(window.matchMedia("(min-width: 768px)").matches){document.cookie="erp_mobile_ui=; Path=/; Max-Age=0; SameSite=Lax";window.location.reload()}}catch(e){}})()</script>`;
+const desktopReturnScript = `<script>(function(){try{if(window.matchMedia("(min-width: 768px)").matches){document.cookie="erp_mobile_ui=; Path=/; Max-Age=0; SameSite=Lax";window.location.replace(window.location.href)}}catch(e){}})()</script>`;
 
 let html = await readFile(indexPath, "utf8");
 html = html
