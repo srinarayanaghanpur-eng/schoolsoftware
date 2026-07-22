@@ -7,12 +7,12 @@ const repositoryRoot = path.resolve(scriptDir, "..");
 const mobileOutput = path.join(repositoryRoot, "apps", "web", "public", "__mobile");
 const indexPath = path.join(mobileOutput, "index.html");
 
-const desktopReturnScript = `<script>(function(){try{if(window.matchMedia("(min-width: 768px)").matches){document.cookie="erp_mobile_ui=; Path=/; Max-Age=0; SameSite=Lax";window.location.replace(window.location.href)}}catch(e){}})()</script>`;
-
+// Device detection now lives entirely in the Next.js middleware (server-side,
+// User-Agent based), so no client-side cookie/redirect script is injected here.
+// This script only rewrites the exported asset paths to their /__mobile prefix.
 let html = await readFile(indexPath, "utf8");
 html = html
   .replaceAll('src="/_expo/', 'src="/__mobile/_expo/')
-  .replaceAll('href="/_expo/', 'href="/__mobile/_expo/')
-  .replace("</head>", `${desktopReturnScript}\n</head>`);
+  .replaceAll('href="/_expo/', 'href="/__mobile/_expo/');
 
 await writeFile(indexPath, html, "utf8");
