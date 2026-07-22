@@ -24,6 +24,14 @@ function isMobileDevice(request: NextRequest): boolean {
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  // The exported Expo bundle requests its runtime assets from the site root
+  // (/assets/*), but they are deployed under /__mobile. Without this the mobile
+  // UI loads with broken icons and fonts. Handled first, before the
+  // static-extension short-circuit below.
+  if (pathname.startsWith("/assets/")) {
+    return NextResponse.rewrite(new URL(`/__mobile${pathname}`, request.url));
+  }
+
   if (
     request.method !== "GET" ||
     pathname.startsWith("/api/") ||
