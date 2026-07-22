@@ -3,6 +3,7 @@ node_modules
 dist
 build
 .next
+apps/web/public/__mobile/
 coverage
 *.log
 google-services.json

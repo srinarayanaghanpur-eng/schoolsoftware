@@ -11,6 +11,7 @@
 export const color = {
   // Surfaces
   background: "#faf9fd",
+  previewBackdrop: "#e9e7ef",
   surface: "#ffffff",
   surfaceVariant: "#f1f0f7",
   outline: "#eceaf2",

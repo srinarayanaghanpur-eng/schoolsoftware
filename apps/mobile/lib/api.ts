@@ -1,10 +1,12 @@
+import { Platform } from "react-native";
 import { auth } from "./firebase";
 
-const API_URL = process.env.EXPO_PUBLIC_WEB_API_URL;
-if (!API_URL) {
-  console.warn("[MobileAPI] EXPO_PUBLIC_WEB_API_URL is not set. API calls will fail in production.");
+const API_URL = process.env.EXPO_PUBLIC_WEB_API_URL?.replace(/\/$/, "");
+if (!API_URL && Platform.OS !== "web") {
+  console.warn("[MobileAPI] EXPO_PUBLIC_WEB_API_URL is not set. Native API calls will fail.");
 }
 export const API_BASE_URL = API_URL ?? "";
+export const API_REQUESTS_AVAILABLE = Platform.OS === "web" || Boolean(API_BASE_URL);
 
 async function getValidToken(): Promise<string> {
   const user = auth.currentUser;
@@ -27,7 +29,7 @@ async function fetchWithTimeout(url: string, options: RequestInit, timeoutMs = 1
 export async function postAttendance(payload: Record<string, unknown>) {
   const token = await getValidToken();
 
-  if (!API_BASE_URL) {
+  if (!API_REQUESTS_AVAILABLE) {
     throw new Error("API URL not configured. Please set EXPO_PUBLIC_WEB_API_URL.");
   }
 

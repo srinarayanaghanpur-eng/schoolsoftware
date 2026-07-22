@@ -4,21 +4,6 @@ import { initializeAuth, getReactNativePersistence, getAuth } from "firebase/aut
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
-const REQUIRED_ENV_VARS = [
-  'EXPO_PUBLIC_FIREBASE_API_KEY',
-  'EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN',
-  'EXPO_PUBLIC_FIREBASE_PROJECT_ID',
-  'EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET',
-  'EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID',
-  'EXPO_PUBLIC_FIREBASE_APP_ID',
-] as const;
-
-for (const key of REQUIRED_ENV_VARS) {
-  if (!process.env[key]) {
-    throw new Error(`Missing required Firebase env var: ${key}`);
-  }
-}
-
 const firebaseConfig = {
   apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
@@ -27,6 +12,12 @@ const firebaseConfig = {
   messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
   appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID
 };
+
+for (const [key, value] of Object.entries(firebaseConfig)) {
+  if (!value) {
+    throw new Error(`Missing required Firebase config value: ${key}`);
+  }
+}
 
 export const firebaseApp = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
 

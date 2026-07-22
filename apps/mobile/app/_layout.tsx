@@ -6,7 +6,7 @@
  */
 import React from "react";
 import { Stack } from "expo-router";
-import { StatusBar } from "react-native";
+import { Platform, StatusBar, StyleSheet, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { MobileSessionProvider } from "@/lib/mobileSession";
 import { color } from "@/design-system/tokens";
@@ -15,9 +15,35 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <StatusBar barStyle="dark-content" backgroundColor={color.background} />
-      <MobileSessionProvider>
-        <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: color.background } }} />
-      </MobileSessionProvider>
+      <View style={styles.stage}>
+        <View style={styles.appFrame}>
+          <MobileSessionProvider>
+            <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: color.background } }} />
+          </MobileSessionProvider>
+        </View>
+      </View>
     </SafeAreaProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  stage: {
+    flex: 1,
+    backgroundColor: Platform.OS === "web" ? color.previewBackdrop : color.background,
+    alignItems: "center"
+  },
+  appFrame: {
+    flex: 1,
+    width: "100%",
+    maxWidth: Platform.OS === "web" ? 428 : undefined,
+    backgroundColor: color.background,
+    ...(Platform.OS === "web"
+      ? {
+          shadowColor: color.ink,
+          shadowOffset: { width: 0, height: 12 },
+          shadowOpacity: 0.14,
+          shadowRadius: 32
+        }
+      : {})
+  }
+});

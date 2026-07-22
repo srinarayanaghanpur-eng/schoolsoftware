@@ -10,6 +10,8 @@
     "dev:web": "npm --workspace @sri-narayana/web run dev",
     "dev:mobile": "npm --workspace @sri-narayana/mobile run start",
     "build:web": "npm --workspace @sri-narayana/web run build",
+    "build:mobile:web": "node scripts/build-mobile-web.mjs",
+    "build:vercel": "npm run build:mobile:web && npm run build:web",
     "typecheck:web": "npm --workspace @sri-narayana/web run typecheck",
     "check:admin-api-auth": "node scripts/check-admin-api-auth.js",
     "seed": "npm --workspace @sri-narayana/shared run seed",

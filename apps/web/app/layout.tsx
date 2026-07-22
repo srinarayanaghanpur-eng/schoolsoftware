@@ -33,10 +33,13 @@ export const viewport = {
   viewportFit: "cover"
 };
 
+const MOBILE_UI_BOOTSTRAP = `(function(){try{var n="erp_mobile_ui",m=window.matchMedia("(max-width: 767px)").matches,c=document.cookie.split("; ").some(function(v){return v.indexOf(n+"=")===0});if(m&&!c){document.cookie=n+"=1; Path=/; SameSite=Lax";window.stop();window.location.replace(window.location.href)}}catch(e){}})()`;
+
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        <script dangerouslySetInnerHTML={{ __html: MOBILE_UI_BOOTSTRAP }} />
         <link rel="manifest" href="/manifest.json" />
         <link rel="icon" href="/sri-narayana-high-school-logo.jpg" type="image/jpeg" />
         <link rel="apple-touch-icon" href="/sri-narayana-high-school-logo.jpg" />

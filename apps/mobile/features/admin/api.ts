@@ -4,12 +4,12 @@
  * requirePermission() RBAC layer is enforced. No Firestore client reads.
  */
 import { auth } from "@/lib/firebase";
-import { API_BASE_URL } from "@/lib/api";
+import { API_BASE_URL, API_REQUESTS_AVAILABLE } from "@/lib/api";
 
 async function adminGet<T>(path: string): Promise<T> {
   const user = auth.currentUser;
   if (!user) throw new Error("Please sign in again.");
-  if (!API_BASE_URL) throw new Error("API URL not configured. Please set EXPO_PUBLIC_WEB_API_URL.");
+  if (!API_REQUESTS_AVAILABLE) throw new Error("API URL not configured. Please set EXPO_PUBLIC_WEB_API_URL.");
   const token = await user.getIdToken();
   const response = await fetch(`${API_BASE_URL}${path}`, {
     headers: { Authorization: `Bearer ${token}` }

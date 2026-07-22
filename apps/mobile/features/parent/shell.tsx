@@ -14,8 +14,8 @@ import { color, radius } from "@/design-system/tokens";
 const TABS = [
   { href: "/parent", match: ["/parent", "/parent/index"], icon: "home" as const, label: "Home" },
   { href: "/parent/homework", match: ["/parent/homework"], icon: "menu-book" as const, label: "Homework" },
-  { href: "/parent/messages", match: ["/parent/messages"], icon: "chat-bubble-outline" as const, label: "Messages" },
-  { href: "/parent/profile", match: ["/parent/profile"], icon: "person-outline" as const, label: "Profile" }
+  { href: "/parent/messages", match: ["/parent/messages"], icon: "chat-bubble" as const, label: "Messages" },
+  { href: "/parent/profile", match: ["/parent/profile"], icon: "person" as const, label: "Profile" }
 ];
 
 export function ParentShell({ children }: { children: React.ReactNode }) {

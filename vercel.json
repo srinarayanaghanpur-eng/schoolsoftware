@@ -1,5 +1,5 @@
 {
-  "buildCommand": "npm run build:web",
+  "buildCommand": "npm run build:vercel",
   "installCommand": "npm install --legacy-peer-deps",
   "devCommand": "npm run dev:web",
   "outputDirectory": "apps/web/.next",
