@@ -1,0 +1,509 @@
+import assert from "node:assert/strict";
+import {
+  ATTENDANCE_MISSING_WARNING,
+  INVALID_SALARY_CALCULATION_ERROR,
+  calculateMonthlySalary,
+  getSalaryPaymentBlockedReason,
+  getSalarySafetyTotals,
+  isSalaryPaymentBlocked,
+  normalizeSalaryReport,
+  type SalaryCalculationInput
+} from "../services/salaryService";
+import type { AttendanceRecord, Holiday, LeaveRequest, SchoolSettings, Teacher } from "../types/models";
+import { daysInMonth } from "../utils/date";
+
+const TEST_MONTH = "2026-07";
+
+const createTeacher = (overrides?: Partial<Teacher>): Teacher => ({
+  id: "T001",
+  fullName: "Test Teacher",
+  email: "teacher@school.com",
+  internalEmail: "teacher@school.com",
+  phone: "9876543210",
+  subject: "Mathematics",
+  employeeId: "E001",
+  baseSalary: 32500,
+  joiningDate: "2024-01-01",
+  status: "active",
+  allowedCLPerMonth: 3,
+  lateDeductionRule: "after_3_lates_one_day",
+  casualLeaveBalance: 3,
+  casualLeaveUsedThisMonth: 0,
+  lateEntriesThisMonth: 0,
+  absentDaysThisMonth: 0,
+  createdAt: "2024-01-01T00:00:00Z",
+  updatedAt: "2024-01-01T00:00:00Z",
+  ...overrides,
+});
+
+const createSettings = (): SchoolSettings => ({
+  schoolName: "Test School",
+  campusLatitude: 18.3062,
+  campusLongitude: 79.8829,
+  geofenceRadiusMeters: 150,
+  schoolStartTime: "09:00",
+  graceMinutes: 10,
+  salaryRules: {
+    lateDeductionMode: "none",
+    fixedLateDeductionAmount: 0,
+    afterLateCountDeductDays: 3,
+    manualDeductionDefault: 0,
+    bonusDefault: 0,
+  },
+  timezone: "Asia/Kolkata",
+});
+
+function isSunday(date: string): boolean {
+  const [year, month, day] = date.split("-").map(Number);
+  return new Date(Date.UTC(year, month - 1, day)).getUTCDay() === 0;
+}
+
+function monthDate(month: string, day: number) {
+  return `${month}-${String(day).padStart(2, "0")}`;
+}
+
+function workingDates(month = TEST_MONTH, holidays: Holiday[] = []) {
+  const [year, monthNumber] = month.split("-").map(Number);
+  const holidayDates = new Set(holidays.map((holiday) => holiday.date.slice(0, 10)));
+  const dates: string[] = [];
+  for (let day = 1; day <= daysInMonth(year, monthNumber); day += 1) {
+    const date = monthDate(month, day);
+    if (!isSunday(date) && !holidayDates.has(date)) dates.push(date);
+  }
+  return dates;
+}
+
+function attendance(date: string, overrides?: Partial<AttendanceRecord>): AttendanceRecord {
+  return {
+    teacherId: "T001",
+    date,
+    month: date.slice(0, 7),
+    year: Number(date.slice(0, 4)),
+    status: "present",
+    checkInTime: `${date}T09:00:00+05:30`,
+    source: "mobile",
+    sourcesUsed: ["mobile"],
+    lateMinutes: 0,
+    isLate: false,
+    adminEdited: false,
+    createdAt: `${date}T09:00:00+05:30`,
+    updatedAt: `${date}T09:00:00+05:30`,
+    ...overrides,
+  };
+}
+
+function lateAttendance(date: string): AttendanceRecord {
+  return attendance(date, {
+    status: "late",
+    checkInTime: `${date}T09:35:00+05:30`,
+    lateMinutes: 25,
+    isLate: true,
+  });
+}
+
+function leave(startDate: string, endDate = startDate, overrides?: Partial<LeaveRequest>): LeaveRequest {
+  return {
+    id: `leave_${startDate}`,
+    teacherId: "T001",
+    teacherName: "Test Teacher",
+    employeeId: "E001",
+    startDate,
+    endDate,
+    reason: "Approved leave",
+    status: "approved",
+    requestedAt: `${startDate}T00:00:00+05:30`,
+    ...overrides,
+  };
+}
+
+function holiday(date: string): Holiday {
+  return {
+    id: `holiday_${date}`,
+    date,
+    title: "Test Holiday",
+    type: "school",
+    createdAt: `${date}T00:00:00+05:30`,
+  };
+}
+
+function managementHoliday(date: string, overrides?: Partial<Holiday>): Holiday {
+  return {
+    id: `mgmt_${date}`,
+    date,
+    title: "Management Declared Holiday",
+    type: "management_declared",
+    reason: "Heavy rain",
+    declaredByUserId: "SUPER1",
+    declaredByName: "Super Admin",
+    declaredAt: `${date}T06:00:00+05:30`,
+    appliesToAllBranches: true,
+    isActive: true,
+    createdAt: `${date}T06:00:00+05:30`,
+    ...overrides,
+  };
+}
+
+function calculate(overrides: Partial<SalaryCalculationInput>) {
+  return calculateMonthlySalary({
+    teacher: createTeacher(),
+    records: [],
+    holidays: [],
+    month: TEST_MONTH,
+    settings: createSettings(),
+    payrollFinalized: true,
+    ...overrides,
+  });
+}
+
+function assertMoney(actual: number, expected: number, message: string) {
+  assert.ok(Math.abs(actual - expected) < 0.01, `${message}: expected ${expected}, got ${actual}`);
+}
+
+function runTest(name: string, test: () => void) {
+  test();
+  console.log(`PASS ${name}`);
+}
+
+runTest("earned salary uses paid CL only for approved leave within monthly balance", () => {
+  const dates = workingDates();
+  const report = calculate({
+    teacher: createTeacher({ baseSalary: 20000 }),
+    records: dates.slice(0, 20).map((date) => attendance(date)),
+    leaveRequests: [leave(dates[20], dates[26])],
+    payrollFinalized: true,
+  });
+
+  assert.equal(report.baseSalary, 20000);
+  assert.equal(report.totalWorkingDaysInMonth, 27);
+  assert.equal(report.workingDaysElapsed, 27);
+  assert.equal(report.presentDays, 20);
+  assert.equal(report.clAllowanceThisMonth, 3);
+  assert.equal(report.approvedLeaveCLDays, 7);
+  assert.equal(report.approvedPaidCLDays, 3);
+  assert.equal(report.paidCLDays, 3);
+  assert.equal(report.excessCLDays, 4);
+  assert.equal(report.unpaidAbsentDays, 4);
+  assert.equal(report.earnedPaidDays, 23);
+  assertMoney(report.perDaySalary, 740.74, "daily rate");
+  assertMoney(report.salaryDeduction, 2962.96, "deduction");
+  assertMoney(report.netPayable, 17037.04, "net payable");
+});
+
+runTest("plain absent days are unpaid when leave is not approved", () => {
+  const dates = workingDates();
+  const report = calculate({
+    teacher: createTeacher({ baseSalary: 20000 }),
+    records: dates.slice(0, 20).map((date) => attendance(date)),
+    payrollFinalized: true,
+  });
+
+  assert.equal(report.baseSalary, 20000);
+  assert.equal(report.totalWorkingDaysInMonth, 27);
+  assert.equal(report.workingDaysElapsed, 27);
+  assert.equal(report.presentDays, 20);
+  assert.equal(report.clAllowanceThisMonth, 3);
+  assert.equal(report.approvedPaidCLDays, 0);
+  assert.equal(report.paidCLDays, 0);
+  assert.equal(report.unpaidAbsentDays, 7);
+  assert.equal(report.earnedPaidDays, 20);
+  assertMoney(report.perDaySalary, 740.74, "daily rate");
+  assertMoney(report.salaryDeduction, 5185.19, "deduction");
+  assertMoney(report.netPayable, 14814.81, "net payable");
+});
+
+runTest("current month pays only earned elapsed days and never future unworked days", () => {
+  const report = calculate({
+    teacher: createTeacher({ baseSalary: 32500 }),
+    payrollFinalized: false,
+    calculationDate: "2026-07-03T12:00:00+05:30",
+  });
+
+  assert.equal(report.totalWorkingDaysInMonth, 27);
+  assert.equal(report.workingDaysElapsed, 3);
+  assert.equal(report.presentDays, 0);
+  assert.equal(report.clAllowanceThisMonth, 3);
+  assert.equal(report.approvedPaidCLDays, 0);
+  assert.equal(report.unpaidAbsentDays, 3);
+  assert.equal(report.earnedPaidDays, 0);
+  assertMoney(report.perDaySalary, 1203.7, "daily rate");
+  assertMoney(report.salaryDeduction, 3611.11, "deduction for reporting");
+  assert.equal(report.netPayable, 0);
+  assert.ok(Math.abs(report.netPayable - 28888.89) > 0.01, "net payable must not include future unworked days");
+});
+
+runTest("missing attendance becomes absent", () => {
+  const report = calculate({ payrollFinalized: false, calculationDate: "2026-07-02T12:00:00+05:30" });
+  const expectedDailyRate = 32500 / workingDates().length;
+  assert.equal(report.workingDaysElapsed, 2);
+  assert.equal(report.presentDays, 0);
+  assert.equal(report.absentDays, 2);
+  assert.equal(report.unpaidAbsentDays, 2);
+  assertMoney(report.salaryDeduction, 2 * expectedDailyRate, "deduction");
+  assert.equal(report.netPayable, 0);
+});
+
+runTest("present zero does not get full salary in finalized month", () => {
+  const report = calculate({});
+  assert.equal(report.presentDays, 0);
+  assert.equal(report.absentDays, workingDates().length);
+  assert.equal(report.unpaidAbsentDays, workingDates().length);
+  assertMoney(report.salaryDeduction, report.baseSalary, "deduction");
+  assert.equal(report.netPayable, 0);
+});
+
+runTest("approved leave is paid only within CL balance", () => {
+  const dates = workingDates();
+  const report = calculate({
+    leaveRequests: [leave(dates[0], dates[3])],
+  });
+  assert.equal(report.approvedLeaveCLDays, 4);
+  assert.equal(report.approvedPaidCLDays, 3);
+  assert.equal(report.paidLeaveDays, 3);
+  assert.equal(report.excessCLDays, 1);
+  assertMoney(report.excessLeaveDeduction, report.perDaySalary, "excess leave deduction");
+});
+
+runTest("approved leave with attendance counts as present", () => {
+  const date = workingDates()[0];
+  const report = calculate({
+    records: [attendance(date)],
+    leaveRequests: [leave(date)],
+  });
+  assert.equal(report.presentDays, 1);
+  assert.equal(report.attendedApprovedLeaveDays, 1);
+  assert.equal(report.approvedLeaveCLDays, 0);
+  assert.equal(report.approvedPaidCLDays, 0);
+  assert.equal(report.paidLeaveDays, 0);
+});
+
+runTest("current month does not count future dates as absent", () => {
+  const report = calculate({
+    payrollFinalized: false,
+    calculationDate: "2026-07-01T12:00:00+05:30",
+  });
+  assert.equal(report.workingDaysElapsed, 1);
+  assert.equal(report.absentDays, 1);
+  assert.equal(report.unpaidAbsentDays, 1);
+  assert.equal(report.netPayable, 0);
+  assert.ok(report.absentDays < workingDates().length);
+});
+
+runTest("finalized full month calculates entire month", () => {
+  const report = calculate({
+    payrollFinalized: true,
+    calculationDate: "2026-07-01T12:00:00+05:30",
+  });
+  assert.equal(report.workingDaysElapsed, workingDates().length);
+  assert.equal(report.absentDays, workingDates().length);
+  assert.equal(report.netPayable, 0);
+});
+
+runTest("net payable reduces when absent days exist", () => {
+  const dates = workingDates();
+  const records = dates.slice(0, dates.length - 4).map((date) => attendance(date));
+  const report = calculate({ records });
+  assert.equal(report.absentDays, 4);
+  assert.equal(report.unpaidAbsentDays, 4);
+  assert.equal(report.earnedPaidDays, dates.length - 4);
+  assert.ok(report.netPayable < report.baseSalary);
+});
+
+runTest("late check-ins count as present and do not consume salary CL", () => {
+  const dates = workingDates();
+  const report = calculate({
+    records: dates.slice(0, 6).map((date) => lateAttendance(date)),
+    leaveRequests: [leave(dates[6], dates[7])],
+  });
+  assert.equal(report.lateEntries, 6);
+  assert.equal(report.presentDays, 6);
+  assert.equal(report.lateDerivedCLDays, 0);
+  assert.equal(report.approvedLeaveCLDays, 2);
+  assert.equal(report.approvedPaidCLDays, 2);
+  assert.equal(report.paidLeaveDays, 2);
+  assert.equal(report.excessCLDays, 0);
+});
+
+runTest("negative manual deduction is ignored and bonus is separate pay", () => {
+  const date = workingDates()[0];
+  const report = calculate({
+    records: workingDates().map((workingDate) => attendance(workingDate)),
+    manualDeduction: -500,
+    bonus: 10000,
+    leaveRequests: [leave(date, date, { status: "rejected" })],
+  });
+  assert.ok(report.salaryDeduction >= 0);
+  assert.ok(report.totalDeduction >= 0);
+  assert.equal(report.netPayable, report.baseSalary + 10000);
+});
+
+runTest("holidays and Sundays are not counted as absences", () => {
+  const dates = workingDates();
+  const schoolHoliday = holiday(dates[0]);
+  const report = calculate({
+    holidays: [schoolHoliday],
+  });
+  assert.equal(report.totalWorkingDaysInMonth, workingDates(TEST_MONTH, [schoolHoliday]).length);
+  assert.equal(report.absentDays, workingDates(TEST_MONTH, [schoolHoliday]).length);
+  assert.equal(report.unpaidAbsentDays, workingDates(TEST_MONTH, [schoolHoliday]).length);
+  assert.equal(report.absentDates?.includes(schoolHoliday.date), false);
+});
+
+runTest("management declared holiday is excluded from working days and salary is not deducted", () => {
+  const baseDates = workingDates();
+  const holidayDate = baseDates[10];
+  const declared = managementHoliday(holidayDate);
+  const remainingDates = baseDates.filter((date) => date !== holidayDate);
+  const report = calculate({
+    teacher: createTeacher({ baseSalary: 20000 }),
+    holidays: [declared],
+    records: remainingDates.map((date) => attendance(date)),
+  });
+
+  // 27 working days before the declaration become 26 after it.
+  assert.equal(baseDates.length, 27);
+  assert.equal(report.totalWorkingDaysInMonth, 26);
+  assert.equal(report.workingDaysElapsed, 26);
+  assert.equal(report.managementHolidayDays, 1);
+  assert.ok(report.managementHolidayInfo?.includes(holidayDate));
+  assert.ok(report.managementHolidayInfo?.includes("Heavy rain"));
+  // Not present, not absent, no CL used, no deduction.
+  assert.equal(report.presentDays, 26);
+  assert.equal(report.absentDays, 0);
+  assert.equal(report.totalClUsed, 0);
+  assert.equal(report.absentDates?.includes(holidayDate), false);
+  assert.equal(report.salaryDeduction, 0);
+  assertMoney(report.perDaySalary, 20000 / 26, "daily rate uses 26 working days");
+  assertMoney(report.netPayable, 20000, "full salary is paid");
+});
+
+runTest("declared holiday is not counted as absent even when nobody attends", () => {
+  const baseDates = workingDates();
+  const holidayDate = baseDates[5];
+  const report = calculate({
+    holidays: [managementHoliday(holidayDate)],
+    records: [],
+  });
+  assert.equal(report.totalWorkingDaysInMonth, baseDates.length - 1);
+  assert.equal(report.absentDays, baseDates.length - 1);
+  assert.equal(report.absentDates?.includes(holidayDate), false);
+  assert.equal(report.calculationDebug?.managementHolidayDates?.includes(holidayDate), true);
+});
+
+runTest("teacher who checked in before the holiday was declared is not punished", () => {
+  const baseDates = workingDates();
+  const holidayDate = baseDates[3];
+  const report = calculate({
+    teacher: createTeacher({ baseSalary: 20000 }),
+    holidays: [managementHoliday(holidayDate)],
+    // Attendance record exists for the holiday date (checked in before declaration).
+    records: baseDates.map((date) => attendance(date)),
+  });
+  // The date stays a holiday: not a present working day, not absent, no deduction.
+  assert.equal(report.totalWorkingDaysInMonth, 26);
+  assert.equal(report.presentDays, 26);
+  assert.equal(report.presentDates?.includes(holidayDate), false);
+  assert.equal(report.absentDays, 0);
+  assert.equal(report.salaryDeduction, 0);
+  assertMoney(report.netPayable, 20000, "full salary despite holiday check-in");
+});
+
+runTest("cancelled management holiday keeps the date as a working day", () => {
+  const baseDates = workingDates();
+  const holidayDate = baseDates[10];
+  const cancelled = managementHoliday(holidayDate, {
+    isActive: false,
+    cancelledByUserId: "SUPER1",
+    cancelledAt: `${holidayDate}T09:00:00+05:30`,
+  });
+  const report = calculate({
+    holidays: [cancelled],
+    records: baseDates.map((date) => attendance(date)),
+  });
+  assert.equal(report.totalWorkingDaysInMonth, 27);
+  assert.equal(report.presentDays, 27);
+  assert.equal(report.managementHolidayDays, 0);
+});
+
+// ---------------------------------------------------------------------------
+// Safety-formula tests (normalizeSalaryReport / getSalarySafetyTotals)
+// ---------------------------------------------------------------------------
+
+runTest("full present month pays full salary", () => {
+  const dates = workingDates();
+  const report = calculate({ records: dates.map((date) => attendance(date)) });
+  assert.equal(report.presentDays, 27);
+  assert.equal(report.unpaidAbsentDays, 0);
+  assertMoney(report.netPayable, 32500, "full month net payable");
+});
+
+runTest("0 present days and 0 CL pays 0 with full deduction", () => {
+  const report = calculate({ records: [] });
+  assert.equal(report.presentDays, 0);
+  assert.equal(report.unpaidAbsentDays, 27);
+  assertMoney(report.salaryDeduction, 32500, "full deduction");
+  assertMoney(report.netPayable, 0, "zero net payable");
+});
+
+runTest("20 present + 2 paid CL deducts remaining absent days", () => {
+  const dates = workingDates(); // 27 working days
+  const report = calculate({
+    records: dates.slice(0, 20).map((date) => attendance(date)),
+    leaveRequests: [leave(dates[20], dates[21])] // 2 approved CL days
+  });
+  assert.equal(report.presentDays, 20);
+  assert.equal(report.approvedPaidCLDays, 2);
+  assert.equal(report.unpaidAbsentDays, 5);
+  const dailyRate = 32500 / 27;
+  assertMoney(report.salaryDeduction, dailyRate * 5, "deduct 5 unpaid days");
+  assertMoney(report.netPayable, dailyRate * 22, "pay 22 earned days");
+});
+
+runTest("attendance missing zeroes net payable and blocks payment", () => {
+  const dates = workingDates();
+  const calculated = calculate({ records: dates.map((date) => attendance(date)) });
+  const normalized = normalizeSalaryReport({ ...calculated, attendanceDataAvailable: false });
+  assert.equal(normalized.salaryStatus, "Attendance Missing");
+  assert.equal(normalized.netPayable, 0);
+  assert.equal(normalized.paid, false);
+  assert.equal(isSalaryPaymentBlocked(normalized), true);
+  assert.equal(getSalaryPaymentBlockedReason(normalized), ATTENDANCE_MISSING_WARNING);
+});
+
+runTest("legacy report with 0 present / 0 CL / 0 unpaid absent cannot show full salary", () => {
+  // Reproduces the original bug: stored doc claimed netPayable = baseSalary
+  // while all attendance totals were zero for a fully-elapsed month.
+  const legacy = normalizeSalaryReport({
+    teacherId: "T001",
+    teacherName: "Test Teacher",
+    month: TEST_MONTH,
+    baseSalary: 32500,
+    totalWorkingDaysInMonth: 31,
+    workingDaysElapsed: 31,
+    presentDays: 0,
+    approvedPaidCLDays: 0,
+    unpaidAbsentDays: 0,
+    netPayable: 32500,
+    payrollFinalized: true
+  } as any);
+  assert.equal(legacy.unpaidAbsentDays, 31, "unpaid absent recomputed from working days");
+  assertMoney(legacy.netPayable, 0, "net payable forced to 0");
+  assert.equal(legacy.salaryStatus, "Invalid");
+  assert.equal(isSalaryPaymentBlocked(legacy), true);
+  assert.equal(getSalaryPaymentBlockedReason(legacy), INVALID_SALARY_CALCULATION_ERROR);
+});
+
+runTest("deduction is never 0 when present + paid CL < working days elapsed", () => {
+  const totals = getSalarySafetyTotals({
+    baseSalary: 31000,
+    totalWorkingDaysInMonth: 31,
+    workingDaysElapsed: 31,
+    presentDays: 25,
+    approvedPaidCLDays: 3,
+    unpaidAbsentDays: 0 // dangerous stored fallback — must be recomputed
+  });
+  assert.equal(totals.unpaidAbsentDays, 3);
+  assert.ok(totals.salaryDeduction > 0, "deduction must be positive");
+  assertMoney(totals.salaryDeduction, 3000, "3 days at 1000/day");
+});
+
+console.log("All salary calculation tests passed.");

@@ -1,0 +1,103 @@
+- generic [active] [ref=e1]:
+  - alert [ref=e3]
+  - generic [ref=e4]:
+    - complementary [ref=e5]:
+      - heading "SRI NARAYANA HIGH SCHOOL" [level=1] [ref=e8]
+      - navigation [ref=e9]:
+        - link "Dashboard" [ref=e10] [cursor=pointer]:
+          - /url: /admin/dashboard
+          - img [ref=e11]
+          - text: Dashboard
+        - link "Notifications" [ref=e14] [cursor=pointer]:
+          - /url: /admin/notifications
+          - img [ref=e15]
+          - text: Notifications
+        - link "Teachers" [ref=e18] [cursor=pointer]:
+          - /url: /admin/teachers
+          - img [ref=e19]
+          - text: Teachers
+        - link "Attendance" [ref=e24] [cursor=pointer]:
+          - /url: /admin/attendance
+          - img [ref=e25]
+          - text: Attendance
+        - link "Calendar" [ref=e27] [cursor=pointer]:
+          - /url: /admin/calendar
+          - img [ref=e28]
+          - text: Calendar
+        - link "Salary" [ref=e30] [cursor=pointer]:
+          - /url: /admin/salary
+          - img [ref=e31]
+          - text: Salary
+        - link "Reports" [ref=e33] [cursor=pointer]:
+          - /url: /admin/reports
+          - img [ref=e34]
+          - text: Reports
+        - link "Holidays" [ref=e36] [cursor=pointer]:
+          - /url: /admin/holidays
+          - img [ref=e37]
+          - text: Holidays
+        - link "Settings" [ref=e40] [cursor=pointer]:
+          - /url: /admin/settings
+          - img [ref=e41]
+          - text: Settings
+        - link "Biometric" [ref=e44] [cursor=pointer]:
+          - /url: /admin/biometric
+          - img [ref=e45]
+          - text: Biometric
+      - button "Sign out" [ref=e54] [cursor=pointer]:
+        - img [ref=e55]
+        - text: Sign out
+    - main [ref=e58]:
+      - generic [ref=e60]:
+        - heading "Salary Management" [level=1] [ref=e61]
+        - paragraph [ref=e62]: Generate salary from attendance, apply adjustments, and mark payment status.
+      - generic [ref=e63]:
+        - generic [ref=e88]: Generated salary for 2 teacher(s).
+        - generic [ref=e64]:
+          - textbox [ref=e65]: 2026-05
+          - button "Generate monthly salary" [ref=e66] [cursor=pointer]:
+            - img [ref=e67]
+            - text: Generate monthly salary
+          - button "Refresh" [ref=e70] [cursor=pointer]
+        - table [ref=e72]:
+          - rowgroup [ref=e73]:
+            - row "Teacher Working Present Late CL paid/unpaid Absent Base Deductions Net payable Status" [ref=e74]:
+              - columnheader "Teacher" [ref=e75]
+              - columnheader "Working" [ref=e76]
+              - columnheader "Present" [ref=e77]
+              - columnheader "Late" [ref=e78]
+              - columnheader "CL paid/unpaid" [ref=e79]
+              - columnheader "Absent" [ref=e80]
+              - columnheader "Base" [ref=e81]
+              - columnheader "Deductions" [ref=e82]
+              - columnheader "Net payable" [ref=e83]
+              - columnheader "Status" [ref=e84]
+          - rowgroup [ref=e85]:
+            - row "HIMA 31 0 0 1/0 0 ₹30,000 ₹0 ₹30,000 Mark paid" [ref=e89]:
+              - cell "HIMA" [ref=e90]
+              - cell "31" [ref=e91]
+              - cell "0" [ref=e92]
+              - cell "0" [ref=e93]
+              - cell "1/0" [ref=e94]
+              - cell "0" [ref=e95]
+              - cell "₹30,000" [ref=e96]
+              - cell "₹0" [ref=e97]
+              - cell "₹30,000" [ref=e98]
+              - cell "Mark paid" [ref=e99]:
+                - button "Mark paid" [ref=e100] [cursor=pointer]:
+                  - img [ref=e101]
+                  - text: Mark paid
+            - row "ananth 31 0 0 0/0 0 ₹50,000 ₹0 ₹50,000 Mark paid" [ref=e104]:
+              - cell "ananth" [ref=e105]
+              - cell "31" [ref=e106]
+              - cell "0" [ref=e107]
+              - cell "0" [ref=e108]
+              - cell "0/0" [ref=e109]
+              - cell "0" [ref=e110]
+              - cell "₹50,000" [ref=e111]
+              - cell "₹0" [ref=e112]
+              - cell "₹50,000" [ref=e113]
+              - cell "Mark paid" [ref=e114]:
+                - button "Mark paid" [ref=e115] [cursor=pointer]:
+                  - img [ref=e116]
+                  - text: Mark paid

@@ -1,0 +1,23 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "jsx": "react-native",
+    "moduleResolution": "bundler",
+    "paths": {
+      "@/*": [
+        "./*"
+      ],
+      "@sri-narayana/shared": [
+        "../../packages/shared/src/index.ts"
+      ],
+      "@sri-narayana/shared/*": [
+        "../../packages/shared/src/*"
+      ]
+    }
+  },
+  "include": [
+    "**/*.ts",
+    "**/*.tsx"
+  ]
+}

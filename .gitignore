@@ -1,0 +1,37 @@
+node_modules
+.expo
+dist
+build
+.next
+apps/web/public/__mobile/
+coverage
+*.log
+google-services.json
+GoogleService-Info.plist
+
+# Environment files (all variants — NEVER commit secrets)
+.env*
+!env.example
+
+# Specific env files that may contain credentials
+apps/web/.env.local
+apps/mobile/.env
+apps/desktop/.env
+
+# Firebase service account keys (sensitive — never commit)
+serviceAccount*.json
+*service-account*.json
+*-firebase-adminsdk-*.json
+
+.vercel
+
+# Editor
+.vscode/settings.json
+
+# ESSL bridge local config
+tools/essl-bridge/.env
+
+# Desktop app build outputs
+apps/desktop/resources/
+apps/desktop/dist/
+

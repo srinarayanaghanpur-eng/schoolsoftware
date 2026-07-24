@@ -1,0 +1,27 @@
+{
+  "name": "@sri-narayana/reminder-agent",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Local desktop automation agent that sends fee reminders through Google Messages for Web.",
+  "type": "module",
+  "main": "./src/index.ts",
+  "bin": {
+    "reminder-agent": "./src/index.ts"
+  },
+  "scripts": {
+    "agent": "tsx src/index.ts",
+    "agent:run": "tsx src/index.ts run",
+    "agent:resume": "tsx src/index.ts resume",
+    "agent:status": "tsx src/index.ts status",
+    "setup": "playwright install chromium",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "playwright": "^1.48.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.6",
+    "tsx": "^4.19.2",
+    "typescript": "^5.5.4"
+  }
+}

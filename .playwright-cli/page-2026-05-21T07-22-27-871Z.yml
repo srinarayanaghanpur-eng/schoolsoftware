@@ -1,0 +1,61 @@
+- generic [active] [ref=e1]:
+  - alert [ref=e29]
+  - main [ref=e30]:
+    - generic [ref=e33]:
+      - complementary [ref=e34]:
+        - img [ref=e36]
+        - generic [ref=e38]:
+          - generic [ref=e39]:
+            - img "SRI NARAYANA HIGH SCHOOL logo" [ref=e42]
+            - heading "SRI NARAYANA HIGH SCHOOL" [level=1] [ref=e43]
+          - generic [ref=e49]:
+            - img [ref=e52]
+            - generic [ref=e65]:
+              - img [ref=e67]
+              - img [ref=e75]
+            - img [ref=e103]
+          - generic [ref=e106]:
+            - generic [ref=e107]:
+              - img [ref=e109]
+              - heading "Attendance Tracking" [level=3] [ref=e112]
+              - paragraph [ref=e113]: Track teacher and staff attendance easily
+            - generic [ref=e114]:
+              - img [ref=e116]
+              - heading "Salary Management" [level=3] [ref=e120]
+              - paragraph [ref=e121]: Manage salaries and payroll seamlessly
+            - generic [ref=e122]:
+              - img [ref=e124]
+              - heading "Staff Dashboard" [level=3] [ref=e126]
+              - paragraph [ref=e127]: Insights and reports at your fingertips
+            - generic [ref=e128]:
+              - img [ref=e130]
+              - heading "Secure & Reliable" [level=3] [ref=e133]
+              - paragraph [ref=e134]: Your data is safe and fully protected
+      - generic [ref=e212]:
+        - generic [ref=e213]:
+          - img [ref=e215]
+          - heading "Welcome back!" [level=2] [ref=e219]
+          - paragraph [ref=e220]: Login to your account
+        - generic [ref=e221]:
+          - generic [ref=e222]:
+            - img
+            - textbox "Login ID found" [ref=e242]:
+              - /placeholder: Employee ID / Admin ID
+              - text: ADMIN001
+            - img "Login ID found" [ref=e244]
+          - generic [ref=e224]:
+            - img
+            - textbox "Toggle password visibility" [ref=e225]:
+              - /placeholder: Password
+              - text: Srinarayana@2026
+            - button "Toggle password visibility" [ref=e227] [cursor=pointer]:
+              - img [ref=e228]
+        - generic [ref=e231]:
+          - generic [ref=e232] [cursor=pointer]:
+            - checkbox "Remember me" [checked] [ref=e233]
+            - img [ref=e235]
+            - text: Remember me
+          - button "Forgot password?" [ref=e237] [cursor=pointer]
+        - button "Signing in..." [disabled] [ref=e246]:
+          - img [ref=e239]
+          - text: Signing in...

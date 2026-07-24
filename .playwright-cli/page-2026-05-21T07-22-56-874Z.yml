@@ -1,0 +1,74 @@
+- generic [ref=e1]:
+  - alert [ref=e29]
+  - generic [ref=e247]:
+    - complementary [ref=e248]:
+      - heading "SRI NARAYANA HIGH SCHOOL" [level=1] [ref=e251]
+      - navigation [ref=e252]:
+        - link "Dashboard" [ref=e253] [cursor=pointer]:
+          - /url: /admin/dashboard
+          - img [ref=e254]
+          - text: Dashboard
+        - link "Notifications" [ref=e257] [cursor=pointer]:
+          - /url: /admin/notifications
+          - img [ref=e258]
+          - text: Notifications
+        - link "Teachers" [ref=e261] [cursor=pointer]:
+          - /url: /admin/teachers
+          - img [ref=e262]
+          - text: Teachers
+        - link "Attendance" [ref=e267] [cursor=pointer]:
+          - /url: /admin/attendance
+          - img [ref=e268]
+          - text: Attendance
+        - link "Calendar" [ref=e270] [cursor=pointer]:
+          - /url: /admin/calendar
+          - img [ref=e271]
+          - text: Calendar
+        - link "Salary" [active] [ref=e273] [cursor=pointer]:
+          - /url: /admin/salary
+          - img [ref=e274]
+          - text: Salary
+        - link "Reports" [ref=e276] [cursor=pointer]:
+          - /url: /admin/reports
+          - img [ref=e277]
+          - text: Reports
+        - link "Holidays" [ref=e279] [cursor=pointer]:
+          - /url: /admin/holidays
+          - img [ref=e280]
+          - text: Holidays
+        - link "Settings" [ref=e283] [cursor=pointer]:
+          - /url: /admin/settings
+          - img [ref=e284]
+          - text: Settings
+        - link "Biometric" [ref=e287] [cursor=pointer]:
+          - /url: /admin/biometric
+          - img [ref=e288]
+          - text: Biometric
+      - button "Sign out" [ref=e297] [cursor=pointer]:
+        - img [ref=e298]
+        - text: Sign out
+    - main [ref=e301]:
+      - generic [ref=e464]:
+        - heading "Salary Management" [level=1] [ref=e465]
+        - paragraph [ref=e466]: Generate salary from attendance, apply adjustments, and mark payment status.
+      - generic [ref=e467]:
+        - generic [ref=e468]:
+          - textbox [ref=e469]: 2026-05
+          - button "Working..." [disabled] [ref=e470]:
+            - img [ref=e471]
+            - text: Working...
+          - button "Refresh" [disabled] [ref=e474]
+        - table [ref=e476]:
+          - rowgroup [ref=e477]:
+            - row "Teacher Working Present Late CL paid/unpaid Absent Base Deductions Net payable Status" [ref=e478]:
+              - columnheader "Teacher" [ref=e479]
+              - columnheader "Working" [ref=e480]
+              - columnheader "Present" [ref=e481]
+              - columnheader "Late" [ref=e482]
+              - columnheader "CL paid/unpaid" [ref=e483]
+              - columnheader "Absent" [ref=e484]
+              - columnheader "Base" [ref=e485]
+              - columnheader "Deductions" [ref=e486]
+              - columnheader "Net payable" [ref=e487]
+              - columnheader "Status" [ref=e488]
+          - rowgroup

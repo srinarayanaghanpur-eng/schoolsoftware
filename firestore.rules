@@ -1,0 +1,370 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    // ---- Role resolution -------------------------------------------------
+    // Prefer the Firebase custom-claim fields (role / status / teacherId),
+    // which cost ZERO Firestore reads, and fall back to the users/{uid}
+    // document only for legacy accounts whose claims predate those fields.
+    // The web API sets all three claims whenever a user or teacher is created
+    // or updated, so the claim is authoritative. Trade-off: a role/status
+    // change is written to the claim server-side immediately, but a signed-in
+    // client keeps its cached ID token for up to ~1h until it refreshes.
+    //
+    // This is deliberate: the previous rules called get() up to 3x per teacher
+    // request, multiplying billed reads and exhausting the Firestore free-tier
+    // daily quota.
+    function userDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function effectiveRole() {
+      return request.auth.token.role != null
+        ? request.auth.token.role
+        : userDoc().role;
+    }
+
+    function effectiveStatus() {
+      return request.auth.token.status != null
+        ? request.auth.token.status
+        : userDoc().status;
+    }
+
+    function effectiveTeacherId() {
+      return request.auth.token.teacherId != null
+        ? request.auth.token.teacherId
+        : userDoc().teacherId;
+    }
+
+    function isAdmin() {
+      return signedIn() && (effectiveRole() == "admin" || effectiveRole() == "super_admin");
+    }
+
+    function isSuperAdmin() {
+      return signedIn() && effectiveRole() == "super_admin";
+    }
+
+    function isFinanceRole() {
+      return signedIn() && (
+        effectiveRole() == "super_admin" ||
+        effectiveRole() == "admin" ||
+        effectiveRole() == "accountant"
+      );
+    }
+
+    function isActiveTeacher() {
+      return signedIn() && effectiveRole() == "teacher" && effectiveStatus() == "active";
+    }
+
+    function isOwnTeacherProfile() {
+      return isActiveTeacher() && resource.data.uid == request.auth.uid;
+    }
+
+    function isOwnTeacherId(teacherId) {
+      return isActiveTeacher() && effectiveTeacherId() == teacherId;
+    }
+
+    match /users/{uid} {
+      allow read: if isAdmin() || (signedIn() && request.auth.uid == uid);
+      allow write: if isAdmin();
+    }
+
+    match /teachers/{teacherId} {
+      allow read: if isAdmin() || isOwnTeacherProfile();
+      allow write: if isAdmin();
+    }
+
+    match /attendance/{attendanceId} {
+      allow read: if isAdmin() || isOwnTeacherId(resource.data.teacherId);
+      allow create: if isAdmin() ||
+        (
+          signedIn() &&
+          isOwnTeacherId(request.resource.data.teacherId) &&
+          request.resource.data.source == "mobile" &&
+          request.resource.data.adminEdited == false
+        );
+      allow update, delete: if isAdmin();
+    }
+
+    match /attendance_logs/{logId} {
+      allow read: if isAdmin() || isOwnTeacherId(resource.data.teacherId);
+      allow create: if isAdmin() ||
+        (
+          signedIn() &&
+          isOwnTeacherId(request.resource.data.teacherId) &&
+          request.resource.data.source == "mobile"
+        );
+      allow update, delete: if isAdmin();
+    }
+
+    match /biometric_logs/{logId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /salary_reports/{reportId} {
+      allow read, write: if isAdmin();
+    }
+
+    // Password reset requests: admins review/approve/reject/archive; a teacher
+    // may only create their own request. Hard delete is super-admin only.
+    match /password_reset_requests/{requestId} {
+      allow read: if isAdmin();
+      allow create: if isAdmin() || isOwnTeacherId(request.resource.data.teacherId);
+      allow update: if isAdmin();
+      allow delete: if isSuperAdmin();
+    }
+
+    match /password_reset_history/{historyId} {
+      allow read: if isAdmin();
+      allow create, update: if isAdmin();
+      allow delete: if isSuperAdmin();
+    }
+
+    match /leave_requests/{requestId} {
+      allow read: if isAdmin() || isOwnTeacherId(resource.data.teacherId);
+      allow create: if isAdmin() || isOwnTeacherId(request.resource.data.teacherId);
+      allow update: if isAdmin();
+      allow delete: if isSuperAdmin();
+    }
+
+    // Attendance edit audit logs are permanent audit records: admins may read
+    // and append/annotate (archive/soft-hide), but NEVER delete from a client.
+    match /attendance_edit_audit_logs/{auditId} {
+      allow read: if isAdmin();
+      allow create, update: if isAdmin();
+      allow delete: if false;
+    }
+
+    match /admin_notifications/{notificationId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /holidays/{holidayId} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    match /settings/{settingsId} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    // RBAC role documents are read by the app shell for live client-side
+    // permission gating. Writes must go through the admin API so validation,
+    // lockout protection, and audit logging are enforced server-side.
+    match /roles/{roleId} {
+      allow read: if signedIn();
+      allow write: if false;
+    }
+
+    // Academic years: any signed-in user can read the active year; writes go via admin SDK.
+    match /academic_years/{yearId} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    // Phase 2: exams, marks, notices. Reads for signed-in users; writes via admin SDK
+    // (the API routes enforce per-role permissions).
+    match /exams/{examId} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+    match /exam_marks/{markId} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+    match /notices/{noticeId} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    // Phase 3: fee structures + online payment orders. Writes/orders go via admin SDK.
+    match /fee_structures/{id} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+    match /payment_orders/{id} {
+      allow read, write: if isAdmin();
+    }
+
+    // Finance/accounting: sensitive — admin/accountant via admin SDK (API enforces role).
+    match /expenses/{id} {
+      allow read, write: if isAdmin();
+    }
+    match /debitVouchers/{id} {
+      allow read, create, update: if isFinanceRole();
+      allow delete: if isSuperAdmin();
+    }
+    match /incomes/{id} {
+      allow read, write: if isAdmin();
+    }
+    match /salary_advances/{id} {
+      allow read, write: if isAdmin();
+    }
+    match /vendors/{id} { allow read, write: if isAdmin(); }
+    match /purchases/{id} { allow read, write: if isAdmin(); }
+    match /bank_accounts/{id} { allow read, write: if isAdmin(); }
+    match /bank_transactions/{id} { allow read, write: if isAdmin(); }
+    match /invoices/{id} { allow read, write: if isAdmin(); }
+    match /fee_reminders/{id} { allow read, write: if isAdmin(); }
+    match /fee_reminder_settings/{id} { allow read: if signedIn(); allow write: if isAdmin(); }
+    match /fee_reminder_queue/{id} { allow read: if isAdmin() || isAccountant(); allow write: if isAdmin() || isAccountant(); }
+    match /fee_reminder_logs/{id} { allow read: if isAdmin() || isAccountant(); allow write: if isAdmin() || isAccountant(); }
+    match /student_reminder_consent/{id} { allow read: if isAdmin() || isAccountant(); allow write: if isAdmin(); }
+    match /counters/{id} { allow read, write: if isFinanceRole(); }
+
+    // Phase 4: transport, library, hostel, inventory. Reads for signed-in users;
+    // writes via admin SDK (API enforces per-role permissions).
+    match /vehicles/{id} { allow read: if signedIn(); allow write: if isAdmin(); }
+    match /transport_routes/{id} { allow read: if signedIn(); allow write: if isAdmin(); }
+    match /transport_assignments/{id} { allow read: if signedIn(); allow write: if isAdmin(); }
+    match /books/{id} { allow read: if signedIn(); allow write: if isAdmin(); }
+    match /library_issues/{id} { allow read: if signedIn(); allow write: if isAdmin(); }
+    match /hostel_rooms/{id} { allow read: if signedIn(); allow write: if isAdmin(); }
+    match /hostel_allotments/{id} { allow read: if signedIn(); allow write: if isAdmin(); }
+    match /inventory_items/{id} { allow read: if signedIn(); allow write: if isAdmin(); }
+    match /inventory_sales/{id} { allow read: if signedIn(); allow write: if isAdmin(); }
+
+    // Bus EMI / Vehicle Finance — admin/accountant only. All writes go via the
+    // admin SDK (API routes enforce bus_finance.* permissions); delete is
+    // admin-only at the API layer. Separate from the student transport module.
+    match /bus_finance/{id} {
+      allow read: if isAdmin() || isAccountant() || isPrincipal();
+      allow write: if isAdmin() || isAccountant();
+    }
+    match /bus_emi_payments/{id} {
+      allow read: if isAdmin() || isAccountant() || isPrincipal();
+      allow write: if isAdmin() || isAccountant();
+    }
+    match /bus_finance_audit_logs/{id} {
+      allow read: if isAdmin() || isAccountant() || isPrincipal();
+      allow create: if isAdmin() || isAccountant();
+      allow update, delete: if false;
+    }
+
+    match /backup_audit_logs/{logId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /admin_audit_logs/{logId} {
+      allow read, write: if isAdmin();
+    }
+
+    // Fee Concession Management Rules
+    function isAccountant() {
+      return signedIn() && effectiveRole() == "accountant";
+    }
+
+    function isPrincipal() {
+      return signedIn() && effectiveRole() == "principal";
+    }
+
+    // Concessions collection
+    match /concessions/{concessionId} {
+      allow read: if isAdmin() || isAccountant() || isPrincipal();
+      allow create: if isAdmin();
+      allow update: if isAdmin() || (isPrincipal() && request.resource.data.status != resource.data.status);
+      allow delete: if isAdmin();
+    }
+
+    // NOTE: Fee structures use the canonical snake_case collection `fee_structures`
+    // (defined above). The legacy camelCase `feeStructures` rule block was removed
+    // to eliminate the split-brain collection naming. Accountant/Principal retain
+    // read access to `fee_structures` because that rule allows any signed-in user
+    // to read; writes remain admin-only.
+
+    // Payments collection
+    match /payments/{paymentId} {
+      allow read: if isAdmin() || isAccountant() || isPrincipal();
+      allow create: if isAdmin() || isAccountant();
+      allow update: if isAdmin() || (isAccountant() && request.resource.data.status == resource.data.status);
+      allow delete: if isAdmin();
+    }
+
+    // Receipts collection
+    match /receipts/{receiptId} {
+      allow read: if isAdmin() || isAccountant() || isPrincipal();
+      allow create: if isAdmin() || isAccountant();
+      allow update: if isAdmin() || isAccountant();
+      allow delete: if isAdmin();
+    }
+
+    match /receipt_counters/{counterId} {
+      allow read, write: if isAdmin() || isAccountant();
+    }
+
+    // Audit logs for fee operations
+    match /feeAuditLogs/{auditId} {
+      allow read: if isAdmin();
+      allow write: if isAdmin();
+    }
+
+    // ===== Students & Parent Portal =====
+    match /students/{studentId} {
+      allow read: if isAdmin() || isOwnTeacherId(resource.data.teacherId) || isParentOfStudent(studentId);
+      allow write: if isAdmin();
+    }
+
+    match /parent_student_links/{linkId} {
+      allow read: if isAdmin() || isOwnLink(resource.data.parentUid);
+      allow write: if isAdmin();
+    }
+
+    match /parent_messages/{msgId} {
+      allow read: if isAdmin() || isOwnMessage(resource.data.parentUid);
+      allow create: if signedIn();
+      allow update: if isAdmin();
+    }
+
+    match /approval_requests/{reqId} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    function isParentOfStudent(studentId) {
+      return signedIn() && (
+        effectiveRole() == "parent" &&
+        exists(/databases/$(database)/documents/parent_student_links/$(studentId)) == false &&
+        get(/databases/$(database)/documents/parent_student_links).data.studentId == studentId
+      );
+    }
+
+    function isOwnLink(parentUid) {
+      return signedIn() && request.auth.uid == parentUid;
+    }
+
+    function isOwnMessage(parentUid) {
+      return signedIn() && request.auth.uid == parentUid;
+    }
+
+    // ===== Homework (Phase 3) =====
+    match /homework/{hwId} {
+      allow read: if isAdmin() || isActiveTeacher();
+      allow write: if isAdmin();
+    }
+    match /homework_submissions/{subId} {
+      allow read: if isAdmin() || isActiveTeacher();
+      allow create: if signedIn();
+      allow update: if isAdmin() || isActiveTeacher();
+    }
+
+    // ===== Timetable (Phase 4) =====
+    match /timetable/{entryId} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    match /classes/{classId} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

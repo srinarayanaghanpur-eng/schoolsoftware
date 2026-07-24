@@ -1,0 +1,8 @@
+{
+  "//": "Fast typecheck config: same as tsconfig.json but skips .d.ts checking. Run: npm run typecheck",
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "skipLibCheck": true,
+    "noEmit": true
+  }
+}

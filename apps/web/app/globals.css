@@ -1,0 +1,1258 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+  --background: 210 40% 98%;
+  --foreground: 222 47% 11%;
+  --card: 0 0% 100%;
+  --card-foreground: 222 47% 11%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 222 47% 11%;
+  --muted: 210 40% 96%;
+  --muted-foreground: 215 16% 47%;
+  --border: 214 32% 91%;
+  --input: 0 0% 100%;
+  --ring: 224 76% 48%;
+  --primary: 224 76% 48%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 210 40% 96%;
+  --secondary-foreground: 215 25% 27%;
+  --accent: 226 100% 97%;
+  --accent-foreground: 224 76% 48%;
+  --destructive: 351 95% 71%;
+  --destructive-foreground: 0 0% 100%;
+  --success: 142 71% 45%;
+  --success-foreground: 0 0% 100%;
+  --warning: 48 96% 53%;
+  --warning-foreground: 222 47% 11%;
+  --surface: 0 0% 100%;
+  --text-secondary: 215 19% 35%;
+  --text-muted: 215 16% 47%;
+  --accent-number: 217 91% 60%;
+  --chart-grid: 214 32% 91%;
+  --chart-label: 215 16% 47%;
+  --chart-tooltip: 0 0% 100%;
+  --chart-tooltip-foreground: 222 47% 11%;
+  --shadow-rgb: 15 23 42;
+}
+
+.dark {
+  color-scheme: dark;
+  --background: 222 47% 11%;
+  --foreground: 210 40% 98%;
+  --card: 217 33% 17%;
+  --card-foreground: 210 40% 98%;
+  --popover: 221 39% 11%;
+  --popover-foreground: 210 40% 98%;
+  --muted: 215 28% 17%;
+  --muted-foreground: 215 20% 65%;
+  --border: 215 25% 27%;
+  --input: 221 39% 11%;
+  --ring: 217 91% 60%;
+  --primary: 217 91% 60%;
+  --primary-foreground: 222 47% 11%;
+  --secondary: 215 28% 17%;
+  --secondary-foreground: 213 27% 84%;
+  --accent: 226 58% 28%;
+  --accent-foreground: 229 96% 82%;
+  --destructive: 351 95% 71%;
+  --destructive-foreground: 222 47% 11%;
+  --success: 142 71% 45%;
+  --success-foreground: 222 47% 11%;
+  --warning: 48 96% 53%;
+  --warning-foreground: 222 47% 11%;
+  --surface: 217 33% 17%;
+  --text-secondary: 213 27% 84%;
+  --text-muted: 215 20% 65%;
+  --accent-number: 229 96% 82%;
+  --chart-grid: 215 25% 27%;
+  --chart-label: 215 20% 65%;
+  --chart-tooltip: 221 39% 11%;
+  --chart-tooltip-foreground: 210 40% 98%;
+  --shadow-rgb: 0 0 0;
+}
+
+* {
+  border-color: hsl(var(--border));
+}
+
+html, body {
+  height: 100%;
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-family: "Poppins", "Inter", "Segoe UI", sans-serif;
+  /* Mobile-first fluid base type. Every rem-based size scales with this, so
+     lowering it on small screens de-crowds the whole app at once. Desktop
+     (>=1280px) keeps the original 18px, so laptop/desktop layouts are
+     pixel-identical to before. */
+  font-size: 15px;
+}
+
+.dark body {
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+}
+
+/* Stop iOS from auto-inflating text and never let the document scroll
+   sideways — the #1 source of "broken" mobile layouts. */
+html {
+  -webkit-text-size-adjust: 100%;
+}
+html, body {
+  overflow-x: hidden;
+  max-width: 100%;
+}
+
+@media (min-width: 640px) {
+  html, body { font-size: 16px; }
+}
+@media (min-width: 1024px) {
+  html, body { font-size: 17px; }
+}
+@media (min-width: 1280px) {
+  html, body { font-size: 18px; }
+}
+
+/* Media and tables must never force the page wider than the viewport. */
+img, svg, video, canvas {
+  max-width: 100%;
+  height: auto;
+}
+
+@keyframes erp-float-slow {
+  0%, 100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(18px, -22px, 0) scale(1.05);
+  }
+}
+
+@keyframes erp-float-medium {
+  0%, 100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(-14px, 18px, 0) scale(1.04);
+  }
+}
+
+@keyframes erp-logo-float {
+  0%, 100% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+  50% {
+    transform: translate3d(0, -8px, 0) rotate(1.2deg);
+  }
+}
+
+@keyframes erp-logo-aura {
+  0%, 100% {
+    opacity: 0.46;
+    transform: scale(0.96);
+  }
+  50% {
+    opacity: 0.82;
+    transform: scale(1.08);
+  }
+}
+
+@keyframes erp-logo-shine {
+  0% {
+    transform: translateX(-145%) rotate(20deg);
+  }
+  48%, 100% {
+    transform: translateX(145%) rotate(20deg);
+  }
+}
+
+.school-logo-badge {
+  isolation: isolate;
+  position: relative;
+  overflow: hidden;
+  border-radius: 9999px;
+}
+
+.school-logo-badge::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: 9999px;
+  background: radial-gradient(circle, rgba(255,255,255,0.56), rgba(147,197,253,0.18) 46%, rgba(79,70,229,0) 74%);
+  animation: erp-logo-aura 4.8s ease-in-out infinite;
+}
+
+.school-logo-badge::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.78), transparent);
+  mix-blend-mode: screen;
+  pointer-events: none;
+  animation: erp-logo-shine 4.2s ease-in-out infinite;
+}
+
+.school-logo-image {
+  filter: drop-shadow(0 8px 14px rgba(30, 64, 175, 0.22));
+}
+
+.animate-float-slow {
+  animation: erp-float-slow 8s ease-in-out infinite;
+}
+
+.animate-float-medium {
+  animation: erp-float-medium 6.5s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-float-slow,
+  .animate-float-medium,
+  .school-logo-badge,
+  .school-logo-badge::before,
+  .school-logo-badge::after {
+    animation: none;
+  }
+}
+
+@keyframes erp-fade-up {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 14px, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes erp-fade-in {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes erp-shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes erp-bar-rise {
+  0% {
+    opacity: 0;
+    transform: scaleY(0.18);
+  }
+  100% {
+    opacity: 1;
+    transform: scaleY(1);
+  }
+}
+
+@keyframes erp-soft-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(71, 72, 169, 0.16);
+  }
+  50% {
+    box-shadow: 0 0 0 10px rgba(71, 72, 169, 0);
+  }
+}
+
+.animate-fade-up {
+  opacity: 0;
+  animation: erp-fade-up 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.animate-fade-in {
+  animation: erp-fade-in 0.4s ease forwards;
+}
+
+.dashboard-animate {
+  opacity: 0;
+  animation: erp-fade-up 0.52s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.dashboard-bar {
+  transform-origin: bottom;
+  animation: erp-bar-rise 0.72s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.dashboard-pulse {
+  animation: erp-soft-pulse 2.6s ease-in-out 3;
+}
+
+/* Unified page entrance — applied to the content region of every role/page */
+.page-enter {
+  opacity: 0;
+  animation: erp-fade-up 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* Auto-stagger direct children of any container marked .stagger-children */
+.stagger-children > * {
+  opacity: 0;
+  animation: erp-fade-up 0.46s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+.stagger-children > *:nth-child(1) { animation-delay: 0.03s; }
+.stagger-children > *:nth-child(2) { animation-delay: 0.08s; }
+.stagger-children > *:nth-child(3) { animation-delay: 0.13s; }
+.stagger-children > *:nth-child(4) { animation-delay: 0.18s; }
+.stagger-children > *:nth-child(5) { animation-delay: 0.23s; }
+.stagger-children > *:nth-child(6) { animation-delay: 0.28s; }
+.stagger-children > *:nth-child(7) { animation-delay: 0.33s; }
+.stagger-children > *:nth-child(8) { animation-delay: 0.38s; }
+.stagger-children > *:nth-child(n+9) { animation-delay: 0.42s; }
+
+/* Stagger helpers for grids/lists */
+.stagger > * {
+  opacity: 0;
+  animation: erp-fade-up 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+.stagger > *:nth-child(1) { animation-delay: 0.04s; }
+.stagger > *:nth-child(2) { animation-delay: 0.08s; }
+.stagger > *:nth-child(3) { animation-delay: 0.12s; }
+.stagger > *:nth-child(4) { animation-delay: 0.16s; }
+.stagger > *:nth-child(5) { animation-delay: 0.20s; }
+.stagger > *:nth-child(6) { animation-delay: 0.24s; }
+.stagger > *:nth-child(7) { animation-delay: 0.28s; }
+.stagger > *:nth-child(8) { animation-delay: 0.32s; }
+.stagger > *:nth-child(9) { animation-delay: 0.36s; }
+.stagger > *:nth-child(10) { animation-delay: 0.40s; }
+
+/* Attendance calendar — staggered cell pop-in + detail panel reveal */
+@keyframes erp-cal-pop {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 8px, 0) scale(0.965);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes erp-cal-reveal {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 12px, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.cal-cell {
+  opacity: 0;
+  animation: erp-cal-pop 0.42s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.cal-detail {
+  animation: erp-cal-reveal 0.34s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-up,
+  .animate-fade-in,
+  .dashboard-animate,
+  .dashboard-bar,
+  .dashboard-pulse,
+  .page-enter,
+  .stagger-children > *,
+  .stagger > *,
+  .cal-cell,
+  .cal-detail {
+    animation: none;
+    opacity: 1;
+  }
+}
+
+/* Thin, subtle scrollbar for the (dark) sidebar nav */
+.nav-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
+}
+.nav-scroll::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.nav-scroll::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.22);
+  border-radius: 9999px;
+}
+.nav-scroll::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(255, 255, 255, 0.38);
+}
+.nav-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.card {
+  border: 1px solid hsl(var(--border));
+  border-radius: 1rem;
+  background: hsl(var(--card));
+  color: hsl(var(--card-foreground));
+  box-shadow: 0 2px 4px rgb(var(--shadow-rgb) / 0.04);
+}
+
+.card:hover {
+  box-shadow: 0 10px 22px rgb(var(--shadow-rgb) / 0.08);
+}
+
+.field {
+  width: 100%;
+  border-radius: 0.75rem;
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--input));
+  padding: 0.625rem 0.875rem;
+  color: hsl(var(--foreground));
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.25rem;
+  outline: none;
+  transition: border-color 160ms ease, background-color 160ms ease, box-shadow 160ms ease;
+}
+
+.field::placeholder {
+  color: hsl(var(--muted-foreground));
+}
+
+.field:focus {
+  border-color: hsl(var(--ring));
+  background: hsl(var(--card));
+  box-shadow: 0 0 0 4px hsl(var(--ring) / 0.14);
+}
+
+.field:disabled,
+.field[readonly] {
+  cursor: not-allowed;
+  background: hsl(var(--muted));
+  color: hsl(var(--muted-foreground));
+}
+
+.field.pl-10 {
+  padding-left: 2.5rem;
+}
+
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 0.75rem;
+  background: hsl(var(--primary));
+  padding: 0.625rem 1rem;
+  color: hsl(var(--primary-foreground));
+  font-size: 0.875rem;
+  font-weight: 700;
+  line-height: 1.25rem;
+  box-shadow: 0 8px 18px hsl(var(--primary) / 0.2);
+  transition: transform 160ms ease, background-color 160ms ease, box-shadow 160ms ease, opacity 160ms ease;
+}
+
+.btn-primary:hover {
+  background: hsl(var(--primary) / 0.92);
+  box-shadow: 0 10px 22px hsl(var(--primary) / 0.28);
+}
+
+.btn-primary:active {
+  transform: translateY(1px);
+}
+
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 0.75rem;
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--card));
+  padding: 0.625rem 1rem;
+  color: hsl(var(--foreground));
+  font-size: 0.875rem;
+  font-weight: 700;
+  line-height: 1.25rem;
+  transition: border-color 160ms ease, background-color 160ms ease, color 160ms ease, opacity 160ms ease;
+}
+
+.btn-secondary:hover {
+  border-color: hsl(var(--ring) / 0.55);
+  background: hsl(var(--accent));
+  color: hsl(var(--accent-foreground));
+}
+
+.btn-primary:disabled,
+.btn-secondary:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+  box-shadow: none;
+}
+
+.card table thead {
+  background: hsl(var(--muted));
+  color: hsl(var(--muted-foreground));
+}
+
+.card table th {
+  color: hsl(var(--muted-foreground));
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.card table tbody tr {
+  border-color: hsl(var(--border));
+}
+
+.card table tbody tr:hover {
+  background: hsl(var(--muted) / 0.72);
+}
+
+.card table td {
+  color: hsl(var(--foreground));
+}
+
+@media print {
+  /* --- Global print cleanup: hide all app chrome --- */
+  aside,
+  nav,
+  header,
+  button,
+  select,
+  input,
+  textarea,
+  .no-print {
+    display: none !important;
+  }
+  main {
+    margin: 0 !important;
+    display: block !important;
+  }
+  body {
+    background: #fff !important;
+  }
+  .card {
+    box-shadow: none !important;
+    border: 1px solid #e7e5e4 !important;
+    break-inside: avoid;
+  }
+
+  /* --- Focused printing: when a page marks a .print-area, print ONLY it --- */
+  body:has(.print-area) * {
+    visibility: hidden;
+  }
+  body:has(.print-area) .print-area,
+  body:has(.print-area) .print-area * {
+    visibility: visible;
+  }
+  body:has(.print-area) .print-area {
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: 100%;
+    margin: 0;
+    padding: 12mm;
+  }
+
+  .print-report-body {
+    font-family: Arial, sans-serif;
+    color: #1c1917;
+    margin: 12mm;
+  }
+  .print-report-title {
+    font-size: 22px;
+    margin: 0 0 6px;
+  }
+  .print-report-meta {
+    color: #57534e;
+    margin: 0 0 18px;
+  }
+  .print-report-table {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 11px;
+  }
+  .print-report-table th,
+  .print-report-table td {
+    border: 1px solid #d6d3d1;
+    padding: 6px 8px;
+    text-align: left;
+    vertical-align: top;
+  }
+  .print-report-table th {
+    background: #f5f5f4;
+  }
+}
+
+/* Debit voucher print system ------------------------------------------------ */
+.debit-voucher-print-area {
+  background: #ffffff;
+  color: #111827;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+.debit-voucher-a4-page {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+  gap: 0;
+  width: 198mm;
+  min-height: 285mm;
+  margin: 0 auto 12mm;
+  background: #ffffff;
+  box-shadow: 0 16px 40px rgb(15 23 42 / 0.12);
+}
+
+.debit-voucher-placeholder {
+  min-width: 0;
+  min-height: 0;
+}
+
+.debit-voucher {
+  box-sizing: border-box;
+  display: flex;
+  min-height: 132mm;
+  width: 100%;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1.4px solid #1f2f8d;
+  background: #ffffff;
+  color: #111827;
+  padding: 4mm;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+.debit-voucher-a4-page .debit-voucher {
+  min-height: 0;
+  height: 100%;
+}
+
+.debit-voucher-header {
+  display: grid;
+  grid-template-columns: 16mm minmax(0, 1fr) 26mm;
+  align-items: center;
+  gap: 2mm;
+  min-height: 18mm;
+}
+
+.debit-voucher-logo {
+  display: grid;
+  height: 14mm;
+  width: 14mm;
+  place-items: center;
+  overflow: hidden;
+}
+
+.debit-voucher-logo img {
+  display: block;
+  height: 100%;
+  width: 100%;
+  object-fit: contain;
+}
+
+.debit-voucher-school {
+  min-width: 0;
+  text-align: center;
+  line-height: 1.05;
+}
+
+.debit-voucher-school h2,
+.debit-voucher-school h3,
+.debit-voucher-school p {
+  margin: 0;
+}
+
+.debit-voucher-school h2 {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.debit-voucher-school h3 {
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.debit-voucher-school p {
+  margin-top: 1.5mm;
+  font-size: 8.5px;
+  font-weight: 600;
+  line-height: 1.15;
+}
+
+.debit-voucher-date {
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1.5mm;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.debit-voucher-date strong {
+  min-height: 4.5mm;
+  border-bottom: 1px dotted #374151;
+  font-size: 9px;
+  line-height: 4.5mm;
+}
+
+.debit-voucher-title {
+  margin: 2mm -4mm 2.5mm;
+  background: #26329a;
+  color: #ffffff;
+  padding: 1.7mm 2mm;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+.debit-voucher-serial {
+  display: grid;
+  grid-template-columns: 22mm minmax(0, 1fr);
+  align-items: end;
+  gap: 2mm;
+  margin-bottom: 2.5mm;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.debit-voucher-serial strong {
+  min-height: 5mm;
+  border-bottom: 1px dotted #374151;
+  text-align: center;
+  font-size: 13px;
+  line-height: 5mm;
+}
+
+.debit-voucher-field {
+  display: grid;
+  grid-template-columns: 22mm minmax(0, 1fr);
+  align-items: end;
+  gap: 2mm;
+  margin-bottom: 2.2mm;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.debit-voucher-field strong {
+  min-height: 5.4mm;
+  overflow: hidden;
+  border-bottom: 1px dotted #374151;
+  font-size: 9.4px;
+  font-weight: 700;
+  line-height: 1.15;
+  word-break: break-word;
+}
+
+.debit-voucher-footer {
+  display: grid;
+  grid-template-columns: 1.08fr 1fr 1fr 1fr;
+  align-items: end;
+  gap: 2mm;
+  margin-top: auto;
+}
+
+.debit-voucher-amount {
+  display: grid;
+  grid-template-columns: 5mm minmax(0, 1fr);
+  align-items: end;
+  gap: 1mm;
+  min-width: 0;
+}
+
+.debit-voucher-amount span {
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 7mm;
+}
+
+.debit-voucher-amount strong {
+  min-height: 7mm;
+  overflow: hidden;
+  border-bottom: 1.2px solid #111827;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 7mm;
+  text-align: center;
+}
+
+.debit-voucher-signature {
+  min-width: 0;
+  text-align: center;
+}
+
+.debit-voucher-signature span {
+  display: block;
+  height: 7mm;
+  border-bottom: 1.2px solid #111827;
+}
+
+.debit-voucher-signature p {
+  margin: 1mm 0 0;
+  font-size: 7.6px;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+@media screen {
+  .debit-voucher-print-area {
+    padding: 24px;
+  }
+
+  .debit-voucher-preview-card .debit-voucher {
+    max-width: 99mm;
+    margin: 0 auto;
+    box-shadow: 0 14px 36px rgb(15 23 42 / 0.14);
+  }
+}
+
+@media print {
+  body:has(#voucher-print-area) * {
+    visibility: hidden;
+  }
+
+  #voucher-print-area,
+  #voucher-print-area * {
+    visibility: visible;
+  }
+
+  #voucher-print-area {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  @page {
+    size: A4 portrait;
+    margin: 6mm;
+  }
+
+  html,
+  body {
+    width: 210mm;
+    min-height: 297mm;
+    margin: 0 !important;
+    background: #ffffff !important;
+    overflow: visible !important;
+  }
+
+  .debit-voucher-print-area {
+    padding: 0 !important;
+  }
+
+  .debit-voucher-a4-page {
+    width: 198mm;
+    height: 285mm;
+    min-height: 285mm;
+    margin: 0;
+    box-shadow: none;
+    break-after: page;
+    page-break-after: always;
+  }
+
+  .debit-voucher-a4-page:last-child {
+    break-after: auto;
+    page-break-after: auto;
+  }
+}
+
+/* =========================================================================
+   Responsive foundation utilities
+   Mobile-first helpers adopted incrementally by each module. They centralise
+   the grid / table / filter / modal / touch-target rules so pages don't each
+   reinvent (and mis-implement) responsiveness.
+   ========================================================================= */
+
+/* Metric/stat card grid: 1 col mobile → 2 tablet → 4 desktop. */
+.stat-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+}
+@media (min-width: 640px) {
+  .stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+}
+@media (min-width: 1280px) {
+  .stat-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1.25rem; }
+}
+
+/* Two-up card grid: 1 col mobile → 2 from tablet up. */
+.dual-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+}
+@media (min-width: 768px) {
+  .dual-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.25rem; }
+}
+
+/* Responsive page padding: 12 → 20 → 28px. Use in place of ad-hoc p-4/md:p-7. */
+.page-pad {
+  padding: 0.75rem;
+}
+@media (min-width: 640px) {
+  .page-pad { padding: 1.25rem; }
+}
+@media (min-width: 1024px) {
+  .page-pad { padding: 1.75rem; }
+}
+
+/* Horizontal-scroll wrapper for wide tables. min-w-0 on the flex/grid parent
+   is still required for this to actually clip instead of pushing the page. */
+.table-scroll {
+  width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+.table-scroll::-webkit-scrollbar { height: 6px; }
+.table-scroll::-webkit-scrollbar-thumb {
+  background-color: hsl(var(--border));
+  border-radius: 9999px;
+}
+
+/* Active-filter chips shown under a page title on mobile. */
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  border-radius: 9999px;
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--accent));
+  color: hsl(var(--accent-foreground));
+  padding: 0.25rem 0.625rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1rem;
+}
+
+/* Larger touch targets on touch devices only — desktop mouse UX unchanged. */
+@media (pointer: coarse) {
+  .btn-primary,
+  .btn-secondary,
+  .touch-target {
+    min-height: 44px;
+  }
+  .icon-btn {
+    min-height: 40px;
+    min-width: 40px;
+  }
+}
+
+/* Bottom-sheet / full-screen dialog treatment for modals on mobile. Add
+   `.sheet-mobile` to a centered modal panel; it docks to the bottom, spans the
+   width, and caps its height so long forms scroll instead of overflowing. */
+@media (max-width: 639px) {
+  .sheet-mobile {
+    position: fixed !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    top: auto !important;
+    margin: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    max-height: 92vh !important;
+    border-bottom-left-radius: 0 !important;
+    border-bottom-right-radius: 0 !important;
+    border-top-left-radius: 1.25rem !important;
+    border-top-right-radius: 1.25rem !important;
+  }
+}
+
+/* Sticky submit bar pinned to the bottom of a scrolling form on mobile. */
+.form-sticky-footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
+  background: hsl(var(--card));
+  border-top: 1px solid hsl(var(--border));
+  padding: 0.75rem;
+}
+
+/* Horizontal-scroll chip/tab strip (module sub-nav on mobile). */
+.chip-scroll {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding-bottom: 0.25rem;
+}
+.chip-scroll::-webkit-scrollbar { display: none; }
+.chip-scroll > * { flex: 0 0 auto; }
+
+/* Theme compatibility for existing utility-heavy pages. */
+.erp-app {
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+}
+
+.erp-app :where(table) {
+  border-color: hsl(var(--border));
+  color: hsl(var(--foreground));
+}
+
+.erp-app :where(thead) {
+  background: hsl(var(--muted));
+  color: hsl(var(--muted-foreground));
+}
+
+.erp-app :where(th) {
+  color: hsl(var(--muted-foreground));
+}
+
+.erp-app :where(td) {
+  color: hsl(var(--foreground));
+}
+
+.erp-app :where(tbody tr) {
+  border-color: hsl(var(--border));
+}
+
+.erp-app :where(tbody tr:hover) {
+  background: hsl(var(--muted) / 0.72);
+}
+
+.erp-app :where(input:not([type="checkbox"]):not([type="radio"]), select, textarea) {
+  border-color: hsl(var(--border));
+  background-color: hsl(var(--input));
+  color: hsl(var(--foreground));
+}
+
+.erp-app :where(input:not([type="checkbox"]):not([type="radio"]), select, textarea)::placeholder {
+  color: hsl(var(--muted-foreground));
+}
+
+.erp-app :where(input:not([type="checkbox"]):not([type="radio"]), select, textarea):focus {
+  border-color: hsl(var(--ring));
+  box-shadow: 0 0 0 4px hsl(var(--ring) / 0.14);
+}
+
+.erp-app :where(input:disabled, input[readonly], select:disabled, textarea:disabled, textarea[readonly]) {
+  background-color: hsl(var(--muted));
+  color: hsl(var(--muted-foreground));
+}
+
+.erp-app :where(select option) {
+  background: hsl(var(--popover));
+  color: hsl(var(--popover-foreground));
+}
+
+.erp-app :where(.bg-white, .bg-gray-50, .bg-gray-100, .bg-stone-50, .bg-slate-50, .bg-slate-100, .bg-slate-200, .bg-\[\#f7f8fd\], .bg-\[\#f8f8fc\], .bg-\[\#f8f9ff\], .bg-\[\#f8faff\], .bg-\[\#f9faff\], .bg-\[\#f9fbff\], .bg-\[\#fafbff\], .bg-\[\#fbfcff\], .bg-\[\#f6f8ff\], .bg-\[\#f5f6fd\], .bg-\[\#f5f7fd\], .bg-\[\#f4f5fb\], .bg-\[\#e6e9f5\]) {
+  background-color: hsl(var(--card));
+}
+
+.erp-app :where(.bg-gray-50, .bg-gray-100, .bg-stone-50, .bg-slate-50, .bg-slate-100, .bg-slate-200, .bg-\[\#f7f8fd\], .bg-\[\#f8f8fc\], .bg-\[\#f8f9ff\], .bg-\[\#f8faff\], .bg-\[\#f9faff\], .bg-\[\#f9fbff\], .bg-\[\#fafbff\], .bg-\[\#fbfcff\], .bg-\[\#f4f5fb\], .bg-\[\#e6e9f5\]) {
+  background-color: hsl(var(--muted));
+}
+
+.erp-app :where(.bg-\[\#eef0ff\], .bg-\[\#eef2ff\], .bg-\[\#eeefff\], .bg-\[\#edf1fb\], .bg-\[\#f1f4ff\], .bg-\[\#f0edff\], .bg-blue-50) {
+  background-color: hsl(var(--accent));
+  color: hsl(var(--accent-foreground));
+}
+
+.erp-app :where(.bg-\[\#e6f8ef\], .bg-green-50, .bg-emerald-50) {
+  background-color: hsl(var(--success) / 0.16);
+}
+
+.erp-app :where(.bg-\[\#f6faf6\]) {
+  background-color: hsl(var(--success) / 0.1);
+}
+
+.erp-app :where(.bg-\[\#fff4df\], .bg-\[\#fff8ea\], .bg-\[\#fffcf0\], .bg-\[\#fffcf5\], .bg-yellow-50, .bg-amber-50) {
+  background-color: hsl(var(--warning) / 0.16);
+}
+
+.erp-app :where(.bg-\[\#ffebed\], .bg-\[\#fff7f7\], .bg-red-50, .bg-rose-50) {
+  background-color: hsl(var(--destructive) / 0.14);
+}
+
+.erp-app :where(.text-black, .text-gray-900, .text-stone-900, .text-stone-950, .text-slate-700, .text-slate-900, .text-slate-950, .text-\[\#15172d\], .text-\[\#17192e\], .text-\[\#181a31\], .text-\[\#1b1d32\], .text-\[\#1d1f35\], .text-\[\#1f2136\], .text-\[\#20223a\], .text-\[\#23253a\], .text-\[\#242640\], .text-\[\#242744\], .text-\[\#2a2e45\], .text-\[\#303247\], .text-\[\#353864\]) {
+  color: hsl(var(--foreground));
+}
+
+.erp-app :where(.text-gray-400, .text-gray-500, .text-gray-600, .text-gray-700, .text-stone-400, .text-stone-500, .text-stone-600, .text-slate-400, .text-slate-500, .text-\[\#475067\], .text-\[\#5d6690\], .text-\[\#65708f\], .text-\[\#6f7898\], .text-\[\#7a86ad\], .text-\[\#7b85a8\], .text-\[\#7d86a8\], .text-\[\#8490b9\], .text-\[\#8a93b1\], .text-\[\#9aa4c4\]) {
+  color: hsl(var(--muted-foreground));
+}
+
+.erp-app :where(.text-\[\#2628a0\], .text-\[\#272a86\], .text-\[\#27318d\], .text-\[\#3033a1\], .text-\[\#313581\], .text-\[\#3436a2\], .text-\[\#4d5096\], .text-\[\#5751b8\]) {
+  color: hsl(var(--accent-foreground));
+}
+
+.erp-app :where(.border-gray-200, .border-stone-100, .border-stone-200, .border-slate-200, .border-\[\#dce1f0\], .border-\[\#dfe3f1\], .border-\[\#e0e3f0\], .border-\[\#e1e7f4\], .border-\[\#e2e6f4\], .border-\[\#e3e6f0\], .border-\[\#e3e8f6\], .border-\[\#e4e6f0\], .border-\[\#e4e9f7\], .border-\[\#e5e9f4\], .border-\[\#e5e9f7\], .border-\[\#edf0f7\]) {
+  border-color: hsl(var(--border));
+}
+
+.erp-app :where(.ring-\[\#e3e6f0\], .ring-\[\#e2e6ff\], .ring-\[\#dfe5ff\]) {
+  --tw-ring-color: hsl(var(--border));
+}
+
+.erp-app :where(.hover\:bg-gray-50:hover, .hover\:bg-gray-100:hover, .hover\:bg-stone-50:hover, .hover\:bg-\[\#fafbff\]:hover, .hover\:bg-\[\#f5f6fd\]:hover, .hover\:bg-\[\#f4f5fb\]:hover, .hover\:bg-\[\#f3f4fb\]:hover, .hover\:bg-\[\#eef2ff\]:hover, .hover\:bg-\[\#e7ecff\]:hover, .hover\:bg-\[\#e3e8ff\]:hover, .hover\:bg-\[\#e3e5ff\]:hover, .hover\:bg-\[\#e0e3ff\]:hover) {
+  background-color: hsl(var(--muted));
+}
+
+.erp-app :where(.hover\:bg-\[\#d7f3e5\]:hover, .hover\:bg-\[\#d2f2e1\]:hover) {
+  background-color: hsl(var(--success) / 0.22);
+}
+
+.erp-app :where(.hover\:bg-\[\#ffe9bd\]:hover, .hover\:bg-\[\#ffedc5\]:hover) {
+  background-color: hsl(var(--warning) / 0.22);
+}
+
+.erp-app :where(.hover\:bg-\[\#ffd9dd\]:hover) {
+  background-color: hsl(var(--destructive) / 0.22);
+}
+
+.erp-app :where(.hover\:text-\[\#3033a1\]:hover, .hover\:text-\[\#272a86\]:hover, .hover\:text-\[\#2628a0\]:hover) {
+  color: hsl(var(--accent-foreground));
+}
+
+.erp-app :where(.divide-stone-100 > :not([hidden]) ~ :not([hidden])) {
+  border-color: hsl(var(--border));
+}
+
+.dark .erp-app {
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+}
+
+.dark .erp-app :where(.card, .bg-white, .bg-card, .bg-gray-50, .bg-gray-100, .bg-stone-50, .bg-slate-50, .bg-slate-100, .bg-slate-200, .bg-\[\#f4f5fb\], .bg-\[\#f5f6fd\], .bg-\[\#f5f7fd\], .bg-\[\#f6f8ff\], .bg-\[\#f7f8fc\], .bg-\[\#f7f8fd\], .bg-\[\#f7f9ff\], .bg-\[\#f8f8fc\], .bg-\[\#f8f9ff\], .bg-\[\#f8faff\], .bg-\[\#f9faff\], .bg-\[\#f9fbff\], .bg-\[\#fafbff\], .bg-\[\#fbfcff\]) {
+  background-color: hsl(var(--card));
+  color: hsl(var(--card-foreground));
+}
+
+.dark .erp-app :where(.bg-muted, .bg-\[\#e6e9f5\], .bg-\[\#e7ebf6\], .bg-\[\#edf0f7\], .bg-\[\#edf1fb\], .bg-\[\#eef0f7\], .bg-\[\#f0f2f8\], .bg-\[\#f1f2f6\], .bg-\[\#f2f4fa\], .bg-\[\#f3f4fb\], .bg-\[\#f4f7ff\]) {
+  background-color: hsl(var(--muted));
+  color: hsl(var(--secondary-foreground));
+}
+
+.dark .erp-app :where(.text-black, .text-gray-800, .text-gray-900, .text-stone-800, .text-stone-900, .text-stone-950, .text-slate-700, .text-slate-800, .text-slate-900, .text-slate-950, .text-\[\#0f172a\], .text-\[\#111827\], .text-\[\#141735\], .text-\[\#15172d\], .text-\[\#17192e\], .text-\[\#171931\], .text-\[\#181a31\], .text-\[\#1b1d32\], .text-\[\#1d1f35\], .text-\[\#1f2136\], .text-\[\#20223a\], .text-\[\#20233f\], .text-\[\#23253a\], .text-\[\#242640\], .text-\[\#242744\], .text-\[\#253052\], .text-\[\#2a2e45\], .text-\[\#303247\], .text-\[\#353864\]) {
+  color: hsl(var(--foreground));
+}
+
+.dark .erp-app :where(.text-gray-400, .text-gray-500, .text-gray-600, .text-gray-700, .text-stone-400, .text-stone-500, .text-stone-600, .text-slate-400, .text-slate-500, .text-slate-600, .text-\[\#475067\], .text-\[\#5d6690\], .text-\[\#5f6888\], .text-\[\#5f6b8d\], .text-\[\#65708f\], .text-\[\#657092\], .text-\[\#6b7391\], .text-\[\#6f7898\], .text-\[\#707a9e\], .text-\[\#7a86ad\], .text-\[\#7b85a8\], .text-\[\#7d86a8\], .text-\[\#8490b9\], .text-\[\#8a91b4\], .text-\[\#8a93b1\], .text-\[\#8a94b6\], .text-\[\#9aa3bd\], .text-\[\#9aa4c4\]) {
+  color: hsl(var(--muted-foreground));
+}
+
+.dark .erp-app :where(.text-blue-600, .text-indigo-600, .text-purple-600, .text-\[\#246bfe\], .text-\[\#252a87\], .text-\[\#2628a0\], .text-\[\#272a86\], .text-\[\#27318d\], .text-\[\#2e38a4\], .text-\[\#3033a1\], .text-\[\#313581\], .text-\[\#3137b7\], .text-\[\#3436a2\], .text-\[\#3540c0\], .text-\[\#4d5096\], .text-\[\#4f63f6\], .text-\[\#5751b8\], .text-\[\#6547d2\], .text-\[\#7445bd\]) {
+  color: hsl(var(--accent-number));
+}
+
+.dark .erp-app :where(.text-green-600, .text-emerald-600, .text-\[\#0a9255\], .text-\[\#0d8f5b\], .text-\[\#0f8d52\], .text-\[\#13a961\], .text-\[\#14a762\], .text-\[\#17808a\], .text-\[\#1f8a4c\], .text-\[\#3d8b4d\]) {
+  color: hsl(var(--success));
+}
+
+.dark .erp-app :where(.text-amber-600, .text-orange-600, .text-yellow-600, .text-\[\#9f7116\], .text-\[\#b8791a\], .text-\[\#b87d0e\], .text-\[\#c67711\], .text-\[\#c96a10\], .text-\[\#d27a14\], .text-\[\#d79418\], .text-\[\#e29813\]) {
+  color: hsl(var(--warning));
+}
+
+.dark .erp-app :where(.text-red-500, .text-red-600, .text-rose-600, .text-\[\#c83f4d\], .text-\[\#d1485c\], .text-\[\#d84d5b\], .text-\[\#ed515d\]) {
+  color: hsl(var(--destructive));
+}
+
+.dark .erp-app :where(.bg-\[\#edf1ff\], .bg-\[\#edf7ff\], .bg-\[\#eef0ff\], .bg-\[\#eef2ff\], .bg-\[\#eeefff\], .bg-\[\#eef6ff\], .bg-\[\#f0edff\], .bg-\[\#f1edff\], .bg-\[\#f1f4ff\], .bg-\[\#f4efff\], .bg-blue-50, .bg-indigo-50, .bg-purple-50) {
+  background-color: hsl(var(--accent) / 0.42);
+}
+
+.dark .erp-app :where(.bg-\[\#e6f8ef\], .bg-\[\#e7f6ec\], .bg-\[\#e9f8f0\], .bg-\[\#edfdf4\], .bg-\[\#f0f7ef\], .bg-\[\#f6faf6\], .bg-green-50, .bg-emerald-50) {
+  background-color: hsl(var(--success) / 0.14);
+}
+
+.dark .erp-app :where(.bg-\[\#fff0e0\], .bg-\[\#fff3e8\], .bg-\[\#fff4df\], .bg-\[\#fff8ea\], .bg-\[\#fffcf0\], .bg-\[\#fffcf5\], .bg-yellow-50, .bg-amber-50) {
+  background-color: hsl(var(--warning) / 0.16);
+}
+
+.dark .erp-app :where(.bg-\[\#ffebed\], .bg-\[\#fff0f2\], .bg-\[\#fff1f1\], .bg-\[\#fff7f7\], .bg-red-50, .bg-rose-50) {
+  background-color: hsl(var(--destructive) / 0.16);
+}
+
+.dark .erp-app :where(.border-gray-200, .border-stone-100, .border-stone-200, .border-stone-300, .border-slate-200, .border-\[\#c7d1ec\], .border-\[\#dce1f0\], .border-\[\#dfe3f1\], .border-\[\#e0e3f0\], .border-\[\#e1e7f4\], .border-\[\#e2e6f4\], .border-\[\#e3e6f0\], .border-\[\#e3e8f6\], .border-\[\#e4e6f0\], .border-\[\#e4e9f7\], .border-\[\#e5e9f4\], .border-\[\#e5e9f7\], .border-\[\#edf0f7\], .border-\[\#edf1fb\]) {
+  border-color: hsl(var(--border));
+}
+
+.dark .erp-app :where(table) {
+  color: hsl(var(--foreground));
+}
+
+.dark .erp-app :where(thead, .bg-stone-50, .bg-\[\#f7f8fd\]) {
+  background-color: hsl(var(--muted));
+  color: hsl(var(--secondary-foreground));
+}
+
+.dark .erp-app :where(th) {
+  color: hsl(var(--secondary-foreground));
+}
+
+.dark .erp-app :where(td) {
+  color: hsl(var(--foreground));
+}
+
+.dark .erp-app :where(tbody tr) {
+  border-color: hsl(var(--border));
+}
+
+.dark .erp-app :where(tbody tr:hover, .hover\:bg-gray-50:hover, .hover\:bg-gray-100:hover, .hover\:bg-stone-50:hover, .hover\:bg-\[\#fafbff\]:hover, .hover\:bg-\[\#f8faff\]:hover, .hover\:bg-\[\#f5f6fd\]:hover, .hover\:bg-\[\#f4f5fb\]:hover, .hover\:bg-\[\#f3f4fb\]:hover, .hover\:bg-\[\#eef2ff\]:hover, .hover\:bg-\[\#e7ecff\]:hover, .hover\:bg-\[\#e3e8ff\]:hover, .hover\:bg-\[\#e3e5ff\]:hover, .hover\:bg-\[\#e0e3ff\]:hover) {
+  background-color: hsl(var(--muted));
+}
+
+.dark .erp-app :where(input:not([type="checkbox"]):not([type="radio"]), select, textarea) {
+  border-color: hsl(var(--border));
+  background-color: hsl(var(--input));
+  color: hsl(var(--foreground));
+}
+
+.dark .erp-app :where(input:not([type="checkbox"]):not([type="radio"]), select, textarea)::placeholder {
+  color: hsl(var(--muted-foreground));
+}
+
+.dark .erp-app :where(input:disabled, input[readonly], select:disabled, textarea:disabled, textarea[readonly]) {
+  background-color: hsl(var(--muted));
+  color: hsl(var(--muted-foreground));
+}
+
+.dark .erp-app :where(svg text, .recharts-text, .recharts-label) {
+  fill: hsl(var(--chart-label));
+}
+
+.dark .erp-app :where(.recharts-cartesian-grid line) {
+  stroke: hsl(var(--chart-grid));
+}
+
+.dark .erp-app :where(.recharts-default-tooltip) {
+  border-color: hsl(var(--border)) !important;
+  background: hsl(var(--chart-tooltip)) !important;
+  color: hsl(var(--chart-tooltip-foreground)) !important;
+}
+
+.dark .erp-app :where(.recharts-tooltip-label, .recharts-tooltip-item) {
+  color: hsl(var(--chart-tooltip-foreground)) !important;
+}
+
+.erp-app :where(.shadow, .shadow-sm, .shadow-lg, .shadow-xl, .shadow-2xl) {
+  --tw-shadow-color: rgb(var(--shadow-rgb) / 0.24);
+  --tw-shadow: var(--tw-shadow-colored);
+}
+
+.erp-app .theme-preserve-light,
+.erp-app .school-logo-badge :where(.bg-white) {
+  background-color: #fff;
+  color: #0f172a;
+}
