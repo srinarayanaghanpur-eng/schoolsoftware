@@ -1,6 +1,7 @@
 import { AggregateField } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { requireAuthenticated, resolveRole, json } from "@/lib/apiUtils";
+import { firestoreQuotaResponse, isFirestoreQuotaPaused } from "@/lib/firebaseErrors";
 import { roleHasPermission } from "@/lib/rbacAdmin";
 import { docDateKey, inRange } from "@/lib/financeUtils";
 import { aggregateCollectionByMethod, aggregateDuesByClass, aggregateExpenseBreakdown, isCompletedStatus } from "@/lib/financeAggregation";
@@ -87,6 +88,10 @@ export async function GET(req: Request) {
   const role = await resolveRole(decoded);
   if (!role || !await roleHasPermission(role, "fees.view")) {
     return json({ ok: false, error: "Access denied. You do not have permission to view finance." }, { status: 403 });
+  }
+
+  if (isFirestoreQuotaPaused()) {
+    return firestoreQuotaResponse();
   }
 
   const { from, to } = parseRange(req.url);

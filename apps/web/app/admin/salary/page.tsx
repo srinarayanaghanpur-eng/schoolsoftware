@@ -23,15 +23,19 @@ import {
   ChevronRight,
   Clock,
   Download,
+  Eye,
   FileText,
   Loader2,
   Percent,
   RotateCw,
-  Settings,
   Users,
   X
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import RowContextMenu, { type ContextMenuItem } from "@/components/RowContextMenu";
+import { usePopup } from "@/components/CenterPopup";
+import OverlayPortal from "@/components/OverlayPortal";
+import Link from "next/link";
 import { payrollSessionHeaders } from "@/lib/payrollSessionClient";
 
 type TabId = "payroll" | "pending" | "paid" | "advances" | "approvals" | "slips" | "settings";
@@ -101,6 +105,7 @@ function statusConfig(report: SalaryReport) {
 
 export default function SalaryPage() {
   const { role } = useAdminSession();
+  const popup = usePopup();
   const isAccountant = role === "accountant";
   const canReviewPayrollAccess = role === "super_admin";
   const [month, setMonth] = useState(currentMonth());
@@ -110,12 +115,43 @@ export default function SalaryPage() {
   const [generating, setGenerating] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [showGenerateModal, setShowGenerateModal] = useState(false);
+  const [preview, setPreview] = useState<{
+    activeStaff: number;
+    totalWorkingDays: number;
+    elapsedWorkingDays: number;
+    holidays: number;
+    holidayNames: string[];
+    existingRecords: number;
+  } | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  // Right-click menu on staff rows (same actions as the buttons).
+  const [rowMenu, setRowMenu] = useState<{ x: number; y: number; items: ContextMenuItem[] } | null>(null);
+
+  const rowMenuFor = (report: SalaryReport): ContextMenuItem[] => {
+    const blocked = !report.paid && isSalaryPaymentBlocked(report);
+    return [
+      {
+        label: expandedId === report.teacherId ? "Hide details" : "View details",
+        icon: <Eye size={15} />,
+        onSelect: () => setExpandedId(expandedId === report.teacherId ? null : report.teacherId)
+      },
+      {
+        label: report.paid ? "Mark unpaid" : "Pay now",
+        icon: <CheckCircle size={15} />,
+        disabled: loading || blocked,
+        onSelect: () => void togglePaid(report)
+      },
+      {
+        label: "Salary slip",
+        icon: <FileText size={15} />,
+        onSelect: () => setActiveTab("slips")
+      }
+    ];
+  };
   const [payrollAccess, setPayrollAccess] = useState<PayrollAccessState | null>(null);
   const [approvalRequests, setApprovalRequests] = useState<PayrollAccessRequest[]>([]);
   const [accessLoading, setAccessLoading] = useState(false);
   const [approvalLoading, setApprovalLoading] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const pendingApprovalsRef = useRef(0);
 
   const apiRequest = async <T,>(path: string, init?: RequestInit, includePayrollSession = false): Promise<T> => {
@@ -140,14 +176,13 @@ export default function SalaryPage() {
     const m = targetMonth ?? month;
     if (isAccountant && payrollAccess?.access !== "approved") return;
     setLoading(true);
-    setError(null);
     try {
       const result = await apiRequest<{ reports: SalaryReport[] }>(
         `/api/admin/salary?month=${encodeURIComponent(m)}`, undefined, isAccountant
       );
       setReports(result.reports.map(normalizeSalaryReport));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to load salary");
+      popup.error("Unable to load salary", err instanceof Error ? err.message : undefined);
     } finally {
       setLoading(false);
     }
@@ -221,20 +256,45 @@ export default function SalaryPage() {
     return y > now.getFullYear() || (y === now.getFullYear() && m > now.getMonth() + 1);
   }, [month]);
 
+  // Short query first: preview numbers for the popup. The heavy per-teacher
+  // generation (long query) runs only when Generate is confirmed.
+  const openGenerateModal = async () => {
+    if (isAccountant && payrollAccess?.access !== "approved") return;
+    setShowGenerateModal(true);
+    setPreview(null);
+    setPreviewLoading(true);
+    try {
+      const result = await apiRequest<{ preview: {
+        activeStaff: number;
+        totalWorkingDays: number;
+        elapsedWorkingDays: number;
+        holidays: number;
+        holidayNames: string[];
+        existingRecords: number;
+      } }>(
+        `/api/admin/salary?month=${encodeURIComponent(month)}&preview=1`, undefined, isAccountant
+      );
+      setPreview(result.preview);
+    } catch (err) {
+      popup.error("Unable to load payroll preview", err instanceof Error ? err.message : undefined);
+      setShowGenerateModal(false);
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
   const generateSalary = async () => {
     if (isAccountant && payrollAccess?.access !== "approved") return;
     setShowGenerateModal(false);
     setGenerating(true);
-    setError(null);
-    setMessage(null);
     try {
       const result = await apiRequest<{ reports: SalaryReport[]; message?: string }>(
         "/api/admin/salary", { method: "POST", body: JSON.stringify({ month }) }, isAccountant
       );
       setReports(result.reports.map(normalizeSalaryReport));
-      setMessage(result.message ?? "Salary generated successfully.");
+      popup.success(result.message ?? "Salary generated successfully.");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to generate salary");
+      popup.error("Unable to generate salary", err instanceof Error ? err.message : undefined);
     } finally {
       setGenerating(false);
     }
@@ -243,12 +303,10 @@ export default function SalaryPage() {
   const togglePaid = async (report: SalaryReport) => {
     if (isAccountant && payrollAccess?.access !== "approved") return;
     if (!report.paid && isSalaryPaymentBlocked(report)) {
-      setError(getSalaryPaymentBlockedReason(report) ?? "Salary payment is blocked.");
+      popup.error(getSalaryPaymentBlockedReason(report) ?? "Salary payment is blocked.");
       return;
     }
     setLoading(true);
-    setError(null);
-    setMessage(null);
     try {
       const nextPaid = !report.paid;
       await apiRequest<{ message?: string }>(
@@ -260,9 +318,9 @@ export default function SalaryPage() {
       setReports((items) => items.map((item) =>
         item.teacherId === report.teacherId ? { ...item, paid: nextPaid, paidAt: nextPaid ? new Date().toISOString() : "" } : item
       ));
-      setMessage(nextPaid ? "Marked as paid." : "Marked as unpaid.");
+      popup.success(nextPaid ? "Marked as paid." : "Marked as unpaid.");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to update salary");
+      popup.error("Unable to update salary", err instanceof Error ? err.message : undefined);
     } finally {
       setLoading(false);
     }
@@ -270,16 +328,14 @@ export default function SalaryPage() {
 
   const requestPayrollApproval = async () => {
     setAccessLoading(true);
-    setError(null);
-    setMessage(null);
     try {
       const result = await apiRequest<PayrollAccessState>(
         "/api/admin/payroll-access", { method: "POST", body: JSON.stringify({ reason: "Payroll access requested" }) }, true
       );
       setPayrollAccess(result);
-      setMessage("Approval request sent to admin.");
+      popup.success("Approval request sent to admin.");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to request approval");
+      popup.error("Unable to request approval", err instanceof Error ? err.message : undefined);
     } finally {
       setAccessLoading(false);
     }
@@ -287,16 +343,14 @@ export default function SalaryPage() {
 
   const reviewPayrollRequest = async (request: PayrollAccessRequest, action: "approve" | "reject") => {
     setApprovalLoading(true);
-    setError(null);
-    setMessage(null);
     try {
       await apiRequest(`/api/admin/payroll-access/${encodeURIComponent(request.id)}`, {
         method: "PATCH", body: JSON.stringify({ action })
       });
-      setMessage(action === "approve" ? "Payroll access approved." : "Payroll access rejected.");
+      popup.success(action === "approve" ? "Payroll access approved." : "Payroll access rejected.");
       await loadApprovalRequests();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to review");
+      popup.error("Unable to review", err instanceof Error ? err.message : undefined);
     } finally {
       setApprovalLoading(false);
     }
@@ -307,8 +361,6 @@ export default function SalaryPage() {
       <>
         <PageHeader title="Salary & Payroll" description="Payroll requires admin approval for accountant sessions." />
         <section className="space-y-5 p-4 md:p-7">
-          {message && <div className="rounded-2xl border border-[#c8f0dc] bg-[#e6f8ef] px-4 py-3 text-sm font-semibold text-[#0f8d52]">{message}</div>}
-          {error && <div className="rounded-2xl border border-[#ffd5da] bg-[#ffebed] px-4 py-3 text-sm font-semibold text-[#c83f4d]">{error}</div>}
           <div className="max-w-2xl rounded-2xl border border-[#e2e8f0] bg-white p-5 shadow-sm md:p-6">
             <div className="flex items-start gap-4">
               <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-[#fff4df] text-[#d79418]"><Clock size={24} /></span>
@@ -344,8 +396,6 @@ export default function SalaryPage() {
       />
 
       <section className="space-y-5 p-4 md:p-7">
-        {message && <div className="rounded-2xl border border-[#c8f0dc] bg-[#e6f8ef] px-4 py-3 text-sm font-semibold text-[#0f8d52]">{message}</div>}
-        {error && <div className="rounded-2xl border border-[#ffd5da] bg-[#ffebed] px-4 py-3 text-sm font-semibold text-[#c83f4d]">{error}</div>}
 
         {/* Summary Cards */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
@@ -424,12 +474,9 @@ export default function SalaryPage() {
             <button className="btn-secondary" disabled={loading || !reports.length}>
               <Download size={15} /> Export
             </button>
-            <button className="btn-secondary">
-              <Settings size={15} /> Settings
-            </button>
             <button
               className="btn-primary"
-              onClick={() => setShowGenerateModal(true)}
+              onClick={() => void openGenerateModal()}
               disabled={generating || isFutureMonth}
               title={isFutureMonth ? "Cannot generate payroll for a future month." : ""}
             >
@@ -545,15 +592,20 @@ export default function SalaryPage() {
               {activeTab === "slips" ? "Salary Slips" : "Payroll Settings"}
             </h3>
             <p className="text-sm font-medium text-[#64748b]">
-              {activeTab === "slips" ? "Click on a staff member's Slip button to view their salary slip." : "Payroll settings are managed from the main Settings page."}
+              {activeTab === "slips" ? "Click on a staff member's Slip button to view their salary slip." : "Payroll settings live with the rest of the school configuration."}
             </p>
+            {activeTab === "settings" && (
+              <Link href="/admin/settings" className="btn-secondary mt-1">
+                Open main Settings
+              </Link>
+            )}
           </div>
         ) : filteredReports.length === 0 && !loading ? (
           <div className="flex flex-col items-center gap-3 rounded-2xl border border-[#e2e8f0] bg-white p-10 text-center shadow-sm">
             <FileText size={40} className="text-[#cbd5e1]" />
             <h3 className="text-base font-extrabold text-[#1e293b]">No salary generated for {monthLabel(month)}</h3>
             <p className="text-sm font-medium text-[#64748b]">Generate salary to view payroll records.</p>
-            <button className="btn-primary mt-2" onClick={() => setShowGenerateModal(true)} disabled={isFutureMonth}>
+            <button className="btn-primary mt-2" onClick={() => void openGenerateModal()} disabled={isFutureMonth}>
               <RotateCw size={16} /> Generate Monthly Salary
             </button>
             {isFutureMonth && (
@@ -570,7 +622,14 @@ export default function SalaryPage() {
                 const isExpanded = expandedId === report.teacherId;
                 const status = statusConfig(report);
                 return (
-                  <div key={report.teacherId} className="rounded-2xl border border-[#e2e8f0] bg-white p-4 shadow-sm">
+                  <div
+                    key={report.teacherId}
+                    className="rounded-2xl border border-[#e2e8f0] bg-white p-4 shadow-sm"
+                    onContextMenu={(e) => {
+                      e.preventDefault();
+                      setRowMenu({ x: e.clientX, y: e.clientY, items: rowMenuFor(report) });
+                    }}
+                  >
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <p className="truncate font-extrabold text-[#1e293b]">{report.teacherName}</p>
@@ -622,9 +681,11 @@ export default function SalaryPage() {
               })}
             </div>
 
-            {/* Desktop Table */}
-            <div className="hidden overflow-hidden rounded-2xl border border-[#e2e8f0] bg-white shadow-sm md:block">
-              <table className="w-full text-left text-sm">
+            {/* Desktop Table — min-width + horizontal scroll so action
+                buttons are never squeezed or cut off on narrow screens.
+                Right-click any row for the same actions in a menu. */}
+            <div className="hidden overflow-x-auto rounded-2xl border border-[#e2e8f0] bg-white shadow-sm md:block">
+              <table className="w-full min-w-[1060px] text-left text-sm">
                 <thead className="bg-[#f8fafc] text-xs font-bold uppercase text-[#64748b]">
                   <tr>
                     <th className="w-8 px-4 py-3"></th>
@@ -647,7 +708,14 @@ export default function SalaryPage() {
                     const status = statusConfig(report);
                     const isBlocked = !report.paid && isSalaryPaymentBlocked(report);
                     return (
-                      <tr key={report.teacherId} className="border-t border-[#f1f5f9]">
+                      <tr
+                        key={report.teacherId}
+                        className="border-t border-[#f1f5f9]"
+                        onContextMenu={(e) => {
+                          e.preventDefault();
+                          setRowMenu({ x: e.clientX, y: e.clientY, items: rowMenuFor(report) });
+                        }}
+                      >
                         <td className="px-4 py-3">
                           <button
                             className="rounded p-1 hover:bg-[#f1f5f9]"
@@ -784,8 +852,11 @@ export default function SalaryPage() {
         )}
       </section>
 
-      {/* Generate Salary Modal */}
+      <RowContextMenu menu={rowMenu} onClose={() => setRowMenu(null)} />
+
+      {/* Generate Salary Modal (portaled: paints above sidebars) */}
       {showGenerateModal && (
+        <OverlayPortal>
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-lg rounded-2xl border border-[#e2e8f0] bg-white p-6 shadow-xl">
             <div className="mb-4 flex items-center justify-between">
@@ -795,26 +866,38 @@ export default function SalaryPage() {
               </button>
             </div>
             <div className="space-y-3 rounded-xl bg-[#f8fafc] p-4 text-sm">
-              <div className="flex items-center justify-between">
-                <span className="text-[#64748b]">Active staff members</span>
-                <span className="font-bold">{reports.length || "—"}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-[#64748b]">Total working days (month)</span>
-                <span className="font-bold">{reports[0]?.totalWorkingDaysInMonth || "—"} days</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-[#64748b]">Elapsed working days</span>
-                <span className="font-bold">{reports[0]?.workingDaysElapsed || "—"} days</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-[#64748b]">Holidays excluded</span>
-                <span className="font-bold">{reports[0]?.holidays || "—"}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-[#64748b]">Existing records</span>
-                <span className="font-bold">{reports.filter((r) => r.salaryStatus !== "Attendance Missing").length || "—"}</span>
-              </div>
+              {previewLoading ? (
+                <p className="flex items-center gap-2 py-4 text-sm font-semibold text-[#64748b]">
+                  <Loader2 size={16} className="animate-spin" /> Loading payroll summary…
+                </p>
+              ) : preview ? (
+                <>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[#64748b]">Active staff members</span>
+                    <span className="font-bold">{preview.activeStaff}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[#64748b]">Total working days (month)</span>
+                    <span className="font-bold">{preview.totalWorkingDays} days</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[#64748b]">Elapsed working days</span>
+                    <span className="font-bold">{preview.elapsedWorkingDays} days</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[#64748b]">Holidays excluded</span>
+                    <span className="font-bold" title={preview.holidayNames.join(", ") || undefined}>
+                      {preview.holidays}{preview.holidayNames.length > 0 ? ` (${preview.holidayNames.slice(0, 3).join(", ")}${preview.holidayNames.length > 3 ? "…" : ""})` : ""}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[#64748b]">Existing records</span>
+                    <span className="font-bold">{preview.existingRecords}</span>
+                  </div>
+                </>
+              ) : (
+                <p className="py-2 text-sm font-semibold text-[#dc2626]">Preview unavailable — you can still generate, or cancel and retry.</p>
+              )}
               <hr className="border-[#e2e8f0]" />
               <div className="space-y-1">
                 <p className="flex items-center gap-2 text-xs font-medium text-[#16a34a]">
@@ -833,7 +916,7 @@ export default function SalaryPage() {
               <button
                 className="btn-primary"
                 onClick={generateSalary}
-                disabled={generating}
+                disabled={generating || previewLoading}
               >
                 {generating ? <Loader2 size={16} className="animate-spin" /> : <RotateCw size={16} />}
                 {generating ? "Generating..." : "Generate Salary"}
@@ -841,6 +924,7 @@ export default function SalaryPage() {
             </div>
           </div>
         </div>
+        </OverlayPortal>
       )}
     </>
   );

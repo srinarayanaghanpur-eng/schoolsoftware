@@ -25,7 +25,7 @@ export async function GET(req: Request) {
     if (academicYearId) query = query.where("academicYearId", "==", academicYearId);
     else if (schoolId) query = query.where("schoolId", "==", schoolId);
 
-    const snapshot = await query.limit(500).get();
+    const snapshot = await query.limit(200).get();
     logFirestoreRead("FeeStructuresAPI", COLLECTION, snapshot, { academicYearId, className, schoolId, pageSize });
 
     const filtered = snapshot.docs
@@ -38,7 +38,7 @@ export async function GET(req: Request) {
     const startIndex = cursor ? Math.max(0, filtered.findIndex((item) => item.id === cursor) + 1) : 0;
     const pageDocs = filtered.slice(startIndex, startIndex + pageSize);
     const nextCursor = startIndex + pageSize < filtered.length && pageDocs.length > 0 ? pageDocs[pageDocs.length - 1].id : null;
-    return json({ ok: true, structures: pageDocs, pageSize, nextCursor, hasMore: Boolean(nextCursor) });
+    return json({ ok: true, structures: pageDocs, pageSize, nextCursor, hasMore: Boolean(nextCursor), total: filtered.length });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to load fee structures";
     return json({ ok: false, error: message }, { status: 400 });

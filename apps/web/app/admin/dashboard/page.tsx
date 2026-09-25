@@ -29,6 +29,7 @@ import type { LucideIcon } from "lucide-react";
 import { AggregateField } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { getSchoolSettings } from "@/lib/firestoreServer";
+import { markSummaryClean } from "@/lib/markSummaryDirty";
 import { logFirestoreAggregateRead, logFirestoreRead } from "@/lib/firestoreReadLogger";
 
 export const dynamic = "force-dynamic";
@@ -88,6 +89,9 @@ type DashboardData = {
   weekAttendance: { day: string; value: number }[];
   recentStudents: { name: string; cls: string; initials: string }[];
   notices: { title: string; meta: string }[];
+  /** True when one or more money aggregates failed (e.g. missing composite
+   *  index) — figures below may be partial, never present zeros as fact. */
+  degraded: boolean;
   /** True once school start time + grace has passed (IST): staff who have not
    *  checked in are then "Absent", not "Pending". */
   attendanceCutoffPassed: boolean;
@@ -134,7 +138,10 @@ async function loadDashboard(): Promise<DashboardData> {
         const summarySnap = await db.collection("dashboardSummaries").doc("current").get();
         if (summarySnap.exists) {
           const summary = summarySnap.data()! as unknown as DashboardData;
-          if (summary.totalStudents !== undefined) {
+          // A degraded snapshot must never be served as "clean" — otherwise a
+          // single transient failure pins the warning banner until the next
+          // mutation. Rebuild instead.
+          if (summary.totalStudents !== undefined && !summary.degraded) {
             return summary;
           }
         }
@@ -193,10 +200,10 @@ async function loadDashboardUncached(yearId: string): Promise<DashboardData> {
   ] = await Promise.all([
     studentsCountQuery.get(),
     activeTeachersCountQuery.get(),
-    feeTotalsQuery.get().catch(() => null),
-    studentsPendingQuery.get().catch(() => null),
-    feesCollectedQuery.get().catch(() => null),
-    feesCollectedTodayQuery.get().catch(() => null),
+    feeTotalsQuery.get().catch((e) => { console.error("[AdminDashboard] feeTotals aggregate failed:", e?.message ?? e); return null; }),
+    studentsPendingQuery.get().catch((e) => { console.error("[AdminDashboard] studentsPending count failed:", e?.message ?? e); return null; }),
+    feesCollectedQuery.get().catch((e) => { console.error("[AdminDashboard] feesCollected aggregate failed:", e?.message ?? e); return null; }),
+    feesCollectedTodayQuery.get().catch((e) => { console.error("[AdminDashboard] feesCollectedToday aggregate failed:", e?.message ?? e); return null; }),
     // Bounded: 7 days of attendance; the limit guards against runaway reads
     // if the collection ever mixes student + staff records.
     db.collection("attendance").where("date", ">=", weekAgo).where("date", "<=", today).limit(2000).get(),
@@ -276,6 +283,11 @@ async function loadDashboardUncached(yearId: string): Promise<DashboardData> {
   }
 
   const result: DashboardData = {
+    degraded:
+      feeTotalsSnap === null ||
+      studentsPendingSnap === null ||
+      feesCollectedSnap === null ||
+      feesCollectedTodaySnap === null,
     totalStudents,
     totalTeachers,
     presentToday,
@@ -291,10 +303,11 @@ async function loadDashboardUncached(yearId: string): Promise<DashboardData> {
   };
 
   // Persist to dashboardSummaries so subsequent loads skip the aggregate queries
-  // until the next mutation marks the summary dirty.
+  // until the next mutation marks the summary dirty. Uses the shared helper so
+  // the sync doc stays in the same shape as the rebuild route writes.
   try {
     await db.collection("dashboardSummaries").doc("current").set(result as Record<string, unknown>, { merge: true });
-    await db.collection("sync").doc("dashboard_summary").set({ cleanAt: new Date() }, { merge: true });
+    await markSummaryClean();
   } catch {
     // non-critical — next load will rebuild
   }
@@ -439,6 +452,7 @@ export default async function AdminDashboardPage() {
   const data = await loadDashboard().catch(() => null);
 
   const d: DashboardData = data ?? {
+    degraded: true,
     totalStudents: 0,
     totalTeachers: 0,
     presentToday: 0,
@@ -473,6 +487,11 @@ export default async function AdminDashboardPage() {
 
   return (
     <section className="space-y-5 p-4 md:p-6">
+      {d.degraded && (
+        <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-200">
+          Fee figures are temporarily unavailable (reporting index building or unreachable). Counts below may be partial — they will refresh automatically.
+        </div>
+      )}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard
           label="Total Students"

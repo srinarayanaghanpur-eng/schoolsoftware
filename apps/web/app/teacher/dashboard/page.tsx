@@ -6,6 +6,7 @@ import { LazyTeacherPieChart } from "@/components/LazyDashboardCharts";
 import { StatusBadge } from "@/components/StatusBadge";
 import { TeacherAttendancePanel } from "@/components/TeacherAttendancePanel";
 import AppLoader from "@/components/AppLoader";
+import LogoutConfirmDialog from "@/components/LogoutConfirmDialog";
 import { auth } from "@sri-narayana/shared/firebase/client";
 import { getAttendancePercentage, type AttendanceRecord, type Holiday, type Teacher } from "@sri-narayana/shared";
 import { CalendarDays, CalendarOff, CheckCircle2, Circle, Clock3, LogOut, MapPin, Sparkles, UserRound } from "lucide-react";
@@ -78,6 +79,7 @@ export default function TeacherDashboardPage() {
   const [todayHoliday, setTodayHoliday] = useState<Holiday | null>(null);
   const [loading, setLoading] = useState(true);
   const [signingOut, setSigningOut] = useState(false);
+  const [confirmingLogout, setConfirmingLogout] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const month = currentMonth();
 
@@ -117,6 +119,8 @@ export default function TeacherDashboardPage() {
   }, []);
 
   const handleLogout = async () => {
+    if (signingOut) return;
+    setConfirmingLogout(false);
     setSigningOut(true);
     try {
       await signOutAndClear();
@@ -158,7 +162,7 @@ export default function TeacherDashboardPage() {
           <button
             type="button"
             className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-[#e0e3f0] bg-[#f8f8fc] px-3 py-2.5 text-sm font-bold text-[#353864] transition hover:border-[#c8ccef] hover:bg-[#f0f1fb] disabled:cursor-not-allowed disabled:opacity-60"
-            onClick={handleLogout}
+            onClick={() => setConfirmingLogout(true)}
             disabled={signingOut}
           >
             <LogOut size={17} />
@@ -215,6 +219,12 @@ export default function TeacherDashboardPage() {
           <AttendanceCalendar records={monthRecords} month={month} holidays={holidays} />
         </article>
       </section>
+      <LogoutConfirmDialog
+        open={confirmingLogout}
+        busy={signingOut}
+        onCancel={() => setConfirmingLogout(false)}
+        onConfirm={() => void handleLogout()}
+      />
     </main>
   );
 }

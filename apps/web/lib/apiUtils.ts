@@ -16,13 +16,24 @@ import { roleHasAllPermissions, roleHasAnyPermission, roleHasPermission } from "
 export async function resolveRole(decodedToken: DecodedIdToken): Promise<Role | undefined> {
   const claimRole = decodedToken.role;
   const fallbackRole = isValidRole(claimRole) ? claimRole : undefined;
+  // Short TTL cache: every authenticated API call otherwise costs a users/{uid}
+  // doc read. 60s keeps admin role edits effective within a minute.
+  const cached = readCachedRole(decodedToken.uid);
+  if (cached !== null) {
+    if (cached !== undefined) {
+      (decodedToken as { role?: string }).role = cached;
+      return cached;
+    }
+  }
   try {
     const snapshot = await adminDb().collection("users").doc(decodedToken.uid).get();
     const docRole = snapshot.exists ? (snapshot.data() as { role?: unknown })?.role : undefined;
     if (isValidRole(docRole)) {
       (decodedToken as { role?: string }).role = docRole;
+      cacheRole(decodedToken.uid, docRole);
       return docRole;
     }
+    cacheRole(decodedToken.uid, undefined);
   } catch {
     // Firestore unavailable — fall back to the refreshed token claim.
   }
@@ -30,6 +41,32 @@ export async function resolveRole(decodedToken: DecodedIdToken): Promise<Role | 
     (decodedToken as { role?: string }).role = fallbackRole;
   }
   return fallbackRole;
+}
+
+// uid → { role (undefined = doc had no valid role), expiresAt }. Module-level
+// memory only: each server instance holds its own small map; entries die in 60s.
+const ROLE_CACHE_TTL_MS = 60_000;
+const roleCache = new Map<string, { role: Role | undefined; expiresAt: number }>();
+
+function readCachedRole(uid: string): Role | undefined | null {
+  const entry = roleCache.get(uid);
+  if (!entry) return null;
+  if (entry.expiresAt <= Date.now()) {
+    roleCache.delete(uid);
+    return null;
+  }
+  return entry.role;
+}
+
+function cacheRole(uid: string, role: Role | undefined): void {
+  if (roleCache.size > 2000) roleCache.clear();
+  roleCache.set(uid, { role, expiresAt: Date.now() + ROLE_CACHE_TTL_MS });
+}
+
+/** Clears the in-memory role cache (tests, or after an admin edits roles). */
+export function invalidateRoleCache(uid?: string): void {
+  if (uid) roleCache.delete(uid);
+  else roleCache.clear();
 }
 
 export async function requireAdmin(req: Request): Promise<DecodedIdToken | null> {

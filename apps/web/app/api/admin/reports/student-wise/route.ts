@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { adminDb } from "@/lib/firebaseAdmin";
 import { requirePermission, json } from "@/lib/apiUtils";
+import { firestoreQuotaResponse, isFirestoreQuotaPaused } from "@/lib/firebaseErrors";
 import { logFirestoreRead, readLimit } from "@/lib/firestoreReadLogger";
 
 export const dynamic = "force-dynamic";
@@ -21,6 +22,10 @@ export async function GET(request: NextRequest) {
   try {
     const auth = await requirePermission(request, "reports.view");
     if (!auth) return json({ success: false, error: "Unauthorized" }, { status: 401 });
+
+    if (isFirestoreQuotaPaused()) {
+      return firestoreQuotaResponse();
+    }
 
     const db = adminDb();
     const searchParams = request.nextUrl.searchParams;

@@ -30,7 +30,7 @@ export async function GET() {
   }
 
   try {
-    const snapshot = await adminDb().collection(COLLECTION).orderBy("startDate", "desc").get();
+    const snapshot = await adminDb().collection(COLLECTION).orderBy("startDate", "desc").limit(50).get();
     const years: PublicYear[] = snapshot.docs.map((doc) => {
       const data = doc.data();
       return {

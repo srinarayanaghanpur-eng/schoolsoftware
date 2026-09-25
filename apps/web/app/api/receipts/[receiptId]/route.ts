@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import type { Role } from "@sri-narayana/shared";
-import { verifyBearerToken } from "@/lib/firebaseAdmin";
+import { adminDb, verifyBearerToken } from "@/lib/firebaseAdmin";
 import { resolveRole } from "@/lib/apiUtils";
 import { getLinkedStudentIds } from "@/lib/portalHelpers";
 import { createReceiptFromPayment, getReceiptById, markReceiptPrinted } from "@/lib/receiptService";
@@ -21,6 +21,21 @@ export async function GET(req: Request, { params }: { params: { receiptId: strin
     receipt = await createReceiptFromPayment(params.receiptId, token).catch(() => null);
   }
   if (!receipt) return NextResponse.json({ ok: false, error: "Receipt not found" }, { status: 404 });
+
+  // Cancelled receipts are gone from the query: never serve/print them.
+  // Checks the stamped status plus the live payment (covers receipts issued
+  // before the stamp existed).
+  const receiptStatus = String((receipt as unknown as Record<string, unknown>).status ?? "issued");
+  if (receiptStatus === "cancelled") {
+    return NextResponse.json({ ok: false, error: "This receipt was cancelled and is no longer available." }, { status: 410 });
+  }
+  const paymentId = String((receipt as unknown as Record<string, unknown>).paymentId ?? "");
+  if (paymentId) {
+    const paySnap = await adminDb().collection("payments").doc(paymentId).get().catch(() => null);
+    if (paySnap?.exists && String((paySnap.data() as Record<string, unknown>)?.status ?? "") === "cancelled") {
+      return NextResponse.json({ ok: false, error: "This receipt was cancelled and is no longer available." }, { status: 410 });
+    }
+  }
 
   if (await roleHasPermission(role, "fees.view")) {
     return NextResponse.json({ ok: true, receipt, canPrint });

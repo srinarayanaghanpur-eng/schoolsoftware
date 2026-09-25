@@ -3,10 +3,11 @@
 import { PageHeader } from "@/components/PageHeader";
 import { PasswordInput } from "@/components/PasswordInput";
 import { ActionMenu } from "@/components/ActionMenu";
+import { usePopup } from "@/components/CenterPopup";
 import { useAdminSession } from "@/components/AdminSessionContext";
 import { auth, isFirebaseConfigured } from "@sri-narayana/shared/firebase/client";
 import { demoTeachers, formatLabel, type Teacher } from "@sri-narayana/shared";
-import { CheckCircle2, Edit3, KeyRound, Plus, Search, UserX, X } from "lucide-react";
+import { CheckCircle2, Edit3, KeyRound, Plus, Search, Trash2, UserX, X } from "lucide-react";
 import type { FormEvent } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { useRefreshOnFocus } from "@/lib/useRefreshOnFocus";
@@ -74,6 +75,7 @@ function teacherPayload(form: TeacherFormState, includePassword: boolean) {
 
 export default function TeachersPage() {
   const { role } = useAdminSession();
+  const toast = usePopup();
   const canManageTeachers = role === "super_admin";
   const [query, setQuery] = useState("");
   const [teachers, setTeachers] = useState<Teacher[]>(isFirebaseConfigured ? [] : demoTeachers);
@@ -83,8 +85,16 @@ export default function TeachersPage() {
   const [resetTeacher, setResetTeacher] = useState<Teacher | null>(null);
   const [resetPassword, setResetPassword] = useState({ password: "", confirmPassword: "" });
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(false);
+  const [debouncedQuery, setDebouncedQuery] = useState("");
+
+  // Debounce search so typing hits the server once per pause, not per keystroke.
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedQuery(query.trim()), 350);
+    return () => window.clearTimeout(timer);
+  }, [query]);
 
   const filteredTeachers = useMemo(() => {
     const term = query.trim().toLowerCase();
@@ -115,32 +125,44 @@ export default function TeachersPage() {
     return result;
   };
 
-  const loadTeachers = async () => {
+  const loadTeachers = async (cursor?: string | null, append = false) => {
     if (!isFirebaseConfigured) return;
-    setLoading(true);
-    setError(null);
+    if (append) {
+      if (loadingMore || !hasMore) return;
+      setLoadingMore(true);
+    } else {
+      setLoading(true);
+    }
+
     try {
-      const result = await apiRequest<{ teachers: Teacher[] }>("/api/admin/teachers");
-      setTeachers(result.teachers);
+      const params = new URLSearchParams({ pageSize: "50" });
+      if (debouncedQuery) params.set("q", debouncedQuery);
+      if (append && cursor) params.set("cursor", cursor);
+      const result = await apiRequest<{ teachers: Teacher[]; nextCursor?: string | null; hasMore?: boolean }>(
+        `/api/admin/teachers?${params}`
+      );
+      setTeachers((prev) => (append ? [...prev, ...(result.teachers ?? [])] : (result.teachers ?? [])));
+      setNextCursor(result.nextCursor ?? null);
+      setHasMore(Boolean(result.hasMore));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to load teachers");
+      if (!append) toast.error("Unable to load teachers", err instanceof Error ? err.message : undefined);
     } finally {
-      setLoading(false);
+      if (append) setLoadingMore(false);
+      else setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadTeachers();
-  }, []);
-  useRefreshOnFocus(loadTeachers);
+    void loadTeachers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedQuery]);
+  useRefreshOnFocus(() => { void loadTeachers(); });
 
   const startCreate = () => {
     if (!canManageTeachers) return;
     setEditingTeacher(null);
     setForm(blankForm);
     setShowForm(true);
-    setMessage(null);
-    setError(null);
   };
 
   const startEdit = (teacher: Teacher) => {
@@ -148,8 +170,6 @@ export default function TeachersPage() {
     setEditingTeacher(teacher);
     setForm(formFromTeacher(teacher));
     setShowForm(true);
-    setMessage(null);
-    setError(null);
   };
 
   const closeForm = () => {
@@ -161,8 +181,6 @@ export default function TeachersPage() {
   const submitTeacher = async (event: FormEvent) => {
     event.preventDefault();
     setLoading(true);
-    setError(null);
-    setMessage(null);
     try {
       if (!isFirebaseConfigured) {
         throw new Error("Firebase web config is required before creating teacher logins.");
@@ -173,18 +191,18 @@ export default function TeachersPage() {
           method: "PATCH",
           body: JSON.stringify({ teacher: teacherPayload(form, false) })
         });
-        setMessage(result.message ?? "Teacher details updated.");
+        toast.success(result.message ?? "Teacher details updated.");
       } else {
         const result = await apiRequest<{ message?: string }>("/api/admin/teachers", {
           method: "POST",
           body: JSON.stringify({ teacher: teacherPayload(form, true) })
         });
-        setMessage(result.message ?? "Teacher login and Firestore profile created.");
+        toast.success(result.message ?? "Teacher login and Firestore profile created.");
       }
       closeForm();
       await loadTeachers();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to save teacher");
+      toast.error("Unable to save teacher", err instanceof Error ? err.message : undefined);
     } finally {
       setLoading(false);
     }
@@ -193,8 +211,6 @@ export default function TeachersPage() {
   const toggleStatus = async (teacher: Teacher) => {
     if (!canManageTeachers) return;
     setLoading(true);
-    setError(null);
-    setMessage(null);
     try {
       const result = await apiRequest<{ message?: string }>(`/api/admin/teachers/${teacher.id}`, {
         method: "PATCH",
@@ -210,10 +226,10 @@ export default function TeachersPage() {
           }
         })
       });
-      setMessage(result.message ?? (teacher.status === "active" ? "Teacher deactivated." : "Teacher activated."));
+      toast.success(result.message ?? (teacher.status === "active" ? "Teacher deactivated." : "Teacher activated."));
       await loadTeachers();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to update status");
+      toast.error("Unable to update status", err instanceof Error ? err.message : undefined);
     } finally {
       setLoading(false);
     }
@@ -223,8 +239,6 @@ export default function TeachersPage() {
     event.preventDefault();
     if (!resetTeacher) return;
     setLoading(true);
-    setError(null);
-    setMessage(null);
     try {
       const result = await apiRequest<{ message?: string }>(`/api/admin/teachers/${resetTeacher.id}/reset-password`, {
         method: "POST",
@@ -232,9 +246,29 @@ export default function TeachersPage() {
       });
       setResetTeacher(null);
       setResetPassword({ password: "", confirmPassword: "" });
-      setMessage(result.message ?? "Teacher password reset in Firebase Auth.");
+      toast.success(result.message ?? "Teacher password reset in Firebase Auth.");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to reset password");
+      toast.error("Unable to reset password", err instanceof Error ? err.message : undefined);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const deleteTeacher = async (teacher: Teacher) => {
+    if (!canManageTeachers) return;
+    const ok = await toast.confirm(
+      `Permanently delete ${teacher.fullName}?`,
+      `${teacher.employeeId}. Their login will be removed. Attendance history is kept.`,
+      { okLabel: "Delete", danger: true }
+    );
+    if (!ok) return;
+    setLoading(true);
+    try {
+      await apiRequest(`/api/admin/teachers/${teacher.id}`, { method: "DELETE" });
+      toast.success("Teacher deleted.");
+      await loadTeachers();
+    } catch (err) {
+      toast.error("Unable to delete teacher", err instanceof Error ? err.message : undefined);
     } finally {
       setLoading(false);
     }
@@ -260,9 +294,6 @@ export default function TeachersPage() {
             Firebase web config is not set yet. Add Teacher Login needs Firebase Auth and Admin credentials.
           </div>
         )}
-        {message && <div className="rounded-2xl border border-[#c8f0dc] bg-[#e6f8ef] px-4 py-3 text-sm font-semibold text-[#0f8d52]">{message}</div>}
-        {error && <div className="rounded-2xl border border-[#ffd5da] bg-[#ffebed] px-4 py-3 text-sm font-semibold text-[#c83f4d]">{error}</div>}
-
         {showForm && (
           <form onSubmit={submitTeacher} className="card p-4">
             <div className="mb-4 flex items-start justify-between gap-4">
@@ -398,6 +429,7 @@ export default function TeachersPage() {
                         { label: "Edit", icon: Edit3, onClick: () => startEdit(teacher), disabled: !isFirebaseConfigured || loading },
                         { label: "Reset password", icon: KeyRound, onClick: () => setResetTeacher(teacher), disabled: !isFirebaseConfigured || loading },
                         { label: teacher.status === "active" ? "Deactivate" : "Activate", icon: teacher.status === "active" ? UserX : CheckCircle2, onClick: () => toggleStatus(teacher), disabled: !isFirebaseConfigured || loading },
+                        { label: "Delete", icon: Trash2, destructive: true, onClick: () => deleteTeacher(teacher), disabled: !isFirebaseConfigured || loading },
                       ]}
                     />
                   )}
@@ -466,6 +498,9 @@ export default function TeachersPage() {
                           {teacher.status === "active" ? <UserX size={15} /> : <CheckCircle2 size={15} />}
                           {teacher.status === "active" ? "Deactivate" : "Activate"}
                         </button>
+                        <button className="btn-secondary !text-[#ed515d]" onClick={() => deleteTeacher(teacher)} disabled={!isFirebaseConfigured || loading}>
+                          <Trash2 size={15} /> Delete
+                        </button>
                       </div>
                     ) : (
                       <span className="text-sm font-medium text-[#9aa4c4]">View only</span>
@@ -483,6 +518,19 @@ export default function TeachersPage() {
             </tbody>
           </table>
         </div>
+
+        {hasMore && (
+          <div className="mt-4 text-center">
+            <button
+              type="button"
+              className="btn-secondary"
+              disabled={loadingMore}
+              onClick={() => void loadTeachers(nextCursor, true)}
+            >
+              {loadingMore ? "Loading…" : `Load more (${teachers.length} shown)`}
+            </button>
+          </div>
+        )}
       </section>
     </>
   );

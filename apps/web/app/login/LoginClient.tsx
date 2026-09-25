@@ -26,6 +26,10 @@ import {
 } from "lucide-react";
 
 const SCHOOL_NAME = "SRI NARAYANA HIGH SCHOOL";
+const SCHOOL_DISPLAY_NAME = "Sri Narayana High School";
+const PRODUCT_NAME = "NarayanaOS";
+const ACCESS_NOTE = "Authorized Access Only";
+const FOOTER_LINE = "© 2026 Sri Narayana High School · Powered by NarayanaOS";
 const SCHOOL_LOGO_SRC = "/sri-narayana-high-school-logo.jpg";
 
 type LoginIdCheckStatus = "empty" | "checking" | "matched" | "unknown";
@@ -39,6 +43,22 @@ const PUBLIC_ACADEMIC_YEARS_CACHE_KEY = "sriNarayana.publicAcademicYears";
 const PUBLIC_ACADEMIC_YEARS_FETCHED_SESSION_KEY = "sriNarayana.publicAcademicYearsFetched";
 const ACTIVE_ACADEMIC_YEAR_STORAGE_KEY = "sriNarayana.activeAcademicYearId";
 const ACADEMIC_YEARS_TIMEOUT_MS = 5_000;
+
+// Short-lived memory cache for login-ID existence checks: typing "S→SN→SNH→SNHS"
+// otherwise fires one API call (2 Firestore reads) per keystroke. Entries live
+// 60s — long enough to cover a typing session, short enough to stay truthful.
+const LOGIN_ID_CHECK_TTL_MS = 60_000;
+const loginIdCheckCache = new Map<string, { exists: boolean; expiresAt: number }>();
+
+function readLoginIdCheckCache(normalizedLoginId: string): boolean | null {
+  const entry = loginIdCheckCache.get(normalizedLoginId);
+  if (!entry) return null;
+  if (entry.expiresAt <= Date.now()) {
+    loginIdCheckCache.delete(normalizedLoginId);
+    return null;
+  }
+  return entry.exists;
+}
 
 type Feature = {
   title: string;
@@ -344,9 +364,10 @@ function LeftBrandPanel() {
       </svg>
       <div className="relative z-10 grid h-full grid-rows-[auto_minmax(0,1fr)_auto] gap-3">
         <div className="text-center">
-          <SchoolLogo id="school-logo-desktop" className="mx-auto h-[86px] w-[86px] xl:h-[96px] xl:w-[96px]" />
-          <h1 className="mt-2 text-[20px] font-extrabold leading-tight tracking-[-0.035em] drop-shadow-sm xl:text-[22px]">{SCHOOL_NAME}</h1>
-          <p className="mt-1.5 text-[13px] font-bold tracking-[0.02em] text-[#ffd23f]">Integrated School Management System</p>
+          <SchoolLogo id="school-logo-desktop" className="mx-auto h-16 w-16" />
+          <h1 className="mt-2 text-[20px] font-extrabold leading-tight tracking-[-0.035em] drop-shadow-sm xl:text-[22px]">{PRODUCT_NAME}</h1>
+          <p className="mt-1 text-[13px] font-semibold tracking-[0.02em] text-white/90">{SCHOOL_DISPLAY_NAME}</p>
+          <p className="mx-auto mt-2 inline-block rounded-full border border-white/30 px-3 py-1 text-[11px] font-bold tracking-[0.08em] text-[#ffd23f]">{ACCESS_NOTE}</p>
           <div className="mx-auto mt-2.5 h-0.5 w-10 rounded-full bg-[#ffd23f]/70" />
           <p className="mx-auto mt-2.5 max-w-[300px] text-[12.5px] font-medium leading-5 text-white/85">
             Managing Students, Staff, Academics, Finance and Communication — All in One Place.
@@ -583,6 +604,12 @@ function useTeacherLoginController() {
 
     if (initialStatus !== "checking") return;
 
+    const cachedExists = readLoginIdCheckCache(normalizedLoginId);
+    if (cachedExists !== null) {
+      setLoginIdCheckStatus(cachedExists ? "matched" : "unknown");
+      return;
+    }
+
     const controller = new AbortController();
     const timeout = window.setTimeout(() => {
       fetch(`/api/login-id/check?loginId=${encodeURIComponent(normalizedLoginId)}`, {
@@ -599,7 +626,9 @@ function useTeacherLoginController() {
           }
         })
         .then((result: { exists?: boolean }) => {
-          setLoginIdCheckStatus(result.exists ? "matched" : "unknown");
+          const exists = result.exists === true;
+          loginIdCheckCache.set(normalizedLoginId, { exists, expiresAt: Date.now() + LOGIN_ID_CHECK_TTL_MS });
+          setLoginIdCheckStatus(exists ? "matched" : "unknown");
         })
         .catch((error) => {
           if ((error as Error).name !== "AbortError") {
@@ -719,8 +748,15 @@ function AcademicYearSelect({
   onRetry: () => void;
   variant: "desktop" | "mobile";
 }) {
-  const selectedYearExists = Boolean(selectedYearId && years.some((year) => year.id === selectedYearId));
-  const showStoredSelection = Boolean(selectedYearId && !selectedYearExists);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+  // Server renders no localStorage-backed years; client hydrates with cached
+  // years + stored selection. Defer year options until after mount so SSR and
+  // first client paint match (fixes hydration mismatch, BUG-005).
+  const visibleYears = mounted ? years : [];
+  const visibleSelectedId = mounted ? selectedYearId : "";
+  const selectedYearExists = Boolean(visibleSelectedId && visibleYears.some((year) => year.id === visibleSelectedId));
+  const showStoredSelection = Boolean(visibleSelectedId && !selectedYearExists);
   const helperText = loading ? "Syncing academic years..." : syncMessage;
   const helperTone = syncStatus === "error" || syncStatus === "slow" ? "text-amber-700 dark:text-amber-300" : "text-stone-500 dark:text-[#8b94b8]";
 
@@ -729,23 +765,24 @@ function AcademicYearSelect({
       className={
         variant === "desktop"
           ? `h-[52px] w-full appearance-none rounded-[14px] border bg-white/85 pl-[54px] pr-[52px] text-[16px] font-semibold text-stone-950 shadow-[0_10px_24px_rgba(15,23,42,0.04)] outline-none transition duration-300 focus:border-[#3033a1] focus:bg-white focus:shadow-[0_16px_32px_rgba(48,51,161,0.12)] focus:ring-4 focus:ring-[#3033a1]/10 ${
-              selectedYearId ? "border-[#6f78c4]" : "border-stone-300"
+              visibleSelectedId ? "border-[#6f78c4]" : "border-stone-300"
             }`
           : "h-full min-w-0 flex-1 appearance-none bg-transparent pl-3 pr-2 text-base font-semibold text-slate-950 outline-none"
       }
-      value={selectedYearId}
+      value={visibleSelectedId}
       onChange={(event) => onChange(event.target.value)}
       aria-label="Academic year"
+      suppressHydrationWarning
     >
       <option value="">
         Current Academic Year
       </option>
       {showStoredSelection && (
-        <option value={selectedYearId}>
+        <option value={visibleSelectedId}>
           {selectedYearName || "Last selected academic year"}
         </option>
       )}
-      {years.map((year) => (
+      {visibleYears.map((year) => (
         <option key={year.id} value={year.id}>
           {year.name}
           {year.isActive ? " (current)" : ""}
@@ -761,14 +798,14 @@ function AcademicYearSelect({
           <CalendarCheck className="pointer-events-none absolute left-5 top-1/2 h-5 w-5 -translate-y-1/2 text-stone-500 transition group-focus-within:text-[#3033a1]" />
           {select}
           <div className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2">
-            {loading ? (
+            {!mounted ? null : loading ? (
               <span className="block h-5 w-5 animate-spin rounded-full border-2 border-[#c7caf0] border-t-[#3033a1]" aria-hidden="true" />
-            ) : selectedYearId ? (
+            ) : visibleSelectedId ? (
               <Check className="h-6 w-6 text-[#3033a1]" strokeWidth={3} />
             ) : null}
           </div>
         </label>
-        {helperText && (
+        {mounted && helperText && (
           <div className={`mt-2 flex items-center justify-between gap-3 text-xs font-semibold ${helperTone}`}>
             <span>{helperText}</span>
             {syncStatus !== "syncing" && (
@@ -787,14 +824,14 @@ function AcademicYearSelect({
       <span className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Academic Year</span>
       <div
         className={`mt-2 flex h-14 items-center rounded-2xl border bg-white px-4 shadow-[0_12px_28px_rgba(15,23,42,0.06)] transition focus-within:border-[#3033a1] focus-within:ring-4 focus-within:ring-[#3033a1]/10 ${
-          selectedYearId ? "border-[#6f78c4]" : "border-stone-200"
+          visibleSelectedId ? "border-[#6f78c4]" : "border-stone-200"
         }`}
       >
         <CalendarCheck className="h-5 w-5 shrink-0 text-slate-500" />
         {select}
-        {loading && <span className="ml-2 h-4 w-4 animate-spin rounded-full border-2 border-[#c7caf0] border-t-[#3033a1]" aria-hidden="true" />}
+        {mounted && loading && <span className="ml-2 h-4 w-4 animate-spin rounded-full border-2 border-[#c7caf0] border-t-[#3033a1]" aria-hidden="true" />}
       </div>
-      {helperText && (
+      {mounted && helperText && (
         <div className={`mt-2 flex items-center justify-between gap-2 text-[11px] font-semibold ${helperTone}`}>
           <span>{helperText}</span>
           {syncStatus !== "syncing" && (
@@ -921,6 +958,7 @@ function DesktopLoginExperience() {
               <LogIn className="h-6 w-6 transition group-hover:translate-x-0.5" />
               {loading ? "Signing in..." : "Login"}
             </button>
+            <p className="mt-5 text-center text-xs font-medium text-stone-500 dark:text-[#8b94b8]">{FOOTER_LINE}</p>
           </form>
         </div>
       </div>
@@ -1019,9 +1057,10 @@ function MobileLoginExperience() {
       </div>
       <div className="relative z-10 mx-auto flex h-screen w-full max-w-[358px] flex-col overflow-hidden">
         <header className="shrink-0 pt-4 text-center text-white">
-          <SchoolLogo id="school-logo-mobile-login" className="mx-auto h-[90px] w-[90px]" />
-          <h1 className="mt-3 text-[18px] font-extrabold leading-tight tracking-[-0.03em]">{SCHOOL_NAME}</h1>
-          <p className="mt-1 text-[11px] font-bold tracking-[0.02em] text-[#ffd23f]">Integrated School Management System</p>
+          <SchoolLogo id="school-logo-mobile-login" className="mx-auto h-16 w-16" />
+          <h1 className="mt-3 text-[18px] font-extrabold leading-tight tracking-[-0.03em]">{PRODUCT_NAME}</h1>
+          <p className="mt-1 text-[12px] font-semibold tracking-[0.02em] text-white/90">{SCHOOL_DISPLAY_NAME}</p>
+          <p className="mt-1.5 inline-block rounded-full border border-white/30 px-3 py-0.5 text-[10px] font-bold tracking-[0.08em] text-[#ffd23f]">{ACCESS_NOTE}</p>
           <p className="mt-1 text-[11px] font-medium leading-4 text-white/85">Managing Students, Staff, Academics, Finance and Communication — All in One Place.</p>
         </header>
 
@@ -1113,27 +1152,34 @@ function MobileLoginExperience() {
         <p className="mx-auto shrink-0 mt-2 max-w-sm rounded-2xl bg-white/75 px-3 py-2 text-center text-xs font-semibold leading-4 text-slate-500 shadow-sm dark:bg-[#1a1c26]/75 dark:text-[#8b94b8]">
           For GPS attendance marking, use the Sri Narayana mobile app in campus.
         </p>
+        <p className="mx-auto shrink-0 mt-2 pb-2 text-center text-[11px] font-medium text-slate-500 dark:text-[#8b94b8]">
+          {FOOTER_LINE}
+        </p>
       </div>
     </section>
   );
 }
 
 function LoginForm() {
-  const [isDesktop, setIsDesktop] = useState(() =>
-    typeof window === "undefined" ? true : window.matchMedia("(min-width: 1024px)").matches
-  );
+  // Server always renders desktop. Client keeps that for the first paint
+  // (hydration match) and switches to the real viewport after mount.
+  // Reading matchMedia during the first render breaks hydration on any
+  // window narrower than 1024px (or zoomed), discarding the whole page.
+  const [isDesktop, setIsDesktop] = useState(true);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     const media = window.matchMedia("(min-width: 1024px)");
     const update = () => setIsDesktop(media.matches);
     update();
+    setMounted(true);
     media.addEventListener("change", update);
     return () => media.removeEventListener("change", update);
   }, []);
 
   return (
-    <main className="min-h-screen bg-[#F5F7FF] text-[#0F172A] dark:bg-[#0f1117] dark:text-[#e2e4ec]">
-      {isDesktop ? <DesktopLoginExperience /> : <MobileLoginExperience />}
+    <main className="min-h-screen bg-[#F5F7FF] text-[#0F172A] dark:bg-[#0f1117] dark:text-[#e2e4ec]" suppressHydrationWarning>
+      {!mounted || isDesktop ? <DesktopLoginExperience /> : <MobileLoginExperience />}
     </main>
   );
 }

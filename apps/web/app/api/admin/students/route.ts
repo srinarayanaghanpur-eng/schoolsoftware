@@ -39,6 +39,9 @@ export async function GET(request: NextRequest) {
     const classId = searchParams.get("classId") || classStr || "";
     const sectionId = searchParams.get("sectionId") || section || "";
     const status = searchParams.get("status") || "";
+    // Soft-delete default: archived students stay out of every list unless the
+    // caller explicitly asks for them (status=archived) or for all (status=all).
+    const statusFilter = status === "all" ? "" : status || "active";
     const q = searchParams.get("q")?.trim() || "";
     const pageSize = readLimit(searchParams.get("pageSize") ?? searchParams.get("limit"), 25, 100);
     const cursor = docCursor(searchParams.get("cursor"));
@@ -50,7 +53,7 @@ export async function GET(request: NextRequest) {
       if (academicYearId) scoped = scoped.where("academicYearId", "==", academicYearId);
       if (classId) scoped = scoped.where("class", "==", classId);
       if (sectionId) scoped = scoped.where("section", "==", sectionId);
-      if (status) scoped = scoped.where("status", "==", status);
+      if (statusFilter && statusFilter !== "active") scoped = scoped.where("status", "==", statusFilter);
       return scoped;
     };
 
@@ -112,6 +115,14 @@ export async function GET(request: NextRequest) {
     }
     logFirestoreRead("StudentsAPI", "students", snapshot, { schoolId, branchId, academicYearId, classId, sectionId, status, q: q || "none", pageSize });
     let docs = snapshot.docs;
+    // "active" is the default view: legacy docs may predate the status field,
+    // so missing status counts as active (archived is always set explicitly).
+    if (!statusFilter || statusFilter === "active") {
+      docs = docs.filter((d) => {
+        const s = (d.data() as Record<string, unknown>).status;
+        return s === undefined || s === "active";
+      });
+    }
     if (sortedInMemory) {
       const key = q && !/^\d{6,}$/.test(normalizeText(q)) && !(/^[a-z]*[-/]?\d+$/i.test(q) || /^\d+$/.test(q))
         ? "studentNameLower" : "admissionNumber";
@@ -122,10 +133,14 @@ export async function GET(request: NextRequest) {
       }
     }
     const pageDocs = canUseCursorPaging && !sortedInMemory ? docs.slice(0, pageSize) : docs.slice(0, sortedInMemory ? pageSize : docs.length);
-    const students = pageDocs.map((doc: { id: string; data: () => any }) => ({
-      id: doc.id,
-      ...doc.data()
-    }));
+    // Latency/quota saver (Spark plan): photo + document data URLs live inside
+    // the doc (no Storage on Spark) and can be ~100KB–1MB per student. Strip
+    // them from LIST payloads — the edit/detail view fetches the full doc by
+    // id when needed. Everything else stays for table/edit prefill.
+    const students = pageDocs.map((doc: { id: string; data: () => any }) => {
+      const { photoURL: _photo, documentURLs: _docs, ...rest } = doc.data() as Record<string, unknown>;
+      return { id: doc.id, ...rest };
+    });
 
     const nextCursor = canUseCursorPaging && !sortedInMemory && snapshot.docs.length > pageSize && pageDocs.length > 0
       ? pageDocs[pageDocs.length - 1].id

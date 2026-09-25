@@ -23,40 +23,38 @@ export async function GET(req: Request) {
 
     const { searchParams } = new URL(req.url);
     const query = searchParams.get("q")?.trim().toLowerCase() ?? "";
-    const limit = 50; // Pagination reduces network transfer
+    const rawPageSize = Number(searchParams.get("pageSize") ?? "50");
+    const limit = Math.min(Math.max(Number.isFinite(rawPageSize) ? rawPageSize : 50, 1), 100);
+    const cursor = searchParams.get("cursor")?.trim() ?? "";
 
     const db = adminDb();
-    let snapshot;
+    let baseQuery = db
+      .collection("teachers")
+      .orderBy("fullName");
 
-    if (!query) {
-      // No search - return first 50 ordered by name (fast)
-      snapshot = await db
-        .collection("teachers")
-        .orderBy("fullName")
-        .limit(limit)
-        .get();
-    } else {
-      // For search, use range queries instead of loading all documents
-      // This is more efficient than client-side filtering
-      snapshot = await db
-        .collection("teachers")
-        .orderBy("fullName")
-        .startAt(query)
-        .endAt(query + "\uf8ff")
-        .limit(limit)
-        .get();
+    if (query) {
+      // Prefix range on the ordered field keeps the read bounded server-side.
+      baseQuery = baseQuery.startAt(query).endAt(query + "\uf8ff");
     }
+    if (cursor) {
+      const cursorSnap = await db.collection("teachers").doc(cursor).get();
+      if (cursorSnap.exists) baseQuery = baseQuery.startAfter(cursorSnap);
+    }
+    const snapshot = await baseQuery.limit(limit + 1).get();
 
     const teachers = snapshot.docs
+      .slice(0, limit)
       .map(serializeTeacherDoc)
       .filter((teacher) => {
         if (!query) return true;
-        // Only do client-side filtering for employeeId and subject if fullName didn't match
-        return `${teacher.employeeId} ${teacher.subject}`.toLowerCase().includes(query);
-      })
-      .slice(0, limit);
+        // Range scan matches name prefixes; also accept employee/subject hits.
+        return `${teacher.fullName} ${teacher.employeeId} ${teacher.subject}`.toLowerCase().includes(query);
+      });
 
-    return json({ ok: true, teachers, count: teachers.length, limit });
+    const hasMore = snapshot.docs.length > limit;
+    const nextCursor = hasMore ? snapshot.docs[limit - 1]?.id ?? null : null;
+
+    return json({ ok: true, teachers, count: teachers.length, limit, hasMore, nextCursor });
   } catch (error) {
     return firestoreErrorResponse(error, "Unable to load teachers", 400);
   }

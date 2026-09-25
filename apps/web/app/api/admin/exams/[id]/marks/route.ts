@@ -15,9 +15,14 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
   const token = await requirePermission(req, "exams.view");
   if (!token) return json({ ok: false, error: "Access denied" }, { status: 403 });
 
-  const snap = await adminDb().collection(MARKS).where("examId", "==", params.id).limit(5000).get();
-  const marks = snap.docs.map((doc) => serializeDoc(doc));
-  return json({ ok: true, marks });
+  try {
+    const snap = await adminDb().collection(MARKS).where("examId", "==", params.id).limit(5000).get();
+    const marks = snap.docs.map((doc) => serializeDoc(doc));
+    return json({ ok: true, marks });
+  } catch (error) {
+    console.error("[ExamsAPI] marks GET failed:", error instanceof Error ? error.message : error);
+    return json({ ok: false, error: "Unable to load marks" }, { status: 500 });
+  }
 }
 
 // POST /api/admin/exams/[id]/marks — bulk enter/update marks (upsert by student+subject).

@@ -249,6 +249,7 @@ export async function getReceiptsByStudent(studentId: string, pageSize = 25) {
   const snap = await adminDb().collection("receipts").where("studentId", "==", studentId).limit(Math.min(pageSize, 100)).get();
   return snap.docs
     .map((doc) => normalizeReceipt(doc.id, doc.data() as FirestoreRecord))
+    .filter((receipt) => String((receipt as unknown as Record<string, unknown>).status ?? "issued") !== "cancelled")
     .sort((left, right) => right.paymentDate.localeCompare(left.paymentDate));
 }
 
@@ -265,6 +266,7 @@ export async function createReceiptFromPayment(paymentId: string, token?: Partia
     const paymentSnap = await transaction.get(paymentRef);
     if (!paymentSnap.exists) throw new Error("Payment not found");
     const payment = paymentSnap.data() as FirestoreRecord;
+    if (String(payment.status ?? "") === "cancelled") throw new Error("Payment was cancelled — receipt unavailable");
     const studentRef = db.collection("students").doc(String(payment.studentId || ""));
     const studentSnap = await transaction.get(studentRef);
     if (!studentSnap.exists) throw new Error("Student not found");

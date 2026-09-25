@@ -1,5 +1,6 @@
 import { adminDb } from "@/lib/firebaseAdmin";
 import { requirePermission, json } from "@/lib/apiUtils";
+import { firestoreQuotaResponse, isFirestoreQuotaPaused } from "@/lib/firebaseErrors";
 import { docDateKey, inRange } from "@/lib/financeUtils";
 import { logFirestoreRead } from "@/lib/firestoreReadLogger";
 
@@ -8,6 +9,10 @@ import { logFirestoreRead } from "@/lib/firestoreReadLogger";
 export async function GET(req: Request) {
   const token = await requirePermission(req, "fees.view");
   if (!token) return json({ ok: false, error: "Access denied" }, { status: 403 });
+
+  if (isFirestoreQuotaPaused()) {
+    return firestoreQuotaResponse();
+  }
 
   const { searchParams } = new URL(req.url);
   const now = new Date();

@@ -3,6 +3,7 @@ import { adminDb } from "@/lib/firebaseAdmin";
 import { requirePermission, json } from "@/lib/apiUtils";
 import { createApprovalRequest } from "@/lib/approvalEngine";
 import { writeAuditLog } from "@/lib/auditLog";
+import { recalculateStudentFeeSummary } from "@/lib/feeRecalculation";
 
 const db = adminDb();
 
@@ -137,6 +138,12 @@ export async function PATCH(
             concessionStatus: 'approved',
             feeLastUpdated: new Date()
           });
+          // Approved concession must reduce dues immediately — rebuild summary.
+          try {
+            await recalculateStudentFeeSummary(concession.studentId, String(student.academicYearId || ""));
+          } catch (summaryError) {
+            console.error("Student summary recalc failed after concession approval:", summaryError);
+          }
         }
       }
 

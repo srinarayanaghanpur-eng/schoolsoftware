@@ -1,10 +1,11 @@
 "use client";
 
 import { PageHeader } from "@/components/PageHeader";
+import { usePopup } from "@/components/CenterPopup";
 import { useAdminSession } from "@/components/AdminSessionContext";
 import { AdminApiError, adminApiRequest } from "@/lib/adminApiClient";
 import { hasPermission } from "@sri-narayana/shared";
-import { Plus, X } from "lucide-react";
+import { Plus, Trash2, X } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 
 type Item = { id: string; name: string; category?: string; stock: number; unitPrice: number };
@@ -13,9 +14,10 @@ function inr(n: number) { return `₹${(n || 0).toLocaleString("en-IN")}`; }
 
 export default function InventoryPage() {
   const { role } = useAdminSession();
+  const toast = usePopup();
+  const canDelete = hasPermission(role, "inventory.delete");
   const [items, setItems] = useState<Item[]>([]);
   const [sales, setSales] = useState<Sale[]>([]);
-  const [error, setError] = useState("");
   const [iForm, setIForm] = useState({ name: "", category: "", stock: "", unitPrice: "" });
   const [sForm, setSForm] = useState({ itemId: "", qty: "", buyer: "" });
   const [showI, setShowI] = useState(false);
@@ -24,12 +26,18 @@ export default function InventoryPage() {
     try {
       const [i, s] = await Promise.all([adminApiRequest<{ items: Item[] }>("/api/admin/inventory/items"), adminApiRequest<{ sales: Sale[] }>("/api/admin/inventory/sales")]);
       setItems(i.items); setSales(s.sales);
-    } catch (e) { setError(e instanceof AdminApiError ? e.message : "Failed"); }
+    } catch (e) { toast.error("Failed to load inventory", e instanceof AdminApiError ? e.message : undefined); }
   }
   useEffect(() => { void load(); }, []);
 
-  async function addItem(e: FormEvent) { e.preventDefault(); try { await adminApiRequest("/api/admin/inventory/items", { method: "POST", body: JSON.stringify({ ...iForm, stock: Number(iForm.stock), unitPrice: Number(iForm.unitPrice) }) }); setIForm({ name: "", category: "", stock: "", unitPrice: "" }); setShowI(false); await load(); } catch (e) { setError(e instanceof AdminApiError ? e.message : "Failed"); } }
-  async function sell(e: FormEvent) { e.preventDefault(); try { await adminApiRequest("/api/admin/inventory/sales", { method: "POST", body: JSON.stringify({ ...sForm, qty: Number(sForm.qty) }) }); setSForm({ itemId: "", qty: "", buyer: "" }); await load(); } catch (e) { setError(e instanceof AdminApiError ? e.message : "Failed"); } }
+  async function addItem(e: FormEvent) { e.preventDefault(); try { await adminApiRequest("/api/admin/inventory/items", { method: "POST", body: JSON.stringify({ ...iForm, stock: Number(iForm.stock), unitPrice: Number(iForm.unitPrice) }) }); setIForm({ name: "", category: "", stock: "", unitPrice: "" }); setShowI(false); toast.success("Item added"); await load(); } catch (e) { toast.error("Failed to add item", e instanceof AdminApiError ? e.message : undefined); } }
+  async function sell(e: FormEvent) { e.preventDefault(); try { await adminApiRequest("/api/admin/inventory/sales", { method: "POST", body: JSON.stringify({ ...sForm, qty: Number(sForm.qty) }) }); setSForm({ itemId: "", qty: "", buyer: "" }); toast.success("Sale recorded"); await load(); } catch (e) { toast.error("Failed to record sale", e instanceof AdminApiError ? e.message : undefined); } }
+  async function delItem(x: Item) {
+    const ok = await toast.confirm(`Delete "${x.name}"?`, "This cannot be undone.", { okLabel: "Delete", danger: true });
+    if (!ok) return;
+    try { await adminApiRequest(`/api/admin/inventory/items/${x.id}`, { method: "DELETE" }); toast.success("Item deleted"); await load(); }
+    catch (e) { toast.error("Failed to delete item", e instanceof AdminApiError ? e.message : undefined); }
+  }
 
   if (!hasPermission(role, "inventory.view")) return <section className="p-7"><div className="card p-5 font-semibold text-[#ed515d]">Access denied.</div></section>;
 
@@ -37,7 +45,6 @@ export default function InventoryPage() {
     <>
       <PageHeader title="Inventory / School Store" description="Stock items and sales." />
       <section className="space-y-5 p-4 md:p-7">
-        {error && <div className="card border-l-4 border-l-[#ed515d] p-4 text-sm font-semibold text-[#ed515d]">{error}</div>}
         <div className="grid gap-5 xl:grid-cols-[1.4fr_1fr]">
           <article className="card overflow-x-auto">
             <div className="flex items-center justify-between px-4 py-3"><h2 className="font-bold text-[#1f2136]">Stock</h2><button className="btn-primary !px-2.5 !py-1.5 text-xs" onClick={() => setShowI((v) => !v)}>{showI ? <X size={14} /> : <Plus size={14} />}</button></div>
@@ -51,8 +58,8 @@ export default function InventoryPage() {
               </form>
             )}
             <table className="w-full text-left text-sm">
-              <thead className="bg-stone-50 text-xs uppercase text-stone-500"><tr><th className="px-3 py-3 sm:px-4">Item</th><th className="px-3 py-3 sm:px-4">Category</th><th className="px-3 py-3 text-right sm:px-4">Stock</th><th className="px-3 py-3 text-right sm:px-4">Price</th></tr></thead>
-              <tbody>{items.length === 0 ? <tr><td colSpan={4} className="px-4 py-8 text-center text-stone-400">No items</td></tr> : items.map((x) => (<tr key={x.id} className="border-t border-stone-100"><td className="px-4 py-3 font-semibold">{x.name}</td><td className="px-4 py-3">{x.category}</td><td className={`px-4 py-3 text-right font-semibold ${x.stock <= 0 ? "text-[#ed515d]" : ""}`}>{x.stock}</td><td className="px-4 py-3 text-right">{inr(x.unitPrice)}</td></tr>))}</tbody>
+              <thead className="bg-stone-50 text-xs uppercase text-stone-500"><tr><th className="px-3 py-3 sm:px-4">Item</th><th className="px-3 py-3 sm:px-4">Category</th><th className="px-3 py-3 text-right sm:px-4">Stock</th><th className="px-3 py-3 text-right sm:px-4">Price</th>{canDelete && <th className="px-3 py-3 text-right sm:px-4">Action</th>}</tr></thead>
+              <tbody>{items.length === 0 ? <tr><td colSpan={canDelete ? 5 : 4} className="px-4 py-8 text-center text-stone-400">No items</td></tr> : items.map((x) => (<tr key={x.id} className="border-t border-stone-100"><td className="px-4 py-3 font-semibold">{x.name}</td><td className="px-4 py-3">{x.category}</td><td className={`px-4 py-3 text-right font-semibold ${x.stock <= 0 ? "text-[#ed515d]" : ""}`}>{x.stock}</td><td className="px-4 py-3 text-right">{inr(x.unitPrice)}</td>{canDelete && <td className="px-4 py-3 text-right"><button onClick={() => delItem(x)} aria-label={`Delete ${x.name}`} className="inline-flex items-center gap-1 rounded-lg bg-[#ffebed] px-2 py-1 text-xs font-bold text-[#ed515d]"><Trash2 size={13} /> Delete</button></td>}</tr>))}</tbody>
             </table>
           </article>
 

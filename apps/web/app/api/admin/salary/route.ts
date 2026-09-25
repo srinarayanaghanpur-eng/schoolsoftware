@@ -42,8 +42,53 @@ export async function GET(req: Request) {
     }
 
     const month = new URL(req.url).searchParams.get("month") ?? new Date().toISOString().slice(0, 7);
-    const dbTimer = startTimer();
     const db = adminDb();
+
+    // Preview (short query): numbers for the Generate popup WITHOUT building
+    // reports — active staff, month working days, elapsed days, holidays.
+    // The heavy per-teacher generation still happens only on POST.
+    if (new URL(req.url).searchParams.get("preview") === "1") {
+      const [yearText, monthText] = month.split("-");
+      const year = Number(yearText);
+      const monthNumber = Number(monthText);
+      const monthEndDay = new Date(year, monthNumber, 0).getDate();
+      const monthStart = `${month}-01`;
+      const monthEnd = `${month}-${String(monthEndDay).padStart(2, "0")}`;
+      const [staffCountSnap, existingSnap, holidaysSnap] = await Promise.all([
+        db.collection("teachers").where("status", "==", "active").count().get(),
+        db.collection("salary_reports").where("month", "==", month).count().get(),
+        db.collection("holidays").where("date", ">=", monthStart).where("date", "<=", monthEnd).limit(100).get()
+      ]);
+      const holidayDates = new Set(
+        holidaysSnap.docs
+          .map((d) => String((d.data() as Record<string, unknown>).date ?? "").slice(0, 10))
+          .filter((d) => d >= monthStart && d <= monthEnd)
+      );
+      const todayKey = new Date().toISOString().slice(0, 10);
+      let totalWorkingDays = 0;
+      let elapsedWorkingDays = 0;
+      for (let day = 1; day <= monthEndDay; day++) {
+        const key = `${month}-${String(day).padStart(2, "0")}`;
+        const sunday = new Date(year, monthNumber - 1, day).getDay() === 0;
+        if (sunday || holidayDates.has(key)) continue;
+        totalWorkingDays++;
+        if (key <= todayKey) elapsedWorkingDays++;
+      }
+      return json({
+        ok: true,
+        preview: {
+          month,
+          activeStaff: Number(staffCountSnap.data().count || 0),
+          totalWorkingDays,
+          elapsedWorkingDays,
+          holidays: holidayDates.size,
+          holidayNames: holidaysSnap.docs.map((d) => String((d.data() as Record<string, unknown>).name ?? (d.data() as Record<string, unknown>).title ?? "")).filter(Boolean).slice(0, 20),
+          existingRecords: Number(existingSnap.data().count || 0)
+        }
+      });
+    }
+
+    const dbTimer = startTimer();
     const [snapshot, teachersSnapshot] = await Promise.all([
       db.collection("salary_reports").where("month", "==", month).limit(1000).get(),
       db.collection("teachers").where("status", "==", "active").limit(1000).get()

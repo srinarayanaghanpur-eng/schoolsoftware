@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { adminDb } from "@/lib/firebaseAdmin";
 import { requirePermission, json } from "@/lib/apiUtils";
 import { markSummaryDirty } from "@/lib/markSummaryDirty";
+import { recalculateStudentFeeSummary } from "@/lib/feeRecalculation";
 
 const db = adminDb();
 
@@ -79,11 +80,17 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       transportFee
     } = body;
 
-    if (!studentName || !classStr || !section) {
+    const existing = snapshot.data() ?? {};
+
+    // True partial update: only provided keys change; everything else (name,
+    // class, section, phones, names) falls back to the stored doc. Required
+    // values are validated against the EFFECTIVE record, not the payload.
+    const effName = (studentName ?? existing.studentName ?? "") as string;
+    const effClass = (classStr ?? existing.class ?? "") as string;
+    const effSection = (section ?? existing.section ?? "") as string;
+    if (!String(effName).trim() || !String(effClass).trim() || !String(effSection).trim()) {
       return json({ success: false, error: 'Missing required fields' }, { status: 400 });
     }
-
-    const existing = snapshot.data() ?? {};
     const originalFee = Number(body.annualEnrollmentFee ?? existing.annualEnrollmentFee ?? 0);
     const committedPayableFee = Number(body.commitmentFee ?? body.committedPayableFee ?? existing.commitmentFee ?? existing.committedPayableFee ?? 0);
     const concessionAmount = Math.max(0, originalFee - committedPayableFee);
@@ -93,26 +100,26 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     const feeStatus = totalFeesDue <= 0 ? 'paid' : totalFeesPaid > 0 ? 'partial' : 'pending';
 
     const updateData: Record<string, unknown> = {
-      studentName,
-      studentNameLower: normalizeText(studentName),
-      class: classStr,
-      classId: body.classId || classStr,
-      section,
-      sectionId: body.sectionId || section,
+      studentName: effName,
+      studentNameLower: normalizeText(effName),
+      class: effClass,
+      classId: body.classId || effClass,
+      section: effSection,
+      sectionId: body.sectionId || effSection,
       branchId: body.branchId || existing.branchId || "default-branch",
       academicYearId: body.academicYearId ?? existing.academicYearId ?? "",
       schoolId: body.schoolId !== undefined ? String(body.schoolId).trim() : (existing.schoolId ?? ""),
       status: body.status || existing.status || "active",
       rollNo: Number(body.rollNo ?? existing.rollNo ?? String(existing.admissionNumber ?? "").replace(/\D/g, "") ?? 0),
       gender: gender ?? existing.gender ?? '',
-      fatherName: fatherName || '',
+      fatherName: fatherName ?? existing.fatherName ?? '',
       fatherPhone: body.fatherPhone ?? existing.fatherPhone ?? '',
-      motherName: motherName || '',
+      motherName: motherName ?? existing.motherName ?? '',
       motherPhone: body.motherPhone ?? existing.motherPhone ?? '',
-      dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
-      email: email || '',
-      phone: phone || '',
-      address: address || '',
+      dateOfBirth: dateOfBirth !== undefined ? (dateOfBirth ? new Date(dateOfBirth) : null) : (existing.dateOfBirth ?? null),
+      email: email ?? existing.email ?? '',
+      phone: phone ?? existing.phone ?? '',
+      address: address ?? existing.address ?? '',
       photoURL: photoURL ?? existing.photoURL ?? '',
       aadhaarNumber: aadhaarNumber ?? existing.aadhaarNumber ?? '',
       documentURLs: documentURLs ?? existing.documentURLs ?? [],
@@ -131,7 +138,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       totalFeeAmount,
       totalFeesDue,
       feeStatus,
-      searchKeywords: searchKeywords(studentName, String(existing.admissionNumber ?? ""), phone || existing.phone || ""),
+      searchKeywords: searchKeywords(effName, String(existing.admissionNumber ?? ""), (phone ?? existing.phone ?? "") as string),
       feeLastUpdated: new Date(),
       updatedAt: new Date()
     };
@@ -139,6 +146,18 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     await docRef.update(updateData);
 
     await markSummaryDirty("student:update");
+    // Archive/restore changes list membership + counts — dirty the dashboard
+    // cache alongside the fee-summary rebuild.
+    if (body.status !== undefined && body.status !== existing.status) {
+      await markSummaryDirty("student:status");
+    }
+    // Fee fields changed — rebuild the canonical summary so dues pages reflect
+    // the edit immediately instead of waiting for the next payment.
+    try {
+      await recalculateStudentFeeSummary(id, String(updateData.academicYearId || ""));
+    } catch (summaryError) {
+      console.error("Student summary recalc failed after update:", summaryError);
+    }
 
     return json({ success: true, data: { id, ...existing, ...updateData } });
   } catch (error) {
@@ -166,6 +185,16 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
     }
 
     await docRef.delete();
+    // Cascade: remove derived fee-summary read-models so reports stop counting
+    // a deleted student. Payments/receipts are financial audit trail and stay.
+    try {
+      const sums = await db.collection("studentFeeSummaries").where("studentId", "==", id).get();
+      const batch = db.batch();
+      sums.docs.forEach((d) => batch.delete(d.ref));
+      await batch.commit();
+    } catch (cascadeError) {
+      console.error("Student delete: fee-summary cascade failed for", id, cascadeError);
+    }
     await markSummaryDirty("student:delete");
     return json({ success: true });
   } catch (error) {

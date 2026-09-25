@@ -2,10 +2,11 @@
 
 import { DatePicker } from "@/components/DatePicker";
 import { PageHeader } from "@/components/PageHeader";
+import { usePopup } from "@/components/CenterPopup";
 import { useAdminSession } from "@/components/AdminSessionContext";
 import { AdminApiError, adminApiRequest } from "@/lib/adminApiClient";
 import { hasPermission } from "@sri-narayana/shared";
-import { Plus, Undo2, X } from "lucide-react";
+import { Plus, Trash2, Undo2, X } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 
 type Book = { id: string; title: string; author?: string; copies: number; available: number };
@@ -13,9 +14,10 @@ type Issue = { id: string; bookTitle?: string; memberName?: string; memberType: 
 
 export default function LibraryPage() {
   const { role } = useAdminSession();
+  const toast = usePopup();
+  const canDelete = hasPermission(role, "library.delete");
   const [books, setBooks] = useState<Book[]>([]);
   const [issues, setIssues] = useState<Issue[]>([]);
-  const [error, setError] = useState("");
   const [bForm, setBForm] = useState({ title: "", author: "", copies: "1" });
   const [iForm, setIForm] = useState({ bookId: "", memberType: "student", memberName: "", memberId: "", dueDate: "" });
   const [showB, setShowB] = useState(false);
@@ -23,13 +25,19 @@ export default function LibraryPage() {
 
   async function load() {
     try { const [b, i] = await Promise.all([adminApiRequest<{ books: Book[] }>("/api/admin/library/books"), adminApiRequest<{ issues: Issue[] }>("/api/admin/library/issues?status=issued")]); setBooks(b.books); setIssues(i.issues); }
-    catch (e) { setError(e instanceof AdminApiError ? e.message : "Failed"); }
+    catch (e) { toast.error("Failed to load library", e instanceof AdminApiError ? e.message : undefined); }
   }
   useEffect(() => { void load(); }, []);
 
-  async function addBook(e: FormEvent) { e.preventDefault(); try { await adminApiRequest("/api/admin/library/books", { method: "POST", body: JSON.stringify({ ...bForm, copies: Number(bForm.copies) }) }); setBForm({ title: "", author: "", copies: "1" }); setShowB(false); await load(); } catch (e) { setError(e instanceof AdminApiError ? e.message : "Failed"); } }
-  async function issue(e: FormEvent) { e.preventDefault(); try { await adminApiRequest("/api/admin/library/issues", { method: "POST", body: JSON.stringify({ ...iForm, memberId: iForm.memberId || iForm.memberName }) }); setIForm({ bookId: "", memberType: "student", memberName: "", memberId: "", dueDate: "" }); setShowI(false); await load(); } catch (e) { setError(e instanceof AdminApiError ? e.message : "Failed"); } }
-  async function ret(id: string) { try { await adminApiRequest(`/api/admin/library/issues/${id}/return`, { method: "POST", body: JSON.stringify({ fine: 0 }) }); await load(); } catch (e) { setError(e instanceof AdminApiError ? e.message : "Failed"); } }
+  async function addBook(e: FormEvent) { e.preventDefault(); try { await adminApiRequest("/api/admin/library/books", { method: "POST", body: JSON.stringify({ ...bForm, copies: Number(bForm.copies) }) }); setBForm({ title: "", author: "", copies: "1" }); setShowB(false); toast.success("Book added"); await load(); } catch (e) { toast.error("Failed to add book", e instanceof AdminApiError ? e.message : undefined); } }
+  async function issue(e: FormEvent) { e.preventDefault(); try { await adminApiRequest("/api/admin/library/issues", { method: "POST", body: JSON.stringify({ ...iForm, memberId: iForm.memberId || iForm.memberName }) }); setIForm({ bookId: "", memberType: "student", memberName: "", memberId: "", dueDate: "" }); setShowI(false); toast.success("Book issued"); await load(); } catch (e) { toast.error("Failed to issue book", e instanceof AdminApiError ? e.message : undefined); } }
+  async function ret(id: string) { try { await adminApiRequest(`/api/admin/library/issues/${id}/return`, { method: "POST", body: JSON.stringify({ fine: 0 }) }); toast.success("Book returned"); await load(); } catch (e) { toast.error("Failed to return book", e instanceof AdminApiError ? e.message : undefined); } }
+  async function delBook(b: Book) {
+    const ok = await toast.confirm(`Delete "${b.title}"?`, "This cannot be undone.", { okLabel: "Delete", danger: true });
+    if (!ok) return;
+    try { await adminApiRequest(`/api/admin/library/books/${b.id}`, { method: "DELETE" }); toast.success("Book deleted"); await load(); }
+    catch (e) { toast.error("Failed to delete book", e instanceof AdminApiError ? e.message : undefined); }
+  }
 
   if (!hasPermission(role, "library.view")) return <section className="p-7"><div className="card p-5 font-semibold text-[#ed515d]">Access denied.</div></section>;
 
@@ -37,7 +45,6 @@ export default function LibraryPage() {
     <>
       <PageHeader title="Library" description="Book catalog, issue and return." />
       <section className="space-y-5 p-4 md:p-7">
-        {error && <div className="card border-l-4 border-l-[#ed515d] p-4 text-sm font-semibold text-[#ed515d]">{error}</div>}
         <div className="flex flex-wrap gap-2">
           <button className="btn-primary" onClick={() => setShowB((v) => !v)}>{showB ? <X size={16} /> : <Plus size={16} />} Add book</button>
           <button className="btn-secondary" onClick={() => setShowI((v) => !v)} disabled={books.length === 0}>{showI ? <X size={16} /> : <Plus size={16} />} Issue book</button>
@@ -48,8 +55,8 @@ export default function LibraryPage() {
         <div className="grid gap-5 xl:grid-cols-2">
           <article className="card overflow-x-auto">
             <div className="px-4 py-3"><h2 className="font-bold text-[#1f2136]">Catalog</h2></div>
-            <table className="w-full text-left text-sm"><thead className="bg-stone-50 text-xs uppercase text-stone-500"><tr><th className="px-4 py-2">Title</th><th className="px-4 py-2">Author</th><th className="px-4 py-2 text-right">Available</th></tr></thead>
-              <tbody>{books.length === 0 ? <tr><td colSpan={3} className="px-4 py-6 text-center text-stone-400">No books</td></tr> : books.map((b) => (<tr key={b.id} className="border-t border-stone-100"><td className="px-4 py-2 font-semibold">{b.title}</td><td className="px-4 py-2">{b.author}</td><td className="px-4 py-2 text-right">{b.available}/{b.copies}</td></tr>))}</tbody>
+            <table className="w-full text-left text-sm"><thead className="bg-stone-50 text-xs uppercase text-stone-500"><tr><th className="px-4 py-2">Title</th><th className="px-4 py-2">Author</th><th className="px-4 py-2 text-right">Available</th>{canDelete && <th className="px-4 py-2 text-right">Action</th>}</tr></thead>
+              <tbody>{books.length === 0 ? <tr><td colSpan={canDelete ? 4 : 3} className="px-4 py-6 text-center text-stone-400">No books</td></tr> : books.map((b) => (<tr key={b.id} className="border-t border-stone-100"><td className="px-4 py-2 font-semibold">{b.title}</td><td className="px-4 py-2">{b.author}</td><td className="px-4 py-2 text-right">{b.available}/{b.copies}</td>{canDelete && <td className="px-4 py-2 text-right"><button onClick={() => delBook(b)} aria-label={`Delete ${b.title}`} className="inline-flex items-center gap-1 rounded-lg bg-[#ffebed] px-2 py-1 text-xs font-bold text-[#ed515d]"><Trash2 size={13} /> Delete</button></td>}</tr>))}</tbody>
             </table>
           </article>
           <article className="card overflow-x-auto">

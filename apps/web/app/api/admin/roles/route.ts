@@ -2,6 +2,7 @@ import { ROLE_LABELS, SELF_LOCK_PERMISSIONS, SUPER_ADMIN_CRITICAL_PERMISSIONS, t
 import { requireAllPermissions, resolveRole, json } from "@/lib/apiUtils";
 import {
   ensureRoleDocuments,
+  invalidateRoleDocumentCache,
   isKnownPermission,
   isSelfLockPermission,
   isSuperAdminCriticalPermission,
@@ -54,6 +55,7 @@ export async function PATCH(req: Request) {
       changedBy: decoded.uid,
       changedByName: String(decoded.name || decoded.email || decoded.uid)
     });
+    invalidateRoleDocumentCache(role);
 
     return json({
       ok: true,

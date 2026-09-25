@@ -72,6 +72,7 @@ import { auth, isFirebaseConfigured } from "@sri-narayana/shared/firebase/client
 import { AcademicYearProvider, useAcademicYears } from "@/components/AcademicYearContext";
 import { useAuth } from "@/components/AuthProvider";
 import FloatingCalculator from "@/components/finance/FloatingCalculator";
+import LogoutConfirmDialog from "@/components/LogoutConfirmDialog";
 import { AdminSessionProvider } from "@/components/AdminSessionContext";
 import AppLoader from "@/components/AppLoader";
 import { LiveClock } from "@/components/LiveClock";
@@ -125,6 +126,16 @@ function pauseApprovalBadgeAfterQuota() {
 const CONTEXT_SUBNAV_COLLAPSED_KEY = "snhs-context-subnav-collapsed";
 const SUB_SIDEBAR_COMPACT_QUERY = "(max-width: 1023px)";
 const FallbackIcon = Circle;
+
+// Calculator lives under Fees & Finance only (same prefixes as the nav item).
+const FINANCE_CALC_PREFIXES = [
+  "/admin/finance",
+  "/admin/payments",
+  "/admin/fee-structures",
+  "/admin/fee-concessions",
+  "/admin/fee-reminders",
+  "/admin/fee-reports"
+];
 
 const primaryNav: NavItem[] = [
   { href: "/admin/dashboard", label: "Dashboard", module: "dashboard", icon: LayoutDashboard },
@@ -643,8 +654,14 @@ function academicYearLabel(date: Date) {
   return `${startYear}–${String(startYear + 1).slice(-2)}`;
 }
 
-function initialsOf(name: string) {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
+function greetingForHour(hour: number | undefined): string {
+  if (hour === undefined) return "Dashboard";
+  if (hour < 12) return "Good morning";
+  if (hour < 17) return "Good afternoon";
+  return "Good evening";
+}
+
+function initialsOf(name: string) {  const parts = name.trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return "U";
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
@@ -859,6 +876,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { status: authStatus, profile, role, permissions: rolePermissions, signOutAndClear } = useAuth();
   const sessionLoading = authStatus === "checking";
   const [signingOut, setSigningOut] = useState(false);
+  const [confirmingSignOut, setConfirmingSignOut] = useState(false);
 
   // Pending approval count badge
   const [pendingApprovals, setPendingApprovals] = useState(0);
@@ -1100,6 +1118,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const handleSignOut = async () => {
     if (signingOut) return;
+    setConfirmingSignOut(false);
     setSigningOut(true);
     try {
       await signOutAndClear();
@@ -1161,8 +1180,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <img src="/sri-narayana-high-school-logo.jpg" alt="Sri Narayana High School" className="h-full w-full object-cover" />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="truncate font-serif text-base font-bold leading-5 text-white">Sri Narayana</p>
-            <p className="mt-0.5 text-[10px] font-bold tracking-[0.08em] text-[#b7c3ff]">HIGH SCHOOL · ERP</p>
+            <p className="truncate font-serif text-base font-bold leading-5 text-white">NarayanaOS</p>
+            <p className="mt-0.5 text-[10px] font-bold tracking-[0.08em] text-[#b7c3ff]">SRI NARAYANA HIGH SCHOOL</p>
           </div>
           <button
             type="button"
@@ -1229,7 +1248,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
         <button
           type="button"
-          onClick={handleSignOut}
+          onClick={() => setConfirmingSignOut(true)}
           disabled={signingOut}
           className="mt-auto flex items-center gap-3 border-t border-white/10 px-4 py-4 text-left transition hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-70"
           title={signingOut ? "Signing out" : "Sign out"}
@@ -1280,7 +1299,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <Menu size={20} />
           </button>
           <div className="min-w-0 flex-1 md:min-w-[170px]">
-            <h1 className="truncate text-lg font-extrabold tracking-tight text-foreground md:text-xl">{title}</h1>
+            <h1 className="truncate text-lg font-extrabold tracking-tight text-foreground md:text-xl">
+              {pathname === "/admin/dashboard" ? greetingForHour(now?.getHours()) : title}
+            </h1>
             <p className="truncate text-xs font-medium text-muted-foreground"><HeaderDateLabel now={now} /></p>
           </div>
           <AcademicYearBadge />
@@ -1340,6 +1361,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   <MapPin size={13} className="text-primary" /> {SCHOOL_CONTACT.address}
                 </span>
               </div>
+              <p className="mt-3 text-xs font-medium text-muted-foreground">© 2026 Sri Narayana High School · Powered by NarayanaOS</p>
+            </footer>
+          )}
+          {!isPortalRole && !sessionLoading && !signingOut && (
+            <footer className="mt-6 border-t border-border px-4 py-4 text-center md:px-7 print:hidden">
+              <p className="text-xs font-medium text-muted-foreground">© 2026 Sri Narayana High School · Powered by NarayanaOS</p>
             </footer>
           )}
         </div>
@@ -1366,7 +1393,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         })}
       </nav>
     </div>
-      <FloatingCalculator role={role} />
+      <FloatingCalculator role={role} visible={FINANCE_CALC_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`))} />
+      <LogoutConfirmDialog
+        open={confirmingSignOut}
+        busy={signingOut}
+        onCancel={() => setConfirmingSignOut(false)}
+        onConfirm={() => void handleSignOut()}
+      />
       </AcademicYearProvider>
     </AdminSessionProvider>
   );

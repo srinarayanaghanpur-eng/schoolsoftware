@@ -1,6 +1,7 @@
 import { AuthGate } from "@/components/AuthGate";
 import { OptimizedAppLayout } from "@/components/OptimizedAppLayout";
 import SyncStatusBanner from "@/components/SyncStatusBanner";
+import { PopupProvider } from "@/components/CenterPopup";
 
 // /admin is the shared back-office panel. With no explicit roles prop, AuthGate
 // derives the allowed roles from the central route table (lib/routeAccess):
@@ -10,10 +11,12 @@ import SyncStatusBanner from "@/components/SyncStatusBanner";
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
     <AuthGate>
-      <OptimizedAppLayout>
-        {children}
-        <SyncStatusBanner />
-      </OptimizedAppLayout>
+      <PopupProvider>
+        <OptimizedAppLayout>
+          {children}
+          <SyncStatusBanner />
+        </OptimizedAppLayout>
+      </PopupProvider>
     </AuthGate>
   );
 }

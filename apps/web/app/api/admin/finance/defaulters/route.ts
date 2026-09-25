@@ -1,10 +1,15 @@
 import { adminDb } from "@/lib/firebaseAdmin";
 import { requirePermission, json } from "@/lib/apiUtils";
+import { firestoreQuotaResponse, isFirestoreQuotaPaused } from "@/lib/firebaseErrors";
 import { logFirestoreRead, readLimit } from "@/lib/firestoreReadLogger";
 // GET /api/admin/finance/defaulters?class=X – students with outstanding dues.
 export async function GET(req: Request) {
   const token = await requirePermission(req, "fees.view");
   if (!token) return json({ ok: false, error: "Access denied" }, { status: 403 });
+
+  if (isFirestoreQuotaPaused()) {
+    return firestoreQuotaResponse();
+  }
 
   const { searchParams } = new URL(req.url);
   const classFilter = searchParams.get("classId") || searchParams.get("class") || "";

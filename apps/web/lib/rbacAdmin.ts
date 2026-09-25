@@ -50,17 +50,49 @@ export function fallbackPermissionsForRole(role: Role): Permission[] {
 }
 
 export async function getRoleDocument(role: Role): Promise<RoleDocument | null> {
+  const cached = readCachedRoleDocument(role);
+  if (cached !== null) return cached;
   const snap = await adminDb().collection(ROLE_COLLECTION).doc(role).get();
-  if (!snap.exists) return null;
+  if (!snap.exists) {
+    cacheRoleDocument(role, null);
+    return null;
+  }
   const data = snap.data() ?? {};
   const permissions = normalizePermissionList(data.permissions);
-  return {
+  const doc: RoleDocument = {
     slug: role,
     label: String(data.label || ROLE_LABELS[role]),
     permissions: role === "super_admin" ? uniqueSorted([...permissions, ...SUPER_ADMIN_CRITICAL_PERMISSIONS]) : permissions,
     updatedAt: data.updatedAt,
     updatedBy: typeof data.updatedBy === "string" ? data.updatedBy : undefined
   };
+  cacheRoleDocument(role, doc);
+  return doc;
+}
+
+// Role docs change only when an admin edits roles — 60s TTL removes the
+// per-request roles/{role} read from every permission check.
+const ROLE_DOC_CACHE_TTL_MS = 60_000;
+const roleDocCache = new Map<Role, { doc: RoleDocument | null; expiresAt: number }>();
+
+function readCachedRoleDocument(role: Role): RoleDocument | null | null {
+  const entry = roleDocCache.get(role);
+  if (!entry) return null;
+  if (entry.expiresAt <= Date.now()) {
+    roleDocCache.delete(role);
+    return null;
+  }
+  return entry.doc;
+}
+
+function cacheRoleDocument(role: Role, doc: RoleDocument | null): void {
+  roleDocCache.set(role, { doc, expiresAt: Date.now() + ROLE_DOC_CACHE_TTL_MS });
+}
+
+/** Clears the role-document cache (call after an admin edits role permissions). */
+export function invalidateRoleDocumentCache(role?: Role): void {
+  if (role) roleDocCache.delete(role);
+  else roleDocCache.clear();
 }
 
 export async function getEffectiveRolePermissions(role: Role): Promise<Permission[]> {

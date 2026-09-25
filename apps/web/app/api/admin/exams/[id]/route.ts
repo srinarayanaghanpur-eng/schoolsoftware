@@ -10,9 +10,14 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
   const token = await requirePermission(req, "exams.view");
   if (!token) return json({ ok: false, error: "Access denied" }, { status: 403 });
 
-  const snap = await adminDb().collection(COLLECTION).doc(params.id).get();
-  if (!snap.exists) return json({ ok: false, error: "Exam not found" }, { status: 404 });
-  return json({ ok: true, exam: serializeDoc(snap as FirebaseFirestore.QueryDocumentSnapshot) });
+  try {
+    const snap = await adminDb().collection(COLLECTION).doc(params.id).get();
+    if (!snap.exists) return json({ ok: false, error: "Exam not found" }, { status: 404 });
+    return json({ ok: true, exam: serializeDoc(snap as FirebaseFirestore.QueryDocumentSnapshot) });
+  } catch (error) {
+    console.error("[ExamsAPI] exam GET failed:", error instanceof Error ? error.message : error);
+    return json({ ok: false, error: "Unable to load exam" }, { status: 500 });
+  }
 }
 
 // PATCH /api/admin/exams/[id] — edit exam fields.

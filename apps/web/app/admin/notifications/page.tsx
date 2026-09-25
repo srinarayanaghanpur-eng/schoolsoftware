@@ -1,7 +1,7 @@
 "use client";
 
 import { PageHeader } from "@/components/PageHeader";
-import { PasswordInput } from "@/components/PasswordInput";
+import { usePopup } from "@/components/CenterPopup";
 import { adminApiRequest, AdminApiError } from "@/lib/adminApiClient";
 import { useRefreshOnFocus } from "@/lib/useRefreshOnFocus";
 import {
@@ -10,12 +10,12 @@ import {
   BellRing,
   CheckCircle2,
   ClipboardCheck,
+  Copy,
   Eye,
   KeyRound,
   Trash2,
   XCircle
 } from "lucide-react";
-import type { FormEvent } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 type RequestType = "password_reset" | "leave" | "attendance_edit";
@@ -55,6 +55,13 @@ const TYPE_LABEL: Record<RequestType, string> = {
   attendance_edit: "Attendance Edit"
 };
 
+const TYPE_TABS: { key: RequestType | "all"; label: string }[] = [
+  { key: "all", label: "All types" },
+  { key: "password_reset", label: "Password Resets" },
+  { key: "leave", label: "Leave" },
+  { key: "attendance_edit", label: "Attendance Log" }
+];
+
 const PAGE_SIZE = 25;
 const COMMUNICATION_BADGE_COUNT_EVENT = "snhs-communication-pending-count";
 
@@ -82,13 +89,13 @@ function formatDate(value: string) {
   return Number.isNaN(date.getTime()) ? value : date.toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" });
 }
 
-type ResetForm = { password: string; confirmPassword: string; adminNote: string };
-const emptyResetForm: ResetForm = { password: "", confirmPassword: "", adminNote: "" };
-
 export default function NotificationsPage() {
   const [tab, setTab] = useState<Tab>("pending");
+  const [resetTarget, setResetTarget] = useState<CommRequest | null>(null);
+  const [issuedLink, setIssuedLink] = useState<{ link: string; employeeId: string; name: string } | null>(null);
+  const [linkCopied, setLinkCopied] = useState(false);
   // Filter bar was removed from this page; requests always load unfiltered.
-  const typeFilter: RequestType | "all" = "all";
+  const [typeFilter, setTypeFilter] = useState<RequestType | "all">("all");
   const startDate = "";
   const endDate = "";
   const search = "";
@@ -101,16 +108,14 @@ export default function NotificationsPage() {
   const [pendingCount, setPendingCount] = useState<number | null>(null);
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [toast, setToast] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
   const [confirmState, setConfirmState] = useState<null | { text: string; onConfirm: () => void }>(null);
   const [details, setDetails] = useState<CommRequest | null>(null);
-  const [resetTarget, setResetTarget] = useState<CommRequest | null>(null);
-  const [resetForm, setResetForm] = useState<ResetForm>(emptyResetForm);
 
+  const popup = usePopup();
   const notify = useCallback((kind: "ok" | "err", text: string) => {
-    setToast({ kind, text });
-    window.setTimeout(() => setToast(null), 4000);
-  }, []);
+    if (kind === "ok") popup.success(text);
+    else popup.error(text);
+  }, [popup]);
 
   const buildQuery = useCallback(
     (cursor?: string | null) => {
@@ -217,26 +222,41 @@ export default function NotificationsPage() {
     [requests, selected, fetchRequests, fetchPendingCount, notify]
   );
 
-  const submitPasswordReset = async (event: FormEvent) => {
-    event.preventDefault();
+  const issueResetLink = async () => {
     if (!resetTarget?.id) {
       notify("err", "This password request is missing its request ID.");
       return;
     }
     setBusy(true);
+    setIssuedLink(null);
+    setLinkCopied(false);
     try {
-      const result = await adminApiRequest<{ message?: string }>(`/api/admin/password-reset-requests/${resetTarget.id}/reset-password`, {
-        method: "POST",
-        body: JSON.stringify(resetForm)
+      const result = await adminApiRequest<{ resetLink?: string; employeeId?: string; name?: string }>(
+        `/api/admin/password-reset-requests/${resetTarget.id}/reset-link`,
+        { method: "POST" }
+      );
+      if (!result.resetLink) throw new Error("No reset link returned.");
+      setIssuedLink({
+        link: result.resetLink,
+        employeeId: result.employeeId || "",
+        name: result.name || ""
       });
-      setResetTarget(null);
-      setResetForm(emptyResetForm);
-      notify("ok", result.message ?? "Password reset and request resolved.");
+      notify("ok", "One-time reset link issued. Share it directly with the staff member.");
       await Promise.all([fetchRequests(), fetchPendingCount()]);
     } catch (err) {
-      notify("err", err instanceof AdminApiError ? err.message : "Unable to reset password.");
+      notify("err", err instanceof AdminApiError ? err.message : "Unable to issue reset link.");
     } finally {
       setBusy(false);
+    }
+  };
+
+  const copyIssuedLink = async () => {
+    if (!issuedLink) return;
+    try {
+      await navigator.clipboard.writeText(issuedLink.link);
+      setLinkCopied(true);
+    } catch {
+      notify("err", "Copy failed — select the link text manually.");
     }
   };
 
@@ -274,18 +294,6 @@ export default function NotificationsPage() {
       />
 
       <section className="space-y-4 p-4 md:p-7">
-        {toast && (
-          <div
-            className={`rounded-2xl border px-4 py-3 text-sm font-semibold ${
-              toast.kind === "ok"
-                ? "border-[#c8f0dc] bg-[#e6f8ef] text-[#0f8d52]"
-                : "border-[#ffd5da] bg-[#ffebed] text-[#c83f4d]"
-            }`}
-          >
-            {toast.text}
-          </div>
-        )}
-
         {/* Tabs */}
         <div className="flex flex-wrap gap-2">
           {TABS.map((t) => (
@@ -299,6 +307,24 @@ export default function NotificationsPage() {
             >
               {t.label}
               {t.key === "pending" && pendingCount ? ` (${pendingCount})` : ""}
+            </button>
+          ))}
+        </div>
+
+        {/* Type categories — the three real request types in this system */}
+        <div className="flex flex-wrap gap-2" role="tablist" aria-label="Request type">
+          {TYPE_TABS.map((t) => (
+            <button
+              key={t.key}
+              type="button"
+              role="tab"
+              aria-selected={typeFilter === t.key}
+              onClick={() => setTypeFilter(t.key)}
+              className={`rounded-full px-4 py-2 text-sm font-bold transition ${
+                typeFilter === t.key ? "bg-[#3033a1] text-white shadow-sm" : "bg-white text-[#475067] ring-1 ring-[#e3e6f0] hover:bg-[#f3f4fb]"
+              }`}
+            >
+              {t.label}
             </button>
           ))}
         </div>
@@ -398,7 +424,7 @@ export default function NotificationsPage() {
                             busy={busy}
                             onApprove={() => void runAction(request, "approve")}
                             onReject={() => void runAction(request, "reject")}
-                            onReset={() => { setResetTarget(request); setResetForm(emptyResetForm); }}
+                            onReset={() => { setResetTarget(request); setIssuedLink(null); setLinkCopied(false); }}
                             onArchive={() => void runAction(request, "archive")}
                             onRestore={() => void runAction(request, "restore")}
                             onView={() => setDetails(request)}
@@ -444,7 +470,7 @@ export default function NotificationsPage() {
                       compact
                       onApprove={() => void runAction(request, "approve")}
                       onReject={() => void runAction(request, "reject")}
-                      onReset={() => { setResetTarget(request); setResetForm(emptyResetForm); }}
+                      onReset={() => { setResetTarget(request); setIssuedLink(null); setLinkCopied(false); }}
                       onArchive={() => void runAction(request, "archive")}
                       onRestore={() => void runAction(request, "restore")}
                       onView={() => setDetails(request)}
@@ -465,28 +491,51 @@ export default function NotificationsPage() {
         )}
       </section>
 
-      {/* Password reset modal */}
+      {/* Password reset modal — issues a one-time Firebase link, never a password */}
       {resetTarget && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" onClick={() => setResetTarget(null)}>
-          <form onSubmit={submitPasswordReset} className="card w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" onClick={() => { setResetTarget(null); setIssuedLink(null); }}>
+          <div className="card w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h2 className="font-bold text-[#1f2136]">Reset account password</h2>
+                <h2 className="font-bold text-[#1f2136]">Issue reset link</h2>
                 <p className="text-sm font-medium text-[#7d86a8]">{resetTarget.name} · {resetTarget.employeeId || resetTarget.loginId || resetTarget.userId || resetTarget.teacherId}</p>
               </div>
-              <button type="button" className="grid h-9 w-9 place-items-center rounded-xl text-[#7d86a8] hover:bg-[#f4f5fb]" onClick={() => setResetTarget(null)}>
+              <button type="button" className="grid h-9 w-9 place-items-center rounded-xl text-[#7d86a8] hover:bg-[#f4f5fb]" onClick={() => { setResetTarget(null); setIssuedLink(null); }}>
                 <XCircle size={18} />
               </button>
             </div>
-            <div className="mt-4 space-y-3">
-              <PasswordInput placeholder="New password" value={resetForm.password} onChange={(e) => setResetForm({ ...resetForm, password: e.target.value })} required />
-              <PasswordInput placeholder="Confirm password" value={resetForm.confirmPassword} onChange={(e) => setResetForm({ ...resetForm, confirmPassword: e.target.value })} required />
-              <input className="field" placeholder="Admin note" value={resetForm.adminNote} onChange={(e) => setResetForm({ ...resetForm, adminNote: e.target.value })} />
-            </div>
-            <button className="btn-primary mt-4" disabled={busy}>
-              <KeyRound size={16} /> Reset and resolve
-            </button>
-          </form>
+            {!issuedLink ? (
+              <>
+                <p className="mt-4 text-sm font-medium leading-6 text-[#5f6888]">
+                  This creates a one-time Firebase reset link. Share it directly with the staff member
+                  (in person or WhatsApp). The link expires after use — you never see or set their password.
+                </p>
+                <button className="btn-primary mt-4" disabled={busy} onClick={issueResetLink}>
+                  <KeyRound size={16} /> {busy ? "Issuing…" : "Issue one-time link"}
+                </button>
+              </>
+            ) : (
+              <>
+                <div className="mt-4 rounded-xl border border-[#c8f0dc] bg-[#e6f8ef] p-4">
+                  <p className="text-xs font-extrabold uppercase tracking-wide text-[#0f8d52]">
+                    {issuedLink.name} · {issuedLink.employeeId}
+                  </p>
+                  <p className="mt-2 break-all font-mono text-xs font-semibold text-[#1f2136]">{issuedLink.link}</p>
+                </div>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <button className="btn-primary" onClick={copyIssuedLink}>
+                    <Copy size={15} /> {linkCopied ? "Copied!" : "Copy link"}
+                  </button>
+                  <button type="button" className="btn-secondary" onClick={() => { setResetTarget(null); setIssuedLink(null); }}>
+                    Done
+                  </button>
+                </div>
+                <p className="mt-3 text-xs font-medium text-[#7d86a8]">
+                  Shown once — it is not stored. If lost, issue a fresh link.
+                </p>
+              </>
+            )}
+          </div>
         </div>
       )}
 
@@ -579,7 +628,7 @@ function RowActions({
       )}
       {canResetPassword && (
         <button className={`${btn} bg-[#eef0ff] text-[#3033a1] hover:bg-[#e3e5ff]`} onClick={onReset} disabled={busy}>
-          <KeyRound size={14} /> Reset
+          <KeyRound size={14} /> Issue link
         </button>
       )}
       {canReject && (

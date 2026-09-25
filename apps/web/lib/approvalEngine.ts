@@ -138,6 +138,44 @@ async function applyApprovalEffect(request: ApprovalRequest, status: ApprovalSta
 
       if (status === "approved") {
         await payRef.update({ status: "cancelled", cancelledAt: new Date().toISOString() });
+        // Cancelled receipts must disappear from lists/print automatically —
+        // stamp every receipt issued for this payment as cancelled.
+        const receiptSnap = await db.collection("receipts").where("paymentId", "==", paymentId).get().catch(() => null);
+        if (receiptSnap && !receiptSnap.empty) {
+          const receiptBatch = db.batch();
+          receiptSnap.docs.forEach((d) => {
+            receiptBatch.set(d.ref, { status: "cancelled", cancelledAt: new Date().toISOString() }, { merge: true });
+          });
+          await receiptBatch.commit().catch(() => undefined);
+        }
+        // Reverse the monthly rollup written at payment time, so financeSummaries
+        // never stays inflated for a cancelled receipt. The summary doc id is
+        // {branchId}_{academicYearId}_{YYYY-MM} of the original payment month.
+        const cancelledAmount = Number(payment.amountPaid || 0);
+        if (cancelledAmount > 0) {
+          const rawDate = payment.createdAt ?? payment.paymentDate ?? null;
+          const paidAt =
+            rawDate && typeof (rawDate as { toDate?: unknown }).toDate === "function"
+              ? (rawDate as { toDate: () => Date }).toDate()
+              : rawDate
+                ? new Date(String(rawDate))
+                : new Date();
+          const paidTime = Number.isNaN(paidAt.getTime()) ? new Date() : paidAt;
+          const cancelMonthKey = `${paidTime.getFullYear()}-${String(paidTime.getMonth() + 1).padStart(2, "0")}`;
+          const branchId = String(payment.branchId || "default-branch");
+          const yearId = String(payment.academicYearId || "default");
+          await db.collection("financeSummaries").doc(`${branchId}_${yearId}_${cancelMonthKey}`).set(
+            {
+              branchId,
+              academicYearId: yearId,
+              month: cancelMonthKey,
+              totalIncome: FieldValue.increment(-cancelledAmount),
+              totalReceipts: FieldValue.increment(-1),
+              updatedAt: new Date()
+            },
+            { merge: true }
+          );
+        }
         // Recompute the student's fee state from remaining completed payments.
         // This restores totalFeesPaid, totalFeesDue, feeStatus AND the
         // studentFeeSummaries read-model in one canonical pass (the previous

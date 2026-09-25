@@ -2,7 +2,7 @@
 
 import { DatePicker } from "@/components/DatePicker";
 import { DeclareHolidayModal } from "@/components/DeclareHolidayModal";
-import { PageHeader } from "@/components/PageHeader";
+import { PageHeader } from "@/components/PageHeader"; import { usePopup } from "@/components/CenterPopup";
 import { useAdminSession } from "@/components/AdminSessionContext";
 import { auth } from "@sri-narayana/shared/firebase/client";
 import { isHolidayActive, hasPermission, type Holiday } from "@sri-narayana/shared";
@@ -34,8 +34,7 @@ export default function HolidaysPage() {
   const [holidays, setHolidays] = useState<Holiday[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const toast = usePopup();
 
   // Filters
   const [filterYear, setFilterYear] = useState(initialYear);
@@ -73,13 +72,12 @@ export default function HolidaysPage() {
 
   const loadHolidays = async () => {
     setLoading(true);
-    setError(null);
     try {
       const params = new URLSearchParams({ year: filterYear, month: filterMonth });
       const result = await apiRequest<{ holidays: Holiday[] }>(`/api/admin/holidays/management?${params}`);
       setHolidays(result.holidays);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to load holidays");
+      toast.error("Unable to load holidays", err instanceof Error ? err.message : undefined);
     } finally {
       setLoading(false);
     }
@@ -93,20 +91,19 @@ export default function HolidaysPage() {
   const createHoliday = async (event: FormEvent) => {
     event.preventDefault();
     setSaving(true);
-    setError(null);
-    setMessage(null);
+        
     try {
       const result = await apiRequest<{ message?: string }>("/api/admin/holidays/management", {
         method: "POST",
         body: JSON.stringify({ date: createDate, reason: createReason })
       });
-      setMessage(result.message ?? "Holiday declared.");
+      toast.success(result.message ?? "Holiday declared.");
       setCreateDate("");
       setCreateReason("");
       setShowCreateForm(false);
       await loadHolidays();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to create holiday");
+      toast.error("Unable to create holiday", err instanceof Error ? err.message : undefined);
     } finally {
       setSaving(false);
     }
@@ -122,18 +119,17 @@ export default function HolidaysPage() {
     event.preventDefault();
     if (!editingId) return;
     setSaving(true);
-    setError(null);
-    setMessage(null);
+        
     try {
       const result = await apiRequest<{ message?: string }>("/api/admin/holidays/management", {
         method: "PATCH",
         body: JSON.stringify({ holidayId: editingId, date: editDate, reason: editReason })
       });
-      setMessage(result.message ?? "Holiday updated.");
+      toast.success(result.message ?? "Holiday updated.");
       setEditingId(null);
       await loadHolidays();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to update holiday");
+      toast.error("Unable to update holiday", err instanceof Error ? err.message : undefined);
     } finally {
       setSaving(false);
     }
@@ -143,24 +139,36 @@ export default function HolidaysPage() {
     if (!holiday.id) return;
     if (!window.confirm(`Cancel the declared holiday on ${formatDate(holiday.date)}? Attendance will be required again.`)) return;
     setSaving(true);
-    setError(null);
-    setMessage(null);
     try {
       const result = await apiRequest<{ message?: string }>(`/api/admin/holidays/management?holidayId=${holiday.id}`, {
         method: "DELETE"
       });
-      setMessage(result.message ?? "Holiday cancelled.");
+      toast.success(result.message ?? "Holiday cancelled.");
       await loadHolidays();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to cancel holiday");
+      toast.error("Unable to cancel holiday", err instanceof Error ? err.message : undefined);
     } finally {
       setSaving(false);
     }
   };
 
-  // Filter holidays to only active ones for display by default
+    // Filter holidays to only active ones for display by default
   const activeHolidays = holidays.filter((h) => isHolidayActive(h));
-  const cancelledHolidays = holidays.filter((h) => !isHolidayActive(h));
+
+  const deleteHolidayPermanent = async (holiday: Holiday) => {
+    if (!holiday.id) return;
+    if (!window.confirm(`PERMANENTLY delete the holiday on ${formatDate(holiday.date)}? This cannot be undone.`)) return;
+    setSaving(true);
+    try {
+      await apiRequest(`/api/admin/holidays/${holiday.id}`, { method: "DELETE" });
+      toast.success("Holiday permanently deleted.");
+      await loadHolidays();
+    } catch (err) {
+      toast.error("Unable to delete holiday", err instanceof Error ? err.message : undefined);
+    } finally {
+      setSaving(false);
+    }
+  };  const cancelledHolidays = holidays.filter((h) => !isHolidayActive(h));
   const displayHolidays = showAll ? holidays : activeHolidays.slice(0, DISPLAY_LIMIT);
   const totalInMonth = activeHolidays.length;
 
@@ -182,9 +190,6 @@ export default function HolidaysPage() {
       />
 
       <section className="space-y-5 p-4 md:p-6 lg:p-8">
-        {message && <div className="rounded-2xl border border-[#c8f0dc] bg-[#e6f8ef] px-4 py-3 text-sm font-semibold text-[#0f8d52]">{message}</div>}
-        {error && <div className="rounded-2xl border border-[#ffd5da] bg-[#ffebed] px-4 py-3 text-sm font-semibold text-[#c83f4d]">{error}</div>}
-
         {/* Month/Year Filter */}
         <div className="flex flex-wrap items-center gap-3">
           <select className="field w-auto" value={filterYear} onChange={(e) => setFilterYear(e.target.value)}>
@@ -312,6 +317,11 @@ export default function HolidaysPage() {
                                         <Trash2 size={14} />
                                       </button>
                                     )}
+                                    {isSuperAdmin && (
+                                      <button onClick={() => deleteHolidayPermanent(holiday)} className="grid h-8 w-8 place-items-center rounded-lg text-[#7d86a8] hover:bg-[#ffebed] hover:text-[#c83f4d]" title="Permanently delete">
+                                        <X size={14} />
+                                      </button>
+                                    )}
                                   </div>
                                 </td>
                               )}
@@ -370,6 +380,11 @@ export default function HolidaysPage() {
                                   <button onClick={() => cancelHoliday(holiday)} className="grid h-8 w-8 place-items-center rounded-lg text-[#7d86a8] hover:bg-[#ffebed] hover:text-[#c83f4d]">
                                     <Trash2 size={14} />
                                   </button>
+                                  {isSuperAdmin && (
+                                    <button onClick={() => deleteHolidayPermanent(holiday)} title="Permanently delete" className="grid h-8 w-8 place-items-center rounded-lg text-[#7d86a8] hover:bg-[#ffebed] hover:text-[#c83f4d]">
+                                      <X size={14} />
+                                    </button>
+                                  )}
                                 </>
                               )}
                             </div>
@@ -422,10 +437,10 @@ export default function HolidaysPage() {
                             method: "POST",
                             body: JSON.stringify({ date: h.date.slice(0, 10), reason: h.reason || h.title })
                           });
-                          setMessage("Holiday reactivated.");
+                          toast.success("Holiday reactivated.");
                           await loadHolidays();
                         } catch (err) {
-                          setError(err instanceof Error ? err.message : "Unable to reactivate");
+                          toast.error("Unable to reactivate", err instanceof Error ? err.message : undefined);
                         }
                       }}
                     >

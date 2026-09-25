@@ -15,7 +15,7 @@ export async function GET(req: Request) {
   
   const dbTimer = startTimer();
   const [attendanceSnapshot, teachersSnapshot] = await Promise.all([
-    adminDb().collection("attendance").where("date", "==", date).get(),
+    adminDb().collection("attendance").where("date", "==", date).limit(2000).get(),
     adminDb().collection("teachers").where("status", "==", "active").limit(500).get()
   ]);
   const dbMs = dbTimer();

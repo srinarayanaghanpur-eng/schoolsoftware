@@ -31,6 +31,12 @@ export async function PATCH(req: Request, { params }: { params: { parentId: stri
     if (parsed.fullName) updatedData.displayName = parsed.fullName;
     if (parsed.phone) updatedData.phone = parsed.phone;
     if (parsed.email !== undefined) updatedData.email = parsed.email;
+    // Activation control: active | inactive. Missing status counts as active
+    // everywhere (login gate, lists), so setting inactive truly deactivates.
+    const nextStatus = (body as Record<string, unknown>)?.status;
+    if (nextStatus === "active" || nextStatus === "inactive") {
+      updatedData.status = nextStatus;
+    }
 
     await userRef.set(updatedData, { merge: true });
 

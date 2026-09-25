@@ -95,6 +95,43 @@ html, body {
   color: hsl(var(--foreground));
 }
 
+/* ---- NarayanaOS theme transition: smooth, fast, subtle, premium ----
+   GPU-friendly (compositor-safe color props only — no layout, no shadow
+   animation). Applies on theme switch so the whole UI interpolates instead
+   of snapping. Honors prefers-reduced-motion. */
+html.theme-anim body,
+html.theme-anim .card,
+html.theme-anim .field,
+html.theme-anim .btn-primary,
+html.theme-anim .btn-secondary,
+html.theme-anim header,
+html.theme-anim aside,
+html.theme-anim nav,
+html.theme-anim table,
+html.theme-anim input,
+html.theme-anim select,
+html.theme-anim textarea,
+html.theme-anim button {
+  transition: background-color 240ms ease, color 240ms ease, border-color 240ms ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  html.theme-anim body,
+  html.theme-anim .card,
+  html.theme-anim .field,
+  html.theme-anim .btn-primary,
+  html.theme-anim .btn-secondary,
+  html.theme-anim header,
+  html.theme-anim aside,
+  html.theme-anim nav,
+  html.theme-anim table,
+  html.theme-anim input,
+  html.theme-anim select,
+  html.theme-anim textarea,
+  html.theme-anim button {
+    transition: none;
+  }
+}
+
 /* Stop iOS from auto-inflating text and never let the document scroll
    sideways — the #1 source of "broken" mobile layouts. */
 html {
@@ -226,7 +263,11 @@ img, svg, video, canvas {
   }
   100% {
     opacity: 1;
-    transform: translate3d(0, 0, 0);
+    /* Must be `none` (not translate3d(0,0,0)): any other transform value
+       permanently turns the animated container into a containing block for
+       position:fixed descendants, trapping modals/dialogs under the fixed
+       sidebars. */
+    transform: none;
   }
 }
 
@@ -1255,4 +1296,38 @@ img, svg, video, canvas {
 .erp-app .school-logo-badge :where(.bg-white) {
   background-color: #fff;
   color: #0f172a;
+}
+
+/* ---- Extension: slate/gray + tint families used without dark: variants ----
+   Same :where() zero-specificity pattern — component styles still win. */
+.dark .erp-app :where(.bg-\[\#f8fafc\], .bg-\[\#f1f5f9\], .bg-\[\#f3f4f6\], .bg-\[\#eef7f8\], .hover\:bg-\[\#f1f5f9\]:hover) {
+  background-color: hsl(var(--muted));
+}
+
+.dark .erp-app :where(.text-\[\#0f172a\], .text-\[\#1e293b\], .text-\[\#1f2937\], .text-\[\#334155\]) {
+  color: hsl(var(--foreground));
+}
+
+.dark .erp-app :where(.text-\[\#475067\], .text-\[\#64748b\], .text-\[\#94a3b8\]) {
+  color: hsl(var(--muted-foreground));
+}
+
+.dark .erp-app :where(.border-\[\#e2e8f0\], .border-\[\#cbd5e1\], .border-\[\#d1d5db\]) {
+  border-color: hsl(var(--border));
+}
+
+.dark .erp-app :where(.bg-\[\#fff7e5\], .bg-\[\#fffaf0\], .bg-\[\#fff8e8\]) {
+  background-color: hsl(var(--warning) / 0.16);
+}
+
+.dark .erp-app :where(.text-\[\#b8860b\]) {
+  color: hsl(var(--warning));
+}
+
+.dark .erp-app :where(.bg-\[\#eaf3ff\], .bg-\[\#f0f4ff\], .bg-\[\#eff6ff\]) {
+  background-color: hsl(var(--accent));
+}
+
+.dark .erp-app :where(.text-\[\#2f6fed\]) {
+  color: hsl(var(--accent-foreground));
 }

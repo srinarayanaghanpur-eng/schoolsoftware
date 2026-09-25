@@ -8,7 +8,7 @@ const STORAGE_STATE = "floating-calc-state";
 
 type CalcAction = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" | "." | "+" | "-" | "×" | "÷" | "%" | "C" | "Backspace" | "=";
 
-export default function FloatingCalculator({ role }: { role?: string }) {
+export default function FloatingCalculator({ role, visible = true }: { role?: string; visible?: boolean }) {
   const isFinanceRole = role && ["super_admin", "admin", "accountant"].includes(role);
   const [open, setOpen] = useState(false);
   const [minimized, setMinimized] = useState(false);
@@ -97,7 +97,15 @@ export default function FloatingCalculator({ role }: { role?: string }) {
       } catch { setDisplay("Error"); }
       return;
     }
-    if (["+", "-", "×", "÷", "%"].includes(action)) {
+    // % converts the current entry to a percentage (÷100), standard simple-calc behavior.
+    if (action === "%") {
+      setDisplay((d) => {
+        const n = Number(d);
+        return Number.isFinite(n) ? String(n / 100) : d;
+      });
+      return;
+    }
+    if (["+", "-", "×", "÷"].includes(action)) {
       const current = expression + display;
       setExpression(current + ` ${action} `);
       setDisplay("0");
@@ -110,6 +118,28 @@ export default function FloatingCalculator({ role }: { role?: string }) {
     }
     setDisplay((d) => (d === "0" ? action : d + action));
   };
+
+  // Basic keyboard input while the panel is open.
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT")) return;
+      const key = e.key;
+      if (/^[0-9]$/.test(key)) handleAction(key as CalcAction);
+      else if (key === ".") handleAction(".");
+      else if (key === "+") handleAction("+");
+      else if (key === "-") handleAction("-");
+      else if (key === "*") handleAction("×");
+      else if (key === "/") { e.preventDefault(); handleAction("÷"); }
+      else if (key === "%") handleAction("%");
+      else if (key === "Enter" || key === "=") { e.preventDefault(); handleAction("="); }
+      else if (key === "Backspace") handleAction("Backspace");
+      else if (key === "Escape") handleAction("C");
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, display, expression]);
 
   const handleQuick = (label: string, value: string) => {
     setDisplay(value);
@@ -126,7 +156,7 @@ export default function FloatingCalculator({ role }: { role?: string }) {
 
   const btns: CalcAction[] = ["C", "Backspace", "%", "÷", "7", "8", "9", "×", "4", "5", "6", "-", "1", "2", "3", "+", "0", ".", "="];
 
-  if (!isFinanceRole) return null;
+  if (!isFinanceRole || !visible) return null;
 
   return (
     <>

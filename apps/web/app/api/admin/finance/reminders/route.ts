@@ -1,6 +1,7 @@
 import { FieldValue } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { requirePermission, json } from "@/lib/apiUtils";
+import { firestoreQuotaResponse, isFirestoreQuotaPaused } from "@/lib/firebaseErrors";
 import { writeAuditLog } from "@/lib/auditLog";
 import { logFirestoreRead, readLimit } from "@/lib/firestoreReadLogger";
 import { getSchoolId } from "@/lib/schoolScope";
@@ -279,6 +280,10 @@ async function buildStudentDetail(req: Request, studentId: string, academicYearI
   const token = await requirePermission(req, "fees.view");
   if (!token) return json({ ok: false, error: "Access denied" }, { status: 403 });
 
+  if (isFirestoreQuotaPaused()) {
+    return firestoreQuotaResponse();
+  }
+
   const db = adminDb();
   const [summaryDoc, studentSnap] = await Promise.all([
     getSummaryDoc(db, studentId, academicYearId, schoolId),
@@ -307,6 +312,10 @@ async function buildStudentDetail(req: Request, studentId: string, academicYearI
 export async function GET(req: Request) {
   const token = await requirePermission(req, "fees.view");
   if (!token) return json({ ok: false, error: "Access denied" }, { status: 403 });
+
+  if (isFirestoreQuotaPaused()) {
+    return firestoreQuotaResponse();
+  }
 
   const { searchParams } = new URL(req.url);
   const pageSize = readLimit(searchParams.get("pageSize") ?? searchParams.get("limit"), 500, 1000);

@@ -94,7 +94,12 @@ export async function GET(request: NextRequest) {
     }
 
     const pageDocs = docs.slice(0, pageSize);
-    const payments = pageDocs.map((doc: { id: string; data: () => any }) => ({
+    // Cancelled receipts must disappear from lists/print automatically.
+    // Explicit ?status= still shows them on request (e.g. audit views).
+    const visibleDocs = status
+      ? pageDocs
+      : pageDocs.filter((doc: { data: () => any }) => (doc.data() as Record<string, unknown>)?.status !== "cancelled");
+    const payments = visibleDocs.map((doc: { id: string; data: () => any }) => ({
       id: doc.id,
       ...doc.data()
     }));

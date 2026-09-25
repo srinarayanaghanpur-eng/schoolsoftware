@@ -5,7 +5,7 @@ import { CheckCircle2, Plus, Printer, XCircle } from "lucide-react";
 import { Payment } from "@/types/fee.types";
 import { DatePicker } from "@/components/DatePicker";
 import { FeeStatusBadge, PaymentMethodBadge } from "@/components/FeeComponents";
-import { PageHeader } from "@/components/PageHeader";
+import { PageHeader } from "@/components/PageHeader"; import { usePopup } from "@/components/CenterPopup";
 import { PaginationControls } from "@/components/PaginationControls";
 import { useAdminSession } from "@/components/AdminSessionContext";
 import { useAcademicYears } from "@/components/AcademicYearContext";
@@ -61,11 +61,29 @@ const RECEIPTS_PAGE_SIZE = 25;
 
 function formatPaymentDate(value: unknown) {
   if (!value) return "--";
-  if (typeof value === "string") return new Date(value).toLocaleDateString("en-IN");
-  if (typeof value === "object" && value && "seconds" in value) {
-    return new Date(Number((value as { seconds: number }).seconds) * 1000).toLocaleDateString("en-IN");
+  if (typeof value === "string") {
+    const d = new Date(value);
+    return Number.isNaN(d.getTime()) ? "--" : d.toLocaleDateString("en-IN");
   }
-  return new Date(String(value)).toLocaleDateString("en-IN");
+  if (typeof value === "object" && value) {
+    // Firestore Timestamps serialize as {_seconds,_nanoseconds} over JSON;
+    // client SDK instances use {seconds,nanoseconds}. Handle both.
+    const rec = value as Record<string, unknown>;
+    const secs = Number(rec._seconds ?? rec.seconds ?? NaN);
+    if (Number.isFinite(secs)) {
+      return new Date(secs * 1000).toLocaleDateString("en-IN");
+    }
+    if (typeof (rec as { toDate?: unknown }).toDate === "function") {
+      try {
+        const d = (rec as { toDate: () => Date }).toDate();
+        return Number.isNaN(d.getTime()) ? "--" : d.toLocaleDateString("en-IN");
+      } catch {
+        return "--";
+      }
+    }
+  }
+  const d = new Date(String(value));
+  return Number.isNaN(d.getTime()) ? "--" : d.toLocaleDateString("en-IN");
 }
 
 export default function PaymentsPage() {
@@ -94,13 +112,11 @@ export default function PaymentsPage() {
   const filterSectionOptions = filterClass
     ? sectionsFor(filterClass)
     : Array.from(new Set(Object.values(sectionsByClass).flat())).sort();
-  const [error, setError] = useState<string | null>(null);
+  const toast = usePopup();
   const [showForm, setShowForm] = useState(false);
   const [cancelTarget, setCancelTarget] = useState<Payment | null>(null);
   const [cancelReason, setCancelReason] = useState("");
   const [cancelling, setCancelling] = useState(false);
-  const [cancelError, setCancelError] = useState<string | null>(null);
-  const [cancelSuccess, setCancelSuccess] = useState<string | null>(null);
 
   useEffect(() => {
     if (!selectedYear?.id) {
@@ -126,7 +142,6 @@ export default function PaymentsPage() {
     const targetPage = options.page ?? currentPage;
     const targetCursor = options.cursor !== undefined ? options.cursor : pageCursors[targetPage] ?? null;
     try {
-      setError(null);
       setLoading(true);
       const params = new URLSearchParams({ pageSize: String(RECEIPTS_PAGE_SIZE) });
       params.set("academicYearId", selectedYear.id);
@@ -149,7 +164,7 @@ export default function PaymentsPage() {
       });
     } catch (error) {
       console.error("Failed to fetch payments:", error);
-      setError(error instanceof Error ? error.message : "Failed to load payments.");
+      toast.error("Failed to load payments.", error instanceof Error ? error.message : undefined);
       setPayments([]);
       setNextCursor(null);
       setHasMore(false);
@@ -172,8 +187,6 @@ export default function PaymentsPage() {
   const handleCancel = async () => {
     if (!cancelTarget || !cancelReason.trim()) return;
     setCancelling(true);
-    setCancelError(null);
-    setCancelSuccess(null);
 
     try {
       const result = await adminApiRequest<{ ok: boolean; approvalId?: string; message: string }>(
@@ -183,12 +196,12 @@ export default function PaymentsPage() {
           body: JSON.stringify({ reason: cancelReason.trim() }),
         }
       );
-      setCancelSuccess(result.message || "Cancellation request submitted for approval.");
+      toast.success(result.message || "Cancellation request submitted for approval.");
       setCancelTarget(null);
       setCancelReason("");
       fetchPayments({ page: currentPage, cursor: pageCursors[currentPage] ?? null });
     } catch (err) {
-      setCancelError(err instanceof Error ? err.message : "Failed to cancel receipt.");
+      toast.error("Failed to cancel receipt.", err instanceof Error ? err.message : undefined);
     } finally {
       setCancelling(false);
     }
@@ -303,11 +316,6 @@ export default function PaymentsPage() {
         </div>
 
         <div className="space-y-3">
-          {error && (
-            <div className="rounded-xl border border-[#ffd5da] bg-[#ffebed] px-4 py-3 text-sm font-semibold text-[#c83f4d]">
-              {error}
-            </div>
-          )}
           {loading ? (
             <div className="card py-8 text-center text-sm font-medium text-[#7d86a8]">Loading...</div>
           ) : payments.length === 0 ? (
@@ -351,7 +359,7 @@ export default function PaymentsPage() {
                   </a>
                   {canCancelPayment && payment.status === "completed" && (
                     <button
-                      onClick={() => { setCancelTarget(payment); setCancelReason(""); setCancelError(null); }}
+                      onClick={() => { setCancelTarget(payment); setCancelReason(""); }}
                       className="inline-flex items-center gap-1.5 rounded-lg bg-[#ffebed] px-3 py-1.5 text-xs font-bold text-[#ed515d] hover:bg-[#ffd5da]"
                     >
                       <XCircle size={14} />
@@ -388,35 +396,24 @@ export default function PaymentsPage() {
             <p className="mt-1 text-sm font-medium text-[#7d86a8]">
               This will create an approval request to cancel the payment of ₹{cancelTarget.amountPaid.toLocaleString("en-IN")} for {cancelTarget.studentName}.
             </p>
-            {cancelSuccess ? (
-              <div className="mt-4 rounded-xl border border-[#c8f0dc] bg-[#e6f8ef] px-4 py-3 text-sm font-semibold text-[#0f8d52]">
-                {cancelSuccess}
-              </div>
-            ) : (
-              <>
-                {cancelError && (
-                  <div className="mt-4 rounded-xl border border-[#ffd5da] bg-[#ffebed] px-4 py-3 text-sm font-semibold text-[#c83f4d]">{cancelError}</div>
-                )}
-                <label className="mt-4 block text-sm font-semibold text-[#303247]">
-                  Reason for cancellation
-                  <textarea
-                    className="field mt-1 min-h-[80px] resize-y"
-                    value={cancelReason}
-                    onChange={(e) => setCancelReason(e.target.value)}
-                    placeholder="Explain why this payment needs to be cancelled..."
-                    required
-                  />
-                </label>
-                <div className="mt-5 flex flex-wrap gap-2">
-                  <button className="btn-primary" disabled={cancelling || !cancelReason.trim()} onClick={handleCancel}>
-                    {cancelling ? "Submitting..." : "Submit Cancellation Request"}
-                  </button>
-                  <button type="button" onClick={() => setCancelTarget(null)} className="btn-secondary">
-                    Close
-                  </button>
-                </div>
-              </>
-            )}
+            <label className="mt-4 block text-sm font-semibold text-[#303247]">
+              Reason for cancellation
+              <textarea
+                className="field mt-1 min-h-[80px] resize-y"
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                placeholder="Explain why this payment needs to be cancelled..."
+                required
+              />
+            </label>
+            <div className="mt-5 flex flex-wrap gap-2">
+              <button className="btn-primary" disabled={cancelling || !cancelReason.trim()} onClick={handleCancel}>
+                {cancelling ? "Submitting..." : "Submit Cancellation Request"}
+              </button>
+              <button type="button" onClick={() => setCancelTarget(null)} className="btn-secondary">
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -455,7 +452,7 @@ function PaymentForm({
   const [note, setNote] = useState("");
   const [loading, setLoading] = useState(false);
   const [receipt, setReceipt] = useState<PaymentSuccessReceipt | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const toast = usePopup();
   const [upi, setUpi] = useState<{ upiId: string; payeeName: string }>({ upiId: DEFAULT_UPI_ID, payeeName: DEFAULT_UPI_PAYEE_NAME });
 
   // Bank Transfer fields
@@ -486,11 +483,10 @@ function PaymentForm({
   const loadStudents = async () => {
     if (!academicYearId) {
       setStudents([]);
-      setError("Select an academic year before loading students.");
+      toast.error("Select an academic year before loading students.");
       return;
     }
     setStudentsLoading(true);
-    setError(null);
     const params = new URLSearchParams({
       pageSize: "25",
       academicYearId,
@@ -502,7 +498,7 @@ function PaymentForm({
       .then((result) => {
         setStudents(result.data ?? []);
       })
-      .catch(() => setError("Unable to load students."))
+      .catch(() => toast.error("Unable to load students."))
       .finally(() => setStudentsLoading(false));
   };
 
@@ -574,7 +570,6 @@ function PaymentForm({
     e.preventDefault();
     if (loading) return;
     setLoading(true);
-    setError(null);
     setReceipt(null);
 
     try {
@@ -615,9 +610,10 @@ function PaymentForm({
         providerOrderId: order.providerOrderId
       };
       setReceipt(createdReceipt);
+      toast.success(`Payment recorded — Receipt ${confirmation.receiptNumber}`, `₹${confirmation.amount} from ${createdReceipt.studentName}. Balance due ₹${createdReceipt.balanceDue}.`);
       onSuccess(createdReceipt);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to complete payment.");
+      toast.error("Unable to complete payment.", err instanceof Error ? err.message : undefined);
     } finally {
       setLoading(false);
     }
@@ -663,7 +659,6 @@ function PaymentForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      {error && <div className="rounded-xl border border-[#ffd5da] bg-[#ffebed] px-4 py-3 text-sm font-semibold text-[#c83f4d]">{error}</div>}
       {isPaidInFull && !receipt && (
         <div className="rounded-xl border border-[#c8f0dc] bg-[#e6f8ef] px-4 py-3 text-sm font-semibold text-[#0f8d52]">
           <span className="inline-flex items-center gap-2">

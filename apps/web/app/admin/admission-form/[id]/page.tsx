@@ -253,6 +253,7 @@ function SignatureLine({ title }: { title: string }) {
     <div className="af-signature">
       <div className="af-signature-line" />
       <span className="af-signature-title">{title}</span>
+      <span className="af-signature-title">Date: ____________</span>
     </div>
   );
 }
@@ -449,7 +450,18 @@ export default function AdmissionFormPage() {
         (student.totalFeeAmount ? "Standard" : "")
     );
     const feeTypes = student.feeHeads
-      ? student.feeHeads.map((h) => h.name).join(", ")
+      ? student.feeHeads
+          .map((h) => {
+            const amount = Number(
+              (h as { committed?: unknown; amount?: unknown }).committed ??
+                (h as { amount?: unknown }).amount ??
+                NaN
+            );
+            return Number.isFinite(amount) && amount > 0
+              ? `${h.name} (₹${amount.toLocaleString("en-IN")})`
+              : h.name;
+          })
+          .join(", ")
       : "";
     const totalFee = student.totalFeeAmount ?? student.commitmentFee ?? "";
     const concession = student.concession ?? student.totalFeeAmount
@@ -539,7 +551,17 @@ export default function AdmissionFormPage() {
   };
 
   const handleDownloadPDF = () => {
-    window.print();
+    // Browser print-to-PDF: set a meaningful filename, then restore.
+    const previousTitle = document.title;
+    const admissionNo = resolveValue(student?.admissionNumber) || params.id;
+    document.title = `Admission-${admissionNo}`;
+    try {
+      window.print();
+    } finally {
+      window.setTimeout(() => {
+        document.title = previousTitle;
+      }, 500);
+    }
   };
 
   const handleEdit = () => {
@@ -848,10 +870,11 @@ export default function AdmissionFormPage() {
             </div>
           </div>
 
-          {/* ERP ID Footer */}
+          {/* Record Footer — internal record IDs stay server-side only and are
+              never printed. The human admission number is already on the form. */}
           <div className="af-footer">
             <span className="af-footer-text">
-              ERP ID: {student.id} &nbsp;|&nbsp; Printed on{" "}
+              Printed on{" "}
               {printedAt.toLocaleDateString("en-IN", {
                 day: "2-digit",
                 month: "short",

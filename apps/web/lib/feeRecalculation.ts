@@ -46,7 +46,8 @@ export async function recalculateStudentFeeSummary(
   );
 
   const concessionAmount = safeNumber(student.totalConcessionAmount) || Math.max(0, safeNumber(student.originalFeeAmount || student.annualEnrollmentFee) - assignedFee);
-  const balanceDue = Math.max(0, assignedFee - paidAmount);
+  // Dues reflect concessions: payable minus approved concessions minus completed payments.
+  const balanceDue = Math.max(0, assignedFee - concessionAmount - paidAmount);
   const feeStatus: "paid" | "partial" | "pending" =
     balanceDue <= 0 ? "paid" : paidAmount > 0 ? "partial" : "pending";
 

@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { adminDb } from "@/lib/firebaseAdmin";
 import { requirePermission, json } from "@/lib/apiUtils";
+import { firestoreQuotaResponse, isFirestoreQuotaPaused } from "@/lib/firebaseErrors";
 import { logFirestoreRead } from "@/lib/firestoreReadLogger";
 
 export const dynamic = "force-dynamic";
@@ -18,6 +19,10 @@ export async function GET(request: NextRequest) {
   try {
     const auth = await requirePermission(request, "reports.view");
     if (!auth) return json({ success: false, error: "Unauthorized" }, { status: 401 });
+
+    if (isFirestoreQuotaPaused()) {
+      return firestoreQuotaResponse();
+    }
 
     const db = adminDb();
     const searchParams = request.nextUrl.searchParams;
@@ -62,7 +67,7 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    return json({ success: true, year, months });
+    return json({ success: true, year, months, truncated: paymentsSnap.size >= 5000 });
   } catch (error) {
     console.error('Error generating monthly collection report:', error);
     return json(

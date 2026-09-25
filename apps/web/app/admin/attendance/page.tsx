@@ -72,7 +72,12 @@ export default function AttendancePage() {
   const [holidays, setHolidays] = useState<Holiday[]>([]);
   const [statusFilter, setStatusFilter] = useState("all");
   const [teacherFilter, setTeacherFilter] = useState("all");
-  const [fromDate, setFromDate] = useState("");
+  const [fromDate, setFromDate] = useState(() => {
+    // Default to a recent window — full history stays available via filters.
+    const d = new Date();
+    d.setDate(d.getDate() - 7);
+    return d.toISOString().slice(0, 10);
+  });
   const [toDate, setToDate] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [editing, setEditing] = useState<EditForm | null>(null);
@@ -188,7 +193,8 @@ export default function AttendancePage() {
     }
   }, [buildUrl]);
 
-  // Fetch next page — appends to existing records
+  // Fetch next page — appends to existing records. Holidays/audits were loaded
+  // with the first page and don't change per page, so only records are fetched.
   const loadMore = useCallback(async () => {
     if (loadingMore || !hasMoreRef.current) return;
     const params = buildUrl(cursorRef.current);
@@ -196,10 +202,7 @@ export default function AttendancePage() {
     const fetchId = ++fetchIdRef.current;
     setLoadingMore(true);
     try {
-      const [result, holidayResult] = await Promise.all([
-        apiRequest<AttendancePayload>(`/api/admin/attendance?${params}`),
-        apiRequest<{ holidays: Holiday[] }>("/api/admin/holidays").catch(() => ({ holidays: [] as Holiday[] }))
-      ]);
+      const result = await apiRequest<AttendancePayload>(`/api/admin/attendance?${params}`);
       if (fetchId !== fetchIdRef.current) return;
       setRecords((prev) => [...prev, ...result.records]);
       setTeachers((prev) => {
@@ -207,8 +210,6 @@ export default function AttendancePage() {
         for (const t of result.teachers) existing.set(t.id, t);
         return [...existing.values()];
       });
-      setAudits(result.audits);
-      setHolidays(holidayResult.holidays);
       cursorRef.current = result.nextCursor ?? null;
       hasMoreRef.current = Boolean(result.hasMore);
     } catch (err) {

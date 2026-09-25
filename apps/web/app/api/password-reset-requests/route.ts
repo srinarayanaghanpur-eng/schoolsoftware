@@ -41,6 +41,17 @@ export async function POST(req: Request) {
           .get();
     const userDoc = userSnapshot?.docs[0];
     const user = userDoc?.data();
+
+    // Unknown login ID: no account exists, so there is nothing for the admin
+    // to approve. Reject here instead of spamming the admin queue — the
+    // caller shows "No account found for this Login ID".
+    if (!teacherDoc && !userDoc) {
+      return NextResponse.json(
+        { ok: false, error: "No account found for this Login ID. Please check the ID and try again." },
+        { status: 404 }
+      );
+    }
+
     const internalEmail = employeeIdToInternalEmail(normalizedLoginId);
     const requestedAt = new Date().toISOString();
     const requestRef = db.collection("password_reset_requests").doc();

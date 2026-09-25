@@ -42,6 +42,18 @@ export async function POST(req: Request, { params }: { params: { parentId: strin
     const body = await req.json();
     const parsed = parentStudentLinkSchema.parse({ ...body, parentUid: params.parentId });
 
+    // No duplicate links for the same parent+student pair.
+    const db = adminDb();
+    const dupe = await db.collection("parent_student_links")
+      .where("parentUid", "==", parsed.parentUid)
+      .where("studentId", "==", parsed.studentId)
+      .limit(1)
+      .get()
+      .catch(() => null);
+    if (dupe && !dupe.empty) {
+      return json({ ok: false, error: "This student is already linked to this parent" }, { status: 409 });
+    }
+
     const id = await linkParentToStudent(parsed.parentUid, parsed.studentId, parsed.relationship, parsed.isPrimary);
 
     await writeAuditLog({
@@ -71,6 +83,15 @@ export async function DELETE(req: Request, { params }: { params: { parentId: str
     const linkId = url.searchParams.get("linkId");
     if (!linkId) {
       return json({ ok: false, error: "linkId query param required" }, { status: 400 });
+    }
+
+    // Ownership check: only delete links that belong to this parent.
+    const linkSnap = await adminDb().collection("parent_student_links").doc(linkId).get();
+    if (!linkSnap.exists) {
+      return json({ ok: false, error: "Link not found" }, { status: 404 });
+    }
+    if ((linkSnap.data() as Record<string, unknown>)?.parentUid !== params.parentId) {
+      return json({ ok: false, error: "Link does not belong to this parent" }, { status: 403 });
     }
 
     await unlinkParentFromStudent(linkId);

@@ -28,6 +28,11 @@ declare module "firebase/auth" {
   export function signInWithEmailAndPassword(auth: Auth, email: string, password: string): Promise<UserCredential>;
   export function onAuthStateChanged(auth: Auth, callback: (user: User | null) => void): () => void;
   export function signOut(auth: Auth): Promise<void>;
+  export function connectAuthEmulator(auth: Auth, url: string, options?: { disableWarnings?: boolean }): void;
+  export function verifyPasswordResetCode(auth: Auth, oobCode: string): Promise<string>;
+  export function confirmPasswordReset(auth: Auth, oobCode: string, newPassword: string): Promise<void>;
+  export function checkActionCode(auth: Auth, oobCode: string): Promise<{ data: { email?: string } }>;
+  export function applyActionCode(auth: Auth, oobCode: string): Promise<void>;
   export class EmailAuthProvider {
     static credential(email: string, password: string): AuthCredential;
   }
@@ -61,6 +66,7 @@ declare module "firebase/firestore" {
   };
   
   export function getFirestore(app?: unknown): Firestore;
+  export function connectFirestoreEmulator(db: Firestore, host: string, port: number): void;
   export function doc(db: Firestore, ...pathSegments: string[]): DocumentReference;
   export function collection(db: Firestore, ...pathSegments: string[]): CollectionReference;
   export function query(collectionRef: CollectionReference, ...queryConstraints: QueryConstraint[]): Query;

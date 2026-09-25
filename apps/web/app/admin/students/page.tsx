@@ -2,11 +2,11 @@
 
 import { useState, useEffect } from "react";
 import { useRefreshOnFocus } from "@/lib/useRefreshOnFocus";
-import { Plus, X, ArrowLeft, Edit2, Trash2, Search, Upload, Camera, QrCode, Printer, ReceiptText, Save } from "lucide-react";
+import { Plus, X, ArrowLeft, Edit2, Trash2, Search, Upload, Camera, QrCode, Printer, ReceiptText, Save, Archive, ArchiveRestore } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { DatePicker } from "@/components/DatePicker";
-import { PageHeader } from "@/components/PageHeader";
+import { PageHeader } from "@/components/PageHeader"; import { usePopup } from "@/components/CenterPopup";
 import { PaginationControls } from "@/components/PaginationControls";
 import { useAdminSession } from "@/components/AdminSessionContext";
 import { useAcademicYears } from "@/components/AcademicYearContext";
@@ -412,6 +412,9 @@ function defaultClassSections() {
   }, {});
 }
 
+// Extra per-student fee types that can be added in Fee Details.
+// "Transport Fee" is synced automatically from the selected bus stop.
+const CUSTOM_FEE_TYPES = ["Books", "Booklet", "Other", "Transport Fee"] as const;
 // Fallback fees used when no fee structure exists in DB for a class
 const FALLBACK_FEE_BY_CLASS: Record<string, number> = {
   Nur: 17000, LKG: 18000, UKG: 19000,
@@ -704,8 +707,7 @@ function SectionManagerModal({
   const [mergeFrom, setMergeFrom] = useState(sections[0] ?? "");
   const [mergeTo, setMergeTo] = useState(sections[1] ?? "");
   const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
-  const [errorText, setErrorText] = useState<string | null>(null);
+  const toast = usePopup();
 
   // "From" can also be a legacy section (e.g. C/D/E from before the A/B
   // default) that still holds students but is no longer configured.
@@ -720,8 +722,7 @@ function SectionManagerModal({
 
   const saveSections = async (next: string[]) => {
     setBusy(true);
-    setErrorText(null);
-    setMessage(null);
+    
     try {
       const result = await adminApiRequest<{ ok: boolean; sections: string[] }>("/api/admin/class-sections", {
         method: "PUT",
@@ -729,9 +730,9 @@ function SectionManagerModal({
       });
       setDraft(result.sections);
       onSaved(result.sections);
-      setMessage("Sections saved.");
+      toast.success("Sections saved.");
     } catch (err) {
-      setErrorText(err instanceof AdminApiError ? err.message : "Unable to save sections.");
+      toast.error("Unable to save sections.", err instanceof AdminApiError ? err.message : undefined);
     } finally {
       setBusy(false);
     }
@@ -739,15 +740,19 @@ function SectionManagerModal({
 
   const runMerge = async () => {
     if (!mergeFrom || !mergeTo || mergeFrom === mergeTo) {
-      setErrorText("Pick two different sections to merge.");
+      toast.error("Pick two different sections to merge.");
       return;
     }
-    if (!window.confirm(`Move ALL students of ${classLabel} Section ${mergeFrom} into Section ${mergeTo}? Section ${mergeFrom} will be removed.`)) {
+    const mergeOk = await toast.confirm(
+      `Move ALL students of ${classLabel} Section ${mergeFrom} into Section ${mergeTo}?`,
+      `Section ${mergeFrom} will be removed.`,
+      { okLabel: "Move all", danger: true }
+    );
+    if (!mergeOk) {
       return;
     }
     setBusy(true);
-    setErrorText(null);
-    setMessage(null);
+    
     try {
       const result = await adminApiRequest<{ ok: boolean; movedStudents: number; sections: string[] }>(
         "/api/admin/class-sections/merge",
@@ -760,9 +765,9 @@ function SectionManagerModal({
       onSaved(result.sections);
       setMergeFrom(result.sections[0] ?? "");
       setMergeTo(result.sections[1] ?? "");
-      setMessage(`Moved ${result.movedStudents} student(s) from Section ${mergeFrom} to Section ${mergeTo}.`);
+      toast.success(`Moved ${result.movedStudents} student(s) from Section ${mergeFrom} to Section ${mergeTo}.`);
     } catch (err) {
-      setErrorText(err instanceof AdminApiError ? err.message : "Unable to merge sections.");
+      toast.error("Unable to merge sections.", err instanceof AdminApiError ? err.message : undefined);
     } finally {
       setBusy(false);
     }
@@ -780,9 +785,6 @@ function SectionManagerModal({
             <X size={16} />
           </button>
         </div>
-
-        {message && <div className="mt-4 rounded-xl border border-[#c8f0dc] bg-[#e6f8ef] px-4 py-3 text-sm font-semibold text-[#0f8d52]">{message}</div>}
-        {errorText && <div className="mt-4 rounded-xl border border-[#ffd5da] bg-[#ffebed] px-4 py-3 text-sm font-semibold text-[#c83f4d]">{errorText}</div>}
 
         <div className="mt-5">
           <p className="text-sm font-bold text-[#303247]">Current sections</p>
@@ -863,6 +865,11 @@ export default function StudentsPage() {
   const canCreateStudent = Boolean(role && hasPermission(role, "students.create"));
   const canEditStudent = Boolean(role && hasPermission(role, "students.edit"));
   const canDeleteStudent = Boolean(role && hasPermission(role, "students.delete"));
+  // Permanent delete is super-admin only; other admins archive/restore.
+  const isSuperAdmin = role === "super_admin";
+  // Active list vs archived list. Archived students keep all history
+  // (payments, attendance, marks, links) and can be restored.
+  const [statusTab, setStatusTab] = useState<"active" | "archived">("active");
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -880,8 +887,8 @@ export default function StudentsPage() {
   const [currentPage, setCurrentPage] = useState(0);
   const [pageCursors, setPageCursors] = useState<(string | null)[]>([null]);
   const [sectionCount, setSectionCount] = useState<number | null>(null);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+  const toast = usePopup();
+  
   const [editingId, setEditingId] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [transportRoutes, setTransportRoutes] = useState<TransportRoute[]>([]);
@@ -950,6 +957,56 @@ export default function StudentsPage() {
     commitmentFee: "0",
     feeHeads: [] as { name: string; original: number; committed: number }[]
   });
+  const [newFeeType, setNewFeeType] = useState<string>("Books");
+  const [newFeeAmount, setNewFeeAmount] = useState<string>("");
+
+  // Add (or update) a per-student fee-type row in Fee Details.
+  const addFeeHead = () => {
+    const amount = Math.max(0, Number(newFeeAmount) || 0);
+    if (!newFeeType || amount <= 0) {
+      toast.error("Enter an amount above ₹0 for the fee type.");
+      return;
+    }
+    setFormData((prev) => {
+      const heads = [...prev.feeHeads];
+      const idx = heads.findIndex((h) => h.name === newFeeType);
+      if (idx >= 0) heads[idx] = { ...heads[idx], original: amount, committed: amount };
+      else heads.push({ name: newFeeType, original: amount, committed: amount });
+      const totalCommitted = heads.reduce((s, h) => s + h.committed, 0);
+      return { ...prev, feeHeads: heads, commitmentFee: String(totalCommitted) };
+    });
+    setNewFeeAmount("");
+    toast.success(`${newFeeType} fee added.`);
+  };
+
+  const removeFeeHead = (name: string) => {
+    setFormData((prev) => {
+      const heads = prev.feeHeads.filter((h) => h.name !== name);
+      const totalCommitted = heads.reduce((s, h) => s + h.committed, 0);
+      return { ...prev, feeHeads: heads, commitmentFee: String(totalCommitted) };
+    });
+  };
+
+  // Keep the "Transport Fee" breakdown row in sync with the chosen bus stop.
+  // Called whenever route/stop changes; replaces the old manual input.
+  const syncTransportFeeRow = (routeId: string, stopName: string) => {
+    const stop = transportRoutes
+      .find((r) => r.id === routeId)
+      ?.stops.find((s) => s.name === stopName);
+    setFormData((prev) => {
+      let heads = [...prev.feeHeads];
+      const idx = heads.findIndex((h) => h.name === "Transport Fee");
+      if (!stop) {
+        if (idx >= 0) heads.splice(idx, 1);
+      } else if (idx >= 0) {
+        heads[idx] = { ...heads[idx], original: stop.fee, committed: stop.fee };
+      } else {
+        heads.push({ name: "Transport Fee", original: stop.fee, committed: stop.fee });
+      }
+      const totalCommitted = heads.reduce((s, h) => s + h.committed, 0);
+      return { ...prev, feeHeads: heads, commitmentFee: String(totalCommitted) };
+    });
+  };
 
   // Reload whenever the class/section/year selection changes, so the
   // list always shows exactly the selected section (never a mixed list).
@@ -963,7 +1020,7 @@ export default function StudentsPage() {
     fetchStudents({ page: 0, cursor: null });
     fetchSectionCount();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedYear?.id, classFilter, sectionFilter]);
+  }, [selectedYear?.id, classFilter, sectionFilter, statusTab]);
   useEffect(() => {
     fetchTransportRoutes();
   }, []);
@@ -983,10 +1040,12 @@ export default function StudentsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
+  // Fee auto-fill needs every structure for the year: one bounded call
+  // (pageSize=100, server caps the underlying read at 200 docs).
   const fetchFeeStructures = async (academicYearId: string) => {
     setFeeLoading(true);
     try {
-      const params = new URLSearchParams({ academicYearId, pageSize: "25" });
+      const params = new URLSearchParams({ academicYearId, pageSize: "100" });
       const data = await adminApiRequest<{ ok?: boolean; structures?: FeeStructureItem[] }>(
         `/api/admin/fee-structures?${params}`
       );
@@ -1009,6 +1068,7 @@ export default function StudentsPage() {
   const buildStudentQuery = (cursor?: string | null) => {
     const params = new URLSearchParams();
     params.set("pageSize", String(STUDENTS_PAGE_SIZE));
+    params.set("status", statusTab);
     if (selectedYear?.id) params.set("academicYearId", selectedYear.id);
     if (classFilter) params.set("class", classFilter);
     if (sectionFilter) params.set("section", sectionFilter);
@@ -1021,7 +1081,7 @@ export default function StudentsPage() {
   // of downloading them all just to show a total.
   const fetchSectionCount = async () => {
     try {
-      const params = new URLSearchParams({ count: "1" });
+      const params = new URLSearchParams({ count: "1", status: statusTab });
       if (selectedYear?.id) params.set("academicYearId", selectedYear.id);
       if (classFilter) params.set("class", classFilter);
       if (sectionFilter) params.set("section", sectionFilter);
@@ -1054,7 +1114,7 @@ export default function StudentsPage() {
       });
     } catch (err) {
       console.error("Failed to fetch students:", err);
-      setError(err instanceof AdminApiError ? err.message : "Failed to fetch students");
+      toast.error("Failed to fetch students", err instanceof AdminApiError ? err.message : undefined);
       // On a load failure, clear the list. Otherwise the
       // previously loaded class's students stay on screen, making every class
       // you switch to look like it has the *same* students — which is exactly
@@ -1080,12 +1140,11 @@ export default function StudentsPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
-    setSuccess("");
+    
 
     const isEditing = Boolean(editingId);
     if (isEditing ? !canEditStudent : !canCreateStudent) {
-      setError(isEditing ? "Your role cannot edit students." : "Your role cannot add students.");
+      toast.error(isEditing ? "Your role cannot edit students." : "Your role cannot add students.");
       return;
     }
 
@@ -1140,7 +1199,11 @@ export default function StudentsPage() {
       if (formData.transportRouteId) {
         payload.transportRouteId = formData.transportRouteId;
         payload.transportStopName = formData.transportStopName;
-        payload.transportFee = Number(formData.transportFee || 0);
+        // Transport fee now lives in the Fee Details breakdown; derive it so
+        // the stored field (used by older reports) stays consistent.
+        payload.transportFee = Number(
+          formData.feeHeads.find((h) => h.name === "Transport Fee")?.committed ?? 0
+        );
       }
 
       await adminApiRequest(
@@ -1151,17 +1214,14 @@ export default function StudentsPage() {
         }
       );
 
-      setSuccess(isEditing ? "Student updated successfully!" : "Student added successfully!");
+      toast.success(isEditing ? "Student updated successfully!" : "Student added successfully!");
       resetForm();
       setShowForm(false);
       fetchStudents();
     } catch (err) {
-      setError(
-        err instanceof AdminApiError
-          ? err.message
-          : isEditing
-            ? "Failed to update student"
-            : "Failed to add student"
+      toast.error(
+        isEditing ? "Failed to update student" : "Failed to add student",
+        err instanceof AdminApiError ? err.message : undefined
       );
     }
   };
@@ -1177,15 +1237,30 @@ export default function StudentsPage() {
         const fs = feeStructures.find((s) => s.className === value);
         const totalFee = fs?.total ?? Number(FALLBACK_FEE_BY_CLASS[value] ?? 0);
         updates.annualEnrollmentFee = String(totalFee);
+        // Rebuild structure rows but KEEP custom fee-type rows
+        // (Books / Booklet / Other / Transport Fee).
+        const customRows = prev.feeHeads.filter((h) =>
+          (CUSTOM_FEE_TYPES as readonly string[]).includes(h.name)
+        );
         if (fs?.heads) {
-          updates.feeHeads = fs.heads.map((h) => ({
-            name: h.name,
-            original: h.amount,
-            committed: h.amount
-          }));
+          updates.feeHeads = [
+            ...fs.heads.map((h) => ({
+              name: h.name,
+              original: h.amount,
+              committed: h.amount
+            })),
+            ...customRows
+          ];
         } else {
-          updates.feeHeads = [{ name: "Tuition Fee", original: totalFee, committed: totalFee }];
+          updates.feeHeads = [{ name: "Tuition Fee", original: totalFee, committed: totalFee }, ...customRows];
         }
+      }
+      // Changing route clears the stop (and its auto transport-fee row).
+      if (name === "transportRouteId") {
+        updates.transportStopName = "";
+        const heads = prev.feeHeads.filter((h) => h.name !== "Transport Fee");
+        updates.feeHeads = heads;
+        updates.commitmentFee = String(heads.reduce((s, h) => s + h.committed, 0));
       }
       return updates as typeof prev;
     });
@@ -1202,7 +1277,7 @@ export default function StudentsPage() {
       );
       setFormData((prev) => ({ ...prev, photoURL: url }));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to upload photo");
+      toast.error("Failed to upload photo", err instanceof Error ? err.message : undefined);
     } finally {
       setUploading(false);
     }
@@ -1229,7 +1304,7 @@ export default function StudentsPage() {
         documentURLs: [...prev.documentURLs, { name: file.name, url }]
       }));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to upload document");
+      toast.error("Failed to upload document", err instanceof Error ? err.message : undefined);
     } finally {
       setUploading(false);
     }
@@ -1244,6 +1319,8 @@ export default function StudentsPage() {
 
   const resetForm = () => {
     setEditingId(null);
+    setNewFeeType("Books");
+    setNewFeeAmount("");
     setFormData({
       admissionNumber: "",
       schoolId: "",
@@ -1279,15 +1356,23 @@ export default function StudentsPage() {
   };
 
   const openAddForm = () => {
-    setError("");
-    setSuccess("");
+    
     resetForm();
     setShowForm(true);
   };
 
-  const openEditForm = (student: Student) => {
-    setError("");
-    setSuccess("");
+  const openEditForm = async (row: Student) => {
+    // List rows are lean (photo/documents stripped for speed) — fetch the full
+    // record so the edit form shows existing photo + documents.
+    let student: Student = row;
+    try {
+      const res = await adminApiRequest<{ success?: boolean; data?: Student }>(
+        `/api/admin/students/${row.id}`
+      );
+      if (res.data) student = { ...row, ...res.data };
+    } catch {
+      // Fall back to row data; photo/documents just won't prefill.
+    }
     setEditingId(student.id);
     const prevSchool = student.previousSchool as { name?: string; address?: string; yearLeft?: string } | null | undefined;
     const emergContact = student.emergencyContact as { name?: string; phone?: string; relation?: string } | null | undefined;
@@ -1295,11 +1380,17 @@ export default function StudentsPage() {
     const existingHeads = (student as any).feeHeads as { name: string; original: number; committed: number }[] | undefined;
     const studentAny = student as any;
     const committedPayable = studentAny.commitmentFee ?? studentAny.committedPayableFee ?? student.annualEnrollmentFee ?? 0;
-    const feeHeads = existingHeads && existingHeads.length > 0 ? existingHeads : (fs?.heads.map((h) => ({
+    const feeHeads = existingHeads && existingHeads.length > 0 ? [...existingHeads] : (fs?.heads.map((h) => ({
       name: h.name,
       original: h.amount,
       committed: h.amount
     })) ?? [{ name: "Tuition Fee", original: Number(student.annualEnrollmentFee || 0), committed: Number(committedPayable) }]);
+    // Backward compat: legacy records store transportFee outside feeHeads —
+    // surface it as a Transport Fee row so it stays editable.
+    if (!feeHeads.some((h) => h.name === "Transport Fee") && Number(student.transportFee || 0) > 0) {
+      const tf = Number(student.transportFee || 0);
+      feeHeads.push({ name: "Transport Fee", original: tf, committed: tf });
+    }
     setFormData({
       admissionNumber: student.admissionNumber,
       schoolId: (student as { schoolId?: string }).schoolId ?? "",
@@ -1335,37 +1426,96 @@ export default function StudentsPage() {
     setShowForm(true);
   };
 
-  const handleDelete = async (student: Student) => {
+  const handleArchive = async (student: Student) => {
     if (!canDeleteStudent) return;
-    if (!window.confirm(`Delete ${student.studentName} (${student.admissionNumber})? This cannot be undone.`)) return;
-    setError("");
-    setSuccess("");
+    const ok = await toast.confirm(
+      `Archive ${student.studentName}?`,
+      `${student.admissionNumber} will leave the active list. All history (fees, attendance, marks) is kept and they can be restored.`,
+      { okLabel: "Archive", danger: false }
+    );
+    if (!ok) return;
+    try {
+      await adminApiRequest(`/api/admin/students/${student.id}`, { method: "PATCH", body: JSON.stringify({ status: "archived" }) });
+      toast.success("Student archived. History preserved.");
+      fetchStudents();
+      fetchSectionCount();
+    } catch (err) {
+      toast.error("Failed to archive student", err instanceof AdminApiError ? err.message : undefined);
+    }
+  };
+
+  const handleRestore = async (student: Student) => {
+    if (!canDeleteStudent) return;
+    try {
+      await adminApiRequest(`/api/admin/students/${student.id}`, { method: "PATCH", body: JSON.stringify({ status: "active" }) });
+      toast.success("Student restored to the active list.");
+      fetchStudents();
+      fetchSectionCount();
+    } catch (err) {
+      toast.error("Failed to restore student", err instanceof AdminApiError ? err.message : undefined);
+    }
+  };
+
+  const bulkArchiveRestore = async () => {
+    if (!canDeleteStudent || selectedIds.size === 0) return;
+    const target = statusTab === "active" ? "archived" : "active";
+    if (statusTab === "active") {
+      const ok = await toast.confirm(
+        `Archive ${selectedIds.size} student(s)?`,
+        "History is kept and they can be restored.",
+        { okLabel: "Archive all", danger: false }
+      );
+      if (!ok) return;
+    }
+    try {
+      const ids = Array.from(selectedIds);
+      const results = await Promise.allSettled(
+        ids.map((id) => adminApiRequest(`/api/admin/students/${id}`, { method: "PATCH", body: JSON.stringify({ status: target }) }))
+      );
+      const okCount = results.filter((r) => r.status === "fulfilled").length;
+      toast.success(statusTab === "active" ? `${okCount} student(s) archived.` : `${okCount} student(s) restored.`);
+      setSelectedIds(new Set());
+      fetchStudents();
+      fetchSectionCount();
+    } catch (err) {
+      toast.error("Bulk update failed", err instanceof AdminApiError ? err.message : undefined);
+    }
+  };
+
+  const handleDelete = async (student: Student) => {
+    if (!isSuperAdmin) return;
+    const ok = await toast.confirm(
+      `Delete ${student.studentName}?`,
+      `${student.admissionNumber}. This cannot be undone — use Archive instead to keep history.`,
+      { okLabel: "Delete", danger: true }
+    );
+    if (!ok) return;
+    
     try {
       await adminApiRequest(`/api/admin/students/${student.id}`, { method: "DELETE" });
-      setSuccess("Student deleted.");
+      toast.success("Student deleted.");
       fetchStudents();
     } catch (err) {
-      setError(err instanceof AdminApiError ? err.message : "Failed to delete student");
+      toast.error("Failed to delete student", err instanceof AdminApiError ? err.message : undefined);
     }
   };
 
   const bulkDelete = async () => {
-    if (!canDeleteStudent || selectedIds.size === 0) return;
-    setError("");
-    setSuccess("");
+    if (!isSuperAdmin || selectedIds.size === 0) return;
+    
     setBulkDeleting(true);
     try {
       const result = await adminApiRequest<{ success?: boolean; deleted?: number }>("/api/admin/students/bulk-delete", {
         method: "POST",
         body: JSON.stringify({ ids: Array.from(selectedIds) })
       });
-      setSuccess(`${result.deleted ?? selectedIds.size} student(s) permanently deleted.`);
+      toast.success(`${result.deleted ?? selectedIds.size} student(s) permanently deleted.`);
       setSelectedIds(new Set());
       setConfirmBulk(false);
       fetchStudents();
       fetchSectionCount();
     } catch (err) {
-      setError(err instanceof AdminApiError ? err.message : "Failed to delete students");
+      toast.error("Failed to delete students", err instanceof AdminApiError ? err.message : undefined);
     } finally {
       setBulkDeleting(false);
     }
@@ -1480,9 +1630,6 @@ export default function StudentsPage() {
             {/* Scrollable Form Body */}
             <div className="flex-1 overflow-y-auto">
               <div className="mx-auto w-full max-w-none px-4 py-6 md:px-6 lg:px-8">
-                {error && <div className="mb-6 rounded-xl border border-[#ffd5da] bg-[#ffebed] p-4 text-sm font-semibold text-[#c83f4d]">{error}</div>}
-                {success && <div className="mb-6 rounded-xl border border-[#c8f0dc] bg-[#e6f8ef] p-4 text-sm font-semibold text-[#0f8d52]">{success}</div>}
-
                 <form id="admission-form" onSubmit={handleSubmit}>
                   <div className="grid grid-cols-1 gap-x-6 gap-y-5 md:grid-cols-2 lg:grid-cols-3">
 
@@ -1697,7 +1844,16 @@ export default function StudentsPage() {
                       <>
                         <div>
                           <label className="block text-sm font-semibold text-[#303247]">Stop</label>
-                          <select name="transportStopName" value={formData.transportStopName} onChange={handleChange} className="field mt-1">
+                          <select
+                            name="transportStopName"
+                            value={formData.transportStopName}
+                            onChange={(e) => {
+                              const stopName = e.target.value;
+                              setFormData((prev) => ({ ...prev, transportStopName: stopName }));
+                              syncTransportFeeRow(formData.transportRouteId, stopName);
+                            }}
+                            className="field mt-1"
+                          >
                             <option value="">Select stop</option>
                             {transportRoutes
                               .find((r) => r.id === formData.transportRouteId)
@@ -1707,11 +1863,7 @@ export default function StudentsPage() {
                                 </option>
                               ))}
                           </select>
-                        </div>
-
-                        <div>
-                          <label className="block text-sm font-semibold text-[#303247]">Transport Fee</label>
-                          <input type="number" min="0" name="transportFee" value={formData.transportFee} onChange={handleChange} placeholder="₹0" className="field mt-1" />
+                          <p className="mt-1 text-xs font-medium text-[#7d86a8]">Stop fee auto-added as “Transport Fee” in Fee Details below.</p>
                         </div>
                       </>
                     )}
@@ -1724,16 +1876,18 @@ export default function StudentsPage() {
                         <h4 className="text-sm font-bold text-[#303247] mb-3">Fee Breakdown (per fee type)</h4>
                         <div className="overflow-x-auto">
                           <table className="w-full text-sm">
-                            <thead>
-                              <tr className="border-b border-[#edf0f7] text-xs font-bold uppercase tracking-wide text-[#6f7898]">
-                                <th className="px-3 py-2 text-left">Fee Type</th>
-                                <th className="px-3 py-2 text-right">Original (₹)</th>
-                                <th className="px-3 py-2 text-right">Committed Payable (₹)</th>
-                                <th className="px-3 py-2 text-right">Concession (₹)</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {(formData.feeHeads.length > 0 ? formData.feeHeads : [{ name: "Tuition Fee", original: Number(formData.annualEnrollmentFee || 0), committed: Number(formData.annualEnrollmentFee || 0) }]).map((head, idx) => (
+                              <thead>
+                                <tr className="border-b border-[#edf0f7] text-xs font-bold uppercase tracking-wide text-[#6f7898]">
+                                  <th className="px-3 py-2 text-left">Fee Type</th>
+                                  <th className="px-3 py-2 text-right">Original (₹)</th>
+                                  <th className="px-3 py-2 text-right">Committed Payable (₹)</th>
+                                  <th className="px-3 py-2 text-right">Concession (₹)</th>
+                                  <th className="px-3 py-2 text-right">Action</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {(formData.feeHeads.length > 0 ? formData.feeHeads : [{ name: "Tuition Fee", original: Number(formData.annualEnrollmentFee || 0), committed: Number(formData.annualEnrollmentFee || 0) }]).map((head, idx) => {
+                                  return (
                                 <tr key={head.name} className="border-b border-[#edf0f7]">
                                   <td className="px-3 py-2 font-semibold text-[#303247]">{head.name}</td>
                                   <td className="px-3 py-2 text-right font-medium text-[#7d86a8]">₹{head.original.toLocaleString("en-IN")}</td>
@@ -1758,8 +1912,22 @@ export default function StudentsPage() {
                                   <td className="px-3 py-2 text-right font-medium text-[#13a961]">
                                     ₹{Math.max(0, head.original - (formData.feeHeads[idx]?.committed ?? head.original)).toLocaleString("en-IN")}
                                   </td>
+                                  <td className="px-3 py-2 text-right">
+                                    {(CUSTOM_FEE_TYPES as readonly string[]).includes(head.name) && formData.feeHeads[idx] && (
+                                      <button
+                                        type="button"
+                                        onClick={() => removeFeeHead(head.name)}
+                                        aria-label={`Remove ${head.name}`}
+                                        title={`Remove ${head.name}`}
+                                        className="grid h-8 w-8 place-items-center rounded-lg text-[#7d86a8] hover:bg-[#ffebed] hover:text-[#c83f4d] ml-auto"
+                                      >
+                                        <X size={15} />
+                                      </button>
+                                    )}
+                                  </td>
                                 </tr>
-                              ))}
+                                );
+                                })}
                             </tbody>
                             <tfoot>
                               {(() => {
@@ -1780,6 +1948,30 @@ export default function StudentsPage() {
                               })()}
                             </tfoot>
                           </table>
+                        </div>
+                        <div className="mt-3 flex flex-wrap items-end gap-2">
+                          <div>
+                            <label className="block text-xs font-bold uppercase tracking-wide text-[#6f7898]">Fee Type</label>
+                            <select value={newFeeType} onChange={(e) => setNewFeeType(e.target.value)} className="field mt-1 w-44">
+                              {CUSTOM_FEE_TYPES.map((t) => (
+                                <option key={t} value={t}>{t}</option>
+                              ))}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-xs font-bold uppercase tracking-wide text-[#6f7898]">Amount (₹)</label>
+                            <input
+                              type="number"
+                              min="1"
+                              placeholder="₹0"
+                              value={newFeeAmount}
+                              onChange={(e) => setNewFeeAmount(e.target.value)}
+                              className="field mt-1 w-36"
+                            />
+                          </div>
+                          <button type="button" onClick={addFeeHead} className="btn-secondary">
+                            <Plus size={15} /> Add Fee Type
+                          </button>
                         </div>
                       </div>
 
@@ -1890,6 +2082,28 @@ export default function StudentsPage() {
         <span className="inline-flex h-10 items-center rounded-xl border border-[#dfe3f1] bg-[#f7f8fd] px-3 text-sm font-bold text-[#303247]">
           25 / page
         </span>
+        {canDeleteStudent && (
+          <div className="inline-flex h-10 items-center rounded-xl border border-[#dfe3f1] bg-[#f7f8fd] p-1 text-sm font-bold" role="tablist" aria-label="Student status">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={statusTab === "active"}
+              onClick={() => setStatusTab("active")}
+              className={`rounded-lg px-3 py-1.5 ${statusTab === "active" ? "bg-white text-[#3033a1] shadow" : "text-[#7d86a8]"}`}
+            >
+              Active
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={statusTab === "archived"}
+              onClick={() => setStatusTab("archived")}
+              className={`rounded-lg px-3 py-1.5 ${statusTab === "archived" ? "bg-white text-[#3033a1] shadow" : "text-[#7d86a8]"}`}
+            >
+              Archived
+            </button>
+          </div>
+        )}
         <button type="button" onClick={() => fetchStudents({ page: 0, cursor: null })} className="btn-secondary">
           Apply
         </button>
@@ -1901,12 +2115,21 @@ export default function StudentsPage() {
             <button type="button" className="btn-secondary" onClick={() => setSelectedIds(new Set())}>Clear</button>
             <button
               type="button"
-              className="inline-flex items-center gap-1.5 rounded-xl bg-[#ed515d] px-3 py-2 text-sm font-bold text-white hover:bg-[#d8434f] disabled:opacity-60"
-              onClick={() => setConfirmBulk(true)}
-              disabled={bulkDeleting}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-[#3033a1] px-3 py-2 text-sm font-bold text-white hover:bg-[#20226f]"
+              onClick={() => void bulkArchiveRestore()}
             >
-              <Trash2 size={15} /> Delete selected
+              {statusTab === "active" ? <><Archive size={15} /> Archive selected</> : <><ArchiveRestore size={15} /> Restore selected</>}
             </button>
+            {isSuperAdmin && (
+              <button
+                type="button"
+                className="inline-flex items-center gap-1.5 rounded-xl bg-[#ed515d] px-3 py-2 text-sm font-bold text-white hover:bg-[#d8434f] disabled:opacity-60"
+                onClick={() => setConfirmBulk(true)}
+                disabled={bulkDeleting}
+              >
+                <Trash2 size={15} /> Delete permanently
+              </button>
+            )}
           </div>
         )}
 
@@ -1956,8 +2179,18 @@ export default function StudentsPage() {
                         <Edit2 size={16} />
                       </button>
                     )}
-                    {canDeleteStudent && (
-                      <button onClick={() => handleDelete(student)} className="grid h-9 w-9 place-items-center rounded-xl bg-[#ffebed] text-[#ed515d]" aria-label="Delete student">
+                    {canDeleteStudent && statusTab === "active" && (
+                      <button onClick={() => handleArchive(student)} className="grid h-9 w-9 place-items-center rounded-xl bg-[#eef0ff] text-[#3033a1]" aria-label="Archive student">
+                        <Archive size={16} />
+                      </button>
+                    )}
+                    {canDeleteStudent && statusTab === "archived" && (
+                      <button onClick={() => handleRestore(student)} className="grid h-9 w-9 place-items-center rounded-xl bg-[#e6f8ef] text-[#0f8d52]" aria-label="Restore student">
+                        <ArchiveRestore size={16} />
+                      </button>
+                    )}
+                    {isSuperAdmin && (
+                      <button onClick={() => handleDelete(student)} className="grid h-9 w-9 place-items-center rounded-xl bg-[#ffebed] text-[#ed515d]" aria-label="Delete student permanently">
                         <Trash2 size={16} />
                       </button>
                     )}
@@ -2015,8 +2248,18 @@ export default function StudentsPage() {
                         <Edit2 size={16} />
                       </button>
                         )}
-                        {canDeleteStudent && (
-                        <button onClick={() => handleDelete(student)} className="grid h-9 w-9 place-items-center rounded-xl bg-[#ffebed] text-[#ed515d] hover:bg-[#ffdfe4]" title="Delete student">
+                        {canDeleteStudent && statusTab === "active" && (
+                        <button onClick={() => handleArchive(student)} className="grid h-9 w-9 place-items-center rounded-xl bg-[#eef0ff] text-[#3033a1] hover:bg-[#e3e5ff]" title="Archive student (keeps history)">
+                        <Archive size={16} />
+                      </button>
+                        )}
+                        {canDeleteStudent && statusTab === "archived" && (
+                        <button onClick={() => handleRestore(student)} className="grid h-9 w-9 place-items-center rounded-xl bg-[#e6f8ef] text-[#0f8d52] hover:bg-[#d6f2e3]" title="Restore student">
+                        <ArchiveRestore size={16} />
+                      </button>
+                        )}
+                        {isSuperAdmin && (
+                        <button onClick={() => handleDelete(student)} className="grid h-9 w-9 place-items-center rounded-xl bg-[#ffebed] text-[#ed515d] hover:bg-[#ffdfe4]" title="Delete permanently (super admin only)">
                         <Trash2 size={16} />
                       </button>
                         )}
