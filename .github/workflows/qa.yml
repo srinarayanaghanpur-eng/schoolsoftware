@@ -35,14 +35,26 @@ jobs:
           firebase emulators:start --project teacher-nara &
           sleep 10
 
+      # Test steps run only when their files exist — the suite is still being
+      # built, and missing files must skip (not fail) the pipeline.
       - name: Seed test data
-        run: npx tsx tests/seed/seed-test-data.ts
+        run: |
+          if [ -f tests/seed/seed-test-data.ts ]; then
+            npx tsx tests/seed/seed-test-data.ts
+          else
+            echo "No seed script yet — skipping."
+          fi
         env:
           FIRESTORE_EMULATOR_HOST: localhost:8080
           FIREBASE_AUTH_EMULATOR_HOST: localhost:9099
 
       - name: Run Playwright tests
-        run: npx playwright test
+        run: |
+          if compgen -G "tests/e2e/**/*.spec.ts" > /dev/null; then
+            npx playwright test
+          else
+            echo "No e2e specs yet — skipping."
+          fi
         env:
           NEXT_PUBLIC_USE_FIREBASE_EMULATOR: true
           BASE_URL: http://localhost:3000
@@ -51,10 +63,20 @@ jobs:
         run: npx lhci autorun || true
 
       - name: Generate QA Report
-        run: npx tsx tests/qa-report-generator.ts
+        run: |
+          if [ -f tests/qa-report-generator.ts ]; then
+            npx tsx tests/qa-report-generator.ts
+          else
+            echo "No QA report generator yet — skipping."
+          fi
 
       - name: Run AI Visual Review
-        run: npx tsx tests/ai-reviewer.ts || true
+        run: |
+          if [ -f tests/ai-reviewer.ts ]; then
+            npx tsx tests/ai-reviewer.ts || true
+          else
+            echo "No AI reviewer yet — skipping."
+          fi
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
 
@@ -64,6 +86,7 @@ jobs:
         with:
           name: playwright-report
           path: tests/reports/playwright-report/
+          if-no-files-found: warn
 
       - name: Upload Screenshots
         uses: actions/upload-artifact@v4
@@ -71,6 +94,7 @@ jobs:
         with:
           name: screenshots
           path: tests/screenshots/
+          if-no-files-found: warn
 
       - name: Upload QA Report
         uses: actions/upload-artifact@v4
@@ -78,6 +102,7 @@ jobs:
         with:
           name: qa-report
           path: tests/reports/final-qa-report.md
+          if-no-files-found: warn
 
       - name: Upload Lighthouse Report
         uses: actions/upload-artifact@v4
@@ -85,3 +110,4 @@ jobs:
         with:
           name: lighthouse-report
           path: tests/reports/lighthouse/
+          if-no-files-found: warn
