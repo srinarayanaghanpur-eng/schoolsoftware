@@ -5,6 +5,7 @@ import { adminDb, verifyBearerToken } from "@/lib/firebaseAdmin";
 import { resolveRole } from "@/lib/apiUtils";
 import { roleHasPermission } from "@/lib/rbacAdmin";
 import { verifyStudentLinked } from "@/lib/portalHelpers";
+import { checkRateLimit } from "@/lib/quota/rateLimiter";
 
 // POST /api/fees/order — create an online payment order for a student.
 // Provider is a stub ("manual"): a real gateway (Razorpay/UPI) would create its order
@@ -13,6 +14,11 @@ export async function POST(req: Request) {
   const token = await verifyBearerToken(req);
   if (!token) return NextResponse.json({ ok: false, error: "Authentication required" }, { status: 401 });
   const role = await resolveRole(token);
+
+  // 30 orders/min per user: double-clicks are already idempotent downstream,
+  // this stops scripted floods of payment orders.
+  const limit = await checkRateLimit({ key: `fees_order:${token.uid}`, maxRequests: 30, windowMinutes: 1 });
+  if (!limit.allowed) return NextResponse.json({ ok: false, error: "Too many requests" }, { status: 429 });
 
   try {
     const parsed = paymentOrderSchema.parse(await req.json());

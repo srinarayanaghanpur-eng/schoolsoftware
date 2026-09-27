@@ -1,27 +1,14 @@
 import { NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebaseAdmin";
-
-// Simple in-memory rate limiter: 30 req/min per IP. Prevents login-ID brute-force.
-const RATE_WINDOW_MS = 60_000;
-const RATE_MAX = 30;
-const rateMap = new Map<string, { count: number; resetAt: number }>();
-
-function isRateLimited(ip: string): boolean {
-  const now = Date.now();
-  const entry = rateMap.get(ip);
-  if (!entry || entry.resetAt <= now) {
-    rateMap.set(ip, { count: 1, resetAt: now + RATE_WINDOW_MS });
-    if (rateMap.size > 2000) rateMap.clear();
-    return false;
-  }
-  entry.count += 1;
-  return entry.count > RATE_MAX;
-}
+import { checkRateLimit } from "@/lib/quota/rateLimiter";
 
 export async function GET(req: Request) {
   try {
+    // 30 req/min per IP (Firestore-backed — a per-instance Map resets on every
+    // serverless cold start and never actually throttled anyone).
     const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
-    if (isRateLimited(ip)) {
+    const limit = await checkRateLimit({ key: `login_id_check:${ip}`, maxRequests: 30, windowMinutes: 1 });
+    if (!limit.allowed) {
       return NextResponse.json({ ok: false, error: "Too many requests. Try again later.", exists: false }, { status: 429 });
     }
     const { searchParams } = new URL(req.url);

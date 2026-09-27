@@ -3,9 +3,19 @@ import { createAttendanceDocumentId, managementHolidayMessage, processBiometricL
 import { adminDb } from "@/lib/firebaseAdmin";
 import { removeUndefinedFields } from "@/lib/firestoreSanitize";
 import { getAttendanceRecord, getHolidayByDate, getSchoolSettings, getTeacherByBiometricUserId } from "@/lib/firestoreServer";
+import { checkRateLimit } from "@/lib/quota/rateLimiter";
 
 export async function POST(req: Request) {
   try {
+    // Throttle BEFORE the secret check so a guessed/stolen x-biometric-secret
+    // can't be brute-forced, and device floods can't write unbounded docs.
+    // Generous window: devices share the school's NAT IP and batch punches.
+    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    const limit = await checkRateLimit({ key: `biometric_log:${ip}`, maxRequests: 120, windowMinutes: 1 });
+    if (!limit.allowed) {
+      return NextResponse.json({ ok: false, error: "Too many requests" }, { status: 429 });
+    }
+
     const settings = await getSchoolSettings();
     const requestSecret = req.headers.get("x-biometric-secret");
     if (!validateBiometricSecret(requestSecret, settings.biometricApiSecret)) {

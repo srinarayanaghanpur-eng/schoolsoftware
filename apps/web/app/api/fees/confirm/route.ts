@@ -5,6 +5,7 @@ import { adminDb, verifyBearerToken } from "@/lib/firebaseAdmin";
 import { resolveRole } from "@/lib/apiUtils";
 import { roleHasPermission } from "@/lib/rbacAdmin";
 import { verifyStudentLinked } from "@/lib/portalHelpers";
+import { checkRateLimit } from "@/lib/quota/rateLimiter";
 import { getSchoolId } from "@/lib/schoolScope";
 import { buildReceiptRecord, generateReceiptNumber, resolveAcademicYearLabel } from "@/lib/receiptService";
 import { validatePaymentAllowed, recalculateStudentFeeSummary } from "@/lib/feeRecalculation";
@@ -15,6 +16,9 @@ export async function POST(req: Request) {
   const token = await verifyBearerToken(req);
   if (!token) return NextResponse.json({ ok: false, error: "Authentication required" }, { status: 401 });
   const role = await resolveRole(token);
+  // 30 confirms/min per user — duplicate confirms are idempotent, this bounds abuse.
+  const limit = await checkRateLimit({ key: `fees_confirm:${token.uid}`, maxRequests: 30, windowMinutes: 1 });
+  if (!limit.allowed) return NextResponse.json({ ok: false, error: "Too many requests" }, { status: 429 });
   // Permission-based, not a role allowlist: whoever holds fees.create may
   // finalize orders (super_admin/admin/accountant/principal/settings_manager/
   // teacher-with-grant). Parents are handled by the own-order + linked-student

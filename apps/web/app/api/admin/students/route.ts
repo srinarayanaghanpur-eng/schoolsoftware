@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { adminDb } from "@/lib/firebaseAdmin";
-import { requirePermission, json } from "@/lib/apiUtils";
+import { requirePermission, enforceBodyLimit, json } from "@/lib/apiUtils";
 import { createApprovalRequest } from "@/lib/approvalEngine";
 import { docCursor, logFirestoreRead, readLimit } from "@/lib/firestoreReadLogger";
 import { firestoreErrorResponse, firestoreQuotaResponse, isFirestoreQuotaPaused } from "@/lib/firebaseErrors";
@@ -161,6 +161,10 @@ export async function POST(request: NextRequest) {
   try {
     const auth = await requirePermission(request, "students.create");
     if (!auth) return json({ success: false, error: "Unauthorized" }, { status: 401 });
+
+    // Photos/documents are base64 data URLs in this body — cap before parse.
+    const tooBig = enforceBodyLimit(request, 10 * 1024 * 1024);
+    if (tooBig) return tooBig;
 
     const db = adminDb();
     const body = await request.json();

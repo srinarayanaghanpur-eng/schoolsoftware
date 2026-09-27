@@ -241,6 +241,30 @@ export function json<T>(body: T, init?: ResponseInit): NextResponse {
 }
 
 /**
+ * Reject oversized request bodies with 413 BEFORE parsing. App Router route
+ * handlers have no built-in body-size limit, and several endpoints accept
+ * base64 data URLs (student photos/documents) — without a cap a single
+ * request can balloon server memory (and later the Firestore doc).
+ *
+ * Usage:
+ *   const tooBig = enforceBodyLimit(req, 10 * 1024 * 1024);
+ *   if (tooBig) return tooBig;
+ *
+ * Checks Content-Length (present on all JSON fetch bodies). Requests without
+ * the header pass through — the app does not stream uploads.
+ */
+export function enforceBodyLimit(req: Request, maxBytes: number): NextResponse | null {
+  const raw = req.headers.get("content-length");
+  if (!raw) return null;
+  const length = Number(raw);
+  if (!Number.isFinite(length) || length <= maxBytes) return null;
+  return json(
+    { success: false, error: `Payload too large (max ${Math.floor(maxBytes / (1024 * 1024))} MB)` },
+    { status: 413 }
+  );
+}
+
+/**
  * Wrap an API response with performance metrics
  * Automatically measures total request time and logs slow endpoints
  */

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { leaveRequestCreateSchema } from "@sri-narayana/shared";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { requireAuthenticated, resolveRole, serializeDoc } from "@/lib/apiUtils";
+import { checkRateLimit } from "@/lib/quota/rateLimiter";
 
 async function getTeacherForToken(uid: string, teacherId?: unknown) {
   const db = adminDb();
@@ -52,6 +53,10 @@ export async function POST(req: Request) {
     if (!decodedToken || role !== "teacher") {
       return NextResponse.json({ ok: false, error: "Teacher access required" }, { status: 403 });
     }
+
+    // 20 submissions/min per teacher — blocks request spam.
+    const limit = await checkRateLimit({ key: `leave_submit:${decodedToken.uid}`, maxRequests: 20, windowMinutes: 1 });
+    if (!limit.allowed) return NextResponse.json({ ok: false, error: "Too many requests" }, { status: 429 });
 
     const teacher = await getTeacherForToken(decodedToken.uid, decodedToken.teacherId);
     if (!teacher) {

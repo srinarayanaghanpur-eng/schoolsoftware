@@ -20,7 +20,7 @@ export async function POST(req: Request) {
 
     if (body.action === "reset_all") {
       await clearAiCache(schoolId);
-      resetRateLimiter();
+      await resetRateLimiter();
       return NextResponse.json({ ok: true, message: "Cache and rate limits reset." });
     }
 

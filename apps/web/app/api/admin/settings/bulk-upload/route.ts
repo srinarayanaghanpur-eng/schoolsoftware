@@ -1,7 +1,7 @@
 import { FieldValue } from "firebase-admin/firestore";
 import * as XLSX from "xlsx";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { requirePermission, json } from "@/lib/apiUtils";
+import { requirePermission, enforceBodyLimit, json } from "@/lib/apiUtils";
 import { markSummaryDirty } from "@/lib/markSummaryDirty";
 import { getSchoolId } from "@/lib/schoolScope";
 
@@ -61,6 +61,10 @@ type Summary = { created: number; updated: number; skipped: number; errors: stri
 export async function POST(req: Request) {
   const token = await requirePermission(req, "settings.bulk_upload");
   if (!token) return json({ ok: false, error: "Access denied" }, { status: 403 });
+
+  // Multipart workbook upload — cap before buffering the file into memory.
+  const tooBig = enforceBodyLimit(req, 8 * 1024 * 1024);
+  if (tooBig) return tooBig;
 
   try {
     const form = await req.formData();

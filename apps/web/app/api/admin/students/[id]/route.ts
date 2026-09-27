@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { adminDb } from "@/lib/firebaseAdmin";
-import { requirePermission, json } from "@/lib/apiUtils";
+import { requirePermission, enforceBodyLimit, json } from "@/lib/apiUtils";
 import { markSummaryDirty } from "@/lib/markSummaryDirty";
 import { recalculateStudentFeeSummary } from "@/lib/feeRecalculation";
 
@@ -48,6 +48,9 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   if (!authResult) {
     return json({ success: false, error: 'Unauthorized' }, { status: 401 });
   }
+  // Photo/document data URLs land in this body — cap before parse.
+  const tooBig = enforceBodyLimit(request, 10 * 1024 * 1024);
+  if (tooBig) return tooBig;
   try {
     const { id } = params;
     const body = await request.json();
