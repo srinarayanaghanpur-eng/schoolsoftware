@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { FieldValue } from "firebase-admin/firestore";
 import { paymentConfirmSchema } from "@sri-narayana/shared";
 import { adminDb, verifyBearerToken } from "@/lib/firebaseAdmin";
+import { resolveRole } from "@/lib/apiUtils";
+import { verifyStudentLinked } from "@/lib/portalHelpers";
 import { getSchoolId } from "@/lib/schoolScope";
 import { buildReceiptRecord, generateReceiptNumber, resolveAcademicYearLabel } from "@/lib/receiptService";
 import { validatePaymentAllowed, recalculateStudentFeeSummary } from "@/lib/feeRecalculation";
@@ -11,11 +13,24 @@ import { validatePaymentAllowed, recalculateStudentFeeSummary } from "@/lib/feeR
 export async function POST(req: Request) {
   const token = await verifyBearerToken(req);
   if (!token) return NextResponse.json({ ok: false, error: "Authentication required" }, { status: 401 });
+  const role = await resolveRole(token);
+  const isStaff = role === "super_admin" || role === "admin" || role === "accountant" || role === "principal";
 
   try {
     const parsed = paymentConfirmSchema.parse(await req.json());
     const db = adminDb();
     const orderRef = db.collection("payment_orders").doc(parsed.orderId);
+    // Pre-authz (outside transaction): IDOR + parent linkage.
+    const preSnap = await orderRef.get();
+    if (!preSnap.exists) return NextResponse.json({ ok: false, error: "Order not found" }, { status: 404 });
+    const preOrder = preSnap.data() as { studentId?: string; createdBy?: string };
+    if (!isStaff && preOrder.createdBy !== token.uid) {
+      return NextResponse.json({ ok: false, error: "You can only confirm your own payment order." }, { status: 403 });
+    }
+    if (role === "parent" && preOrder.studentId) {
+      const linked = await verifyStudentLinked(token, preOrder.studentId);
+      if (!linked) return NextResponse.json({ ok: false, error: "Student not linked" }, { status: 403 });
+    }
     const paymentRef = db.collection("payments").doc();
     const receiptRef = db.collection("receipts").doc();
     const now = new Date();
@@ -36,8 +51,12 @@ export async function POST(req: Request) {
       const orderSnap = await transaction.get(orderRef);
       if (!orderSnap.exists) throw new Error("Order not found");
 
-      const order = orderSnap.data() as { studentId: string; amount: number; paymentType: string; feeType?: string; status: string; note?: string; paymentId?: string; receiptId?: string; receiptNumber?: string };
+      const order = orderSnap.data() as { studentId: string; amount: number; paymentType: string; feeType?: string; status: string; note?: string; paymentId?: string; receiptId?: string; receiptNumber?: string; createdBy?: string };
       orderStudentId = order.studentId;
+      // IDOR fix: only the creator or staff may confirm this order.
+      if (!isStaff && order.createdBy !== token.uid) {
+        throw new Error("You can only confirm your own payment order.");
+      }
       if (order.status === "paid") {
         existingPaymentId = String(order.paymentId ?? "");
         paymentId = existingPaymentId;

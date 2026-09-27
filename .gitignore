@@ -22,6 +22,14 @@ apps/desktop/.env
 serviceAccount*.json
 *service-account*.json
 *-firebase-adminsdk-*.json
+*.pem
+*.key
+*.p12
+*.pfx
+*.reg
+firebase-debug.log
+*.sqlite
+*.sqlite3
 
 .vercel
 

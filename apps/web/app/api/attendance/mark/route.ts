@@ -14,6 +14,7 @@ import {
 import { FieldValue } from "firebase-admin/firestore";
 import { managementHolidayMessage } from "@sri-narayana/shared";
 import { adminDb, verifyBearerToken } from "@/lib/firebaseAdmin";
+import { resolveRole } from "@/lib/apiUtils";
 import { removeUndefinedFields } from "@/lib/firestoreSanitize";
 import { getAttendanceRecord, getHolidayByDate, getSchoolSettings, getTeacherById } from "@/lib/firestoreServer";
 import { getSchoolId } from "@/lib/schoolScope";
@@ -57,7 +58,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: "Active teacher profile not found" }, { status: 404 });
     }
 
-    const isAdmin = decodedToken.role === "super_admin";
+    // Use DB-resolved role (not stale token claim) so demotions apply within ~60s.
+    const role = await resolveRole(decodedToken);
+    const isAdmin = role === "super_admin" || role === "admin";
     if (!isAdmin && teacher.uid !== decodedToken.uid) {
       return NextResponse.json({ ok: false, error: "You can only mark your own attendance" }, { status: 403 });
     }

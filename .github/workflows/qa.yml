@@ -10,6 +10,8 @@ on:
 jobs:
   qa:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
 
     steps:
       - uses: actions/checkout@v4
@@ -28,7 +30,7 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Install Firebase tools
-        run: npm install -g firebase-tools
+        run: npm install -g firebase-tools@13.30.0
 
       - name: Start Firebase Emulator
         run: |

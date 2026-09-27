@@ -7,17 +7,25 @@ service firebase.storage {
     }
 
     function isAdmin() {
-      return signedIn() && request.auth.token.role == "admin";
+      return signedIn() && (request.auth.token.role == "admin" || request.auth.token.role == "super_admin");
+    }
+
+    function isStaff() {
+      return signedIn() && (request.auth.token.role == "admin" || request.auth.token.role == "super_admin" || request.auth.token.role == "accountant" || request.auth.token.role == "principal" || request.auth.token.role == "teacher");
     }
 
     match /teacher-profiles/{teacherId}/{fileName} {
-      allow read: if signedIn();
+      allow read: if isStaff() || (signedIn() && request.auth.token.teacherId == teacherId);
       allow write: if isAdmin();
     }
 
     match /attendance-selfies/{teacherId}/{fileName} {
       allow read: if isAdmin() || (signedIn() && request.auth.token.teacherId == teacherId);
       allow write: if signedIn() && request.auth.token.teacherId == teacherId;
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
     }
   }
 }

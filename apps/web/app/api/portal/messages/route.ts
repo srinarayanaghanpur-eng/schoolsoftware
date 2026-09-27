@@ -3,6 +3,7 @@ import { FieldValue } from "firebase-admin/firestore";
 import { parentMessageCreateSchema } from "@sri-narayana/shared";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { verifyBearerToken } from "@/lib/firebaseAdmin";
+import { resolveRole } from "@/lib/apiUtils";
 
 const COLLECTION = "parent_messages";
 
@@ -13,7 +14,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: "Please sign in." }, { status: 401 });
     }
 
-    if (decodedToken.role !== "parent") {
+    const role = await resolveRole(decodedToken);
+    if (role !== "parent") {
       return NextResponse.json({ ok: false, error: "Only parents can submit messages." }, { status: 403 });
     }
 

@@ -2,12 +2,14 @@ import { NextResponse } from "next/server";
 import { DEFAULT_SETTINGS } from "@sri-narayana/shared";
 import { adminDb, verifyBearerToken } from "@/lib/firebaseAdmin";
 import { hasPermission, type Role } from "@sri-narayana/shared";
+import { resolveRole } from "@/lib/apiUtils";
 import { getLinkedStudentIds } from "@/lib/portalHelpers";
 
 export async function GET(req: Request, { params }: { params: { paymentId: string } }) {
   const token = await verifyBearerToken(req);
   if (!token) return NextResponse.json({ ok: false, error: "Authentication required" }, { status: 401 });
-  if (!hasPermission(token.role as Role | undefined, "portal.view")) {
+  const role = await resolveRole(token);
+  if (!hasPermission(role, "portal.view")) {
     return NextResponse.json({ ok: false, error: "Portal access denied" }, { status: 403 });
   }
 

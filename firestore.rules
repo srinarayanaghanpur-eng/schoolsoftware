@@ -173,8 +173,11 @@ service cloud.firestore {
       allow read: if signedIn();
       allow write: if isAdmin();
     }
+    // Marks contain student PII — never expose to every signed-in user.
+    // Direct client reads: staff only. Parents/students must use the portal
+    // API (admin SDK) which enforces parent_student_links ownership.
     match /exam_marks/{markId} {
-      allow read: if signedIn();
+      allow read: if isAdmin() || isActiveTeacher() || isFinanceRole() || isPrincipal();
       allow write: if isAdmin();
     }
     match /notices/{noticeId} {
@@ -211,7 +214,8 @@ service cloud.firestore {
     match /bank_transactions/{id} { allow read, write: if isAdmin(); }
     match /invoices/{id} { allow read, write: if isAdmin(); }
     match /fee_reminders/{id} { allow read, write: if isAdmin(); }
-    match /fee_reminder_settings/{id} { allow read: if signedIn(); allow write: if isAdmin(); }
+    // Reminder provider keys (smsApiKey, whatsappApiKey) live here — staff only.
+    match /fee_reminder_settings/{id} { allow read: if isAdmin() || isAccountant(); allow write: if isAdmin(); }
     match /fee_reminder_queue/{id} { allow read: if isAdmin() || isAccountant(); allow write: if isAdmin() || isAccountant(); }
     match /fee_reminder_logs/{id} { allow read: if isAdmin() || isAccountant(); allow write: if isAdmin() || isAccountant(); }
     match /student_reminder_consent/{id} { allow read: if isAdmin() || isAccountant(); allow write: if isAdmin(); }
@@ -297,8 +301,11 @@ service cloud.firestore {
     }
 
     // ===== Students & Parent Portal =====
+    // NOTE: parent reads go through the portal API (admin SDK +
+    // parent_student_links check). Direct client reads are staff-only because
+    // link IDs are random and cannot be securely checked in rules alone.
     match /students/{studentId} {
-      allow read: if isAdmin() || isOwnTeacherId(resource.data.teacherId) || isParentOfStudent(studentId);
+      allow read: if isAdmin() || isOwnTeacherId(resource.data.teacherId);
       allow write: if isAdmin();
     }
 
@@ -309,21 +316,22 @@ service cloud.firestore {
 
     match /parent_messages/{msgId} {
       allow read: if isAdmin() || isOwnMessage(resource.data.parentUid);
-      allow create: if signedIn();
+      allow create: if signedIn()
+        && request.resource.data.parentUid == request.auth.uid
+        && request.resource.data.keys().hasAll(['parentUid', 'message']);
       allow update: if isAdmin();
     }
 
     match /approval_requests/{reqId} {
-      allow read: if signedIn();
+      allow read: if isAdmin();
       allow write: if isAdmin();
     }
 
+    // Fixed parent-link check: link docs use random IDs with {parentUid, studentId}
+    // fields, so rules cannot securely resolve ownership without a query.
+    // Keep the helper deny-closed and enforce ownership in the portal API.
     function isParentOfStudent(studentId) {
-      return signedIn() && (
-        effectiveRole() == "parent" &&
-        exists(/databases/$(database)/documents/parent_student_links/$(studentId)) == false &&
-        get(/databases/$(database)/documents/parent_student_links).data.studentId == studentId
-      );
+      return false;
     }
 
     function isOwnLink(parentUid) {
@@ -341,7 +349,11 @@ service cloud.firestore {
     }
     match /homework_submissions/{subId} {
       allow read: if isAdmin() || isActiveTeacher();
-      allow create: if signedIn();
+      allow create: if signedIn()
+        && (
+          request.resource.data.parentUid == request.auth.uid
+          || request.resource.data.teacherId == effectiveTeacherId()
+        );
       allow update: if isAdmin() || isActiveTeacher();
     }
 

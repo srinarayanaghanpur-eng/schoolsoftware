@@ -2,8 +2,31 @@ import { NextResponse } from "next/server";
 import { employeeIdToInternalEmail, isValidRole, passwordResetRequestCreateSchema } from "@sri-narayana/shared";
 import { adminDb } from "@/lib/firebaseAdmin";
 
+// In-memory rate limiter: 10 req/min per IP to block queue-spam.
+const RATE_WINDOW_MS = 60_000;
+const RATE_MAX = 10;
+const rateMap = new Map<string, { count: number; resetAt: number }>();
+
+function isRateLimited(ip: string): boolean {
+  const now = Date.now();
+  const entry = rateMap.get(ip);
+  if (!entry || entry.resetAt <= now) {
+    rateMap.set(ip, { count: 1, resetAt: now + RATE_WINDOW_MS });
+    if (rateMap.size > 2000) rateMap.clear();
+    return false;
+  }
+  entry.count += 1;
+  return entry.count > RATE_MAX;
+}
+
+const GENERIC_SUCCESS = "If an account exists for this Login ID, a password request has been sent to admin.";
+
 export async function POST(req: Request) {
   try {
+    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    if (isRateLimited(ip)) {
+      return NextResponse.json({ ok: false, error: "Too many requests. Try again later." }, { status: 429 });
+    }
     const { loginId } = passwordResetRequestCreateSchema.parse(await req.json());
     const normalizedLoginId = loginId.trim().toUpperCase();
     const loginIdLower = normalizedLoginId.toLowerCase();
@@ -42,14 +65,10 @@ export async function POST(req: Request) {
     const userDoc = userSnapshot?.docs[0];
     const user = userDoc?.data();
 
-    // Unknown login ID: no account exists, so there is nothing for the admin
-    // to approve. Reject here instead of spamming the admin queue — the
-    // caller shows "No account found for this Login ID".
+    // Unknown login ID: do NOT reveal existence (enumeration fix).
+    // Return generic success without creating admin queue spam.
     if (!teacherDoc && !userDoc) {
-      return NextResponse.json(
-        { ok: false, error: "No account found for this Login ID. Please check the ID and try again." },
-        { status: 404 }
-      );
+      return NextResponse.json({ ok: true, message: GENERIC_SUCCESS });
     }
 
     const internalEmail = employeeIdToInternalEmail(normalizedLoginId);
@@ -85,7 +104,7 @@ export async function POST(req: Request) {
     return NextResponse.json({
       ok: true,
       requestId: requestRef.id,
-      message: "Password request sent to admin."
+      message: GENERIC_SUCCESS
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to create password request";

@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { FieldValue } from "firebase-admin/firestore";
 import { paymentOrderSchema } from "@sri-narayana/shared";
 import { adminDb, verifyBearerToken } from "@/lib/firebaseAdmin";
+import { resolveRole } from "@/lib/apiUtils";
+import { verifyStudentLinked } from "@/lib/portalHelpers";
 
 // POST /api/fees/order — create an online payment order for a student.
 // Provider is a stub ("manual"): a real gateway (Razorpay/UPI) would create its order
@@ -9,6 +11,7 @@ import { adminDb, verifyBearerToken } from "@/lib/firebaseAdmin";
 export async function POST(req: Request) {
   const token = await verifyBearerToken(req);
   if (!token) return NextResponse.json({ ok: false, error: "Authentication required" }, { status: 401 });
+  const role = await resolveRole(token);
 
   try {
     const parsed = paymentOrderSchema.parse(await req.json());
@@ -16,6 +19,13 @@ export async function POST(req: Request) {
 
     const student = await db.collection("students").doc(parsed.studentId).get();
     if (!student.exists) return NextResponse.json({ ok: false, error: "Student not found" }, { status: 404 });
+
+    // IDOR fix: parents may only create orders for linked students.
+    // Staff (admin/accountant/principal/teacher) may create for any student.
+    if (role === "parent") {
+      const linked = await verifyStudentLinked(token, parsed.studentId);
+      if (!linked) return NextResponse.json({ ok: false, error: "Student not linked" }, { status: 403 });
+    }
 
     const now = FieldValue.serverTimestamp();
     const providerOrderId = `ord_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;

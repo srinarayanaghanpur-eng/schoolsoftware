@@ -1,12 +1,14 @@
 import { NextResponse } from "next/server";
 import { hasPermission, type Role } from "@sri-narayana/shared";
 import { adminDb, verifyBearerToken } from "@/lib/firebaseAdmin";
+import { resolveRole } from "@/lib/apiUtils";
 import { getPortalLinkedStudents, verifyStudentLinked } from "@/lib/portalHelpers";
 
 export async function GET(req: Request) {
   const token = await verifyBearerToken(req);
   if (!token) return NextResponse.json({ ok: false, error: "Authentication required" }, { status: 401 });
-  if (!hasPermission(token.role as Role | undefined, "portal.view")) {
+  const role = await resolveRole(token);
+  if (!hasPermission(role, "portal.view")) {
     return NextResponse.json({ ok: false, error: "Portal access denied" }, { status: 403 });
   }
 
@@ -35,7 +37,6 @@ export async function GET(req: Request) {
   let query: FirebaseFirestore.Query = db.collection("notices").orderBy("createdAt", "desc").limit(50);
 
   const noticeSnap = await query.get();
-  const role = token.role as string;
 
   let notices = noticeSnap.docs
     .map((doc) => {
@@ -57,7 +58,7 @@ export async function GET(req: Request) {
       };
     })
     .filter((n) => {
-      const roleOk = n.audienceRoles.length === 0 || n.audienceRoles.includes(role);
+      const roleOk = n.audienceRoles.length === 0 || n.audienceRoles.includes(role as string);
       const classOk = n.audienceClasses.length === 0 || n.audienceClasses.includes(studentClass);
       return roleOk && classOk;
     });
