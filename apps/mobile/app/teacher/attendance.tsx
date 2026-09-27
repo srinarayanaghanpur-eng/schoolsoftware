@@ -38,7 +38,7 @@ function TeacherAttendance() {
     ? 0
     : Math.max(0, 100 - (marking.distance / marking.allowedRadius) * 100);
 
-  async function handle(event: "check_in" | "check_out") {
+  async function handle(event: "checkin" | "checkout") {
     const result = await marking.mark(event);
     toast.show(result.message);
   }
@@ -115,7 +115,7 @@ function TeacherAttendance() {
             icon="fingerprint"
             bg={marking.insideCampus ? color.primary : color.outlineStrong}
             fg={marking.insideCampus ? color.onPrimary : color.muted}
-            onPress={() => { if (!marking.submitting) void handle("check_in"); }}
+            onPress={() => { if (!marking.submitting) void handle("checkin"); }}
           />
         </View>
         <View style={{ flex: 1 }}>
@@ -125,7 +125,7 @@ function TeacherAttendance() {
             icon="logout"
             bg={color.surface}
             fg={color.primary}
-            onPress={() => { if (!marking.submitting) void handle("check_out"); }}
+            onPress={() => { if (!marking.submitting) void handle("checkout"); }}
           />
         </View>
       </View>

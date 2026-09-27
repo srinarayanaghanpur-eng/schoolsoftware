@@ -34,6 +34,21 @@ const DEFAULT_SETTINGS: Record<string, unknown> = {
   supportPhone: "",
 };
 
+// Sentinel returned to the client instead of real provider API keys. It renders
+// naturally as dots in the password inputs, and PUT treats it (or "") as
+// "keep the stored value", so a load→save round-trip never corrupts the key.
+const MASKED_KEY = "********";
+
+function maskKey(value: unknown): string {
+  return String(value ?? "") ? MASKED_KEY : "";
+}
+
+function keepExistingKey(incoming: unknown, stored: unknown): string {
+  const value = String(incoming ?? "");
+  if (value === "" || value === MASKED_KEY) return String(stored ?? "");
+  return value;
+}
+
 export async function GET(req: Request) {
   const token = await requirePermission(req, "fee_reminders.view");
   if (!token) return json({ ok: false, error: "Access denied" }, { status: 403 });
@@ -52,7 +67,9 @@ export async function GET(req: Request) {
     }
 
     const doc = snapshot.docs[0];
-    const settings = serializeDoc(doc);
+    const settings: Record<string, unknown> = serializeDoc(doc);
+    settings.smsApiKey = maskKey(settings.smsApiKey);
+    settings.whatsappApiKey = maskKey(settings.whatsappApiKey);
     return json({ ok: true, settings });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to load fee reminder settings";
@@ -71,6 +88,7 @@ export async function PUT(req: Request) {
     const now = FieldValue.serverTimestamp();
 
     const existing = await db.collection(COLLECTION).where("schoolId", "==", schoolId).limit(1).get();
+    const existingDoc = existing.empty ? null : (existing.docs[0].data() as Record<string, unknown>);
 
     const data = {
       enabled: Boolean(body.enabled),
@@ -87,11 +105,11 @@ export async function PUT(req: Request) {
       smsEnabled: Boolean(body.smsEnabled ?? DEFAULT_SETTINGS.smsEnabled),
       smsFallbackEnabled: Boolean(body.smsFallbackEnabled ?? DEFAULT_SETTINGS.smsFallbackEnabled),
       messageTemplate: String(body.messageTemplate ?? DEFAULT_SETTINGS.messageTemplate),
-      whatsappApiKey: String(body.whatsappApiKey ?? DEFAULT_SETTINGS.whatsappApiKey),
+      whatsappApiKey: keepExistingKey(body.whatsappApiKey, existingDoc?.whatsappApiKey),
       whatsappPhoneNumberId: String(body.whatsappPhoneNumberId ?? DEFAULT_SETTINGS.whatsappPhoneNumberId),
       whatsappBusinessAccountId: String(body.whatsappBusinessAccountId ?? DEFAULT_SETTINGS.whatsappBusinessAccountId),
       smsApiUrl: String(body.smsApiUrl ?? DEFAULT_SETTINGS.smsApiUrl),
-      smsApiKey: String(body.smsApiKey ?? DEFAULT_SETTINGS.smsApiKey),
+      smsApiKey: keepExistingKey(body.smsApiKey, existingDoc?.smsApiKey),
       smsSenderId: String(body.smsSenderId ?? DEFAULT_SETTINGS.smsSenderId),
       dltPeId: String(body.dltPeId ?? DEFAULT_SETTINGS.dltPeId),
       dltHeaderId: String(body.dltHeaderId ?? DEFAULT_SETTINGS.dltHeaderId),

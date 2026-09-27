@@ -16,7 +16,10 @@ import {
 } from "@sri-narayana/shared";
 import { postAttendance } from "@/lib/api";
 
-export type AttendanceEvent = "check_in" | "check_out";
+// Server/shared vocabulary is "checkin"/"checkout" (AttendanceEventType).
+// The old "check_in"/"check_out" values failed server-side window validation
+// and stored records the admin UI couldn't interpret.
+export type AttendanceEvent = "checkin" | "checkout";
 
 type MarkingState = {
   /** Metres from campus centre, or null until a fix is acquired. */
@@ -117,7 +120,7 @@ export function useAttendanceMarking(teacherId?: string) {
         setState((s) => ({ ...s, submitting: false }));
         return {
           ok: true as const,
-          message: eventType === "check_in" ? "Checked in — have a great day!" : "Checked out · see you tomorrow"
+          message: eventType === "checkin" ? "Checked in — have a great day!" : "Checked out · see you tomorrow"
         };
       } catch (err) {
         const message = err instanceof Error ? err.message : "Attendance failed. Please try again.";

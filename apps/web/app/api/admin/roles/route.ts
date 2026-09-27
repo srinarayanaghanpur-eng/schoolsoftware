@@ -12,7 +12,6 @@ import {
 import { verifyBearerToken } from "@/lib/firebaseAdmin";
 
 const VIEW_PERMISSIONS: Permission[] = ["users.view", "roles.view", "permissions.view"];
-const EDIT_PERMISSIONS: Permission[] = ["roles.edit", "permissions.edit"];
 
 // GET /api/admin/roles — editable RBAC role documents for the Users & Roles matrix.
 export async function GET(req: Request) {
@@ -24,12 +23,17 @@ export async function GET(req: Request) {
 }
 
 // PATCH /api/admin/roles — toggle one permission on one role.
+// SECURITY: only super_admin may modify the matrix. Granting permissions is
+// privilege management — a caller holding roles.edit could otherwise add
+// permissions to their own role (self-escalation), e.g. giving a non-admin
+// role users.delete. Viewing stays open to roles.view/permissions.view.
 export async function PATCH(req: Request) {
   const decoded = await verifyBearerToken(req);
   if (!decoded) return json({ ok: false, error: "Missing or insufficient permissions." }, { status: 403 });
   const actorRole = await resolveRole(decoded);
-  const canEdit = actorRole === "super_admin" || Boolean(await requireAllPermissions(req, EDIT_PERMISSIONS));
-  if (!canEdit) return json({ ok: false, error: "Missing or insufficient permissions." }, { status: 403 });
+  if (actorRole !== "super_admin") {
+    return json({ ok: false, error: "Only a super admin can modify role permissions." }, { status: 403 });
+  }
 
   try {
     const body = await req.json();

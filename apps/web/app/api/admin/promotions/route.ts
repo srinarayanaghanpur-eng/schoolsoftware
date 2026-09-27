@@ -89,13 +89,23 @@ export async function POST(req: Request) {
       return json({ ok: false, error: "Target academic year is required" }, { status: 400 });
     }
 
-    const studentsSnapshot = await db.collection("students")
-      .where("__name__", "in", studentIds.slice(0, 30))
-      .get();
+    // Firestore `in` queries accept at most 30 values. Chunk instead of the
+    // old slice(0, 30), which SILENTLY dropped every student past #30 and
+    // produced partial promotions for real class sizes (40+).
+    const requestedIds = Array.from(new Set(studentIds.map(String)));
+    const studentDocs: FirebaseFirestore.QueryDocumentSnapshot[] = [];
+    for (let i = 0; i < requestedIds.length; i += 30) {
+      const chunk = requestedIds.slice(i, i + 30);
+      const snap = await db.collection("students").where("__name__", "in", chunk).get();
+      studentDocs.push(...snap.docs);
+    }
 
-    if (studentsSnapshot.empty) {
+    if (studentDocs.length === 0) {
       return json({ ok: false, error: "No students found for the given IDs" }, { status: 404 });
     }
+
+    const foundIds = studentDocs.map((doc) => doc.id);
+    const missingCount = requestedIds.length - foundIds.length;
 
     const now = FieldValue.serverTimestamp();
     const schoolId = getSchoolId(token);
@@ -103,13 +113,13 @@ export async function POST(req: Request) {
     const promotionIds: string[] = [];
     const promotionRecords: Record<string, unknown>[] = [];
 
-    const firstStudent = studentsSnapshot.docs[0]?.data();
+    const firstStudent = studentDocs[0]?.data();
     const stepClass = (cls: string) =>
       promotionType === "demote" ? prevClass(cls) || cls : nextClass(cls) || cls;
     const aggregateToClass = toClass || (firstStudent ? stepClass(firstStudent.class) : fromClass);
     const aggregateToSection = toSection || firstStudent?.section || "A";
 
-    for (const doc of studentsSnapshot.docs) {
+    for (const doc of studentDocs) {
       const studentData = doc.data();
       const resolvedToClass = toClass || stepClass(studentData.class);
       const resolvedToSection = toSection || studentData.section || "A";
@@ -154,7 +164,7 @@ export async function POST(req: Request) {
       entityId: promotionIds.join(","),
       title: `${promotionType === "demote" ? "Demotion" : "Promotion"}: ${promotionRecords.length} student(s) to ${aggregateToClass}`,
       description: `${promotionType} - ${fromClass}${fromSection ? " " + fromSection : ""} → ${aggregateToClass}${aggregateToSection ? " " + aggregateToSection : ""}`,
-      payload: { studentIds, promotionIds, promotionType, fromClass, fromSection, toClass, toSection, feeBalanceCarryForward, academicYearId },
+      payload: { studentIds: foundIds, promotionIds, promotionType, fromClass, fromSection, toClass, toSection, feeBalanceCarryForward, academicYearId },
       requestedBy: token.uid,
       academicYearId
     });
@@ -183,10 +193,13 @@ export async function POST(req: Request) {
     return json({
       ok: true,
       count: promotionRecords.length,
+      missingCount,
       ids: promotionIds,
       approvalId,
       records: promotionRecords,
-      message: `${promotionRecords.length} student(s) submitted for super-admin approval. Classes change only after approval.`
+      message: missingCount > 0
+        ? `${promotionRecords.length} student(s) submitted for super-admin approval; ${missingCount} ID(s) matched no student and were skipped. Classes change only after approval.`
+        : `${promotionRecords.length} student(s) submitted for super-admin approval. Classes change only after approval.`
     });
   } catch (error) {
     console.error("Error processing promotion:", error);
