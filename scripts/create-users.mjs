@@ -1,10 +1,15 @@
 /**
  * Creates/updates the two login accounts:
- *   Login ID: ADMIN   Password: Admin@2026   Role: settings_manager (shown as "Admin")
- *   Login ID: SWAPNA  Password: Swapna@2026  Role: principal
+ *   Login ID: ADMIN   Role: settings_manager (shown as "Admin")
+ *   Login ID: SWAPNA  Role: principal
+ *
+ * Passwords are read from the environment — never hardcode them (the previous
+ * defaults lived in git history and must be treated as compromised: rotate
+ * both passwords after running this).
  *
  * Run from repo root (needs the same Firebase Admin env vars as the web app,
  * e.g. from apps/web/.env.local):
+ *   $env:SEED_ADMIN_PASSWORD="..."; $env:SEED_PRINCIPAL_PASSWORD="..."
  *   node --env-file=apps/web/.env.local scripts/create-users.mjs
  */
 import { cert, getApps, initializeApp } from "firebase-admin/app";
@@ -25,13 +30,20 @@ function serviceAccount() {
   throw new Error("Missing Firebase Admin credentials (FIREBASE_SERVICE_ACCOUNT_KEY or FIREBASE_CLIENT_EMAIL/FIREBASE_PRIVATE_KEY/NEXT_PUBLIC_FIREBASE_PROJECT_ID).");
 }
 
+const ADMIN_PASSWORD = process.env.SEED_ADMIN_PASSWORD;
+const PRINCIPAL_PASSWORD = process.env.SEED_PRINCIPAL_PASSWORD;
+if (!ADMIN_PASSWORD || !PRINCIPAL_PASSWORD) {
+  console.error("Refusing to run: set SEED_ADMIN_PASSWORD and SEED_PRINCIPAL_PASSWORD in the environment.");
+  process.exit(1);
+}
+
 const app = getApps()[0] ?? initializeApp({ credential: cert(serviceAccount()) });
 const auth = getAuth(app);
 const db = getFirestore(app);
 
 const USERS = [
-  { loginId: "ADMIN", password: "Admin@2026", role: "settings_manager", displayName: "Admin" },
-  { loginId: "SWAPNA", password: "Swapna@2026", role: "principal", displayName: "Swapna" }
+  { loginId: "ADMIN", password: ADMIN_PASSWORD, role: "settings_manager", displayName: "Admin" },
+  { loginId: "SWAPNA", password: PRINCIPAL_PASSWORD, role: "principal", displayName: "Swapna" }
 ];
 
 for (const u of USERS) {

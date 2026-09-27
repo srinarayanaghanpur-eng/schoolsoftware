@@ -6,6 +6,7 @@ import { docCursor, logFirestoreRead, readLimit } from "@/lib/firestoreReadLogge
 import { firestoreErrorResponse, firestoreQuotaResponse, isFirestoreQuotaPaused } from "@/lib/firebaseErrors";
 import { getSchoolId } from "@/lib/schoolScope";
 import { markSummaryDirty } from "@/lib/markSummaryDirty";
+import { createHash } from "node:crypto";
 
 function normalizeText(value: unknown) {
   return String(value ?? "").trim().toLowerCase();
@@ -201,6 +202,45 @@ export async function POST(request: NextRequest) {
     // Optional external/reference id the school may keep (e.g. govt SATS id).
     const schoolId = String(body.schoolId ?? "").trim() || getSchoolId(auth);
 
+    // Idempotency (B5): a double-click or network retry resubmits the same
+    // payload. Key = explicit client idempotencyKey when provided, else a hash
+    // of the identity fields (covers double-submit without client changes).
+    // Marker is written in the SAME batch as the student doc, so a repeat
+    // within 10 minutes returns the original instead of creating a second
+    // student (and burning a second admission number).
+    const idemSource =
+      typeof body.idempotencyKey === "string" && /^[\w-]{8,100}$/.test(body.idempotencyKey)
+        ? `k_${body.idempotencyKey}`
+        : `h_${createHash("sha256")
+            .update(
+              [
+                normalizeText(studentName),
+                String(dateOfBirth ?? ""),
+                String(fatherName ?? ""),
+                String(body.fatherPhone || phone || ""),
+                classStr,
+                section,
+                schoolId
+              ].join("|")
+            )
+            .digest("hex")
+            .slice(0, 40)}`;
+    const idemRef = db.collection("student_idempotency").doc(idemSource.replace(/[^a-zA-Z0-9_-]/g, "_"));
+    const idemSnap = await idemRef.get();
+    if (idemSnap.exists) {
+      const createdAtMs = new Date(String(idemSnap.data()?.createdAt ?? 0)).getTime();
+      const dupId = String(idemSnap.data()?.studentId ?? "");
+      if (Date.now() - createdAtMs < 10 * 60 * 1000 && dupId) {
+        const dupSnap = await db.collection("students").doc(dupId).get();
+        if (dupSnap.exists) {
+          return json(
+            { success: true, duplicate: true, data: { id: dupSnap.id, ...(dupSnap.data() as Record<string, unknown>) } },
+            { status: 200 }
+          );
+        }
+      }
+    }
+
     // Auto-generate a unique sequential admission number from a counter doc.
     // Prefix avoids collisions with legacy free-typed numbers ("2", "u98"...).
     const counterRef = db.collection("counters").doc("students");
@@ -283,7 +323,13 @@ export async function POST(request: NextRequest) {
       updatedAt: new Date()
     };
 
-    const docRef = await db.collection('students').add(studentData);
+    // Student doc + idempotency marker commit together: a repeat submission
+    // can never see the student without the marker (or vice versa).
+    const docRef = db.collection("students").doc();
+    const createBatch = db.batch();
+    createBatch.set(docRef, studentData);
+    createBatch.set(idemRef, { studentId: docRef.id, createdAt: new Date().toISOString(), admissionNumber });
+    await createBatch.commit();
 
     // Keep studentFeeSummaries in sync from day one so finance pages
     // (dues, reminders, defaulters, dashboard) see this student before

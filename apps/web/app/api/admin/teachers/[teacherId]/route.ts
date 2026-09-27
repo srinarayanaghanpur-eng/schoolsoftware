@@ -1,7 +1,8 @@
 import { FieldValue } from "firebase-admin/firestore";
 import { teacherLoginUpdateSchema, type LateDeductionMode, type EmploymentType } from "@sri-narayana/shared";
 import { adminAuth, adminDb } from "@/lib/firebaseAdmin";
-import { requireAdmin, json } from "@/lib/apiUtils";
+import { requireAdmin, resolveRole, json } from "@/lib/apiUtils";
+import { writeAuditLog } from "@/lib/auditLog";
 import { assertEmployeeIdAvailable, buildTeacherAuthProfile, serializeTeacherDoc } from "@/lib/teacherAdmin";
 
 function isLateDeductionMode(value: unknown): value is LateDeductionMode {
@@ -174,6 +175,23 @@ export async function DELETE(req: Request, { params }: { params: { teacherId: st
     if (uid) {
       await db.collection("users").doc(uid).delete().catch(() => undefined);
       await adminAuth().deleteUser(uid).catch(() => undefined);
+    }
+    // Destructive op — record who removed which staff member.
+    try {
+      await writeAuditLog({
+        action: "teacher.deleted",
+        entityType: "teacher",
+        entityId: params.teacherId,
+        actorId: decodedToken.uid,
+        actorRole: (await resolveRole(decodedToken)) ?? "unknown",
+        oldValues: {
+          fullName: existing.fullName ?? "",
+          employeeId: existing.employeeId ?? "",
+          uid: uid ?? ""
+        }
+      });
+    } catch (auditError) {
+      console.error("Teacher delete: audit log write failed for", params.teacherId, auditError);
     }
     return json({ ok: true, message: "Teacher deleted." });
   } catch (error) {

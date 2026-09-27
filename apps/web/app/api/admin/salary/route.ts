@@ -16,6 +16,7 @@ import { adminDb } from "@/lib/firebaseAdmin";
 import { serializeDoc, startTimer, json } from "@/lib/apiUtils";
 import { getSchoolSettings } from "@/lib/firestoreServer";
 import { logPayrollAccessAudit, requirePayrollAccess } from "@/lib/payrollAccess";
+import { writeAuditLog } from "@/lib/auditLog";
 
 function salaryDocId(month: string, teacherId: string) {
   return `${month}_${teacherId}`;
@@ -276,12 +277,13 @@ export async function PATCH(req: Request) {
     }
 
     const reportRef = db.collection("salary_reports").doc(salaryDocId(month, teacherId));
+    const prevSnap = await reportRef.get();
+    const prevPaid = Boolean((prevSnap.data() as { paid?: boolean } | undefined)?.paid);
     if (paid) {
-      const reportSnap = await reportRef.get();
-      if (!reportSnap.exists) {
+      if (!prevSnap.exists) {
         return json({ ok: false, error: "Salary report not found. Generate salary first." }, { status: 400 });
       }
-      const report = normalizeSalaryReport(reportSnap.data() as SalaryReport);
+      const report = normalizeSalaryReport(prevSnap.data() as SalaryReport);
       if (isSalaryPaymentBlocked(report)) {
         return json({ ok: false, error: getSalaryPaymentBlockedReason(report) ?? "Salary payment is blocked for this report." }, { status: 400 });
       }
@@ -295,6 +297,21 @@ export async function PATCH(req: Request) {
       },
       { merge: true }
     );
+
+    // Payroll state change — must be attributable.
+    try {
+      await writeAuditLog({
+        action: "salary.payment_status_changed",
+        entityType: "salary_report",
+        entityId: salaryDocId(month, teacherId),
+        actorId: access.token.uid,
+        actorRole: access.role,
+        oldValues: { paid: prevPaid },
+        newValues: { paid, month, teacherId }
+      });
+    } catch (auditError) {
+      console.error("Salary PATCH: audit log write failed:", auditError);
+    }
 
     return json({ ok: true, message: paid ? "Marked salary as paid." : "Marked salary as unpaid." });
   } catch (error) {

@@ -1,7 +1,8 @@
 import { NextRequest } from "next/server";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { requirePermission, json } from "@/lib/apiUtils";
+import { requirePermission, resolveRole, json } from "@/lib/apiUtils";
 import { firestoreErrorResponse } from "@/lib/firebaseErrors";
+import { writeAuditLog } from "@/lib/auditLog";
 
 const MAX_IDS = 300;
 const BATCH_LIMIT = 400;
@@ -50,6 +51,21 @@ export async function POST(request: NextRequest) {
         await batch.commit();
         summariesDeleted += sub.length;
       }
+    }
+
+    // Destructive op — one audit entry covering the whole batch.
+    try {
+      await writeAuditLog({
+        action: "students.bulk_deleted",
+        entityType: "student",
+        entityId: `bulk:${ids.length}`,
+        actorId: auth.uid,
+        actorRole: (await resolveRole(auth)) ?? "unknown",
+        oldValues: { deletedIds: ids, count: ids.length },
+        newValues: { summariesDeleted }
+      });
+    } catch (auditError) {
+      console.error("Bulk student delete: audit log write failed:", auditError);
     }
 
     return json({ success: true, deleted: ids.length, summariesDeleted });

@@ -1,7 +1,7 @@
 import { FieldValue } from "firebase-admin/firestore";
 import { parentCreateSchema } from "@sri-narayana/shared";
 import { adminAuth, adminDb } from "@/lib/firebaseAdmin";
-import { errorMessage, requirePermission, json } from "@/lib/apiUtils";
+import { errorMessage, requirePermission, resolveRole, json } from "@/lib/apiUtils";
 import { employeeIdToInternalEmail } from "@sri-narayana/shared";
 import { writeAuditLog } from "@/lib/auditLog";
 
@@ -132,6 +132,18 @@ export async function POST(req: Request) {
     const db = adminDb();
     const existingUser = await db.collection("users").where("employeeId", "==", loginId).where("role", "==", "parent").limit(1).get();
     if (!existingUser.empty) {
+      // Idempotent repeat: a double-click/retry resubmits the same profile.
+      // Returning the ORIGINAL account as success beats a 400 that looks like
+      // a failure while the account actually exists. A different profile under
+      // the same loginId is still rejected.
+      const dup = existingUser.docs[0];
+      const dupData = dup.data() as Record<string, unknown>;
+      const sameProfile =
+        String(dupData.displayName ?? "") === parsed.fullName.trim() &&
+        String(dupData.phone ?? "") === parsed.phone.trim();
+      if (sameProfile) {
+        return json({ ok: true, duplicate: true, message: "Parent login already exists.", uid: dup.id });
+      }
       throw new Error("Login ID already exists for a parent account");
     }
     // Same phone on two parent logins means duplicate records / OTP confusion.
@@ -177,7 +189,7 @@ export async function POST(req: Request) {
       entityType: "user",
       entityId: authUser.uid,
       actorId: decodedToken.uid,
-      actorRole: decodedToken.role as string,
+      actorRole: (await resolveRole(decodedToken)) ?? "unknown",
       newValues: { displayName: parsed.fullName.trim(), phone: parsed.phone.trim(), loginId }
     });
 

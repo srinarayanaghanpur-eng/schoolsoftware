@@ -1,7 +1,8 @@
 import { NextRequest } from 'next/server';
 import { adminDb } from "@/lib/firebaseAdmin";
-import { requirePermission, enforceBodyLimit, json } from "@/lib/apiUtils";
+import { requirePermission, resolveRole, enforceBodyLimit, json } from "@/lib/apiUtils";
 import { markSummaryDirty } from "@/lib/markSummaryDirty";
+import { writeAuditLog } from "@/lib/auditLog";
 import { recalculateStudentFeeSummary } from "@/lib/feeRecalculation";
 
 const db = adminDb();
@@ -186,6 +187,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
     if (!snapshot.exists) {
       return json({ success: false, error: 'Student not found' }, { status: 404 });
     }
+    const existing = (snapshot.data() ?? {}) as Record<string, unknown>;
 
     await docRef.delete();
     // Cascade: remove derived fee-summary read-models so reports stop counting
@@ -199,6 +201,25 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
       console.error("Student delete: fee-summary cascade failed for", id, cascadeError);
     }
     await markSummaryDirty("student:delete");
+
+    // Destructive op — record who deleted which student. Audit failure must
+    // not fail the (already completed) deletion.
+    try {
+      await writeAuditLog({
+        action: "student.deleted",
+        entityType: "student",
+        entityId: id,
+        actorId: authResult.uid,
+        actorRole: (await resolveRole(authResult)) ?? "unknown",
+        oldValues: {
+          studentName: existing.studentName ?? "",
+          admissionNumber: existing.admissionNumber ?? "",
+          class: existing.class ?? ""
+        }
+      });
+    } catch (auditError) {
+      console.error("Student delete: audit log write failed for", id, auditError);
+    }
     return json({ success: true });
   } catch (error) {
     console.error('Error deleting student:', error);
