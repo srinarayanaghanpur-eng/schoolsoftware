@@ -43,3 +43,9 @@ tools/essl-bridge/.env
 apps/desktop/resources/
 apps/desktop/dist/
 
+# Local tooling artifacts
+opencode*.txt
+qa-tmp2/
+.playwright-cli/
+*.tsbuildinfo
+

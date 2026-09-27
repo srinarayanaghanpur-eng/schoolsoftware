@@ -44,16 +44,29 @@ function removeDirectory(dir) {
   });
 }
 
-function copyRuntimeEnvFiles(destDir) {
-  for (const fileName of RUNTIME_ENV_FILES) {
-    const src = path.join(WEB_DIR, fileName);
-    const dest = path.join(destDir, fileName);
-
-    if (!fs.existsSync(src)) continue;
-
-    fs.mkdirSync(destDir, { recursive: true });
-    fs.copyFileSync(src, dest);
-    log(`Copied runtime environment file: ${fileName}`);
+// SECURITY: .env files hold the Firebase service-account private key. They must
+// NEVER end up inside the distributed installer — anyone with the installer
+// could extract full-privilege Firebase credentials. Packaged installs receive
+// their runtime env via the per-user app-data folder (see main.js).
+function assertNoSecretEnvFiles(dir) {
+  const violations = [];
+  const walk = (current) => {
+    if (!fs.existsSync(current)) return;
+    for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
+      const entryPath = path.join(current, entry.name);
+      if (entry.isDirectory()) {
+        walk(entryPath);
+      } else if (RUNTIME_ENV_FILES.includes(entry.name)) {
+        violations.push(entryPath);
+      }
+    }
+  };
+  walk(dir);
+  if (violations.length > 0) {
+    throw new Error(
+      "SECURITY: refusing to package secret environment files:\n" +
+        violations.map((p) => `  - ${p}`).join("\n")
+    );
   }
 }
 
@@ -89,13 +102,14 @@ function main() {
   const publicDest = path.join(resourcesWebDir, "apps", "web", "public");
   copyRecursive(PUBLIC_DIR, publicDest);
 
-  log("Copying runtime environment files...");
-  copyRuntimeEnvFiles(path.join(resourcesWebDir, "apps", "web"));
+  log("Verifying that no secret environment files are packaged...");
+  assertNoSecretEnvFiles(RESOURCES_DIR);
 
   assertExists(path.join(resourcesWebDir, "apps", "web", "server.js"), "Standalone server");
   assertExists(path.join(resourcesWebDir, "apps", "web", ".next", "static"), "Next.js static assets");
 
   log("Build complete! Desktop resources in apps/desktop/resources/");
+  log("NOTE: runtime env is NOT packaged. Provision it at %APPDATA%/Sri Narayana ERP/.env.local on the target machine.");
 }
 
 function run(cmd, opts = {}) {

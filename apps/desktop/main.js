@@ -82,18 +82,59 @@ function loadEnvFile(filePath) {
 
 function loadRuntimeEnvironment() {
   const webRoot = getWebRoot();
+  const userDataDir = (() => {
+    try {
+      return app.getPath("userData");
+    } catch {
+      return null;
+    }
+  })();
+
   const envCandidates = [
+    // Dev checkout: apps/web/.env*
     path.join(__dirname, "..", "web", ".env.local"),
     path.join(__dirname, "..", "web", ".env.production"),
     path.join(__dirname, "..", "web", ".env"),
+    // Legacy packaged installs (current builds no longer package env files —
+    // they contain the Firebase service-account key; see build-web.js).
     path.join(webRoot, ".env.local"),
     path.join(webRoot, ".env.production"),
     path.join(webRoot, ".env"),
+    // Packaged secure location: per-user application-data folder.
+    // Provisioning: copy the school's .env.local into this folder.
+    ...(userDataDir
+      ? [
+          path.join(userDataDir, ".env.local"),
+          path.join(userDataDir, ".env.production"),
+          path.join(userDataDir, ".env"),
+        ]
+      : []),
   ];
 
   for (const envFile of Array.from(new Set(envCandidates))) {
     if (loadEnvFile(envFile)) {
       console.log(`[desktop] Loaded runtime environment from ${envFile}`);
+    }
+  }
+
+  const hasFirebaseCreds =
+    Boolean(process.env.FIREBASE_SERVICE_ACCOUNT_KEY) ||
+    Boolean(process.env.GOOGLE_APPLICATION_CREDENTIALS) ||
+    (Boolean(process.env.FIREBASE_CLIENT_EMAIL) && Boolean(process.env.FIREBASE_PRIVATE_KEY));
+
+  if (!hasFirebaseCreds) {
+    const target = userDataDir ? path.join(userDataDir, ".env.local") : "<app-data>/.env.local";
+    const message = [
+      "Firebase credentials were not found.",
+      "",
+      "The ERP server cannot access school data without them.",
+      "",
+      "Copy the school's .env.local file to:",
+      target,
+    ].join("\n");
+    console.warn(`[desktop] WARNING: ${message}`);
+    if (app.isPackaged) {
+      dialog.showErrorBox("Configuration Required", message);
     }
   }
 }

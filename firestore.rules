@@ -44,6 +44,10 @@ service cloud.firestore {
       return signedIn() && (effectiveRole() == "admin" || effectiveRole() == "super_admin");
     }
 
+    function isSettingsManager() {
+      return signedIn() && effectiveRole() == "settings_manager";
+    }
+
     function isSuperAdmin() {
       return signedIn() && effectiveRole() == "super_admin";
     }
@@ -70,7 +74,10 @@ service cloud.firestore {
 
     match /users/{uid} {
       allow read: if isAdmin() || (signedIn() && request.auth.uid == uid);
-      allow write: if isAdmin();
+      // Every users-doc mutation goes through the admin API (validation,
+      // custom-claim sync, audit logging). Clients never write directly —
+      // this previously let any admin client-edit arbitrary user documents.
+      allow write: if false;
     }
 
     match /teachers/{teacherId} {
@@ -126,9 +133,20 @@ service cloud.firestore {
 
     match /leave_requests/{requestId} {
       allow read: if isAdmin() || isOwnTeacherId(resource.data.teacherId);
-      allow create: if isAdmin() || isOwnTeacherId(request.resource.data.teacherId);
+      // Teachers may only file a request that starts as "pending" — approval
+      // is an admin-only transition (approved leaves feed payroll calculations,
+      // so a self-approved request would directly inflate salary deductions).
+      allow create: if isAdmin() ||
+        (isOwnTeacherId(request.resource.data.teacherId) && request.resource.data.status == "pending");
       allow update: if isAdmin();
       allow delete: if isSuperAdmin();
+    }
+
+    // Canonical audit trail — written exclusively by the Admin SDK through the
+    // API layer. Clients may neither read nor write it (the catch-all deny
+    // below also enforces this; kept explicit so it survives future edits).
+    match /audit_logs/{entryId} {
+      allow read, write: if false;
     }
 
     // Attendance edit audit logs are permanent audit records: admins may read
@@ -148,9 +166,15 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Settings documents (school, payment, admissions, class-sections, ...).
+    // SECURITY: teachers/parents/students must never read these — settings/school
+    // stores the biometric webhook secret, which was previously readable by ANY
+    // signed-in user. Reads are back-office staff only; writes are restricted to
+    // admin/settings_manager (principal/accountant are read-only here; the API
+    // layer enforces per-permission checks for all server-side writes).
     match /settings/{settingsId} {
-      allow read: if signedIn();
-      allow write: if isAdmin();
+      allow read: if isAdmin() || isSettingsManager() || isPrincipal() || isAccountant();
+      allow write: if isAdmin() || isSettingsManager();
     }
 
     // RBAC role documents are read by the app shell for live client-side
