@@ -3,6 +3,7 @@ import { FieldValue } from "firebase-admin/firestore";
 import { paymentConfirmSchema } from "@sri-narayana/shared";
 import { adminDb, verifyBearerToken } from "@/lib/firebaseAdmin";
 import { resolveRole } from "@/lib/apiUtils";
+import { roleHasPermission } from "@/lib/rbacAdmin";
 import { verifyStudentLinked } from "@/lib/portalHelpers";
 import { getSchoolId } from "@/lib/schoolScope";
 import { buildReceiptRecord, generateReceiptNumber, resolveAcademicYearLabel } from "@/lib/receiptService";
@@ -14,7 +15,17 @@ export async function POST(req: Request) {
   const token = await verifyBearerToken(req);
   if (!token) return NextResponse.json({ ok: false, error: "Authentication required" }, { status: 401 });
   const role = await resolveRole(token);
-  const isStaff = role === "super_admin" || role === "admin" || role === "accountant" || role === "principal";
+  // Permission-based, not a role allowlist: whoever holds fees.create may
+  // finalize orders (super_admin/admin/accountant/principal/settings_manager/
+  // teacher-with-grant). Parents are handled by the own-order + linked-student
+  // path below; any other role without fees.create is rejected outright.
+  const isStaff = await roleHasPermission(role, "fees.create");
+  if (!isStaff && role !== "parent") {
+    return NextResponse.json(
+      { ok: false, error: "Access denied. Missing permission: fees.create. Ask super admin to enable this permission for your role." },
+      { status: 403 }
+    );
+  }
 
   try {
     const parsed = paymentConfirmSchema.parse(await req.json());

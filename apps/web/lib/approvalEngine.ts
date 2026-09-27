@@ -67,45 +67,59 @@ type ReviewApprovalParams = {
 };
 
 export async function reviewApprovalRequest(params: ReviewApprovalParams): Promise<void> {
+  if (params.status === "pending") {
+    throw new Error("Invalid approval status");
+  }
   const db = adminDb();
   const ref = db.collection("approval_requests").doc(params.approvalId);
-  const snap = await ref.get();
-
-  if (!snap.exists) {
-    throw new Error("Approval request not found");
-  }
-
-  const existing = snap.data() as ApprovalRequest;
-
-  if (existing.status !== "pending") {
-    throw new Error(`Approval request is already ${existing.status}`);
-  }
 
   const now = new Date().toISOString();
-  await ref.update({
-    status: params.status,
-    reviewedBy: params.reviewedBy,
-    reviewedByName: params.reviewedByName,
-    reviewedAt: now,
-    notes: params.notes ?? ""
+  let existing: ApprovalRequest;
+
+  // Atomic pending→decided transition. Without the transaction two concurrent
+  // reviewers could both pass the pending check and BOTH run
+  // applyApprovalEffect — double-applying side effects (e.g. a receipt cancel
+  // decrementing financeSummaries twice). Firestore transactions serialize on
+  // the doc, so only the first reviewer wins; the loser gets
+  // "already {status}" and applies nothing.
+  await db.runTransaction(async (transaction) => {
+    const snap = await transaction.get(ref);
+    if (!snap.exists) {
+      throw new Error("Approval request not found");
+    }
+    const data = snap.data() as ApprovalRequest;
+    if (data.status !== "pending") {
+      throw new Error(`Approval request is already ${data.status}`);
+    }
+    existing = data;
+    transaction.update(ref, {
+      status: params.status,
+      reviewedBy: params.reviewedBy,
+      reviewedByName: params.reviewedByName,
+      reviewedAt: now,
+      notes: params.notes ?? ""
+    });
   });
+
+  const reviewed = existing!;
 
   await writeAuditLog({
     action: params.status === "approved" ? "approval.approved" : "approval.rejected",
-    entityType: existing.entityType,
-    entityId: existing.entityId,
+    entityType: reviewed.entityType,
+    entityId: reviewed.entityId,
     actorId: params.reviewedBy,
     actorRole: "admin",
-    oldValues: { status: existing.status },
+    oldValues: { status: reviewed.status },
     newValues: { status: params.status, notes: params.notes },
     reason: params.notes,
     approvalId: params.approvalId,
-    branch: existing.branch,
-    academicYearId: existing.academicYearId
+    branch: reviewed.branch,
+    academicYearId: reviewed.academicYearId
   });
 
-  // Apply the real side-effect once a request is decided.
-  await applyApprovalEffect(existing, params.status);
+  // Apply the real side-effect once a request is decided — only reached by
+  // the single transaction winner.
+  await applyApprovalEffect(reviewed, params.status);
 }
 
 /**
