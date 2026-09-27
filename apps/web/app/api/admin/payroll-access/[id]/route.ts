@@ -3,8 +3,8 @@ import { FieldValue } from "firebase-admin/firestore";
 import { adminDb, verifyBearerToken } from "@/lib/firebaseAdmin";
 import {
   PAYROLL_ACCESS_REQUEST_COLLECTION,
-  getPayrollRole,
   logPayrollAccessAudit,
+  resolvePayrollRole,
   type PayrollAccessContext,
   type PayrollApprovalStatus
 } from "@/lib/payrollAccess";
@@ -23,7 +23,7 @@ function contextFromRequest(data: Record<string, unknown>): PayrollAccessContext
 
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
   const token = await verifyBearerToken(req);
-  const role = getPayrollRole(token);
+  const role = await resolvePayrollRole(token);
   if (!token || role !== "super_admin") {
     return json({ ok: false, error: "Admin access required" }, { status: 403 });
   }

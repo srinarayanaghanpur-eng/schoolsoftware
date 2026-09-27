@@ -1,5 +1,5 @@
-import { hasPermission, type Role } from "@sri-narayana/shared";
-import { requirePermission, json } from "@/lib/apiUtils";
+import { requirePermission, resolveRole, json } from "@/lib/apiUtils";
+import { roleHasPermission } from "@/lib/rbacAdmin";
 import { createReceiptFromPayment, getReceiptById } from "@/lib/receiptService";
 
 // GET /api/admin/finance/receipt/[paymentId] — compatibility endpoint for
@@ -10,7 +10,8 @@ export async function GET(req: Request, { params }: { params: { paymentId: strin
   if (!token) return json({ ok: false, error: "Access denied" }, { status: 403 });
 
   try {
-    const canPrint = hasPermission(token.role as Role | undefined, "fees.create");
+    const role = await resolveRole(token);
+    const canPrint = await roleHasPermission(role, "fees.create");
     const existing = await getReceiptById(params.paymentId);
     const receipt = existing || (canPrint ? await createReceiptFromPayment(params.paymentId, token) : null);
     if (!receipt) return json({ ok: false, error: "Receipt not found" }, { status: 404 });

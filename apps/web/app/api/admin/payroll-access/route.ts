@@ -7,11 +7,11 @@ import {
   buildPayrollAccessContext,
   canOpenPayrollDirectly,
   expireStalePayrollAccessRequests,
-  getPayrollRole,
   isApprovedPayrollRequest,
   logPayrollAccessAudit,
   payrollAccessRequestId,
   readPayrollAccessRequest,
+  resolvePayrollRole,
   type PayrollAccessContext,
   type PayrollAccessRequest
 } from "@/lib/payrollAccess";
@@ -41,7 +41,7 @@ function contextFields(context: PayrollAccessContext) {
 
 export async function GET(req: Request) {
   const token = await verifyBearerToken(req);
-  const role = getPayrollRole(token);
+  const role = await resolvePayrollRole(token);
   if (!token || !role) {
     return json({ ok: false, error: "Access denied" }, { status: 403 });
   }
@@ -93,7 +93,7 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   const token = await verifyBearerToken(req);
-  const role = getPayrollRole(token);
+  const role = await resolvePayrollRole(token);
   if (!token || role !== "accountant") {
     return json({ ok: false, error: "Only accountants can request payroll approval" }, { status: 403 });
   }

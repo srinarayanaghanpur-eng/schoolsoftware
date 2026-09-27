@@ -1,11 +1,13 @@
 import { leaveRequestReviewSchema } from "@sri-narayana/shared";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { requireAdmin, serializeDoc, json } from "@/lib/apiUtils";
+import { requireAdminOrPrincipal, serializeDoc, json } from "@/lib/apiUtils";
 import { reviewLeaveRequest } from "@/lib/leaveReview";
 
 export async function GET(req: Request) {
   try {
-    const decodedToken = await requireAdmin(req);
+    // No leave.* permission keys exist yet; reviewers are role-gated.
+    // The principal reviews teacher leave alongside admins.
+    const decodedToken = await requireAdminOrPrincipal(req);
     if (!decodedToken) {
       return json({ ok: false, error: "Admin access required" }, { status: 403 });
     }
@@ -20,7 +22,7 @@ export async function GET(req: Request) {
 
 export async function PATCH(req: Request) {
   try {
-    const decodedToken = await requireAdmin(req);
+    const decodedToken = await requireAdminOrPrincipal(req);
     if (!decodedToken) {
       return json({ ok: false, error: "Admin access required" }, { status: 403 });
     }

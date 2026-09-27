@@ -1,14 +1,17 @@
 import { NextResponse } from "next/server";
 import { filterActiveHolidays, findHolidayForDate, toDateKey, type AttendanceRecord, type AppUser, type Holiday, type Teacher } from "@sri-narayana/shared";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { requireAuthenticated, serializeDoc, startTimer } from "@/lib/apiUtils";
+import { requireAuthenticated, resolveRole, serializeDoc, startTimer } from "@/lib/apiUtils";
 import { getSchoolSettings } from "@/lib/firestoreServer";
 
 export async function GET(req: Request) {
   const totalTimer = startTimer();
   try {
     const decodedToken = await requireAuthenticated(req);
-    if (!decodedToken || decodedToken.role !== "teacher") {
+    // resolveRole reads the Firestore role doc — the custom claim
+    // (decodedToken.role) goes stale after a role change.
+    const role = decodedToken ? await resolveRole(decodedToken) : undefined;
+    if (!decodedToken || role !== "teacher") {
       return NextResponse.json({ ok: false, error: "Teacher access required" }, { status: 403 });
     }
 

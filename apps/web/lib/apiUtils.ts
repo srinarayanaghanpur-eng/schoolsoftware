@@ -77,6 +77,17 @@ export async function requireAdmin(req: Request): Promise<DecodedIdToken | null>
   return decodedToken;
 }
 
+/** Like requireAdmin, but also admits the principal — for endpoints where the
+ * principal legitimately reviews staff records (attendance lists, leave
+ * request review) yet has no admin role. */
+export async function requireAdminOrPrincipal(req: Request): Promise<DecodedIdToken | null> {
+  const decodedToken = await verifyBearerToken(req);
+  if (!decodedToken) return null;
+  const role = await resolveRole(decodedToken);
+  if (role !== "super_admin" && role !== "admin" && role !== "settings_manager" && role !== "principal") return null;
+  return decodedToken;
+}
+
 /** Allow the request only for super_admin (used for hard deletes of records). */
 export async function requireSuperAdmin(req: Request): Promise<DecodedIdToken | null> {
   const decodedToken = await verifyBearerToken(req);

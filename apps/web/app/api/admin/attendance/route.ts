@@ -1,6 +1,6 @@
 import { attendanceEditSchema } from "@sri-narayana/shared";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { requireAdmin, serializeDoc, startTimer, json } from "@/lib/apiUtils";
+import { requireAdmin, requireAdminOrPrincipal, serializeDoc, startTimer, json } from "@/lib/apiUtils";
 import { docCursor, logFirestoreRead, readLimit } from "@/lib/firestoreReadLogger";
 import { markSummaryDirty } from "@/lib/markSummaryDirty";
 function chunk<T>(items: T[], size: number) {
@@ -14,9 +14,11 @@ function chunk<T>(items: T[], size: number) {
 export async function GET(req: Request) {
   const totalTimer = startTimer();
   try {
-    const decodedToken = await requireAdmin(req);
+    // Read access: admins + principal (attendance.view holders). Writes stay
+    // admin-only below — the principal has approve but not edit rights.
+    const decodedToken = await requireAdminOrPrincipal(req);
     if (!decodedToken) {
-      return json({ ok: false, error: "Admin access required" }, { status: 403 });
+      return json({ ok: false, error: "Admin or principal access required" }, { status: 403 });
     }
 
     const db = adminDb();

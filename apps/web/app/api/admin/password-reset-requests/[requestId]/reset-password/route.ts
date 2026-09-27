@@ -2,7 +2,7 @@ import type { DocumentReference, DocumentSnapshot } from "firebase-admin/firesto
 import { FieldValue } from "firebase-admin/firestore";
 import { employeeIdToInternalEmail, isValidRole, passwordResetSchema } from "@sri-narayana/shared";
 import { adminAuth, adminDb } from "@/lib/firebaseAdmin";
-import { errorMessage, requireAdmin, json } from "@/lib/apiUtils";
+import { errorMessage, requireAdmin, resolveRole, json } from "@/lib/apiUtils";
 
 type RouteContext = { params: { requestId: string } };
 
@@ -132,7 +132,10 @@ export async function POST(req: Request, { params }: RouteContext) {
     }
 
     const target = await resolveResetTarget(requestData);
-    if (target.role === "super_admin" && decodedToken.role !== "super_admin") {
+    // Caller role resolved from Firestore — a stale super_admin custom claim
+    // must not authorize resetting another super admin's password.
+    const callerRole = await resolveRole(decodedToken);
+    if (target.role === "super_admin" && callerRole !== "super_admin") {
       return json({ ok: false, error: "Only a super admin can reset a super admin password." }, { status: 403 });
     }
 

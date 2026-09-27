@@ -1,7 +1,7 @@
 import { FieldValue } from "firebase-admin/firestore";
 import { academicYearCreateSchema, type AcademicYear } from "@sri-narayana/shared";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { requirePermission, serializeDoc, json } from "@/lib/apiUtils";
+import { requirePermission, resolveRole, serializeDoc, json } from "@/lib/apiUtils";
 import {
   firestoreErrorResponse,
   firestoreQuotaResponse,
@@ -21,7 +21,8 @@ export async function GET(req: Request) {
   if (!token) return json({ ok: false, error: "Access denied" }, { status: 403 });
 
   const url = new URL(req.url);
-  const canBypassCache = token.role === "principal" || token.role === "super_admin" || token.role === "settings_manager";
+  const role = await resolveRole(token);
+  const canBypassCache = role === "principal" || role === "super_admin" || role === "settings_manager";
   const bypassCache = canBypassCache && url.searchParams.get("refresh") === "1";
 
   if (!bypassCache && academicYearsCache && academicYearsCache.expiresAt > Date.now()) {
@@ -52,7 +53,8 @@ export async function GET(req: Request) {
 // POST /api/admin/academic-years — create a year. Super admin only.
 export async function POST(req: Request) {
   const token = await requirePermission(req, "academic_years.view");
-  if (!token || (token.role !== "super_admin" && token.role !== "settings_manager")) {
+  const role = token ? await resolveRole(token) : undefined;
+  if (!token || (role !== "super_admin" && role !== "settings_manager")) {
     return json({ ok: false, error: "Super admin or settings manager access required" }, { status: 403 });
   }
 

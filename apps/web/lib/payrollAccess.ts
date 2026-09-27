@@ -3,6 +3,7 @@ import { FieldValue } from "firebase-admin/firestore";
 import { isValidRole, type Role } from "@sri-narayana/shared";
 import { adminDb, verifyBearerToken } from "@/lib/firebaseAdmin";
 import { roleHasPermission } from "@/lib/rbacAdmin";
+import { resolveRole } from "@/lib/apiUtils";
 
 export type PayrollApprovalStatus = "pending" | "approved" | "rejected";
 
@@ -42,6 +43,14 @@ const AUDIT_COLLECTION = "payroll_access_audit_logs";
 export function getPayrollRole(token: DecodedIdToken | null): Role | undefined {
   const role = token?.role;
   return isValidRole(role) ? role : undefined;
+}
+
+/** Canonical role for payroll authorization: resolves through the Firestore
+ * role doc. The custom-claim `token.role` (getPayrollRole) goes stale when an
+ * account's role changes, so security gates must not read it. */
+export async function resolvePayrollRole(token: DecodedIdToken | null): Promise<Role | undefined> {
+  if (!token) return undefined;
+  return resolveRole(token);
 }
 
 export async function canOpenPayrollDirectly(role: Role | undefined) {
@@ -159,7 +168,7 @@ export async function logPayrollAccessAudit({
 
 export async function requirePayrollAccess(req: Request): Promise<PayrollAccessResult> {
   const token = await verifyBearerToken(req);
-  const role = getPayrollRole(token);
+  const role = await resolvePayrollRole(token);
 
   if (!token || !role || !await roleHasPermission(role, "payroll.view")) {
     return { ok: false, status: 403, error: "Payroll access denied", token: token ?? undefined, role };

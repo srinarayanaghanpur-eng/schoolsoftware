@@ -1,7 +1,7 @@
 import { FieldValue } from "firebase-admin/firestore";
 import { teacherLoginCreateSchema } from "@sri-narayana/shared";
 import { adminAuth, adminDb } from "@/lib/firebaseAdmin";
-import { requireAdmin, json } from "@/lib/apiUtils";
+import { requireAdmin, requirePermission, json } from "@/lib/apiUtils";
 import { firestoreErrorResponse, firestoreQuotaResponse, isFirestoreQuotaPaused } from "@/lib/firebaseErrors";
 import {
   assertEmployeeIdAvailable,
@@ -12,9 +12,11 @@ import {
 
 export async function GET(req: Request) {
   try {
-    const decodedToken = await requireAdmin(req);
+    // staff.view (super_admin/admin/settings_manager/principal) — creating and
+    // deleting teachers below remains admin-only.
+    const decodedToken = await requirePermission(req, "staff.view");
     if (!decodedToken) {
-      return json({ ok: false, error: "Admin access required" }, { status: 403 });
+      return json({ ok: false, error: "Access denied. Missing permission: staff.view" }, { status: 403 });
     }
 
     if (isFirestoreQuotaPaused()) {
