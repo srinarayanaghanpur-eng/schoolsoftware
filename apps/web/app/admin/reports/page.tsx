@@ -66,14 +66,31 @@ function FeeReportsSection() {
     }
   };
 
+  const csvCell = (v: unknown): string => {
+    if (v === null || v === undefined) return "";
+    if (Array.isArray(v)) {
+      // e.g. class-wise `students`: export readable names, not [object Object]
+      const names = v
+        .map((s) =>
+          typeof s === "string"
+            ? s
+            : [s?.studentName, s?.admissionNumber].filter(Boolean).join(" ")
+        )
+        .filter(Boolean);
+      return `"${names.join("; ").replace(/"/g, "'")}"`;
+    }
+    if (typeof v === "object") return `"${JSON.stringify(v).replace(/"/g, "'")}"`;
+    const s = String(v);
+    return s.includes(",") || s.includes('"') || s.includes("\n")
+      ? `"${s.replace(/"/g, '""')}"`
+      : s;
+  };
+
   const exportToCSV = (data: any[], filename: string) => {
+    if (!data.length) return;
     const csv = [
       Object.keys(data[0] || {}).join(","),
-      ...data.map((row) =>
-        Object.values(row)
-          .map((v) => (typeof v === "string" && v.includes(",") ? `"${v}"` : v))
-          .join(",")
-      )
+      ...data.map((row) => Object.values(row).map(csvCell).join(","))
     ].join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const url = window.URL.createObjectURL(blob);

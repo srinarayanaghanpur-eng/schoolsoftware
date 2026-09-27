@@ -18,7 +18,7 @@ export function FinanceStatCard({ icon, label, value, subtext, bgClass = "bg-whi
         </span>
         <div className="min-w-0 flex-1">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-[#64748b]">{label}</p>
-          <p className="mt-0.5 truncate text-xl font-extrabold text-[#1e293b]">{value}</p>
+          <p className="mt-0.5 text-xl font-extrabold leading-tight text-[#1e293b] [overflow-wrap:anywhere]">{value}</p>
           {subtext && <p className="mt-0.5 text-xs font-medium text-[#94a3b8]">{subtext}</p>}
         </div>
       </div>

@@ -306,10 +306,11 @@ export type SalaryReport = {
   grossEarnedSalary: number; // earnedPaidDays × perDaySalary
   approvedLeaveRequests: LeaveRequest[]; // approved leave requests for this month
   approvedLeaveInfo: string; // formatted leave info for Excel
-  salaryDeduction: number; // (plain absent days + excess CL days) × perDaySalary
+  salaryDeduction: number; // (plain absent days + excess CL days + late days) × perDaySalary
   // Deductions (detailed breakdown)
   absentDeduction: number;
-  lateDeduction: number;
+  lateDeduction: number; // floor(lateEntries / 3) × perDaySalary
+  lateDeductionDays: number; // full days deducted for lates
   excessLeaveDeduction: number; // excessCLDays × perDaySalary
   manualDeduction: number;
   bonus: number;

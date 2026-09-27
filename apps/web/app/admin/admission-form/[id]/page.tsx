@@ -188,6 +188,30 @@ function hasDocument(student: StudentData, needles: string[]): boolean {
   return needles.some((needle) => haystack.includes(needle));
 }
 
+function otherDocumentNames(student: StudentData): string {
+  const known = [
+    "birth",
+    "aadhaar",
+    "parent aadhaar",
+    "father aadhaar",
+    "mother aadhaar",
+    "tc",
+    "bonafide",
+    "report",
+    "photo",
+    "caste",
+    "income",
+  ];
+  return (student.documentURLs ?? [])
+    .map((doc) => String(doc.name ?? "").trim())
+    .filter((name) => name.length > 0)
+    .filter((name) => {
+      const lower = name.toLowerCase();
+      return !known.some((needle) => lower.includes(needle));
+    })
+    .join(", ");
+}
+
 // ---------- Styled sub-components ----------
 
 function FieldBox({
@@ -221,7 +245,7 @@ function FormSection({
   return (
     <div className="af-section">
       <div className="af-section-heading">
-        <span className="af-section-number">{number}</span>
+        <span className="af-section-number">{String(number).padStart(2, "0")}</span>
         <span>{title}</span>
       </div>
       <div className={cols === 2 ? "af-grid af-grid-2" : "af-grid af-grid-3"}>
@@ -660,10 +684,10 @@ export default function AdmissionFormPage() {
                   className="af-photo-img"
                 />
               ) : (
-                <div className="af-photo-placeholder">
-                  <span>Student</span>
-                  <span>Photo</span>
-                </div>
+              <div className="af-photo-placeholder">
+                <span>STUDENT PHOTOGRAPH</span>
+                <span>(affix passport-size photo)</span>
+              </div>
               )}
             </div>
           </div>
@@ -671,6 +695,9 @@ export default function AdmissionFormPage() {
           {/* Title */}
           <div className="af-title-bar">
             DIGITAL STUDENT ADMISSION FORM
+          </div>
+          <div className="af-title-sub">
+            ACADEMIC YEAR: {r.academicYearName || "—"}
           </div>
 
           {/* Admission Number & Date Strip */}
@@ -759,7 +786,7 @@ export default function AdmissionFormPage() {
           {/* Section F: Documents Checklist */}
           <div className="af-section">
             <div className="af-section-heading">
-              <span className="af-section-number">6</span>
+              <span className="af-section-number">06</span>
               <span>DOCUMENTS CHECKLIST</span>
             </div>
             <div className="af-checklist-grid">
@@ -809,12 +836,16 @@ export default function AdmissionFormPage() {
                 checked={(student.documentURLs ?? []).length > 0}
               />
             </div>
+            <div className="af-other-docs">
+              <span className="af-other-docs-label">Other Documents (specify):</span>
+              <span className="af-other-docs-value">{display(otherDocumentNames(student))}</span>
+            </div>
           </div>
 
           {/* Section G: Declaration */}
           <div className="af-section">
             <div className="af-section-heading">
-              <span className="af-section-number">7</span>
+              <span className="af-section-number">07</span>
               <span>DECLARATION</span>
             </div>
             <div className="af-declaration-box">
@@ -835,7 +866,7 @@ export default function AdmissionFormPage() {
           {/* Section H: Signatures */}
           <div className="af-section">
             <div className="af-section-heading">
-              <span className="af-section-number">8</span>
+              <span className="af-section-number">08</span>
               <span>SIGNATURES</span>
             </div>
             <div className="af-signatures">
@@ -848,7 +879,7 @@ export default function AdmissionFormPage() {
           {/* Section I: Office Use Only */}
           <div className="af-section">
             <div className="af-section-heading">
-              <span className="af-section-number">9</span>
+              <span className="af-section-number">09</span>
               <span>OFFICE USE ONLY</span>
             </div>
             <div className="af-grid af-grid-3">
@@ -1109,7 +1140,15 @@ export default function AdmissionFormPage() {
           letter-spacing: 0.06em;
           text-align: center;
           padding: 8px 10px;
-          margin: 10px 0;
+          margin: 10px 0 0;
+        }
+        .af-title-sub {
+          text-align: center;
+          font-size: 11px;
+          font-weight: 900;
+          letter-spacing: 0.08em;
+          color: #1f2f8d;
+          padding: 4px 10px 0;
         }
 
         /* ---------- Top Strip ---------- */
@@ -1247,6 +1286,22 @@ export default function AdmissionFormPage() {
         }
         .af-check-label {
           line-height: 1.2;
+        }
+        .af-other-docs {
+          display: flex;
+          gap: 8px;
+          padding: 2px 10px 10px;
+          font-size: 10px;
+          font-weight: 700;
+          color: #1f2937;
+        }
+        .af-other-docs-label {
+          white-space: nowrap;
+        }
+        .af-other-docs-value {
+          font-weight: 800;
+          overflow-wrap: anywhere;
+          word-break: break-word;
         }
 
         /* ---------- Declaration ---------- */

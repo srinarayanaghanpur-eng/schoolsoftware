@@ -161,7 +161,7 @@ const primaryNav: NavItem[] = [
   { href: "/admin/notices", label: "Communication", module: "communication", icon: Megaphone, activePrefixes: ["/admin/notices", "/admin/messages", "/admin/notifications"] },
   { href: "/admin/reports", label: "Reports", module: "reports", icon: BarChart3, activePrefixes: ["/admin/reports"] },
   { href: "/admin/ai-agent", label: "AI Agent", module: "ai_agent", icon: Brain, activePrefixes: ["/admin/ai-agent"] },
-  { href: "/admin/settings", label: "Settings", module: "settings", icon: Settings, activePrefixes: ["/admin/settings", "/admin/users", "/admin/approvals", "/admin/branches", "/admin/biometric", "/admin/backup"] }
+  { href: "/admin/settings", label: "Settings", module: "settings", icon: Settings, activePrefixes: ["/admin/settings", "/admin/users", "/admin/approvals", "/admin/biometric", "/admin/backup"] }
 ];
 
 // Parent/student portal nav — shown only for portal roles. Admin roles have the
@@ -194,7 +194,6 @@ const secondaryNav: NavItem[] = [
   { href: "/admin/hostel", label: "Hostel", module: "hostel", icon: Hotel },
   { href: "/admin/inventory", label: "Inventory", module: "inventory", icon: Package },
   { href: "/admin/certificates", label: "Certificates", module: "certificates", icon: FileText },
-  { href: "/admin/branches", label: "Branches", module: "settings", icon: Building2 },
   { href: "/admin/settings", label: "Settings", module: "settings", icon: Settings }
 ];
 
@@ -247,12 +246,11 @@ const contextSubnavs: ContextSubnav[] = [
   {
     title: "Settings",
     eyebrow: "System",
-    matchPrefixes: ["/admin/settings", "/admin/users", "/admin/approvals", "/admin/branches", "/admin/biometric", "/admin/backup"],
+    matchPrefixes: ["/admin/settings", "/admin/users", "/admin/approvals", "/admin/biometric", "/admin/backup"],
     items: [
       { href: "/admin/settings", label: "School Settings", icon: Settings, module: "settings" },
       { href: "/admin/users", label: "Users & Roles", icon: UserCog, module: "users" },
       { href: "/admin/approvals", label: "Approvals", icon: ShieldCheck, module: "settings" },
-      { href: "/admin/branches", label: "Branches", icon: Building2, module: "settings" },
       { href: "/admin/biometric", label: "Biometric", icon: CalendarCheck, module: "settings" },
       { href: "/admin/backup", label: "Backup", icon: FileStack, module: "settings" }
     ]
@@ -274,8 +272,9 @@ const contextSubnavs: ContextSubnav[] = [
     eyebrow: "Admissions",
     matchPrefixes: ["/admin/students", "/admin/admission-form"],
     items: [
-      { href: "/admin/students", label: "Student List", icon: Users, module: "students" },
-      { href: "/admin/students?admission=1", label: "Admission Form", icon: UserPlus, module: "students" }
+      { href: "/admin/students", label: "All Classes", icon: Users, module: "students" },
+      // Admission form opens on a class page — pick the class there, then Add Student.
+      { href: "/admin/students/class-1?admission=1", label: "Admission Form", icon: UserPlus, module: "students" }
     ]
   },
   {
@@ -360,7 +359,6 @@ const pageTitles: Record<string, string> = {
   "/portal/downloads": "Downloads",
   "/portal/contact": "Contact School",
   "/portal/profile": "Parent Profile",
-  "/admin/branches": "Branches",
   "/admin/settings": "Settings",
   "/admin/biometric": "Biometric Devices",
   "/admin/backup": "Backup & Restore",
@@ -389,7 +387,6 @@ const routeModules: Array<{ prefix: string; module: Module }> = [
   { prefix: "/admin/notifications", module: "communication" },
   { prefix: "/admin/calendar", module: "academics" },
   { prefix: "/admin/holidays", module: "academics" },
-  { prefix: "/admin/branches", module: "settings" },
   { prefix: "/admin/settings", module: "settings" },
   { prefix: "/admin/biometric", module: "settings" },
   { prefix: "/admin/backup", module: "settings" },

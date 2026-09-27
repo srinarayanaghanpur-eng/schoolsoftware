@@ -11,15 +11,18 @@ export default function AppLoader({ message = "Loading your dashboard..." }: { m
   }, []);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 px-4">
-      <div className="w-full max-w-sm rounded-3xl border border-blue-100 bg-white/90 p-8 text-center shadow-xl backdrop-blur">
-        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-600 text-xl font-black text-white shadow-lg">
-          SNHS
+    <div className="min-h-screen flex items-center justify-center bg-slate-50 px-4">
+      <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
+        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-slate-900 text-lg font-extrabold text-white">
+          N
         </div>
 
         <h1 className="text-xl font-bold text-slate-900">
-          Sri Narayana School ERP
+          NarayanaOS
         </h1>
+        <p className="mt-1 text-xs font-semibold text-slate-500">
+          Sri Narayana High School
+        </p>
 
         <p className="mt-2 text-sm font-medium text-slate-500">
           {message}

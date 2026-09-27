@@ -194,6 +194,54 @@ async function applyApprovalEffect(request: ApprovalRequest, status: ApprovalSta
       }
       break;
     }
+    case "promotion": {
+      // Class promotion / demotion applies ONLY here, on super-admin approve.
+      // The POST route only stages pending records — students keep their old
+      // class until this effect runs. On reject, records close as rejected.
+      const payload = (request.payload ?? {}) as Record<string, unknown>;
+      const promotionIds = Array.isArray(payload.promotionIds)
+        ? (payload.promotionIds as string[])
+        : String(request.entityId || "").split(",").map((s) => s.trim()).filter(Boolean);
+      const now = new Date();
+      const batch = db.batch();
+      let touched = 0;
+      for (const promotionId of promotionIds.slice(0, 500)) {
+        const promoSnap = await db.collection("promotions").doc(promotionId).get();
+        if (!promoSnap.exists) continue;
+        const promo = promoSnap.data() as Record<string, unknown>;
+        if (status === "approved") {
+          const studentId = String(promo.studentId || "");
+          if (studentId) {
+            const updateData: Record<string, unknown> = {
+              class: promo.toClass,
+              section: promo.toSection,
+              academicYearId: promo.academicYearId,
+              updatedAt: now
+            };
+            if (promo.feeBalanceCarriedForward) {
+              const studentSnap = await db.collection("students").doc(studentId).get();
+              const student = (studentSnap.data() ?? {}) as Record<string, unknown>;
+              const existingDue = Number(student.totalFeesDue || 0);
+              const existingPaid = Number(student.totalFeesPaid || 0);
+              updateData.totalFeesDue = existingDue;
+              updateData.totalFeesPaid = existingPaid;
+              updateData.feeStatus = existingDue <= 0 ? "paid" : existingPaid > 0 ? "partial" : "pending";
+            }
+            batch.update(db.collection("students").doc(studentId), updateData);
+            touched++;
+          }
+          batch.update(db.collection("promotions").doc(promotionId), { status: "completed", updatedAt: now });
+        } else {
+          batch.update(db.collection("promotions").doc(promotionId), { status: "rejected", updatedAt: now });
+        }
+      }
+      await batch.commit();
+      if (touched > 0) {
+        const { markSummaryDirty } = await import("@/lib/markSummaryDirty");
+        await markSummaryDirty("promotion");
+      }
+      break;
+    }
     case "profile_update": {
       // Parent/student profile update: write the new mobile/address to the doc.
       if (status === "approved") {

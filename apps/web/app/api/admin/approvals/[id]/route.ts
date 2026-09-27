@@ -1,5 +1,6 @@
 import { approvalRequestReviewSchema } from "@sri-narayana/shared";
-import { requireAdmin, json } from "@/lib/apiUtils";
+import { adminDb } from "@/lib/firebaseAdmin";
+import { requireAdmin, requireSuperAdmin, json } from "@/lib/apiUtils";
 import { reviewApprovalRequest } from "@/lib/approvalEngine";
 
 export async function PATCH(
@@ -15,12 +16,24 @@ export async function PATCH(
     const body = await req.json();
     const parsed = approvalRequestReviewSchema.parse(body);
 
+    // Class promotion / demotion is strictly super-admin: any other admin
+    // attempting to decide one gets a 403 before any effect can run.
+    const targetSnap = await adminDb().collection("approval_requests").doc(params.id).get();
+    const targetType = targetSnap.exists ? String((targetSnap.data() as Record<string, unknown>)?.requestType ?? "") : "";
+    const reviewer = targetType === "promotion" ? await requireSuperAdmin(req) : decodedToken;
+    if (!reviewer) {
+      return json(
+        { ok: false, error: targetType === "promotion" ? "Only a super admin can approve promotions." : "Admin access required" },
+        { status: 403 }
+      );
+    }
+
     await reviewApprovalRequest({
       approvalId: params.id,
       status: parsed.status,
       notes: parsed.notes,
-      reviewedBy: decodedToken.uid,
-      reviewedByName: decodedToken.name ?? decodedToken.uid
+      reviewedBy: reviewer.uid,
+      reviewedByName: reviewer.name ?? reviewer.uid
     });
 
     return json({ ok: true, message: `Approval request ${parsed.status}.` });

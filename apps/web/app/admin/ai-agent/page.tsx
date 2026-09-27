@@ -57,7 +57,7 @@ interface DuesSummaryData {
 }
 
 const PLACEHOLDERS: Record<string, string> = {
-  chat: "Ask AI about notices, summaries, or ERP help...",
+  chat: "Ask AI about notices, summaries, or NarayanaOS help...",
   fee_reminder: "Enter a Student ID to generate a fee reminder...",
   notice: "Describe the notice you want to generate...",
   dues: "Ask about dues or click Summarize Dues...",
@@ -67,13 +67,13 @@ const PLACEHOLDERS: Record<string, string> = {
 };
 
 const TOOL_DESCRIPTIONS: Record<string, string> = {
-  chat: "General AI assistant with live ERP data context",
+  chat: "General AI assistant with live NarayanaOS data context",
   fee_reminder: "Generated fixed template message from actual dues",
-  notice: "Creates a formatted school notice with live ERP context",
-  dues: "Summarizes fee due data from ERP",
-  parent_message: "Drafts parent communication with ERP context",
-  teacher_message: "Drafts teacher communication with ERP context",
-  report: "Explains reports in simple English with ERP data",
+  notice: "Creates a formatted school notice with live NarayanaOS context",
+  dues: "Summarizes fee due data from NarayanaOS",
+  parent_message: "Drafts parent communication with NarayanaOS context",
+  teacher_message: "Drafts teacher communication with NarayanaOS context",
+  report: "Explains reports in simple English with NarayanaOS data",
 };
 
 export default function AiAgentPage() {
@@ -230,7 +230,7 @@ export default function AiAgentPage() {
     chat: ["Ask about fee dues", "Generate notices", "Get report summaries", "Draft communications"],
     fee_reminder: ["Enter a valid Student ID", "Reminder includes actual due amount", "Uses fixed template format"],
     notice: ["Specify topic clearly", "Choose tone (formal/simple)", "Target: parents/students/teachers"],
-    dues: ["Click Summarize Dues to start", "Data comes from ERP records", "No Gemini call for calculations"],
+    dues: ["Click Summarize Dues to start", "Data comes from NarayanaOS records", "No Gemini call for calculations"],
     parent_message: ["Describe the situation", "Include any specific details", "Message stays professional"],
     teacher_message: ["Clear and concise topic", "Include date/time if applicable", "Signed as Administration"],
     report: ["Paste report numbers", "Ask for trends", "Request actionable insights"],
@@ -310,7 +310,7 @@ export default function AiAgentPage() {
               <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-muted/20 px-4 py-3 md:px-6">
                 <div>
                   <h2 className="text-base font-extrabold text-foreground">Fee Dues Summary</h2>
-                  <p className="text-xs font-medium text-muted-foreground">Summarizes fee due data from ERP</p>
+                  <p className="text-xs font-medium text-muted-foreground">Summarizes fee due data from NarayanaOS</p>
                 </div>
                 <button
                   type="button"

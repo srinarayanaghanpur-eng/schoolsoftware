@@ -107,6 +107,7 @@ export default function SalaryPage() {
   const { role } = useAdminSession();
   const popup = usePopup();
   const isAccountant = role === "accountant";
+  const hideSalaryFigures = role === "accountant" || role === "principal";
   const canReviewPayrollAccess = role === "super_admin";
   const [month, setMonth] = useState(currentMonth());
   const [activeTab, setActiveTab] = useState<TabId>("payroll");
@@ -402,45 +403,47 @@ export default function SalaryPage() {
           <div className="rounded-2xl border border-[#dbeafe] bg-white p-4 shadow-sm">
             <div className="flex items-center gap-3">
               <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#eff6ff] text-[#2563eb]"><Users size={20} /></span>
-              <div>
+              <div className="min-w-0 flex-1">
                 <p className="text-[11px] font-semibold uppercase tracking-wide text-[#64748b]">Total Staff</p>
-                <p className="text-xl font-extrabold text-[#1e293b]">{summary.staff}</p>
+                <p className="min-w-0 text-xl font-extrabold leading-tight text-[#1e293b] [overflow-wrap:anywhere]">{summary.staff}</p>
               </div>
             </div>
           </div>
+          {!hideSalaryFigures && (
           <div className="rounded-2xl border border-[#dcfce7] bg-white p-4 shadow-sm">
             <div className="flex items-center gap-3">
               <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#f0fdf4] text-[#16a34a]"><Banknote size={20} /></span>
-              <div>
+              <div className="min-w-0 flex-1">
                 <p className="text-[11px] font-semibold uppercase tracking-wide text-[#64748b]">Gross Salary</p>
-                <p className="text-xl font-extrabold text-[#1e293b]">₹{money(summary.gross)}</p>
+                <p className="min-w-0 text-xl font-extrabold leading-tight text-[#1e293b] [overflow-wrap:anywhere]">₹{money(summary.gross)}</p>
               </div>
             </div>
           </div>
+          )}
           <div className="rounded-2xl border border-[#fef3c7] bg-white p-4 shadow-sm">
             <div className="flex items-center gap-3">
               <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#fffbeb] text-[#d97706]"><Percent size={20} /></span>
-              <div>
+              <div className="min-w-0 flex-1">
                 <p className="text-[11px] font-semibold uppercase tracking-wide text-[#64748b]">Deductions</p>
-                <p className="text-xl font-extrabold text-[#1e293b]">₹{money(summary.deductions)}</p>
+                <p className="min-w-0 text-xl font-extrabold leading-tight text-[#1e293b] [overflow-wrap:anywhere]">₹{money(summary.deductions)}</p>
               </div>
             </div>
           </div>
           <div className="rounded-2xl border border-[#dbeafe] bg-white p-4 shadow-sm">
             <div className="flex items-center gap-3">
               <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#eff6ff] text-[#2563eb]"><CheckCircle size={20} /></span>
-              <div>
+              <div className="min-w-0 flex-1">
                 <p className="text-[11px] font-semibold uppercase tracking-wide text-[#64748b]">Net Payable</p>
-                <p className="text-xl font-extrabold text-[#1e293b]">₹{money(summary.netPayable)}</p>
+                <p className="min-w-0 text-xl font-extrabold leading-tight text-[#1e293b] [overflow-wrap:anywhere]">₹{money(summary.netPayable)}</p>
               </div>
             </div>
           </div>
           <div className="rounded-2xl border border-[#fef2f2] bg-white p-4 shadow-sm">
             <div className="flex items-center gap-3">
               <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#fef2f2] text-[#dc2626]"><Clock size={20} /></span>
-              <div>
+              <div className="min-w-0 flex-1">
                 <p className="text-[11px] font-semibold uppercase tracking-wide text-[#64748b]">Pending</p>
-                <p className="text-xl font-extrabold text-[#1e293b]">₹{money(summary.pending)}</p>
+                <p className="min-w-0 text-xl font-extrabold leading-tight text-[#1e293b] [overflow-wrap:anywhere]">₹{money(summary.pending)}</p>
               </div>
             </div>
           </div>
@@ -640,7 +643,6 @@ export default function SalaryPage() {
                       </span>
                     </div>
                     <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
-                      <div><span className="font-semibold text-[#64748b]">Base:</span> <span className="font-bold">₹{money(report.baseSalary)}</span></div>
                       <div><span className="font-semibold text-[#64748b]">Net:</span> <span className="font-bold">₹{money(report.netPayable)}</span></div>
                     </div>
                     <div className="mt-2 flex flex-wrap gap-3 text-xs font-semibold">
@@ -669,7 +671,9 @@ export default function SalaryPage() {
                           <span>Paid CL: <b>{paidCL}</b></span>
                           <span>Unpaid absent: <b className="text-[#dc2626]">{unpaid}</b></span>
                           <span>Late entries: <b>{report.lateEntries}</b></span>
-                          <span>Daily rate: <b>₹{money(report.perDaySalary)}</b></span>
+                          {!hideSalaryFigures && (
+                            <span>Daily rate: <b>₹{money(report.perDaySalary)}</b></span>
+                          )}
                           <span>Deduction: <b className="text-[#dc2626]">₹{money(report.salaryDeduction)}</b></span>
                           <span>Bonus: <b className="text-[#16a34a]">₹{money(report.bonus)}</b></span>
                           <span>Net payable: <b>₹{money(report.netPayable)}</b></span>
@@ -691,7 +695,7 @@ export default function SalaryPage() {
                     <th className="w-8 px-4 py-3"></th>
                     <th className="px-4 py-3">Staff</th>
                     <th className="px-4 py-3">Department</th>
-                    <th className="px-4 py-3">Base Salary</th>
+                    {!hideSalaryFigures && <th className="px-4 py-3">Base Salary</th>}
                     <th className="px-4 py-3">Attendance</th>
                     <th className="px-4 py-3">Deductions</th>
                     <th className="px-4 py-3">Advances</th>
@@ -729,7 +733,7 @@ export default function SalaryPage() {
                           <p className="text-xs text-[#64748b]">{report.employeeId}</p>
                         </td>
                         <td className="px-4 py-3 text-[#64748b]">{report.subject || "--"}</td>
-                        <td className="px-4 py-3 font-semibold">₹{money(report.baseSalary)}</td>
+                        {!hideSalaryFigures && <td className="px-4 py-3 font-semibold">₹{money(report.baseSalary)}</td>}
                         <td className="px-4 py-3">
                           <div className="flex flex-wrap gap-1.5 text-xs">
                             <span className="rounded-md bg-[#f0fdf4] px-2 py-0.5 font-bold text-[#16a34a]">P: {report.presentDays}</span>
@@ -816,10 +820,12 @@ export default function SalaryPage() {
                         <p className="text-[11px] font-semibold uppercase text-[#64748b]">Late Count</p>
                         <p className="font-bold text-[#1e293b]">{report.lateEntries}</p>
                       </div>
+                      {!hideSalaryFigures && (
                       <div>
                         <p className="text-[11px] font-semibold uppercase text-[#64748b]">Daily Rate</p>
                         <p className="font-bold text-[#1e293b]">₹{money(report.perDaySalary)}</p>
                       </div>
+                      )}
                       <div>
                         <p className="text-[11px] font-semibold uppercase text-[#64748b]">Attendance Deduction</p>
                         <p className={`font-bold ${report.salaryDeduction > 0 ? "text-[#dc2626]" : "text-[#16a34a]"}`}>

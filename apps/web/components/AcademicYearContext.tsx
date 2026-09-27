@@ -89,16 +89,20 @@ function markFetchedYearsThisSession() {
 
 export function AcademicYearProvider({ children }: { children: ReactNode }) {
   const { role } = useAdminSession();
-  const [years, setYears] = useState<AcademicYear[]>(() =>
-    typeof window === "undefined" ? [] : readCachedAcademicYears()?.years ?? []
-  );
+  // SSR-safe: start empty (matches server HTML), then hydrate from browser
+  // cache after mount. Reading localStorage in the initializer breaks
+  // hydration for every returning user (same class of bug as login).
+  const [years, setYears] = useState<AcademicYear[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [accessDenied, setAccessDenied] = useState(false);
 
-  const [selectedYearId, setSelectedYearId] = useState<string | null>(() =>
-    typeof window === "undefined" ? null : readStoredSelectedYearId()
-  );
+  const [selectedYearId, setSelectedYearId] = useState<string | null>(null);
+
+  useEffect(() => {
+    setYears(readCachedAcademicYears()?.years ?? []);
+    setSelectedYearId(readStoredSelectedYearId());
+  }, []);
 
   const canSwitchYear = Boolean(role && hasPermission(role, "academic_years.view") && (role === "principal" || role === "super_admin"));
   const activeYear = useMemo(() => years.find((year) => year.isActive) ?? null, [years]);

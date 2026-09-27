@@ -44,7 +44,7 @@ export class ErrorBoundary extends Component<Props, State> {
           <div className="flex-1">
             <h2 className="text-lg font-extrabold text-[#1f2136]">This section could not load</h2>
             <p className="mt-1 text-sm font-medium text-[#7d86a8]">
-              The rest of the ERP is still available.
+              The rest of NarayanaOS is still available.
             </p>
             <button
               type="button"

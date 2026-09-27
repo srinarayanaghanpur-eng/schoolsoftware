@@ -1,6 +1,7 @@
 "use client";
 
 import { DatePicker } from "@/components/DatePicker";
+import OverlayPortal from "@/components/OverlayPortal";
 import { auth } from "@sri-narayana/shared/firebase/client";
 import { AlertTriangle, CalendarOff, X } from "lucide-react";
 import type { FormEvent } from "react";
@@ -88,7 +89,8 @@ export function DeclareHolidayModal({ onDeclared }: { onDeclared?: () => void })
         </div>
       )}
       {open && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-[#101228]/50 p-4 backdrop-blur-sm" role="dialog" aria-modal="true">
+        <OverlayPortal>
+          <div className="fixed inset-0 z-50 grid place-items-center bg-[#101228]/50 p-4 backdrop-blur-sm" role="dialog" aria-modal="true">
           <form className="w-full max-w-md space-y-4 rounded-2xl bg-white p-5 shadow-2xl" onSubmit={declareHoliday}>
             <div className="flex items-start justify-between gap-3">
               <div>
@@ -164,7 +166,8 @@ export function DeclareHolidayModal({ onDeclared }: { onDeclared?: () => void })
               </button>
             </div>
           </form>
-        </div>
+          </div>
+        </OverlayPortal>
       )}
     </>
   );

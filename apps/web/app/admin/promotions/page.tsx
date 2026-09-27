@@ -6,7 +6,7 @@ import { useAcademicYears } from "@/components/AcademicYearContext";
 import { adminApiRequest } from "@/lib/adminApiClient";
 import { hasPermission, type AcademicYear } from "@sri-narayana/shared";
 import {
-  AlertCircle, ArrowRight, ArrowUpDown, Ban, CheckCircle2, ChevronDown,
+  AlertCircle, ArrowDown, ArrowRight, ArrowUpDown, Ban, CheckCircle2, ChevronDown,
   Circle, Clock, GraduationCap, History, ListRestart, Loader2, Plus, RotateCcw,
   Search, SlidersHorizontal, Users, X
 } from "lucide-react";
@@ -28,8 +28,14 @@ function nextClass(current: string): string {
   return CLASS_ORDER[idx + 1];
 }
 
-type Tab = "promote" | "detain" | "section" | "history";
-type PromotionType = "promote" | "detain" | "section_change";
+function prevClass(current: string): string {
+  const idx = CLASS_ORDER.indexOf(current);
+  if (idx <= 0) return current;
+  return CLASS_ORDER[idx - 1];
+}
+
+type Tab = "promote" | "demote" | "detain" | "section" | "history";
+type PromotionType = "promote" | "demote" | "detain" | "section_change";
 
 type Student = {
   id: string;
@@ -124,7 +130,6 @@ export default function PromotionsPage() {
   const [toSection, setToSection] = useState("");
   const [targetYearId, setTargetYearId] = useState("");
   const [feeCarryForward, setFeeCarryForward] = useState(false);
-  const [requireApproval, setRequireApproval] = useState(false);
   const [notes, setNotes] = useState("");
 
   const [history, setHistory] = useState<PromotionRecord[]>([]);
@@ -192,7 +197,11 @@ export default function PromotionsPage() {
     }
   };
 
-  const resolvedToClass = tab === "promote" ? (toClass || (fromClass ? nextClass(fromClass) : "")) : tab === "section" ? fromClass : fromClass;
+  const resolvedToClass = tab === "promote"
+    ? (toClass || (fromClass ? nextClass(fromClass) : ""))
+    : tab === "demote"
+      ? (toClass || (fromClass ? prevClass(fromClass) : ""))
+      : tab === "section" ? fromClass : fromClass;
   const resolvedToSection = tab === "section" ? (toSection || fromSection || "A") : tab === "detain" ? "" : (toSection || "");
 
   const toggleStudent = (id: string) => {
@@ -219,7 +228,6 @@ export default function PromotionsPage() {
     setToClass("");
     setToSection("");
     setFeeCarryForward(false);
-    setRequireApproval(false);
     setNotes("");
     setError(null);
     setSuccess(null);
@@ -235,7 +243,7 @@ export default function PromotionsPage() {
     setSuccess(null);
     try {
       const studentIds = filteredStudents.map((s) => s.id);
-      const data = await adminApiRequest<{ ok: boolean; count: number }>("/api/admin/promotions", {
+      const data = await adminApiRequest<{ ok: boolean; count: number; message?: string }>("/api/admin/promotions", {
         method: "POST",
         body: JSON.stringify({
           promotionType: tab as PromotionType,
@@ -246,12 +254,11 @@ export default function PromotionsPage() {
           toClass: resolvedToClass,
           toSection: resolvedToSection,
           feeBalanceCarryForward: feeCarryForward,
-          requireApproval,
           notes: notes || `Class-wise ${tab} from ${fromClass}`
         })
       });
       if (data.ok) {
-        setSuccess(`Successfully ${tab === "detain" ? "processed" : "promoted"} ${data.count} student(s).`);
+        setSuccess(data.message ?? `Submitted ${data.count} student(s) for super-admin approval.`);
         resetForm();
         fetchStudents();
       }
@@ -270,7 +277,7 @@ export default function PromotionsPage() {
     setError(null);
     setSuccess(null);
     try {
-      const data = await adminApiRequest<{ ok: boolean; count: number }>("/api/admin/promotions", {
+      const data = await adminApiRequest<{ ok: boolean; count: number; message?: string }>("/api/admin/promotions", {
         method: "POST",
         body: JSON.stringify({
           promotionType: tab as PromotionType,
@@ -281,12 +288,11 @@ export default function PromotionsPage() {
           toClass: resolvedToClass,
           toSection: resolvedToSection,
           feeBalanceCarryForward: feeCarryForward,
-          requireApproval,
           notes: notes || `Selected ${tab} from ${fromClass}`
         })
       });
       if (data.ok) {
-        setSuccess(`Successfully processed ${data.count} student(s).`);
+        setSuccess(data.message ?? `Submitted ${data.count} student(s) for super-admin approval.`);
         resetForm();
         fetchStudents();
       }
@@ -313,6 +319,7 @@ export default function PromotionsPage() {
 
   const tabs: { key: Tab; label: string; icon: typeof GraduationCap }[] = [
     { key: "promote", label: "Promote", icon: GraduationCap },
+    { key: "demote", label: "Demote", icon: ArrowDown },
     { key: "detain", label: "Detain / Hold", icon: Ban },
     { key: "section", label: "Section Change", icon: ArrowUpDown },
     { key: "history", label: "History", icon: History }
@@ -365,13 +372,18 @@ export default function PromotionsPage() {
               <div>
                 <h3 className="text-lg font-extrabold text-[#1f2136]">
                   {tab === "promote" && "Promote Students"}
+                  {tab === "demote" && "Demote Students"}
                   {tab === "detain" && "Detain / Hold Students"}
                   {tab === "section" && "Change Section"}
                 </h3>
                 <p className="mt-1 text-sm font-medium text-[#7d86a8]">
                   {tab === "promote" && "Move students to the next class or a selected class."}
+                  {tab === "demote" && "Move students to the previous class or a selected class."}
                   {tab === "detain" && "Retain students in their current class."}
                   {tab === "section" && "Change section within the same class."}
+                </p>
+                <p className="mt-2 inline-flex items-center gap-2 rounded-xl bg-[#fff7e5] px-3 py-1.5 text-xs font-bold text-[#b8860b]">
+                  <Clock size={13} /> Super-admin approval required — classes change only after approval.
                 </p>
               </div>
             </div>
@@ -391,12 +403,14 @@ export default function PromotionsPage() {
                   {SECTION_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
                 </select>
               </label>
-              {tab === "promote" && (
+              {(tab === "promote" || tab === "demote") && (
                 <>
                   <label className="space-y-1 text-sm font-semibold text-[#303247]">
                     <span>To Class</span>
                     <select className="field" value={toClass} onChange={(e) => setToClass(e.target.value)}>
-                      <option value="">Auto ({fromClass ? nextClass(fromClass) : "—"})</option>
+                      <option value="">
+                        Auto ({fromClass ? (tab === "demote" ? prevClass(fromClass) : nextClass(fromClass)) : "—"})
+                      </option>
                       {CLASS_OPTIONS.map((c) => <option key={c} value={c}>{CLASS_LABELS[c] ?? c}</option>)}
                     </select>
                   </label>
@@ -450,10 +464,6 @@ export default function PromotionsPage() {
                 <input type="checkbox" className="h-5 w-5 rounded border-[#dfe3f1] accent-[#3033a1]" checked={feeCarryForward} onChange={(e) => setFeeCarryForward(e.target.checked)} />
                 Carry forward fee balance
               </label>
-              <label className="flex items-center gap-2 text-sm font-semibold text-[#303247] cursor-pointer">
-                <input type="checkbox" className="h-5 w-5 rounded border-[#dfe3f1] accent-[#3033a1]" checked={requireApproval} onChange={(e) => setRequireApproval(e.target.checked)} />
-                Require approval
-              </label>
             </div>
 
             {fromClass && (
@@ -503,6 +513,7 @@ export default function PromotionsPage() {
                           <th className="px-4 py-3 text-xs font-bold uppercase tracking-[0.03em] text-[#6f7898]">Fee Due</th>
                           <th className="px-4 py-3 text-right text-xs font-bold uppercase tracking-[0.03em] text-[#6f7898]">
                             {tab === "promote" && "→ " + (resolvedToClass || "?")}
+                            {tab === "demote" && "→ " + (resolvedToClass || "?")}
                             {tab === "detain" && "Stay"}
                             {tab === "section" && "→ " + (resolvedToSection || "?")}
                           </th>
@@ -529,6 +540,7 @@ export default function PromotionsPage() {
                             <td className="px-4 py-3 text-right">
                               <span className="inline-flex items-center gap-1 text-xs font-bold text-[#3033a1]">
                                 {tab === "promote" && <><ArrowRight size={14} /> {resolvedToClass || "?"}{resolvedToSection ? "-" + resolvedToSection : ""}</>}
+                                {tab === "demote" && <><ArrowDown size={14} /> {resolvedToClass || "?"}{resolvedToSection ? "-" + resolvedToSection : ""}</>}
                                 {tab === "detain" && <><Ban size={14} /> Same class</>}
                                 {tab === "section" && <><ArrowUpDown size={14} /> {resolvedToSection || "?"}</>}
                               </span>
@@ -549,6 +561,7 @@ export default function PromotionsPage() {
                   >
                     {loading ? <Loader2 size={16} className="animate-spin" /> : <ListRestart size={16} />}
                     {tab === "promote" && ` Promote All (${filteredStudents.length})`}
+                    {tab === "demote" && ` Demote All (${filteredStudents.length})`}
                     {tab === "detain" && ` Detain All (${filteredStudents.length})`}
                     {tab === "section" && ` Change All (${filteredStudents.length})`}
                   </button>
@@ -575,7 +588,7 @@ export default function PromotionsPage() {
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h3 className="text-lg font-extrabold text-[#1f2136]">Promotion History</h3>
-                <p className="mt-1 text-sm font-medium text-[#7d86a8]">Past promotions, detentions, and section changes.</p>
+                <p className="mt-1 text-sm font-medium text-[#7d86a8]">Past promotions, demotions, detentions, and section changes.</p>
               </div>
               <div className="flex items-center gap-2">
                 <SlidersHorizontal size={16} className="text-[#8490b9]" />
@@ -630,13 +643,15 @@ export default function PromotionsPage() {
                         <td className="px-4 py-3">
                           <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-bold ${
                             rec.promotionType === "promote" ? "bg-[#e6f8ef] text-[#0f8d52]" :
+                            rec.promotionType === "demote" ? "bg-[#ffebed] text-[#c83f4d]" :
                             rec.promotionType === "detain" ? "bg-[#fff7e5] text-[#b8860b]" :
                             "bg-[#eef6ff] text-[#3069a1]"
                           }`}>
                             {rec.promotionType === "promote" && <GraduationCap size={12} />}
+                            {rec.promotionType === "demote" && <ArrowDown size={12} />}
                             {rec.promotionType === "detain" && <Ban size={12} />}
                             {rec.promotionType === "section_change" && <ArrowUpDown size={12} />}
-                            {rec.promotionType === "promote" ? "Promoted" : rec.promotionType === "detain" ? "Detained" : "Section"}
+                            {rec.promotionType === "promote" ? "Promoted" : rec.promotionType === "demote" ? "Demoted" : rec.promotionType === "detain" ? "Detained" : "Section"}
                           </span>
                         </td>
                         <td className="px-4 py-3 font-medium text-[#7d86a8]">

@@ -75,12 +75,13 @@ Also create `users/{uid}`:
 
 ## Campus GPS
 
-Settings live in `settings/school`:
+Settings live in `settings/school` (edit at `/admin/settings` — that page is the
+source of truth; do NOT copy coordinates from docs):
 
 ```json
 {
-  "campusLatitude": 18.30639479001936,
-  "campusLongitude": 79.88312064907495,
+  "campusLatitude": 17.92015,
+  "campusLongitude": 79.895539,
   "geofenceRadiusMeters": 150,
   "schoolStartTime": "09:00",
   "graceMinutes": 10,

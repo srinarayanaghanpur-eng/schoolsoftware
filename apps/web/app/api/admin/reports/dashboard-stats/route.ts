@@ -95,8 +95,17 @@ export async function GET(request: NextRequest) {
         ? (totalConcessionAmount / studentsWithConcession).toFixed(2)
         : 0;
 
+    // If any aggregate failed (e.g. missing composite index), flag degraded so
+    // the UI never presents zeros as fact. See BUG-002.
+    const degraded =
+      feeTotalsSnap === null ||
+      studentsWithOutstandingSnap === null ||
+      feeCollectedSnap === null ||
+      monthlyPaymentsSnap === null;
+
     return json({
       success: true,
+      degraded,
       data: {
         totalStudents,
         totalFeeAmount,

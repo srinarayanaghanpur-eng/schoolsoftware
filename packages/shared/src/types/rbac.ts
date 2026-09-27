@@ -76,7 +76,7 @@ export const PERMISSION_MATRIX: readonly PermissionGroup[] = [
   { key: "exams", label: "Exams & Marks", permissions: ["exams.view", "exams.create", "exams.edit", "exams.delete", "exams.approve", "exams.export"] },
   { key: "communication", label: "Communication", permissions: ["communication.view", "communication.create", "communication.edit", "communication.delete"] },
   { key: "reports", label: "Reports", permissions: ["reports.view", "reports.export"] },
-  { key: "settings", label: "Settings", permissions: ["settings.view", "settings.create", "settings.edit", "settings.delete"] },
+  { key: "settings", label: "Settings", permissions: ["settings.view", "settings.create", "settings.edit", "settings.delete", "settings.bulk_upload"] },
   { key: "users", label: "Users & Roles", permissions: ["users.view", "users.create", "users.edit", "users.delete", "roles.view", "roles.edit", "roles.manage", "permissions.view", "permissions.edit", "permissions.manage"] },
   { key: "ai_agent", label: "AI Agent", permissions: ["ai_agent.view", "ai_agent.chat", "ai_agent.settings", "ai_agent.logs", "ai_agent.generate_notice", "ai_agent.generate_fee_message", "ai_agent.summarize_reports", "ai_agent.quota"] },
   { key: "certificates", label: "Certificates", permissions: ["certificates.view", "certificates.create", "certificates.edit", "certificates.delete"] }
@@ -136,7 +136,7 @@ export const ROLE_PERMISSIONS: Record<Role, readonly (Permission | typeof ALL)[]
     "transport.view", "transport.create", "transport.edit",
     "communication.view", "communication.create", "communication.edit",
     "reports.view", "reports.export",
-    "settings.view", "settings.create", "settings.edit",
+    "settings.view", "settings.create", "settings.edit", "settings.bulk_upload",
     "users.view", "users.create", "users.edit",
     "roles.view", "roles.edit",
     "permissions.view", "permissions.edit",
@@ -162,7 +162,7 @@ export const ROLE_PERMISSIONS: Record<Role, readonly (Permission | typeof ALL)[]
     "academic_years.view",
     "promotions.view", "promotions.create", "promotions.approve",
     "certificates.view", "certificates.create",
-    "settings.view",
+    "settings.view", "settings.bulk_upload",
     "ai_agent.view", "ai_agent.chat", "ai_agent.generate_notice", "ai_agent.summarize_reports", "ai_agent.quota"
   ],
   accountant: [
@@ -175,6 +175,7 @@ export const ROLE_PERMISSIONS: Record<Role, readonly (Permission | typeof ALL)[]
     "bus_finance.view", "bus_finance.create", "bus_finance.edit", "bus_finance.export",
     "reports.view", "reports.export",
     "academic_years.view",
+    "settings.view", "settings.bulk_upload",
     "ai_agent.view", "ai_agent.chat", "ai_agent.generate_fee_message", "ai_agent.summarize_reports", "ai_agent.quota"
   ],
   teacher: [
@@ -187,15 +188,7 @@ export const ROLE_PERMISSIONS: Record<Role, readonly (Permission | typeof ALL)[]
     "certificates.view",
     "academic_years.view"
   ],
-  settings_manager: [
-    "dashboard.view",
-    "settings.view", "settings.create", "settings.edit", "settings.delete",
-    "users.view", "users.create", "users.edit", "users.delete",
-    "roles.view", "roles.edit", "roles.manage",
-    "permissions.view", "permissions.edit", "permissions.manage",
-    "academic_years.view", "academic_years.create", "academic_years.edit", "academic_years.delete",
-    "ai_agent.view", "ai_agent.settings", "ai_agent.logs", "ai_agent.quota"
-  ],
+  settings_manager: [ALL],
   parent: ["portal.view"]
 };
 

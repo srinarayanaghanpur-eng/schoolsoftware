@@ -7,10 +7,12 @@ import { usePopup } from "@/components/CenterPopup";
 import { useAdminSession } from "@/components/AdminSessionContext";
 import { auth, isFirebaseConfigured } from "@sri-narayana/shared/firebase/client";
 import { demoTeachers, formatLabel, type Teacher } from "@sri-narayana/shared";
-import { CheckCircle2, Edit3, KeyRound, Plus, Search, Trash2, UserX, X } from "lucide-react";
+import { CheckCircle2, Edit3, Eye, KeyRound, Loader2, Plus, RotateCw, Search, Trash2, UserX, X } from "lucide-react";
 import type { FormEvent } from "react";
-import { useEffect, useMemo, useState } from "react";
 import { useRefreshOnFocus } from "@/lib/useRefreshOnFocus";
+import RowContextMenu, { type ContextMenuItem } from "@/components/RowContextMenu";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { payrollSessionHeaders } from "@/lib/payrollSessionClient";
 
 type TeacherFormState = {
   fullName: string;
@@ -40,43 +42,40 @@ const blankForm: TeacherFormState = {
 
 function formFromTeacher(teacher: Teacher): TeacherFormState {
   return {
-    fullName: teacher.fullName,
-    employeeId: teacher.employeeId,
-    subject: teacher.subject,
+    fullName: teacher.fullName ?? "",
+    employeeId: teacher.employeeId ?? "",
+    subject: teacher.subject ?? "",
     phone: teacher.phone ?? "",
-    baseSalary: teacher.baseSalary != null ? String(teacher.baseSalary) : "0",
+    baseSalary: String(teacher.baseSalary ?? ""),
     biometricUserId: teacher.biometricUserId ?? "",
     password: "",
     confirmPassword: "",
-    status: teacher.status,
+    status: teacher.status === "inactive" ? "inactive" : "active",
     employmentType: teacher.employmentType ?? "full_time"
   };
 }
 
-function teacherPayload(form: TeacherFormState, includePassword: boolean) {
-  const payload: Record<string, unknown> = {
-    fullName: form.fullName,
-    employeeId: form.employeeId,
-    subject: form.subject,
-    phone: form.phone,
-    baseSalary: form.baseSalary,
-    biometricUserId: form.biometricUserId,
+function teacherPayload(form: TeacherFormState, isCreate: boolean) {
+  const base = {
+    fullName: form.fullName.trim(),
+    employeeId: form.employeeId.trim(),
+    subject: form.subject.trim(),
+    phone: form.phone.trim(),
+    biometricUserId: form.biometricUserId.trim(),
+    baseSalary: Number(form.baseSalary || 0),
     status: form.status,
     employmentType: form.employmentType
   };
-
-  if (includePassword) {
-    payload.password = form.password;
-    payload.confirmPassword = form.confirmPassword;
-  }
-
-  return payload;
+  return isCreate
+    ? { ...base, password: form.password, confirmPassword: form.confirmPassword }
+    : base;
 }
 
 export default function TeachersPage() {
   const { role } = useAdminSession();
   const toast = usePopup();
   const canManageTeachers = role === "super_admin";
+  const hideSalary = role === "accountant" || role === "principal";
   const [query, setQuery] = useState("");
   const [teachers, setTeachers] = useState<Teacher[]>(isFirebaseConfigured ? [] : demoTeachers);
   const [form, setForm] = useState<TeacherFormState>(blankForm);
@@ -89,27 +88,27 @@ export default function TeachersPage() {
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(false);
   const [debouncedQuery, setDebouncedQuery] = useState("");
+  const [rowMenu, setRowMenu] = useState<{ x: number; y: number; items: ContextMenuItem[] } | null>(null);
 
-  // Debounce search so typing hits the server once per pause, not per keystroke.
   useEffect(() => {
-    const timer = window.setTimeout(() => setDebouncedQuery(query.trim()), 350);
-    return () => window.clearTimeout(timer);
+    const timer = setTimeout(() => setDebouncedQuery(query), 300);
+    return () => clearTimeout(timer);
   }, [query]);
 
   const filteredTeachers = useMemo(() => {
-    const term = query.trim().toLowerCase();
-    if (!term) return teachers;
+    const q = debouncedQuery.trim().toLowerCase();
+    if (!q) return teachers;
     return teachers.filter((teacher) =>
-      `${teacher.fullName} ${teacher.employeeId} ${teacher.subject}`.toLowerCase().includes(term)
+      teacher.fullName.toLowerCase().includes(q) ||
+      teacher.employeeId.toLowerCase().includes(q) ||
+      (teacher.subject ?? "").toLowerCase().includes(q) ||
+      (teacher.phone ?? "").toLowerCase().includes(q)
     );
-  }, [query, teachers]);
+  }, [teachers, debouncedQuery]);
 
   const apiRequest = async <T,>(path: string, init?: RequestInit): Promise<T> => {
     const token = await auth.currentUser?.getIdToken();
-    if (!token) {
-      throw new Error("Please sign in as admin again.");
-    }
-
+    if (!token) throw new Error("Please sign in as admin again.");
     const response = await fetch(path, {
       ...init,
       headers: {
@@ -119,9 +118,7 @@ export default function TeachersPage() {
       }
     });
     const result = await response.json();
-    if (!response.ok || result.ok === false) {
-      throw new Error(result.error ?? "Request failed");
-    }
+    if (!response.ok || result.ok === false) throw new Error(result.error ?? "Request failed");
     return result;
   };
 
@@ -133,7 +130,6 @@ export default function TeachersPage() {
     } else {
       setLoading(true);
     }
-
     try {
       const params = new URLSearchParams({ pageSize: "50" });
       if (debouncedQuery) params.set("q", debouncedQuery);
@@ -154,7 +150,6 @@ export default function TeachersPage() {
 
   useEffect(() => {
     void loadTeachers();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedQuery]);
   useRefreshOnFocus(() => { void loadTeachers(); });
 
@@ -176,6 +171,20 @@ export default function TeachersPage() {
     setShowForm(false);
     setEditingTeacher(null);
     setForm(blankForm);
+  };
+
+  // Helper to create context menu items for a teacher
+  const getTeacherMenuItems = (teacher: Teacher): ContextMenuItem[] => [
+    { label: "View details", icon: <Eye size={15} />, onSelect: () => setEditingTeacher(teacher) },
+    { label: "Edit", icon: <Edit3 size={15} />, disabled: loading, onSelect: () => void startEdit(teacher) },
+    { label: "Reset password", icon: <KeyRound size={15} />, disabled: loading, onSelect: () => void setResetTeacher(teacher) },
+    { label: teacher.status === "active" ? "Deactivate" : "Activate", icon: teacher.status === "active" ? <UserX size={15} /> : <CheckCircle2 size={15} />, disabled: loading, onSelect: () => void toggleStatus(teacher) },
+    { label: "Delete permanently", icon: <Trash2 size={15} />, danger: true, onSelect: () => void deleteTeacher(teacher) }
+  ];
+
+  const handleTeacherContextMenu = (e: React.MouseEvent, teacher: Teacher) => {
+    e.preventDefault();
+    setRowMenu({ x: e.clientX, y: e.clientY, items: getTeacherMenuItems(teacher) });
   };
 
   const submitTeacher = async (event: FormEvent) => {
@@ -294,12 +303,13 @@ export default function TeachersPage() {
             Firebase web config is not set yet. Add Teacher Login needs Firebase Auth and Admin credentials.
           </div>
         )}
+
         {showForm && (
           <form onSubmit={submitTeacher} className="card p-4">
             <div className="mb-4 flex items-start justify-between gap-4">
               <div>
                 <h2 className="text-lg font-bold text-[#1f2136]">{editingTeacher ? "Edit teacher" : "Add Teacher Login"}</h2>
-                <p className="text-sm font-medium text-[#7d86a8]">
+                <p className="mt-1 text-sm font-medium text-[#7d86a8]">
                   Employee ID becomes the hidden Firebase email automatically. Password is sent only to Firebase Auth.
                 </p>
               </div>
@@ -335,7 +345,10 @@ export default function TeachersPage() {
               </label>
               <label className="space-y-1 text-sm font-medium">
                 <span>Status</span>
-                <select className="field" value={form.status} onChange={(event) => setForm({ ...form, status: event.target.value as "active" | "inactive" })}>
+                <select className="field" value={form.status} onChange={(event) => {
+                  const value = event.target.value;
+                  setForm({ ...form, status: value === "active" || value === "inactive" ? value : form.status });
+                }}>
                   <option value="active">Active</option>
                   <option value="inactive">Inactive</option>
                 </select>
@@ -345,7 +358,7 @@ export default function TeachersPage() {
                 <select
                   className="field"
                   value={form.employmentType}
-                  onChange={(event) => setForm({ ...form, employmentType: event.target.value as TeacherFormState["employmentType"] })}
+                  onChange={(event) => setForm({ ...form, employmentType: event.target.value === "full_time" || event.target.value === "part_time_morning" || event.target.value === "part_time_afternoon" ? event.target.value : form.employmentType })}
                 >
                   <option value="full_time">Full-time (6:00–9:30 in · 4:30–5:30 out)</option>
                   <option value="part_time_morning">Part-time Morning (in by 9:30 · out by 12:00)</option>
@@ -356,7 +369,7 @@ export default function TeachersPage() {
                 <>
                   <label className="space-y-1 text-sm font-medium">
                     <span>Password</span>
-                    <PasswordInput value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} required />
+                    <PasswordInput className="field" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} required />
                   </label>
                   <label className="space-y-1 text-sm font-medium">
                     <span>Confirm password</span>
@@ -368,6 +381,7 @@ export default function TeachersPage() {
 
             <div className="mt-4 flex flex-wrap gap-2">
               <button className="btn-primary" disabled={loading}>
+                {loading ? <Loader2 size={16} className="animate-spin" /> : <RotateCw size={16} />}
                 {loading ? "Saving..." : editingTeacher ? "Save changes" : "Create teacher login"}
               </button>
               <button type="button" className="btn-secondary" onClick={closeForm}>
@@ -382,7 +396,7 @@ export default function TeachersPage() {
             <div className="mb-4 flex items-start justify-between gap-4">
               <div>
                 <h2 className="text-lg font-bold text-[#1f2136]">Reset password</h2>
-                <p className="text-sm font-medium text-[#7d86a8]">{resetTeacher.fullName} · {resetTeacher.employeeId}</p>
+                <p className="mt-1 text-sm font-medium text-[#7d86a8]">{resetTeacher.fullName} · {resetTeacher.employeeId}</p>
               </div>
               <button type="button" className="grid h-9 w-9 place-items-center rounded-xl text-[#7d86a8] hover:bg-[#f4f5fb] hover:text-[#3033a1]" onClick={() => setResetTeacher(null)} title="Close">
                 <X size={18} />
@@ -413,7 +427,7 @@ export default function TeachersPage() {
         {/* Mobile: staff cards */}
         <div className="space-y-3 md:hidden">
           {filteredTeachers.map((teacher) => (
-            <div key={teacher.id} className="card p-4">
+            <div key={teacher.id} className="card p-4" onContextMenu={(e) => handleTeacherContextMenu(e, teacher)}>
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="truncate text-base font-bold text-[#1f2136]">{teacher.fullName}</p>
@@ -429,7 +443,7 @@ export default function TeachersPage() {
                         { label: "Edit", icon: Edit3, onClick: () => startEdit(teacher), disabled: !isFirebaseConfigured || loading },
                         { label: "Reset password", icon: KeyRound, onClick: () => setResetTeacher(teacher), disabled: !isFirebaseConfigured || loading },
                         { label: teacher.status === "active" ? "Deactivate" : "Activate", icon: teacher.status === "active" ? UserX : CheckCircle2, onClick: () => toggleStatus(teacher), disabled: !isFirebaseConfigured || loading },
-                        { label: "Delete", icon: Trash2, destructive: true, onClick: () => deleteTeacher(teacher), disabled: !isFirebaseConfigured || loading },
+                        { label: "Delete permanently", icon: Trash2, destructive: true, onClick: () => void deleteTeacher(teacher) }
                       ]}
                     />
                   )}
@@ -440,13 +454,15 @@ export default function TeachersPage() {
                   <dt className="text-[11px] font-semibold uppercase tracking-wide text-[#8490b9]">Phone</dt>
                   <dd className="text-sm font-semibold text-[#303247]">{teacher.phone ? <a href={`tel:${teacher.phone}`} className="text-[#3033a1]">{teacher.phone}</a> : "--"}</dd>
                 </div>
-                <div>
-                  <dt className="text-[11px] font-semibold uppercase tracking-wide text-[#8490b9]">Base Salary</dt>
-                  <dd className="text-sm font-semibold text-[#303247]">₹{Number(teacher.baseSalary ?? 0).toLocaleString("en-IN")}</dd>
-                </div>
+                {!hideSalary && (
+                  <div>
+                    <dt className="text-[11px] font-semibold uppercase tracking-wide text-[#8490b9]">Base Salary</dt>
+                    <dd className="text-sm font-semibold text-[#303247]">₹{Number(teacher.baseSalary ?? 0).toLocaleString("en-IN")}</dd>
+                  </div>
+                )}
                 <div>
                   <dt className="text-[11px] font-semibold uppercase tracking-wide text-[#8490b9]">Biometric ID</dt>
-                  <dd className="text-sm font-semibold text-[#303247]">{teacher.biometricUserId || "--"}</dd>
+                    <dd className="text-sm font-semibold text-[#303247]">{teacher.biometricUserId || "--"}</dd>
                 </div>
               </dl>
             </div>
@@ -466,20 +482,20 @@ export default function TeachersPage() {
                 <th className="px-4 py-3">Subject</th>
                 <th className="px-4 py-3">Phone</th>
                 <th className="px-4 py-3">Biometric ID</th>
-                <th className="px-4 py-3">Base salary</th>
+                {!hideSalary && <th className="px-4 py-3">Base salary</th>}
                 <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3">Actions</th>
               </tr>
             </thead>
             <tbody>
               {filteredTeachers.map((teacher) => (
-                <tr key={teacher.id} className="border-t border-stone-100">
+                <tr key={teacher.id} className="border-t border-stone-100" onContextMenu={(e) => handleTeacherContextMenu(e, teacher)}>
                   <td className="px-4 py-3 font-medium">{teacher.fullName}</td>
                   <td className="px-4 py-3">{teacher.employeeId}</td>
                   <td className="px-4 py-3">{teacher.subject}</td>
                   <td className="px-4 py-3">{teacher.phone || "--"}</td>
                   <td className="px-4 py-3">{teacher.biometricUserId || "--"}</td>
-                  <td className="px-4 py-3">₹{Number(teacher.baseSalary ?? 0).toLocaleString("en-IN")}</td>
+                  {!hideSalary && <td className="px-4 py-3 font-semibold">₹{Number(teacher.baseSalary ?? 0).toLocaleString("en-IN")}</td>}
                   <td className="px-4 py-3">
                     <span className={teacher.status === "active" ? "rounded-full bg-[#e6f8ef] px-2.5 py-1 text-xs font-bold text-[#13a961]" : "rounded-full bg-[#eef0f7] px-2.5 py-1 text-xs font-bold text-[#7d86a8]"}>
                       {teacher.status}
@@ -532,6 +548,7 @@ export default function TeachersPage() {
           </div>
         )}
       </section>
+      <RowContextMenu menu={rowMenu} onClose={() => setRowMenu(null)} />
     </>
   );
 }

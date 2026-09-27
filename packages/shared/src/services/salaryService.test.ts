@@ -506,4 +506,17 @@ runTest("deduction is never 0 when present + paid CL < working days elapsed", ()
   assertMoney(totals.salaryDeduction, 3000, "3 days at 1000/day");
 });
 
+runTest("every 3 lates deduct one day at the daily rate", () => {
+  const dates = workingDates();
+  const records = dates.map((date, i) => (i < 3 ? lateAttendance(date) : attendance(date)));
+  const calculated = calculate({ records });
+  const expectedDailyRate = calculated.baseSalary / calculated.totalWorkingDaysInMonth;
+  assert.equal(calculated.lateEntries, 3);
+  assert.equal(calculated.lateDeductionDays, 1);
+  assertMoney(calculated.lateDeduction, expectedDailyRate, "3 lates = 1 day");
+  const totals = getSalarySafetyTotals(calculated);
+  assertMoney(totals.lateDeduction, expectedDailyRate, "safety totals include late deduction");
+  assert.equal(totals.lateDeductionDays, 1);
+});
+
 console.log("All salary calculation tests passed.");

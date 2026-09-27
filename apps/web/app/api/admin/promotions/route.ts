@@ -16,6 +16,12 @@ function nextClass(currentClass: string): string | null {
   return CLASS_ORDER[idx + 1];
 }
 
+function prevClass(currentClass: string): string | null {
+  const idx = CLASS_ORDER.indexOf(currentClass);
+  if (idx <= 0) return null;
+  return CLASS_ORDER[idx - 1];
+}
+
 const COLLECTION = "promotions";
 
 export async function GET(req: Request) {
@@ -69,10 +75,14 @@ export async function POST(req: Request) {
 
   try {
     const body = await req.json();
-    const { promotionType, academicYearId, studentIds, fromClass, fromSection, toClass, toSection, feeBalanceCarryForward, requireApproval, notes } = body;
+    const { promotionType, academicYearId, studentIds, fromClass, fromSection, toClass, toSection, feeBalanceCarryForward, notes } = body;
 
     if (!studentIds || !Array.isArray(studentIds) || studentIds.length === 0) {
       return json({ ok: false, error: "At least one student must be selected" }, { status: 400 });
+    }
+
+    if (!["promote", "demote", "detain", "section_change"].includes(promotionType)) {
+      return json({ ok: false, error: "Invalid promotion type" }, { status: 400 });
     }
 
     if (!academicYearId) {
@@ -94,14 +104,19 @@ export async function POST(req: Request) {
     const promotionRecords: Record<string, unknown>[] = [];
 
     const firstStudent = studentsSnapshot.docs[0]?.data();
-    const aggregateToClass = toClass || (firstStudent ? nextClass(firstStudent.class) || firstStudent.class : fromClass);
+    const stepClass = (cls: string) =>
+      promotionType === "demote" ? prevClass(cls) || cls : nextClass(cls) || cls;
+    const aggregateToClass = toClass || (firstStudent ? stepClass(firstStudent.class) : fromClass);
     const aggregateToSection = toSection || firstStudent?.section || "A";
 
     for (const doc of studentsSnapshot.docs) {
       const studentData = doc.data();
-      const resolvedToClass = toClass || nextClass(studentData.class) || studentData.class;
+      const resolvedToClass = toClass || stepClass(studentData.class);
       const resolvedToSection = toSection || studentData.section || "A";
 
+      // Promotion/demotion NEVER applies immediately: records stay pending and
+      // the class change happens only when a super admin approves (see
+      // applyApprovalEffect "promotion"). Detain keeps class/section.
       const record: Record<string, unknown> = {
         promotionType,
         schoolId,
@@ -116,7 +131,7 @@ export async function POST(req: Request) {
         toSection: resolvedToSection,
         feeBalanceCarriedForward: feeBalanceCarryForward ? (studentData.totalFeesDue || 0) : 0,
         notes: notes || "",
-        status: requireApproval ? "pending" : "completed",
+        status: "pending",
         createdBy: token.uid,
         createdAt: now,
         updatedAt: now
@@ -131,59 +146,36 @@ export async function POST(req: Request) {
       batch.set(ref, record);
       promotionIds.push(ref.id);
       promotionRecords.push({ ...record, id: ref.id });
-
-      const updateData: Record<string, unknown> = {
-        class: record.toClass,
-        section: record.toSection,
-        academicYearId,
-        schoolId,
-        updatedAt: now
-      };
-
-      if (feeBalanceCarryForward) {
-        const existingDue = studentData.totalFeesDue || 0;
-        const existingPaid = studentData.totalFeesPaid || 0;
-        const committedPayable = studentData.committedPayableFee || studentData.commitmentFee || 0;
-        const totalFeeAmount = studentData.totalFeeAmount || committedPayable;
-        updateData.totalFeesDue = existingDue;
-        updateData.totalFeesPaid = existingPaid;
-        updateData.totalFeeAmount = totalFeeAmount;
-        updateData.feeStatus = existingDue <= 0 ? "paid" : existingPaid > 0 ? "partial" : "pending";
-      }
-
-      batch.update(db.collection("students").doc(doc.id), updateData);
     }
 
-    if (requireApproval) {
-      const approvalId = await createApprovalRequest({
-        requestType: "promotion",
-        entityType: "promotion",
-        entityId: promotionIds.join(","),
-        title: `Promotion: ${promotionRecords.length} student(s) to ${aggregateToClass}`,
-        description: `${promotionType} - ${fromClass}${fromSection ? " " + fromSection : ""} → ${aggregateToClass}${aggregateToSection ? " " + aggregateToSection : ""}`,
-        payload: { studentIds, promotionIds, promotionType, fromClass, fromSection, toClass, toSection, feeBalanceCarryForward },
-        requestedBy: token.uid,
-        academicYearId
-      });
+    const approvalId = await createApprovalRequest({
+      requestType: "promotion",
+      entityType: "promotion",
+      entityId: promotionIds.join(","),
+      title: `${promotionType === "demote" ? "Demotion" : "Promotion"}: ${promotionRecords.length} student(s) to ${aggregateToClass}`,
+      description: `${promotionType} - ${fromClass}${fromSection ? " " + fromSection : ""} → ${aggregateToClass}${aggregateToSection ? " " + aggregateToSection : ""}`,
+      payload: { studentIds, promotionIds, promotionType, fromClass, fromSection, toClass, toSection, feeBalanceCarryForward, academicYearId },
+      requestedBy: token.uid,
+      academicYearId
+    });
 
-      for (const rec of promotionRecords) {
-        batch.update(db.collection(COLLECTION).doc(rec.id as string), {
-          approvalId
-        });
-      }
+    for (const rec of promotionRecords) {
+      batch.update(db.collection(COLLECTION).doc(rec.id as string), {
+        approvalId
+      });
     }
 
     await batch.commit();
 
     for (const rec of promotionRecords) {
       await writeAuditLog({
-        action: "student.promoted",
+        action: promotionType === "demote" ? "student.demoted" : "student.promoted",
         entityType: "student",
         entityId: rec.studentId as string,
         actorId: token.uid,
         actorRole: token.role || "admin",
         newValues: rec as Record<string, unknown>,
-        reason: notes || `Student ${promotionType}d from ${rec.fromClass}-${rec.fromSection}`,
+        reason: notes || `Student ${promotionType} requested from ${rec.fromClass}-${rec.fromSection} (pending super-admin approval)`,
         academicYearId
       });
     }
@@ -192,7 +184,9 @@ export async function POST(req: Request) {
       ok: true,
       count: promotionRecords.length,
       ids: promotionIds,
-      records: promotionRecords
+      approvalId,
+      records: promotionRecords,
+      message: `${promotionRecords.length} student(s) submitted for super-admin approval. Classes change only after approval.`
     });
   } catch (error) {
     console.error("Error processing promotion:", error);

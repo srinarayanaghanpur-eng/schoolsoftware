@@ -1,6 +1,6 @@
 import { initializeApp, getApps } from "firebase/app";
-import { getAuth } from "firebase/auth";
-import { getFirestore, type Firestore } from "firebase/firestore";
+import { connectAuthEmulator, getAuth } from "firebase/auth";
+import { connectFirestoreEmulator, getFirestore, type Firestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
 const firebaseConfig = {
@@ -17,10 +17,29 @@ export const isFirebaseConfigured = Object.values(firebaseConfig).every(Boolean)
 
 export const firebaseApp = isFirebaseConfigured ? (getApps().length ? getApps()[0] : initializeApp(firebaseConfig)) : undefined;
 
+// Spark-plan saver: route all client traffic to local emulators when enabled,
+// so development/testing burns ZERO production quota. Set in .env.local:
+//   NEXT_PUBLIC_USE_FIREBASE_EMULATOR=true
+// and run: firebase emulators:start (ports in firebase.json).
+// Server routes honor FIRESTORE_EMULATOR_HOST / FIREBASE_AUTH_EMULATOR_HOST
+// automatically via the Admin SDK — no code change needed there.
+export const useFirebaseEmulator =
+  typeof window !== "undefined" &&
+  (process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATOR === "true" ||
+    process.env.EXPO_PUBLIC_USE_FIREBASE_EMULATOR === "true");
+
 function createAuth(): ReturnType<typeof getAuth> {
   if (typeof window === "undefined") return { currentUser: null } as ReturnType<typeof getAuth>;
   if (!firebaseApp) return { currentUser: null } as ReturnType<typeof getAuth>;
-  return getAuth(firebaseApp);
+  const a = getAuth(firebaseApp);
+  if (useFirebaseEmulator) {
+    try {
+      connectAuthEmulator(a, "http://localhost:9099", { disableWarnings: true });
+    } catch {
+      // Already connected (HMR double-init) — safe to ignore.
+    }
+  }
+  return a;
 }
 
 export const auth = createAuth();
@@ -28,7 +47,15 @@ export const auth = createAuth();
 function createDb(): Firestore {
   if (typeof window === "undefined") return {} as Firestore;
   if (!firebaseApp) return {} as Firestore;
-  return getFirestore(firebaseApp);
+  const d = getFirestore(firebaseApp);
+  if (useFirebaseEmulator) {
+    try {
+      connectFirestoreEmulator(d, "localhost", 8080);
+    } catch {
+      // Already connected (HMR double-init) — safe to ignore.
+    }
+  }
+  return d;
 }
 
 function createStorage(): ReturnType<typeof getStorage> {

@@ -35,7 +35,22 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     }
   }, [dark, mounted]);
 
-  const toggle = () => setDark((v) => !v);
+  const toggle = () => {
+    // Enable the smooth theme transition just for the switch, then remove it
+    // so later hover/focus transitions stay snappy. Skipped entirely when the
+    // user prefers reduced motion.
+    try {
+      const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      if (!reduce) {
+        document.documentElement.classList.add("theme-anim");
+        window.setTimeout(() => document.documentElement.classList.remove("theme-anim"), 350);
+      }
+    } catch {
+      // Non-browser context — toggle still applies below.
+    }
+    setDark((v) => !v);
+  };
+
 
   return (
     <ThemeContext.Provider value={{ dark, toggle }}>

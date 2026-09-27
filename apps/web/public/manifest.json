@@ -1,7 +1,7 @@
 {
-  "name": "Sri Narayana High School – School ERP",
-  "short_name": "SNHS ERP",
-  "description": "School ERP – attendance, fee, finance, exams, and staff management",
+  "name": "NarayanaOS – Sri Narayana High School",
+  "short_name": "NarayanaOS",
+  "description": "NarayanaOS – attendance, fee, finance, exams, and staff management for Sri Narayana High School",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

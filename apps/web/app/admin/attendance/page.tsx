@@ -1,7 +1,10 @@
 "use client";
 
 import { PageHeader } from "@/components/PageHeader";
+import { useAdminSession } from "@/components/AdminSessionContext";
 import { useAcademicYears } from "@/components/AcademicYearContext";
+import { usePopup } from "@/components/CenterPopup";
+import RowContextMenu, { type ContextMenuItem } from "@/components/RowContextMenu";
 import { DateRangeFilter, formatDateForDisplay } from "@/components/DateRangeFilter";
 import { StatusBadge } from "@/components/StatusBadge";
 import { auth } from "@sri-narayana/shared/firebase/client";
@@ -14,7 +17,7 @@ import {
   type Holiday,
   type Teacher
 } from "@sri-narayana/shared";
-import { CalendarOff, ClipboardList, ChevronDown, Pencil, Save, Search, X } from "lucide-react";
+import { CalendarOff, ClipboardList, ChevronDown, Eye, Pencil, Save, Search, Trash2, X } from "lucide-react";
 import type { FormEvent } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -66,6 +69,10 @@ function createEditForm(record: AttendanceRecord): EditForm {
 
 export default function AttendancePage() {
   const { selectedYear } = useAcademicYears();
+  const { hasPermission } = useAdminSession();
+  // Accountant + principal see attendance but can never edit it (they lack
+  // attendance.edit; the API also rejects them server-side).
+  const canEditAttendance = hasPermission("attendance.edit");
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [audits, setAudits] = useState<AttendanceEditAudit[]>([]);
@@ -81,6 +88,19 @@ export default function AttendancePage() {
   const [toDate, setToDate] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [editing, setEditing] = useState<EditForm | null>(null);
+  const popup = usePopup();
+  // Right-click menu on attendance records.
+  const [rowMenu, setRowMenu] = useState<{ x: number; y: number; items: ContextMenuItem[] } | null>(null);
+
+  const rowMenuFor = (record: AttendanceRecord): ContextMenuItem[] => {
+    const items: ContextMenuItem[] = [];
+    items.push({ label: "View details", icon: <Eye size={15} />, onSelect: () => void setEditing(createEditForm(record)) });
+    items.push({ label: "Edit", icon: <Pencil size={15} />, disabled: !canEditAttendance || loading, onSelect: () => void setEditing(createEditForm(record)) });
+    if (canEditAttendance) {
+      items.push({ label: "Delete", icon: <Trash2 size={15} />, danger: true, disabled: loading, onSelect: () => void deleteAttendance(record) });
+    }
+    return items;
+  };
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -272,6 +292,36 @@ export default function AttendancePage() {
     ? "No attendance record found for this teacher in the selected date range."
     : "No attendance records found.";
 
+  const deleteAttendance = async (record: AttendanceRecord) => {
+    const teacher = teachers.find((t) => t.id === record.teacherId);
+    const ok = await popup.confirm(
+      "Delete attendance record?",
+      `${teacher?.fullName ?? record.teacherId} · ${record.date} — this cannot be undone.`,
+      { okLabel: "Delete", danger: true }
+    );
+    if (!ok) return;
+    setLoading(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const result = await apiRequest<{ message?: string }>("/api/admin/attendance", {
+        method: "DELETE",
+        body: JSON.stringify({
+          attendanceId: createAttendanceDocumentId(record.teacherId, record.date),
+          teacherId: record.teacherId,
+          date: record.date,
+          reason: "Deleted from attendance records page"
+        })
+      });
+      setMessage(result.message ?? "Attendance record deleted.");
+      await loadAttendance();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to delete attendance record");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <>
       <PageHeader title="Attendance Records" description="Review, filter, and manually override attendance with a required audit reason." />
@@ -385,7 +435,15 @@ export default function AttendancePage() {
             const attendanceId = createAttendanceDocumentId(record.teacherId, record.date);
             const managementHoliday = managementHolidayByDate.get(record.date);
             return (
-              <div key={attendanceId} className="card p-4">
+              <div key={attendanceId} className="card p-4" onContextMenu={(e) => {
+                e.preventDefault();
+                const items: ContextMenuItem[] = [
+                  { label: "View details", icon: <Eye size={15} />, onSelect: () => void setEditing(createEditForm(record)) },
+                  { label: "Edit", icon: <Pencil size={15} />, disabled: !canEditAttendance || loading, onSelect: () => void setEditing(createEditForm(record)) },
+                  { label: "Delete", icon: <Trash2 size={15} />, danger: true, disabled: !canEditAttendance || loading, onSelect: () => void deleteAttendance(record) }
+                ];
+                setRowMenu({ x: e.clientX, y: e.clientY, items });
+              }}>
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="truncate text-base font-bold text-[#1f2136]">{teacher?.fullName ?? record.teacherId}</p>
@@ -413,7 +471,9 @@ export default function AttendancePage() {
                     <dd className="text-xs font-bold text-[#303247]">{record.lateMinutes} min</dd>
                   </div>
                 </dl>
-                <button className="btn-secondary mt-3 w-full" onClick={() => setEditing(createEditForm(record))}><Pencil size={15} /> Edit record</button>
+                {canEditAttendance && (
+                  <button className="btn-secondary mt-3 w-full" onClick={() => setEditing(createEditForm(record))}><Pencil size={15} /> Edit record</button>
+                )}
               </div>
             );
           })}
@@ -436,7 +496,7 @@ export default function AttendancePage() {
                 <th className="px-4 py-3">Source</th>
                 <th className="px-4 py-3">Late</th>
                 <th className="px-4 py-3">Audit</th>
-                <th className="px-4 py-3">Action</th>
+                {canEditAttendance && <th className="px-4 py-3">Action</th>}
               </tr>
             </thead>
             <tbody>
@@ -445,7 +505,15 @@ export default function AttendancePage() {
                 const attendanceId = createAttendanceDocumentId(record.teacherId, record.date);
                 const managementHoliday = managementHolidayByDate.get(record.date);
                 return (
-                  <tr key={attendanceId} className="border-t border-stone-100">
+                  <tr key={attendanceId} className="border-t border-stone-100" onContextMenu={(e) => {
+                    e.preventDefault();
+                    const items: ContextMenuItem[] = [
+                      { label: "View details", icon: <Eye size={15} />, onSelect: () => void setEditing(createEditForm(record)) },
+                      { label: "Edit", icon: <Pencil size={15} />, disabled: !canEditAttendance || loading, onSelect: () => void setEditing(createEditForm(record)) },
+                      { label: "Delete", icon: <Trash2 size={15} />, danger: true, disabled: !canEditAttendance || loading, onSelect: () => void deleteAttendance(record) }
+                    ];
+                    setRowMenu({ x: e.clientX, y: e.clientY, items });
+                  }}>
                     <td className="px-4 py-3">{formatDateForDisplay(record.date) || record.date}</td>
                     <td className="px-4 py-3 font-medium">{teacher?.fullName ?? record.teacherId}</td>
                     <td className="px-4 py-3">{teacher?.subject ?? "--"}</td>
@@ -464,7 +532,7 @@ export default function AttendancePage() {
                     <td className="px-4 py-3">{record.sourcesUsed.join(", ")}</td>
                     <td className="px-4 py-3">{record.lateMinutes} min</td>
                     <td className="px-4 py-3">{record.adminEdited ? record.editReason ?? "Edited" : "--"}</td>
-                    <td className="px-4 py-3"><button className="btn-secondary" onClick={() => setEditing(createEditForm(record))}><Pencil size={15} /> Edit</button></td>
+                    <td className="px-4 py-3">{canEditAttendance && (<button className="btn-secondary" onClick={() => setEditing(createEditForm(record))}><Pencil size={15} /> Edit</button>)}</td>
                   </tr>
                 );
               })}
@@ -505,6 +573,7 @@ export default function AttendancePage() {
           </table>
         </div>
       </section>
+      <RowContextMenu menu={rowMenu} onClose={() => setRowMenu(null)} />
     </>
   );
 }

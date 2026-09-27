@@ -8,13 +8,15 @@
  * proof URLs...). <img src> renders data URLs natively, so no caller changes.
  *
  * Size discipline (Firestore documents are capped at ~1MB):
- *  - Photos are compressed via canvas to ≤640px JPEG (~30–80KB typically).
+ *  - Photos are compressed via canvas to ≤480px JPEG (~15–40KB typically).
  *  - Non-image files (PDFs etc.) are allowed up to 500KB raw (~670KB base64);
  *    larger files are rejected with a clear message.
+ * List APIs strip photo/document fields entirely (detail views fetch by id),
+ * so catalog pages stay fast on slow school networks.
  */
 
-const PHOTO_MAX_DIMENSION = 640;
-const PHOTO_JPEG_QUALITY = 0.75;
+const PHOTO_MAX_DIMENSION = 480;
+const PHOTO_JPEG_QUALITY = 0.7;
 const RAW_FILE_LIMIT_BYTES = 500 * 1024;
 
 function readFileAsDataUrl(file: File | Blob): Promise<string> {

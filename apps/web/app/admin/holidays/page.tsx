@@ -137,7 +137,12 @@ export default function HolidaysPage() {
 
   const cancelHoliday = async (holiday: Holiday) => {
     if (!holiday.id) return;
-    if (!window.confirm(`Cancel the declared holiday on ${formatDate(holiday.date)}? Attendance will be required again.`)) return;
+    const ok = await toast.confirm(
+      `Cancel the declared holiday on ${formatDate(holiday.date)}?`,
+      "Attendance will be required again.",
+      { okLabel: "Cancel Holiday", danger: true }
+    );
+    if (!ok) return;
     setSaving(true);
     try {
       const result = await apiRequest<{ message?: string }>(`/api/admin/holidays/management?holidayId=${holiday.id}`, {
@@ -157,7 +162,12 @@ export default function HolidaysPage() {
 
   const deleteHolidayPermanent = async (holiday: Holiday) => {
     if (!holiday.id) return;
-    if (!window.confirm(`PERMANENTLY delete the holiday on ${formatDate(holiday.date)}? This cannot be undone.`)) return;
+    const ok = await toast.confirm(
+      `PERMANENTLY delete the holiday on ${formatDate(holiday.date)}?`,
+      "This cannot be undone.",
+      { okLabel: "Delete Permanently", danger: true }
+    );
+    if (!ok) return;
     setSaving(true);
     try {
       await apiRequest(`/api/admin/holidays/${holiday.id}`, { method: "DELETE" });

@@ -14,6 +14,9 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
           </div>
           <PortalSubnav />
           {children}
+          <footer className="mt-6 border-t border-border px-4 py-4 text-center">
+            <p className="text-xs font-medium text-muted-foreground">© 2026 Sri Narayana High School · Powered by NarayanaOS</p>
+          </footer>
         </div>
       </PortalChildProvider>
     </AuthGate>

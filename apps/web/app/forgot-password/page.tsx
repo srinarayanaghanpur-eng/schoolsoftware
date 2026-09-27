@@ -2,6 +2,9 @@ import Link from "next/link";
 import { ArrowLeft, BellRing, CheckCircle2, ShieldCheck } from "lucide-react";
 
 const SCHOOL_NAME = "SRI NARAYANA HIGH SCHOOL";
+const PRODUCT_NAME = "NarayanaOS";
+const SCHOOL_DISPLAY_NAME = "Sri Narayana High School";
+const FOOTER_LINE = "© 2026 Sri Narayana High School · Powered by NarayanaOS";
 const SCHOOL_LOGO_SRC = "/sri-narayana-high-school-logo.jpg";
 
 type ForgotPasswordPageProps = {
@@ -45,7 +48,9 @@ export default function ForgotPasswordPage({ searchParams }: ForgotPasswordPageP
                     <img className="school-logo-image h-full w-full rounded-[24%] object-contain" src={SCHOOL_LOGO_SRC} alt={`${SCHOOL_NAME} logo`} />
                   </div>
                 </div>
-                <h1 className="mt-6 text-2xl font-extrabold leading-tight tracking-[-0.02em]">{SCHOOL_NAME}</h1>
+                <h1 className="mt-6 text-2xl font-extrabold leading-tight tracking-[-0.02em]">{PRODUCT_NAME}</h1>
+                <p className="mt-1 text-sm font-semibold text-blue-100">{SCHOOL_DISPLAY_NAME}</p>
+                <p className="mt-1 text-xs font-bold tracking-[0.08em] text-blue-200">Authorized Access Only</p>
               </div>
               <div className="rounded-[18px] border border-white/20 bg-white/12 p-5 backdrop-blur-md">
                 <ShieldCheck className="h-8 w-8 text-blue-100" />
@@ -90,6 +95,7 @@ export default function ForgotPasswordPage({ searchParams }: ForgotPasswordPageP
                 <ArrowLeft className="h-5 w-5" />
                 Back to login
               </Link>
+              <p className="mt-5 text-center text-xs font-medium text-stone-500">{FOOTER_LINE}</p>
             </div>
           </div>
         </section>

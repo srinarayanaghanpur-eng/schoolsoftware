@@ -85,7 +85,7 @@ export function DigitalFeeReceipt({ receipt }: { receipt: DigitalFeeReceiptRecor
       </section>
 
       <footer className="dfr-footer">
-        <span>Computer-generated receipt</span>
+        <span>Computer-generated receipt · Powered by NarayanaOS</span>
         <span>Printed: {formatPrinted(receipt.printedAt, receipt.createdByUsername)}</span>
       </footer>
     </article>

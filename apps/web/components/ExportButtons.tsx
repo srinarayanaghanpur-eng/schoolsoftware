@@ -44,7 +44,7 @@ function openPrintableReport(title: string, rows: Record<string, unknown>[]) {
       </head>
       <body class="print-report-body">
         <h1 class="print-report-title">${escapeHtml(title)}</h1>
-        <p class="print-report-meta">SRI NARAYANA HIGH SCHOOL · Generated ${new Date().toLocaleString()}</p>
+        <p class="print-report-meta">Sri Narayana High School · Powered by NarayanaOS · Generated ${new Date().toLocaleString()}</p>
         <table class="print-report-table">
           <thead><tr>${columns.map((column) => `<th>${escapeHtml(column)}</th>`).join("")}</tr></thead>
           <tbody>${tableRows}</tbody>

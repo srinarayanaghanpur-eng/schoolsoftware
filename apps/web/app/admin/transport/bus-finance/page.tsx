@@ -8,6 +8,7 @@ import { useAdminSession } from "@/components/AdminSessionContext";
 import { useAcademicYears } from "@/components/AcademicYearContext";
 import { hasPermission } from "@sri-narayana/shared";
 import { adminApiRequest, AdminApiError } from "@/lib/adminApiClient";
+import { usePopup } from "@/components/CenterPopup";
 import type { BusFinance } from "@/types/busFinance.types";
 
 const inr = (n: number) => `₹${(Number(n) || 0).toLocaleString("en-IN")}`;
@@ -37,6 +38,7 @@ export default function BusFinancePage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
+  const popup = usePopup();
 
   const load = async () => {
     if (!selectedYear?.id) {
@@ -110,7 +112,12 @@ export default function BusFinancePage() {
 
   const remove = async (id: string, vehicleNumber: string) => {
     if (!canDelete) return;
-    if (!window.confirm(`Delete finance record for ${vehicleNumber}? This deletes its EMI schedule too and cannot be undone.`)) return;
+    const ok = await popup.confirm(
+      `Delete finance record for ${vehicleNumber}?`,
+      "This deletes its EMI schedule too and cannot be undone.",
+      { okLabel: "Delete", danger: true }
+    );
+    if (!ok) return;
     setBusyId(id);
     setError("");
     setSuccess("");

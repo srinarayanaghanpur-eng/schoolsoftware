@@ -78,7 +78,7 @@ export async function POST(req: Request) {
     let systemInstruction = SYSTEM_PROMPT;
     if (useErpData && erpContext) {
       const contextStr = typeof erpContext === "string" ? erpContext : JSON.stringify(erpContext);
-      systemInstruction += `\n\nHere is the live ERP data you MUST use to answer:\n${contextStr}`;
+      systemInstruction += `\n\nHere is the live NarayanaOS data you MUST use to answer:\n${contextStr}`;
     }
 
     const response = await client.models.generateContent({

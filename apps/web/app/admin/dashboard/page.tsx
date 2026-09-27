@@ -339,9 +339,9 @@ function MetricCard({
         </span>
         <span className="rounded-full bg-muted px-2 py-1 text-[11px] font-extrabold text-muted-foreground">Live</span>
       </div>
-      <p className="mt-4 text-sm font-bold text-muted-foreground">{label}</p>
-      <p className="mt-1 text-2xl font-extrabold tracking-tight text-foreground dark:text-white md:text-[28px]">{value}</p>
-      <p className={`mt-1 text-xs font-bold ${helperTone}`}>{helper}</p>
+      <p className="mt-4 min-w-0 text-sm font-bold text-muted-foreground">{label}</p>
+      <p className="mt-1 min-w-0 text-2xl font-extrabold leading-tight tracking-tight text-foreground [overflow-wrap:anywhere] dark:text-white md:text-[28px]">{value}</p>
+      <p className={`mt-1 min-w-0 text-xs font-bold ${helperTone}`}>{helper}</p>
     </article>
   );
 }

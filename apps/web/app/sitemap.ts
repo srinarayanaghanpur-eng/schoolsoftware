@@ -1,19 +1,21 @@
 import type { MetadataRoute } from "next";
 
+const siteUrl =
+  process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/+$/, "") ||
+  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "https://schoolsoftware-two.vercel.app");
+
+const publicRoutes = [
+  { path: "/", priority: 1, changeFrequency: "weekly" as const },
+  { path: "/login", priority: 0.9, changeFrequency: "monthly" as const },
+  { path: "/forgot-password", priority: 0.3, changeFrequency: "yearly" as const }
+];
+
 export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = "https://snhssoftware.vercel.app";
-  return [
-    {
-      url: baseUrl,
-      lastModified: new Date(),
-      changeFrequency: "monthly",
-      priority: 1
-    },
-    {
-      url: `${baseUrl}/login`,
-      lastModified: new Date(),
-      changeFrequency: "monthly",
-      priority: 0.8
-    }
-  ];
+  const now = new Date();
+  return publicRoutes.map((route) => ({
+    url: `${siteUrl}${route.path}`,
+    lastModified: now,
+    changeFrequency: route.changeFrequency,
+    priority: route.priority
+  }));
 }

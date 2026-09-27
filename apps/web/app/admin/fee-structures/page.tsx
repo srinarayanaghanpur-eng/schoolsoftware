@@ -1,12 +1,12 @@
-"use client";
-
+﻿"use client";
 import { useAcademicYears } from "@/components/AcademicYearContext";
 import { useAdminSession } from "@/components/AdminSessionContext";
+import { usePopup } from "@/components/CenterPopup";
 import { PageHeader } from "@/components/PageHeader";
 import { adminApiRequest } from "@/lib/adminApiClient";
 import { feeStructureCreateSchema, hasPermission, type FeeHead, type FeeStructure } from "@sri-narayana/shared";
 import { Edit3, Plus, Save, Search, Trash2, X } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 const CLASS_OPTIONS = ["Nur", "LKG", "UKG", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"];
 
@@ -69,7 +69,11 @@ export default function FeeStructuresPage() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const popup = usePopup();
   const [error, setError] = useState<string | null>(null);
+  const [loadedYear, setLoadedYear] = useState<string | null>(null);
+  const deepLink = useRef<{ className: string; add: boolean } | null>(null);
+  const deepLinkHandled = useRef(false);
 
   const canCreate = Boolean(role && hasPermission(role, "fees.create"));
   const canEdit = Boolean(role && hasPermission(role, "fees.edit"));
@@ -81,9 +85,39 @@ export default function FeeStructuresPage() {
     }
   }, [selectedYear?.id]);
 
+  // Deep link support: /admin/fee-structures?className=3&add=1
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const cls = (params.get("className") || "").trim();
+    if (!cls || !CLASS_OPTIONS.includes(cls)) return;
+    deepLink.current = { className: cls, add: params.get("add") === "1" };
+    setClassFilter(cls);
+  }, []);
+
+  // Once structures for the year are loaded, open the linked class's form:
+  // edit an existing structure if present, otherwise prefill a new one.
+  useEffect(() => {
+    const link = deepLink.current;
+    if (!link || deepLinkHandled.current || !academicYearId || loadedYear !== academicYearId) return;
+    deepLinkHandled.current = true;
+    const existing = structures.find(
+      (structure) => structure.className === link.className && String(structure.academicYearId) === academicYearId
+    );
+    if (existing) {
+      setForm(formFromStructure(existing));
+      setMessage(null);
+      setError(null);
+    } else if (link.add && canCreate) {
+      setForm({ ...emptyForm(academicYearId), className: link.className });
+      setMessage(null);
+      setError(null);
+    }
+  }, [structures, loadedYear, academicYearId, canCreate]);
+
   const loadStructures = async () => {
     if (!academicYearId) {
       setStructures([]);
+      setLoadedYear(null);
       return;
     }
     setLoading(true);
@@ -95,6 +129,7 @@ export default function FeeStructuresPage() {
       if (classFilter) params.set("className", classFilter);
       const result = await adminApiRequest<{ ok: true; structures: FeeStructure[] }>(`/api/admin/fee-structures?${params.toString()}`);
       setStructures(result.structures.sort((a, b) => String(a.className).localeCompare(String(b.className), undefined, { numeric: true })));
+      setLoadedYear(academicYearId);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to load fee structures");
     } finally {
@@ -167,7 +202,13 @@ export default function FeeStructuresPage() {
   };
 
   const deleteStructure = async (structure: FeeStructure) => {
-    if (!structure.id || !window.confirm(`Delete fee structure for Class ${structure.className}?`)) return;
+    if (!structure.id) return;
+    const ok = await popup.confirm(
+      `Delete fee structure for ${structure.className}?`,
+      "This action cannot be undone.",
+      { okLabel: "Delete", danger: true }
+    );
+    if (!ok) return;
     setError(null);
     setMessage(null);
     try {

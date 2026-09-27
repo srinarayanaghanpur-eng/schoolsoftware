@@ -30,6 +30,17 @@ export async function GET(req: Request) {
     const pageSize = readLimit(searchParams.get("pageSize") ?? searchParams.get("limit"), 25, 100);
     const cursor = docCursor(searchParams.get("cursor"));
 
+    // Default recent window: without any date filter Firestore returns docs in
+    // storage order and the page would show ancient records. History stays
+    // fully accessible via explicit dateFrom/dateTo (or teacherId) filters.
+    let effectiveDateFrom = dateFrom;
+    const effectiveDateTo = dateTo;
+    if (!effectiveDateFrom && !effectiveDateTo && !teacherId) {
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - 30);
+      effectiveDateFrom = cutoff.toISOString().slice(0, 10);
+    }
+
     // Use the most selective indexed field as the primary query filter.
     // All secondary filters are applied in API code to avoid composite indexes.
     let attendanceQuery: FirebaseFirestore.Query = db.collection("attendance");
@@ -60,8 +71,8 @@ export async function GET(req: Request) {
         const data = doc.data();
         if (!teacherId && academicYearId && data.academicYearId !== academicYearId) return false;
         if (!teacherId && schoolId && data.schoolId !== schoolId) return false;
-        if (dateFrom && data.date < dateFrom) return false;
-        if (dateTo && data.date > dateTo) return false;
+        if (effectiveDateFrom && data.date < effectiveDateFrom) return false;
+        if (effectiveDateTo && data.date > effectiveDateTo) return false;
         if (status && status !== "all" && data.status !== status) return false;
         return true;
       })
@@ -173,6 +184,61 @@ export async function PATCH(req: Request) {
     return json({ ok: true, message: "Attendance updated with audit trail." });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to update attendance";
+    return json({ ok: false, error: message }, { status: 400 });
+  }
+}
+
+export async function DELETE(req: Request) {
+  try {
+    const decodedToken = await requireAdmin(req);
+    if (!decodedToken) {
+      return json({ ok: false, error: "Admin access required" }, { status: 403 });
+    }
+
+    const body = await req.json();
+    const attendanceId = typeof body?.attendanceId === "string" ? body.attendanceId : "";
+    const teacherId = typeof body?.teacherId === "string" ? body.teacherId : "";
+    const date = typeof body?.date === "string" ? body.date : "";
+    const reason = typeof body?.reason === "string" && body.reason.trim() ? body.reason.trim() : "Deleted by admin";
+    if (!attendanceId || !teacherId || !date) {
+      return json({ ok: false, error: "attendanceId, teacherId and date are required" }, { status: 400 });
+    }
+
+    const db = adminDb();
+    const attendanceRef = db.collection("attendance").doc(attendanceId);
+    const existingSnapshot = await attendanceRef.get();
+    if (!existingSnapshot.exists) {
+      return json({ ok: false, error: "Attendance record not found" }, { status: 404 });
+    }
+    const existing = existingSnapshot.data();
+    const now = new Date().toISOString();
+
+    await db.runTransaction(async (transaction) => {
+      transaction.delete(attendanceRef);
+      transaction.set(db.collection("attendance_edit_audit_logs").doc(), {
+        attendanceId,
+        teacherId,
+        date,
+        previousStatus: existing?.status ?? "",
+        newStatus: "deleted",
+        reason,
+        editedBy: decodedToken.uid,
+        editedAt: now
+      });
+      transaction.set(db.collection("admin_audit_logs").doc(), {
+        action: "attendance_delete",
+        attendanceId,
+        teacherId,
+        date,
+        createdAt: now,
+        createdBy: decodedToken.uid,
+        reason
+      });
+    });
+
+    return json({ ok: true, message: "Attendance record deleted with audit trail." });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unable to delete attendance";
     return json({ ok: false, error: message }, { status: 400 });
   }
 }

@@ -1,6 +1,6 @@
 import { parentStudentLinkSchema } from "@sri-narayana/shared";
 import { requireAdmin, json } from "@/lib/apiUtils";
-import { linkParentToStudent, getStudentsForParent } from "@/lib/parentStudentLink";
+import { linkParentToStudent, getStudentsForParent, getParentsForStudent } from "@/lib/parentStudentLink";
 import { writeAuditLog } from "@/lib/auditLog";
 
 export async function GET(req: Request) {
@@ -16,6 +16,11 @@ export async function GET(req: Request) {
 
     if (parentUid) {
       const links = await getStudentsForParent(parentUid);
+      return json({ ok: true, links });
+    }
+
+    if (studentId) {
+      const links = await getParentsForStudent(studentId);
       return json({ ok: true, links });
     }
 

@@ -35,6 +35,8 @@ export type SalarySafetyTotals = {
   paidDays: number;
   unpaidAbsentDays: number;
   dailyRate: number;
+  lateDeductionDays: number;
+  lateDeduction: number;
   salaryDeduction: number;
   manualDeduction: number;
   bonus: number;
@@ -86,7 +88,11 @@ export function getSalarySafetyTotals(report: Partial<SalaryReport>): SalarySafe
   );
   const unpaidAbsentDays = Math.max(existingUnpaidAbsentDays, requiredUnpaidAbsentDays);
   const dailyRate = totalWorkingDays > 0 ? baseSalary / totalWorkingDays : nonNegativeNumber(report.perDaySalary);
-  const salaryDeduction = unpaidAbsentDays * dailyRate;
+  // Same late rule as the generator: every 3 lates = one day at daily rate.
+  const lateEntries = Math.max(0, Math.floor(nonNegativeNumber(report.lateEntries)));
+  const lateDeductionDays = Math.floor(lateEntries / 3);
+  const lateDeduction = lateDeductionDays * dailyRate;
+  const salaryDeduction = unpaidAbsentDays * dailyRate + lateDeduction;
   const manualDeduction = nonNegativeNumber(report.manualDeduction);
   const bonus = nonNegativeNumber(report.bonus);
   const totalDeduction = salaryDeduction + manualDeduction;
@@ -95,7 +101,10 @@ export function getSalarySafetyTotals(report: Partial<SalaryReport>): SalarySafe
   const grossEarnedSalary = Math.max(0, payableBase - salaryDeduction);
   const netPayable = Math.max(0, grossEarnedSalary + bonus - manualDeduction);
   const attendanceMissing = report.attendanceDataAvailable === false || report.salaryStatus === "Attendance Missing";
-  const invalidTotals = workingDaysElapsed > 0 && presentDays === 0 && approvedPaidCLDays === 0 && unpaidAbsentDays === 0;
+  // Detect the lie in the STORED doc (zeros across the board while days elapsed),
+  // before the recompute below fills unpaidAbsentDays in. Otherwise the check
+  // below can never fire and corrupt legacy docs look "Ready".
+  const invalidTotals = workingDaysElapsed > 0 && presentDays === 0 && approvedPaidCLDays === 0 && existingUnpaidAbsentDays === 0;
   const salaryStatus: SalaryStatus = attendanceMissing ? "Attendance Missing" : invalidTotals || report.salaryStatus === "Invalid" ? "Invalid" : "Ready";
   const paymentBlockedReason = attendanceMissing
     ? ATTENDANCE_MISSING_WARNING
@@ -113,6 +122,8 @@ export function getSalarySafetyTotals(report: Partial<SalaryReport>): SalarySafe
     paidDays,
     unpaidAbsentDays,
     dailyRate,
+    lateDeductionDays,
+    lateDeduction,
     salaryDeduction,
     manualDeduction,
     bonus,
@@ -163,6 +174,8 @@ export function normalizeSalaryReport(report: SalaryReport): SalaryReport {
     earnedPaidDays: totals.paidDays,
     grossEarnedSalary: roundedGrossEarnedSalary,
     salaryDeduction: roundedSalaryDeduction,
+    lateDeduction: roundMoney(totals.lateDeduction),
+    lateDeductionDays: totals.lateDeductionDays,
     manualDeduction: roundMoney(totals.manualDeduction),
     bonus: roundMoney(totals.bonus),
     totalDeduction: roundedTotalDeduction,
@@ -373,9 +386,14 @@ export function calculateMonthlySalary(input: SalaryCalculationInput): SalaryRep
 
   // Payroll is earned-days based; do not pay future or otherwise unpaid working days.
   const dailyRate = totalWorkingDates.length > 0 ? input.teacher.baseSalary / totalWorkingDates.length : 0;
+  // Late rule: every 3 late check-ins deduct one full day at the person's own
+  // daily rate (e.g. daily rate 400 + 3 lates = 400 deducted). No fixed-amount
+  // option — the deduction always scales with the individual's salary.
+  const lateDeductionDays = Math.floor(lateEntries / 3);
+  const lateDeductionAmount = lateDeductionDays * dailyRate;
   const absentDeduction = plainAbsentDates.length * dailyRate;
   const excessLeaveDeduction = excessCLDays * dailyRate;
-  const salaryDeduction = unpaidAbsentDays * dailyRate;
+  const salaryDeduction = unpaidAbsentDays * dailyRate + lateDeductionAmount;
   const manualDeduction = Math.max(0, input.manualDeduction ?? settings.salaryRules.manualDeductionDefault);
   const bonus = Math.max(0, input.bonus ?? settings.salaryRules.bonusDefault);
   const totalDeduction = salaryDeduction + manualDeduction;
@@ -457,7 +475,8 @@ export function calculateMonthlySalary(input: SalaryCalculationInput): SalaryRep
     salaryDeduction: roundedSalaryDeduction,
 
     absentDeduction: roundMoney(absentDeduction),
-    lateDeduction: 0,
+    lateDeduction: roundMoney(lateDeductionAmount),
+    lateDeductionDays,
     excessLeaveDeduction: roundMoney(excessLeaveDeduction),
     manualDeduction: Math.round(manualDeduction),
     bonus: Math.round(bonus),

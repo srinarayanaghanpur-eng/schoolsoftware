@@ -87,7 +87,7 @@ export function DuesSummaryPanel({ data, loading, error, onSummarize }: Props) {
           Summarize Dues
         </button>
         <p className="mt-4 text-sm font-medium text-muted-foreground">
-          Click to fetch the latest fee due summary from ERP data.
+          Click to fetch the latest fee due summary from NarayanaOS data.
         </p>
       </div>
     );

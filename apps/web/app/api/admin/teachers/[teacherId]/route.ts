@@ -152,3 +152,33 @@ export async function PATCH(req: Request, { params }: { params: { teacherId: str
   }
 }
 
+export async function DELETE(req: Request, { params }: { params: { teacherId: string } }) {
+  try {
+    const decodedToken = await requireAdmin(req);
+    if (!decodedToken) {
+      return json({ ok: false, error: "Admin access required" }, { status: 403 });
+    }
+
+    const db = adminDb();
+    const docRef = db.collection("teachers").doc(params.teacherId);
+    const snapshot = await docRef.get();
+    if (!snapshot.exists) {
+      return json({ ok: false, error: "Teacher not found" }, { status: 404 });
+    }
+    const existing = (snapshot.data() ?? {}) as Record<string, unknown>;
+    const uid = typeof existing.uid === "string" ? existing.uid : undefined;
+
+    // Delete profile + login identity. Attendance history is kept as audit
+    // trail (same policy as fee payments on student delete).
+    await docRef.delete();
+    if (uid) {
+      await db.collection("users").doc(uid).delete().catch(() => undefined);
+      await adminAuth().deleteUser(uid).catch(() => undefined);
+    }
+    return json({ ok: true, message: "Teacher deleted." });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unable to delete teacher";
+    return json({ ok: false, error: message }, { status: 500 });
+  }
+}
+

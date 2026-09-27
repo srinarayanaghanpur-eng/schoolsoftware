@@ -1,9 +1,10 @@
-"use client";
+﻿"use client";
 
 import { DatePicker } from "@/components/DatePicker";
 import { PageHeader } from "@/components/PageHeader";
 import { useAcademicYears } from "@/components/AcademicYearContext";
 import { useAdminSession } from "@/components/AdminSessionContext";
+import { usePopup } from "@/components/CenterPopup";
 import { AdminApiError, adminApiRequest } from "@/lib/adminApiClient";
 import { academicYearCreateSchema, hasPermission, type AcademicYear } from "@sri-narayana/shared";
 import { AlertCircle, CalendarRange, CheckCircle2, Edit3, Plus, Power, Trash2, X } from "lucide-react";
@@ -68,6 +69,7 @@ export default function AcademicYearsPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
+  const popup = usePopup();
 
   const canView = Boolean(role && hasPermission(role, "academic_years.view"));
   // Management is super_admin only (per-login year model: the year is chosen at
@@ -167,7 +169,12 @@ export default function AcademicYearsPage() {
 
   const deleteYear = async (year: AcademicYear) => {
     if (!year.id) return;
-    if (!window.confirm(`Delete academic year ${year.name}?`)) return;
+    const ok = await popup.confirm(
+      `Delete academic year ${year.name}?`,
+      "This cannot be undone.",
+      { okLabel: "Delete", danger: true }
+    );
+    if (!ok) return;
 
     setPendingId(year.id);
     setActionError(null);

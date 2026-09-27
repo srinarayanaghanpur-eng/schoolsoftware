@@ -2,6 +2,7 @@
 
 import { AdmissionApprovalSettings } from "@/components/AdmissionApprovalSettings";
 import { BackupErasePanel } from "@/components/BackupErasePanel";
+import BulkUploads from "@/components/BulkUploads";
 import { CampusGpsSettings } from "@/components/CampusGpsSettings";
 import { DeclareHolidayModal } from "@/components/DeclareHolidayModal";
 import { PageHeader } from "@/components/PageHeader";
@@ -31,19 +32,24 @@ export default function SettingsPage() {
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
               <input className="field" type="time" defaultValue={DEFAULT_SETTINGS.schoolStartTime} />
               <input className="field" defaultValue={DEFAULT_SETTINGS.graceMinutes} />
-              <select className="field" defaultValue={DEFAULT_SETTINGS.salaryRules.lateDeductionMode}>
-                <option value="none">No deduction</option>
-                <option value="half_day">Half-day deduction</option>
-                <option value="fixed">Fixed amount per late</option>
-                <option value="after_3_lates_one_day">After 3 late days, deduct 1 day</option>
-              </select>
-              <input className="field" defaultValue={DEFAULT_SETTINGS.salaryRules.fixedLateDeductionAmount} />
             </div>
+            <p className="rounded-xl bg-[#f6f8ff] px-4 py-3 text-sm font-medium text-[#4d5096]">
+              Late rule (automatic): every 3 late check-ins deduct one full day at that staff member&apos;s own daily
+              rate — e.g. daily rate ₹400 with 3 lates deducts ₹400. There is no fixed-amount late deduction.
+            </p>
           </div>
           <PaymentUpiSettings />
           <AdmissionApprovalSettings />
+          <BulkUploads />
         </div>
         <BackupErasePanel />
+        <div className="card space-y-1 p-4">
+          <h2 className="font-semibold">About this system</h2>
+          <p className="text-sm font-medium text-[#7d86a8]">
+            Product: NarayanaOS · Institution: Sri Narayana High School
+          </p>
+          <p className="text-xs font-medium text-[#7d86a8]">© 2026 Sri Narayana High School · Powered by NarayanaOS</p>
+        </div>
       </section>
     </>
   );
