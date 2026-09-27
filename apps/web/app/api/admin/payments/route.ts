@@ -209,7 +209,19 @@ export async function POST(request: NextRequest) {
       const student = studentSnap.data();
       if (!student) throw new Error("Student data unavailable");
 
-      const amountDue = Number(student.totalFeesDue ?? 0);
+      // Re-validate against the FRESH student snapshot (the pre-check above
+      // reads outside the transaction — a concurrent payment could have
+      // consumed the balance in between). Same rules as validatePaymentAllowed.
+      const freshDue = Number(student.totalFeesDue ?? 0);
+      const freshPaid = Number(student.totalFeesPaid || 0);
+      if (String(student.feeStatus || "pending") === "paid" || (freshDue <= 0 && freshPaid > 0)) {
+        throw new Error("This student has already paid the full fee. No due amount pending.");
+      }
+      if (payable > freshDue) {
+        throw new Error(`Payment amount cannot be greater than pending due of ₹${freshDue.toLocaleString("en-IN")}.`);
+      }
+
+      const amountDue = freshDue;
       const remainingAmount = Math.max(0, amountDue - payable);
       const feeStatus: 'paid' | 'partial' | 'pending' = remainingAmount <= 0 ? 'paid' : payable > 0 ? 'partial' : 'pending';
       const branchId = student.branchId || "default-branch";
@@ -355,6 +367,12 @@ export async function POST(request: NextRequest) {
     );
   } catch (error) {
     console.error('Error recording payment:', error);
+    const message = error instanceof Error ? error.message : 'Failed to record payment';
+    // In-transaction validation failures (balance raced to zero) → 400 with
+    // the real reason; everything else stays a generic 500.
+    if (message.includes('pending due') || message.includes('already paid the full fee')) {
+      return json({ success: false, error: message }, { status: 400 });
+    }
     return json(
       { success: false, error: 'Failed to record payment' },
       { status: 500 }
