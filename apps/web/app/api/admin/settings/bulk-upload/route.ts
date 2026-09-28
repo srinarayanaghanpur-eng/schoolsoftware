@@ -198,6 +198,18 @@ async function uploadBookPrices(
 ): Promise<Summary> {
   const summary: Summary = { created: 0, updated: 0, skipped: 0, errors: [] };
   // Class | Book | Price → upsert book_prices by class + title + year.
+  // Preload the year's book prices once instead of one query per row.
+  const priceByRow = new Map<string, FirebaseFirestore.DocumentReference>();
+  const existingPrices = await db.collection("book_prices")
+    .where("academicYearId", "==", academicYearId)
+    .get()
+    .catch(() => null);
+  if (existingPrices) {
+    for (const doc of existingPrices.docs) {
+      const data = doc.data();
+      priceByRow.set(`${String(data.classId ?? "")}|${String(data.titleLower ?? "")}`, doc.ref);
+    }
+  }
   let batch = db.batch();
   let ops = 0;
   const flush = async () => {
@@ -215,22 +227,18 @@ async function uploadBookPrices(
       if (summary.errors.length < 10) summary.errors.push(`Row ${i + 2}: need Class, Book, Price`);
       continue;
     }
-    const existing = await db.collection("book_prices")
-      .where("academicYearId", "==", academicYearId)
-      .where("classId", "==", cls)
-      .where("titleLower", "==", title.toLowerCase())
-      .limit(1)
-      .get()
-      .catch(() => null);
+    const existingRef = priceByRow.get(`${cls}|${title.toLowerCase()}`);
     const doc = {
       academicYearId, classId: cls, className: cls, title, titleLower: title.toLowerCase(),
       price, schoolId, updatedAt: FieldValue.serverTimestamp()
     };
-    if (!existing || existing.empty) {
-      batch.set(db.collection("book_prices").doc(), { ...doc, createdAt: FieldValue.serverTimestamp() });
+    if (!existingRef) {
+      const ref = db.collection("book_prices").doc();
+      batch.set(ref, { ...doc, createdAt: FieldValue.serverTimestamp() });
+      priceByRow.set(`${cls}|${title.toLowerCase()}`, ref);
       summary.created++;
     } else {
-      batch.set(existing.docs[0].ref, doc, { merge: true });
+      batch.set(existingRef, doc, { merge: true });
       summary.updated++;
     }
     ops++;

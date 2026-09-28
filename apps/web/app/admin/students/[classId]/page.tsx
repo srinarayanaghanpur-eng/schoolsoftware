@@ -99,9 +99,7 @@ export default function StudentsPage() {
 
   const rowMenuFor = (student: Student): ContextMenuItem[] => {
     const items: ContextMenuItem[] = [];
-    if (qrCanvas[student.id]) {
-      items.push({ label: "Show QR", icon: <QrCode size={15} />, onSelect: () => setShowQrModal(student.id) });
-    }
+    items.push({ label: "Show QR", icon: <QrCode size={15} />, onSelect: () => setShowQrModal(student.id) });
     items.push({ label: "Print admission form", icon: <Printer size={15} />, onSelect: () => router.push(`/admin/admission-form/${student.id}`) });
     items.push({ label: "Fee receipts", icon: <ReceiptText size={15} />, onSelect: () => router.push(`/admin/payments?studentId=${student.id}`) });
     if (canEditStudent) {
@@ -827,25 +825,28 @@ export default function StudentsPage() {
 
   const [qrCanvas, setQrCanvas] = useState<Record<string, string>>({});
 
+  // QR codes are generated on demand for the student whose modal is open,
+  // instead of encoding every visible row on each students fetch.
   useEffect(() => {
-    const generateQrs = async () => {
+    if (!showQrModal || qrCanvas[showQrModal]) return;
+    const student = students.find((s) => s.id === showQrModal);
+    if (!student) return;
+    let cancelled = false;
+    (async () => {
       const QRCode = (await import("qrcode")).default;
-      const results: Record<string, string> = {};
-      for (const student of students.slice(0, 50)) {
-        try {
-          results[student.id] = await QRCode.toDataURL(qrContent(student), {
-            width: 160,
-            margin: 1,
-            color: { dark: "#1b1d32", light: "#ffffff" }
-          });
-        } catch { /* skip */ }
-      }
-      setQrCanvas(results);
+      try {
+        const url = await QRCode.toDataURL(qrContent(student), {
+          width: 160,
+          margin: 1,
+          color: { dark: "#1b1d32", light: "#ffffff" }
+        });
+        if (!cancelled) setQrCanvas((prev) => ({ ...prev, [student.id]: url }));
+      } catch { /* skip */ }
+    })();
+    return () => {
+      cancelled = true;
     };
-    generateQrs();
-  }, [students]);
-
-  const [printStudent, setPrintStudent] = useState<Student | null>(null);
+  }, [showQrModal, students, qrCanvas]);
 
   if (!routeClassId) notFound();
   const classLabel = CLASS_LABELS[routeClassId] ?? routeClassId;
@@ -1056,11 +1057,9 @@ export default function StudentsPage() {
                     {student.phone && <a href={`tel:${student.phone}`} className="mt-0.5 inline-block text-xs font-semibold text-[#3033a1]">{student.phone}</a>}
                   </div>
                   <div className="flex shrink-0 items-center gap-1">
-                    {qrCanvas[student.id] && (
-                      <button onClick={() => setShowQrModal(student.id)} className="grid h-9 w-9 place-items-center rounded-xl bg-[#eef6ff] text-[#3069a1]" aria-label="Show student details QR">
-                        <QrCode size={16} />
-                      </button>
-                    )}
+                    <button onClick={() => setShowQrModal(student.id)} className="grid h-9 w-9 place-items-center rounded-xl bg-[#eef6ff] text-[#3069a1]" aria-label="Show student details QR">
+                      <QrCode size={16} />
+                    </button>
                     <Link href={`/admin/admission-form/${student.id}`} className="grid h-9 w-9 place-items-center rounded-xl bg-[#f0faf0] text-[#2d8659]" aria-label="Print admission form">
                       <Printer size={16} />
                     </Link>
@@ -1125,11 +1124,9 @@ export default function StudentsPage() {
                       <td className="px-6 py-4 text-sm font-medium text-[#7d86a8]">{student.phone}</td>
                     <td className="px-6 py-4 text-center">
                       <div className="flex items-center justify-center gap-1">
-                        {qrCanvas[student.id] && (
-                          <button onClick={() => setShowQrModal(student.id)} className="grid h-9 w-9 place-items-center rounded-xl bg-[#eef6ff] text-[#3069a1] hover:bg-[#e0edff]" title="Show student details QR">
-                            <QrCode size={16} />
-                          </button>
-                        )}
+                        <button onClick={() => setShowQrModal(student.id)} className="grid h-9 w-9 place-items-center rounded-xl bg-[#eef6ff] text-[#3069a1] hover:bg-[#e0edff]" title="Show student details QR">
+                          <QrCode size={16} />
+                        </button>
                         <Link href={`/admin/admission-form/${student.id}`} className="grid h-9 w-9 place-items-center rounded-xl bg-[#f0faf0] text-[#2d8659] hover:bg-[#dff5e5]" title="Print admission form">
                           <Printer size={16} />
                         </Link>
@@ -1222,10 +1219,14 @@ export default function StudentsPage() {
         )}
 
         {/* QR Code Modal */}
-        {showQrModal && qrCanvas[showQrModal] && (
+        {showQrModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setShowQrModal(null)}>
             <div className="w-full max-w-xs rounded-2xl bg-white p-6 text-center shadow-2xl" onClick={(e) => e.stopPropagation()}>
-              <img src={qrCanvas[showQrModal]} alt="Student QR Code" className="mx-auto" />
+              {qrCanvas[showQrModal] ? (
+                <img src={qrCanvas[showQrModal]} alt="Student QR Code" className="mx-auto" />
+              ) : (
+                <div className="mx-auto grid h-[160px] w-[160px] place-items-center rounded-xl bg-[#f3f4fb] text-xs font-semibold text-[#7d86a8]">Generating…</div>
+              )}
               {((): Student | undefined => {
                 const s = students.find((st) => st.id === showQrModal);
                 return s;

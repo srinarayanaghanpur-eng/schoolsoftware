@@ -219,8 +219,36 @@ async function applyApprovalEffect(request: ApprovalRequest, status: ApprovalSta
       const now = new Date();
       const batch = db.batch();
       let touched = 0;
-      for (const promotionId of promotionIds.slice(0, 500)) {
-        const promoSnap = await db.collection("promotions").doc(promotionId).get();
+      const targetIds = promotionIds.slice(0, 500);
+
+      // Bulk-read promotions (and only the students whose fee balance must be
+      // carried forward) instead of one round-trip per record.
+      const promotionRefs = targetIds.map((id) => db.collection("promotions").doc(id));
+      const promotionSnaps: FirebaseFirestore.DocumentSnapshot[] = [];
+      for (let i = 0; i < promotionRefs.length; i += 100) {
+        promotionSnaps.push(...(await db.getAll(...promotionRefs.slice(i, i + 100))));
+      }
+
+      const studentSnapsById = new Map<string, FirebaseFirestore.DocumentSnapshot>();
+      if (status === "approved") {
+        const studentRefs: FirebaseFirestore.DocumentReference[] = [];
+        for (const snap of promotionSnaps) {
+          if (!snap.exists) continue;
+          const promo = snap.data() as Record<string, unknown>;
+          const studentId = String(promo.studentId || "");
+          if (studentId && promo.feeBalanceCarriedForward) {
+            studentRefs.push(db.collection("students").doc(studentId));
+          }
+        }
+        const uniqueRefs = [...new Map(studentRefs.map((ref) => [ref.id, ref])).values()];
+        for (let i = 0; i < uniqueRefs.length; i += 100) {
+          const snaps = await db.getAll(...uniqueRefs.slice(i, i + 100));
+          for (const snap of snaps) studentSnapsById.set(snap.id, snap);
+        }
+      }
+
+      for (let idx = 0; idx < promotionSnaps.length; idx++) {
+        const promoSnap = promotionSnaps[idx];
         if (!promoSnap.exists) continue;
         const promo = promoSnap.data() as Record<string, unknown>;
         if (status === "approved") {
@@ -233,8 +261,7 @@ async function applyApprovalEffect(request: ApprovalRequest, status: ApprovalSta
               updatedAt: now
             };
             if (promo.feeBalanceCarriedForward) {
-              const studentSnap = await db.collection("students").doc(studentId).get();
-              const student = (studentSnap.data() ?? {}) as Record<string, unknown>;
+              const student = (studentSnapsById.get(studentId)?.data() ?? {}) as Record<string, unknown>;
               const existingDue = Number(student.totalFeesDue || 0);
               const existingPaid = Number(student.totalFeesPaid || 0);
               updateData.totalFeesDue = existingDue;
@@ -244,9 +271,9 @@ async function applyApprovalEffect(request: ApprovalRequest, status: ApprovalSta
             batch.update(db.collection("students").doc(studentId), updateData);
             touched++;
           }
-          batch.update(db.collection("promotions").doc(promotionId), { status: "completed", updatedAt: now });
+          batch.update(db.collection("promotions").doc(promoSnap.id), { status: "completed", updatedAt: now });
         } else {
-          batch.update(db.collection("promotions").doc(promotionId), { status: "rejected", updatedAt: now });
+          batch.update(db.collection("promotions").doc(promoSnap.id), { status: "rejected", updatedAt: now });
         }
       }
       await batch.commit();

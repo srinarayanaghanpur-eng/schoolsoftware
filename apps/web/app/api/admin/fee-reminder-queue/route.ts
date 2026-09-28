@@ -69,13 +69,21 @@ export async function PUT(req: Request) {
     }
 
     const db = adminDb();
-    for (const id of ids) {
-      const updateData: Record<string, unknown> = { status, updatedAt: FieldValue.serverTimestamp() };
-      if (reason !== undefined) updateData.reason = reason;
-      await db.collection(COLLECTION).doc(id).update(updateData);
+    const targetIds = Array.from(new Set(ids.map(String))).slice(0, 500);
+    let updated = 0;
+    for (let i = 0; i < targetIds.length; i += 400) {
+      const chunk = targetIds.slice(i, i + 400);
+      const batch = db.batch();
+      for (const id of chunk) {
+        const updateData: Record<string, unknown> = { status, updatedAt: FieldValue.serverTimestamp() };
+        if (reason !== undefined) updateData.reason = reason;
+        batch.update(db.collection(COLLECTION).doc(id), updateData);
+      }
+      await batch.commit();
+      updated += chunk.length;
     }
 
-    return json({ ok: true, updated: ids.length });
+    return json({ ok: true, updated });
   } catch (error) {
     return json({ ok: false, error: errorMessage(error) }, { status: 400 });
   }

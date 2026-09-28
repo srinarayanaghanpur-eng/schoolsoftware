@@ -177,17 +177,21 @@ export async function POST(req: Request) {
 
     await batch.commit();
 
-    for (const rec of promotionRecords) {
-      await writeAuditLog({
-        action: promotionType === "demote" ? "student.demoted" : "student.promoted",
-        entityType: "student",
-        entityId: rec.studentId as string,
-        actorId: token.uid,
-        actorRole: token.role || "admin",
-        newValues: rec as Record<string, unknown>,
-        reason: notes || `Student ${promotionType} requested from ${rec.fromClass}-${rec.fromSection} (pending super-admin approval)`,
-        academicYearId
-      });
+    for (let i = 0; i < promotionRecords.length; i += 20) {
+      await Promise.all(
+        promotionRecords.slice(i, i + 20).map((rec) =>
+          writeAuditLog({
+            action: promotionType === "demote" ? "student.demoted" : "student.promoted",
+            entityType: "student",
+            entityId: rec.studentId as string,
+            actorId: token.uid,
+            actorRole: token.role || "admin",
+            newValues: rec as Record<string, unknown>,
+            reason: notes || `Student ${promotionType} requested from ${rec.fromClass}-${rec.fromSection} (pending super-admin approval)`,
+            academicYearId
+          })
+        )
+      );
     }
 
     return json({
