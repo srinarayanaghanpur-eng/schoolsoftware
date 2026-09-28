@@ -7,24 +7,23 @@ import { adminApiRequest } from "@/lib/adminApiClient";
 import { formatLabel } from "@sri-narayana/shared";
 import { BookOpenCheck, TrendingUp, Award } from "lucide-react";
 import { useEffect, useState } from "react";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import dynamic from "next/dynamic";
+
+const ExamsPerformanceChart = dynamic(
+  () => import("@/components/ExamsPerformanceChart").then((module) => module.ExamsPerformanceChart),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="grid h-72 min-h-[280px] w-full place-items-center rounded-xl bg-muted text-sm text-muted-foreground">Loading chart...</div>
+    ),
+  }
+);
 
 type ExamData = {
   timetable: { id: string; name: string; examType: string; status: string; startDate: string; endDate: string }[];
   marks: { id: string; examId: string; examName: string; examStatus: string; subject: string; marksObtained: number; maxMarks: number; grade: string; remarks: string }[];
   subjectPerformance: { subject: string; total: number; obtained: number; percentage: number; exams: number }[];
 };
-
-const chartLabelColor = "hsl(var(--chart-label))";
-const chartGridColor = "hsl(var(--chart-grid))";
-const chartTooltipStyle = {
-  border: "1px solid hsl(var(--border))",
-  borderRadius: "12px",
-  background: "hsl(var(--chart-tooltip))",
-  color: "hsl(var(--chart-tooltip-foreground))",
-  fontSize: "13px",
-};
-const chartTooltipTextStyle = { color: "hsl(var(--chart-tooltip-foreground))" };
 
 function statusBadge(status: string) {
   const map: Record<string, string> = {
@@ -90,17 +89,7 @@ function Examinations() {
                   <TrendingUp size={20} className="text-accent-number" />
                   <h2 className="font-extrabold text-foreground dark:text-white">Overall Performance</h2>
                 </div>
-                <div className="h-72 min-h-[280px] w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={data.subjectPerformance} margin={{ top: 10, right: 30, left: 0, bottom: 5 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke={chartGridColor} />
-                      <XAxis dataKey="subject" tick={{ fontSize: 12, fill: chartLabelColor }} />
-                      <YAxis domain={[0, 100]} tick={{ fontSize: 12, fill: chartLabelColor }} />
-                      <Tooltip contentStyle={chartTooltipStyle} labelStyle={chartTooltipTextStyle} itemStyle={chartTooltipTextStyle} cursor={{ fill: "hsl(var(--muted) / 0.72)" }} />
-                      <Bar dataKey="percentage" fill="hsl(var(--accent-number))" radius={[6, 6, 0, 0]} name="Percentage" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
+                <ExamsPerformanceChart data={data.subjectPerformance} />
               </div>
             )}
 

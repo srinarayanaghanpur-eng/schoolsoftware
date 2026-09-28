@@ -1,22 +1,6 @@
 "use client";
 
-import dynamic from "next/dynamic";
-
-const chartFallback = <div className="grid h-[260px] place-items-center rounded-xl bg-muted text-sm text-muted-foreground">Loading chart...</div>;
-
-const pieFallback = <div className="grid h-[220px] place-items-center rounded-xl bg-muted text-sm text-muted-foreground">Loading chart...</div>;
-
-const AttendanceTrendChart = dynamic(() => import("@/components/Charts").then((module) => module.AttendanceTrendChart), {
-  loading: () => chartFallback
-});
-
-const SalaryTrendChart = dynamic(() => import("@/components/Charts").then((module) => module.SalaryTrendChart), {
-  loading: () => chartFallback
-});
-
-const TeacherPieChart = dynamic(() => import("@/components/Charts").then((module) => module.TeacherPieChart), {
-  loading: () => pieFallback
-});
+import { AttendanceTrendChart, SalaryTrendChart, TeacherPieChart } from "@/components/Charts";
 
 export function LazyAttendanceTrendChart({ data }: { data: Array<Record<string, number | string>> }) {
   return <AttendanceTrendChart data={data} />;

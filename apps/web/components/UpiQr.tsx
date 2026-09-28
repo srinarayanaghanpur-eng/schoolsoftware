@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import QRCode from "qrcode";
 
 /** School default UPI payee, used until/unless overridden in admin Settings. */
 export const DEFAULT_UPI_ID = "6300629537-t87a@ybl";
@@ -26,9 +25,18 @@ export function UpiQr({ upiId, payeeName, amount, note, size = 200 }: { upiId: s
   useEffect(() => {
     if (!upiId || !payeeName) return;
     const uri = buildUpiUri({ upiId, payeeName, amount, note });
-    QRCode.toDataURL(uri, { width: size, margin: 1, errorCorrectionLevel: "M" })
-      .then(setDataUrl)
-      .catch(() => setError("Could not generate QR."));
+    let cancelled = false;
+    import("qrcode")
+      .then((module) => module.default.toDataURL(uri, { width: size, margin: 1, errorCorrectionLevel: "M" }))
+      .then((url) => {
+        if (!cancelled) setDataUrl(url);
+      })
+      .catch(() => {
+        if (!cancelled) setError("Could not generate QR.");
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [upiId, payeeName, amount, note, size]);
 
   if (!upiId || !payeeName) {
