@@ -58,21 +58,29 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
     const allStudents = await db.collection("students").where("class", "==", exam.className).limit(300).get();
     const studentsMap = new Map(allStudents.docs.map((d) => [d.id, d.data()]));
 
-    const studentTotals = new Map<string, number>();
+    // Group marks per student once — filtering the flat array per student is O(n²).
+    const marksByStudent = new Map<string, typeof marks>();
     for (const m of marks) {
-      studentTotals.set(m.studentId, (studentTotals.get(m.studentId) ?? 0) + m.marksObtained);
+      const list = marksByStudent.get(m.studentId);
+      if (list) list.push(m);
+      else marksByStudent.set(m.studentId, [m]);
+    }
+
+    const studentTotals = new Map<string, number>();
+    for (const [sid, list] of marksByStudent) {
+      studentTotals.set(sid, list.reduce((s, m) => s + m.marksObtained, 0));
     }
 
     const ranked = [...studentTotals.entries()]
       .sort(([, a], [, b]) => b - a)
       .map(([sid], idx) => ({ studentId: sid, rank: idx + 1 }));
+    const rankByStudent = new Map(ranked.map((r) => [r.studentId, r.rank]));
 
     const reportCards = [...studentTotals.entries()].map(([sid, total]) => {
-      const studentMarks = marks.filter((m) => m.studentId === sid);
+      const studentMarks = marksByStudent.get(sid) ?? [];
       const totalMax = studentMarks.reduce((s, m) => s + m.maxMarks, 0);
       const pct = totalMax > 0 ? Math.round((total / totalMax) * 100 * 100) / 100 : 0;
       const student = studentsMap.get(sid) as Record<string, unknown> | undefined;
-      const rankEntry = ranked.find((r) => r.studentId === sid);
 
       return {
         studentId: sid,
@@ -87,7 +95,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
         totalMaxMarks: totalMax,
         percentage: pct,
         grade: pct >= 90 ? "A+" : pct >= 75 ? "A" : pct >= 60 ? "B" : pct >= 45 ? "C" : pct >= 33 ? "D" : "F",
-        rank: rankEntry?.rank,
+        rank: rankByStudent.get(sid),
         remarks: exam.status === "published" ? "Published" : "Draft"
       };
     });

@@ -24,7 +24,7 @@ export async function GET(req: Request) {
   if (section) query = query.where("section", "==", section);
   if (dayOfWeek) query = query.where("dayOfWeek", "==", Number(dayOfWeek));
 
-  query = query.orderBy("dayOfWeek").orderBy("periodNumber");
+  query = query.orderBy("dayOfWeek").orderBy("periodNumber").limit(500);
 
   const snapshot = await query.get();
   logFirestoreRead("TimetableAPI", COLLECTION, snapshot, { className, section, dayOfWeek });

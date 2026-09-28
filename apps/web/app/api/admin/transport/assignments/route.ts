@@ -12,7 +12,7 @@ export async function GET(req: Request) {
   const routeId = new URL(req.url).searchParams.get("routeId");
   let query: FirebaseFirestore.Query = adminDb().collection(COLLECTION);
   if (routeId) query = query.where("routeId", "==", routeId);
-  const snap = await query.get();
+  const snap = await query.limit(500).get();
   return json({ ok: true, assignments: snap.docs.map((d) => serializeDoc(d)) });
 }
 

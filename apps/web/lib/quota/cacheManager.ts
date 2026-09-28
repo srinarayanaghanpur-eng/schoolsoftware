@@ -93,16 +93,17 @@ export async function setCachedResponse(params: {
 
 export async function clearAiCache(schoolId?: string): Promise<void> {
   const db = adminDb();
-  if (schoolId) {
-    const snap = await db.collection("aiCache").where("schoolId", "==", schoolId).get();
+  let query: FirebaseFirestore.Query = db.collection("aiCache");
+  if (schoolId) query = query.where("schoolId", "==", schoolId);
+  // Chunked deletes: a full collection read is unbounded and a single batch
+  // fails past 500 operations.
+  for (;;) {
+    const snap = await query.limit(400).get();
+    if (snap.empty) break;
     const batch = db.batch();
     snap.docs.forEach((doc) => batch.delete(doc.ref));
     await batch.commit();
-  } else {
-    const snap = await db.collection("aiCache").get();
-    const batch = db.batch();
-    snap.docs.forEach((doc) => batch.delete(doc.ref));
-    await batch.commit();
+    if (snap.size < 400) break;
   }
 }
 

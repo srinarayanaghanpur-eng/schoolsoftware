@@ -34,6 +34,7 @@ export async function GET(req: Request) {
     .collection("payments")
     .where("studentId", "==", studentId)
     .orderBy("createdAt", "desc")
+    .limit(200)
     .get();
 
   const payments = paymentsSnap.docs.map((doc) => {

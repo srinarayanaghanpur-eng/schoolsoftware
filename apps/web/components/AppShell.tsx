@@ -979,7 +979,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       stopped = true;
       if (interval) clearInterval(interval);
     };
-  }, [role, rolePermissions, pathname]);
+  }, [role, rolePermissions]);
 
   // Mobile slide-in nav drawer. Closes automatically on navigation.
   const [mobileNavOpen, setMobileNavOpen] = useState(false);

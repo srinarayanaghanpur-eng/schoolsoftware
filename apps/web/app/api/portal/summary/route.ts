@@ -34,7 +34,7 @@ export async function GET(req: Request) {
   if (!studentSnap.exists) return NextResponse.json({ ok: false, error: "Student not found" }, { status: 404 });
   const s = studentSnap.data() as Record<string, unknown>;
 
-  const marksSnap = await db.collection("exam_marks").where("studentId", "==", studentId).get();
+  const marksSnap = await db.collection("exam_marks").where("studentId", "==", studentId).limit(500).get();
   const examIds = [...new Set(marksSnap.docs.map((d) => d.data().examId as string))];
   const publishedExamNames = new Map<string, string>();
   await Promise.all(

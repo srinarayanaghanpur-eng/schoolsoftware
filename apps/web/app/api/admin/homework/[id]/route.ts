@@ -47,12 +47,20 @@ export async function DELETE(req: Request, { params }: { params: { id: string } 
   const db = adminDb();
   await db.collection(COLLECTION).doc(params.id).delete();
 
-  const submissions = await db.collection("homework_submissions")
-    .where("homeworkId", "==", params.id)
-    .get();
-  const batch = db.batch();
-  submissions.docs.forEach((d) => batch.delete(d.ref));
-  await batch.commit();
+  // Delete submissions in chunks — one batch fails past 500 operations.
+  let deletedSubmissions = 0;
+  for (;;) {
+    const submissions = await db.collection("homework_submissions")
+      .where("homeworkId", "==", params.id)
+      .limit(400)
+      .get();
+    if (submissions.empty) break;
+    const batch = db.batch();
+    submissions.docs.forEach((d) => batch.delete(d.ref));
+    await batch.commit();
+    deletedSubmissions += submissions.size;
+    if (submissions.size < 400) break;
+  }
 
-  return json({ ok: true, deletedSubmissions: submissions.size });
+  return json({ ok: true, deletedSubmissions });
 }

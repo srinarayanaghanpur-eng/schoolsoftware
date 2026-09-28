@@ -34,7 +34,7 @@ export async function GET(req: Request) {
   if (!studentSnap.exists) return NextResponse.json({ ok: false, error: "Student not found" }, { status: 404 });
   const s = studentSnap.data() as Record<string, unknown>;
 
-  const marksSnap = await db.collection("exam_marks").where("studentId", "==", studentId).get();
+  const marksSnap = await db.collection("exam_marks").where("studentId", "==", studentId).limit(500).get();
   const examIds = [...new Set(marksSnap.docs.map((d) => d.data().examId as string))];
 
   const examsMap = new Map<string, { name: string; status: string; examType: string; startDate?: string; endDate?: string; className: string }>();
@@ -58,6 +58,7 @@ export async function GET(req: Request) {
   const allExams = await db.collection("exams")
     .where("className", "==", s.class as string)
     .orderBy("startDate", "asc")
+    .limit(200)
     .get();
 
   const timetable = allExams.docs.map((doc) => {

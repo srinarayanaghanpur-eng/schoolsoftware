@@ -29,9 +29,9 @@ export async function GET(req: Request) {
       baseQuery("students").select("class").get().catch(() => null),
       getFeeDueSummary(schoolId, academicYearId),
       baseQuery("notices").orderBy("createdAt", "desc").limit(5).get().catch(() => null),
-      baseQuery("classes").get().catch(() => null),
-      baseQuery("teachers").get().catch(() => null),
-      baseQuery("approval_requests").where("status", "==", "pending").get().catch(() => null),
+      baseQuery("classes").count().get().catch(() => null),
+      baseQuery("teachers").count().get().catch(() => null),
+      baseQuery("approval_requests").where("status", "==", "pending").count().get().catch(() => null),
       db.collection("attendance").where("schoolId", "==", schoolId).where("date", "==", today).get().catch(() => null),
     ]);
 
@@ -52,10 +52,10 @@ export async function GET(req: Request) {
       students: {
         total: totalStudents,
         byClass: studentsByClass,
-        totalClasses: classesSnap?.docs.length || 0,
+        totalClasses: classesSnap?.data().count ?? 0,
       },
       teachers: {
-        total: teachersSnap?.docs.length || 0,
+        total: teachersSnap?.data().count ?? 0,
       },
       attendance: {
         date: today,
@@ -73,7 +73,7 @@ export async function GET(req: Request) {
           target: String(d.data().target || "all"),
         })) || [],
       },
-      pendingApprovals: pendingApprovalsSnap?.docs.length || 0,
+      pendingApprovals: pendingApprovalsSnap?.data().count ?? 0,
     };
 
     return NextResponse.json({ ok: true, data: context });
