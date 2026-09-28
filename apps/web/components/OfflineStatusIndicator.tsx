@@ -77,8 +77,6 @@ export function ServiceWorkerInit() {
       navigator.serviceWorker
         .register('/sw.js')
         .then((registration) => {
-          console.log('[SW] Service worker registered');
-
           // Listen for controller change
           let refreshing = false;
           navigator.serviceWorker.addEventListener('controllerchange', () => {

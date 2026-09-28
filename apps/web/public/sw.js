@@ -20,13 +20,10 @@ const STATIC_ASSETS = [
  * Install event - cache static assets
  */
 self.addEventListener('install', (event) => {
-  console.log('[ServiceWorker] Installing...');
-
   event.waitUntil(
     caches
       .open(STATIC_CACHE)
       .then((cache) => {
-        console.log('[ServiceWorker] Caching static assets');
         return cache.addAll(STATIC_ASSETS).catch((error) => {
           console.warn('[ServiceWorker] Failed to cache some assets:', error);
         });
@@ -39,14 +36,11 @@ self.addEventListener('install', (event) => {
  * Activate event - clean up old caches
  */
 self.addEventListener('activate', (event) => {
-  console.log('[ServiceWorker] Activating...');
-
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames.map((cacheName) => {
           if (cacheName !== STATIC_CACHE && cacheName !== DYNAMIC_CACHE && cacheName !== API_CACHE) {
-            console.log('[ServiceWorker] Deleting old cache:', cacheName);
             return caches.delete(cacheName);
           }
         })
@@ -178,7 +172,6 @@ async function networkFirstStrategy(request, cacheName = DYNAMIC_CACHE) {
     // Try cache fallback
     const cached = await caches.match(request);
     if (cached) {
-      console.log('[ServiceWorker] Using cached response');
       return cached;
     }
 
@@ -203,8 +196,6 @@ async function networkFirstStrategy(request, cacheName = DYNAMIC_CACHE) {
  * Background sync event - sync queued requests when back online
  */
 self.addEventListener('sync', (event) => {
-  console.log('[ServiceWorker] Background sync triggered:', event.tag);
-
   if (event.tag === 'sync-attendance') {
     event.waitUntil(syncAttendanceData());
   } else if (event.tag === 'sync-payments') {
@@ -219,8 +210,6 @@ self.addEventListener('sync', (event) => {
  */
 async function syncAttendanceData() {
   try {
-    console.log('[ServiceWorker] Syncing attendance data...');
-    
     const db = await openAttendanceDB();
     const queue = await getQueuedRecords(db, 'attendance-queue');
 
@@ -239,8 +228,6 @@ async function syncAttendanceData() {
         console.error('[ServiceWorker] Failed to sync record:', error);
       }
     }
-
-    console.log('[ServiceWorker] Attendance sync complete');
   } catch (error) {
     console.error('[ServiceWorker] Attendance sync failed:', error);
     throw error;
@@ -257,7 +244,6 @@ async function syncPaymentData() {
   // Replaying payments without idempotency can create duplicate receipts.
   // The target endpoint /api/admin/payments/batch does not exist today and
   // nothing writes to 'payments-queue', so this is a safety no-op.
-  console.log('[ServiceWorker] Payment sync disabled (idempotent batch endpoint not yet available)');
 }
 
 /**
@@ -267,7 +253,6 @@ async function syncAllData() {
   try {
     await syncAttendanceData();
     await syncPaymentData();
-    console.log('[ServiceWorker] All data synced');
   } catch (error) {
     console.error('[ServiceWorker] Complete sync failed:', error);
     throw error;
@@ -318,8 +303,6 @@ function removeQueuedRecord(db, storeName, recordId) {
  * Push notification event
  */
 self.addEventListener('push', (event) => {
-  console.log('[ServiceWorker] Push notification received');
-
   if (!event.data) return;
 
   const data = event.data.json();
@@ -340,8 +323,6 @@ self.addEventListener('push', (event) => {
  * Notification click event
  */
 self.addEventListener('notificationclick', (event) => {
-  console.log('[ServiceWorker] Notification clicked');
-
   event.notification.close();
 
   const urlToOpen = event.notification.data.url || '/';
@@ -361,5 +342,3 @@ self.addEventListener('notificationclick', (event) => {
     })
   );
 });
-
-console.log('[ServiceWorker] Loaded');

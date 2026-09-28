@@ -574,9 +574,7 @@ export const ExportReportButton: React.FC<{
         a.download = `report_${reportType}_${new Date().toISOString().slice(0, 10)}.csv`;
         a.click();
       } else {
-        const data = await response.json();
-        // Handle PDF generation (could use jspdf library)
-        console.log('PDF data:', data);
+        await response.json();
       }
     } catch (error) {
       console.error('Export failed:', error);

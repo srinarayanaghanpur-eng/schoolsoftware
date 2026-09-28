@@ -12,7 +12,6 @@ import { useEffect, useRef } from 'react';
  */
 export async function registerServiceWorker(): Promise<ServiceWorkerRegistration | null> {
   if (typeof window === 'undefined' || !('serviceWorker' in navigator)) {
-    console.log('[SW] Service workers not supported');
     return null;
   }
 
@@ -21,8 +20,6 @@ export async function registerServiceWorker(): Promise<ServiceWorkerRegistration
       scope: '/'
     });
 
-    console.log('[SW] Registered successfully:', registration);
-
     // Listen for updates
     registration.addEventListener('updatefound', () => {
       const newWorker = registration.installing;
@@ -30,7 +27,6 @@ export async function registerServiceWorker(): Promise<ServiceWorkerRegistration
 
       newWorker.addEventListener('statechange', () => {
         if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-          console.log('[SW] Update available - triggering skipWaiting');
           newWorker.postMessage({ type: 'SKIP_WAITING' });
         }
       });
@@ -48,7 +44,6 @@ export async function registerServiceWorker(): Promise<ServiceWorkerRegistration
  */
 export async function triggerBackgroundSync(tag: string): Promise<void> {
   if (!('serviceWorker' in navigator) || !('SyncManager' in window)) {
-    console.log('[SW] Background sync not supported');
     return;
   }
 
@@ -56,7 +51,6 @@ export async function triggerBackgroundSync(tag: string): Promise<void> {
     const registration = await navigator.serviceWorker.ready;
     // @ts-ignore - SyncManager is not in TypeScript yet
     await registration.sync.register(tag);
-    console.log('[SW] Background sync registered:', tag);
   } catch (error) {
     console.error('[SW] Failed to register sync:', error);
   }
@@ -67,13 +61,11 @@ export async function triggerBackgroundSync(tag: string): Promise<void> {
  */
 export async function requestPersistentStorage(): Promise<boolean> {
   if (!navigator.storage?.persist) {
-    console.log('[SW] Persistent storage not available');
     return false;
   }
 
   try {
     const persisted = await navigator.storage.persist();
-    console.log('[SW] Persistent storage granted:', persisted);
     return persisted;
   } catch (error) {
     console.error('[SW] Failed to request persistent storage:', error);
@@ -91,7 +83,6 @@ export function useOfflineStatus() {
 
   useEffect(() => {
     const handleOnline = () => {
-      console.log('[SW] Back online');
       setIsOnline(true);
 
       // Trigger sync when back online
@@ -99,7 +90,6 @@ export function useOfflineStatus() {
     };
 
     const handleOffline = () => {
-      console.log('[SW] Went offline');
       setIsOnline(false);
     };
 
@@ -181,7 +171,6 @@ export async function queueOfflineRequest(
       store.add(record);
 
       transaction.oncomplete = () => {
-        console.log('[SW] Request queued for sync:', record);
         resolve();
       };
       transaction.onerror = () => reject(transaction.error);
