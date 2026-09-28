@@ -29,6 +29,9 @@ jobs:
       - name: Typecheck web
         run: npm run typecheck:web
 
+      - name: Lint web
+        run: npm run lint --workspace @sri-narayana/web
+
       - name: Typecheck mobile
         run: npm run typecheck --workspace @sri-narayana/mobile
 

@@ -68,7 +68,7 @@ export default function MyAttendancePage() {
             <div className="grid gap-4 sm:grid-cols-3">
               <article className="rounded-2xl border border-[#e3e6f0] bg-white p-5 shadow-[0_2px_4px_rgba(36,42,94,0.03)]">
                 <div className="flex items-center justify-between gap-3">
-                  <p className="text-sm font-semibold text-[#7d86a8]">Today's check-in</p>
+                  <p className="text-sm font-semibold text-[#7d86a8]">Today&apos;s check-in</p>
                   <span className="grid h-10 w-10 place-items-center rounded-xl bg-[#e6f8ef] text-[#14a762]"><CheckCircle2 size={20} /></span>
                 </div>
                 <p className="mt-3 text-[26px] font-extrabold leading-none text-[#1b1d32]">{formatTime(today?.checkInTime)}</p>

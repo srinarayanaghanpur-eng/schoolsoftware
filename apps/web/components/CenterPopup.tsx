@@ -27,12 +27,13 @@ const PopupContext = createContext<PopupApi | null>(null);
 
 export function usePopup(): PopupApi {
   const api = useContext(PopupContext);
+  const fallback = useMemo(
+    () => ({ success: () => {}, error: () => {}, info: () => {}, confirm: () => Promise.resolve(false) }),
+    []
+  );
   if (!api) {
     // Safe fallback outside provider: no-ops instead of crash.
-    return useMemo(
-      () => ({ success: () => {}, error: () => {}, info: () => {}, confirm: () => Promise.resolve(false) }),
-      []
-    );
+    return fallback;
   }
   return api;
 }

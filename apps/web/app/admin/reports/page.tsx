@@ -175,7 +175,7 @@ function FeeReportsSection() {
 
         {!report.loading && report.data.length === 0 && !report.error && (
           <div className="rounded-xl bg-[#f7f8fd] py-12 text-center text-sm font-medium text-[#7d86a8]">
-            Click "Generate Report" to view data
+            Click &quot;Generate Report&quot; to view data
           </div>
         )}
       </div>

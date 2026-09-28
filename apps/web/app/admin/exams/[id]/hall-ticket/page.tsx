@@ -92,8 +92,8 @@ function HallTicketCard({ ticket, compact }: { ticket: HallTicket; compact?: boo
       </div>
 
       <div className="mt-6 flex justify-between border-t border-dashed border-border pt-4 text-[10px] text-muted-foreground">
-        <span>Student's Signature</span>
-        <span>Invigilator's Signature</span>
+        <span>Student&apos;s Signature</span>
+        <span>Invigilator&apos;s Signature</span>
       </div>
     </div>
   );
