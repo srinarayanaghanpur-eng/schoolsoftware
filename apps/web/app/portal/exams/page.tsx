@@ -41,22 +41,22 @@ function Examinations() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const loadData = async (studentId: string) => {
-    if (!studentId) return;
+  useEffect(() => {
+    if (!selectedChildId) return;
+    const controller = new AbortController();
     setLoading(true);
     setError(null);
-    try {
-      const result = await adminApiRequest<{ ok: true } & ExamData>(`/api/portal/exams?studentId=${encodeURIComponent(studentId)}`);
-      setData(result);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to load exam data.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (selectedChildId) void loadData(selectedChildId);
+    adminApiRequest<{ ok: true } & ExamData>(`/api/portal/exams?studentId=${encodeURIComponent(selectedChildId)}`, { signal: controller.signal })
+      .then((result) => {
+        setData(result);
+        setLoading(false);
+      })
+      .catch((err) => {
+        if (controller.signal.aborted) return;
+        setError(err instanceof Error ? err.message : "Unable to load exam data.");
+        setLoading(false);
+      });
+    return () => controller.abort();
   }, [selectedChildId]);
 
   if (childrenLoading) {
