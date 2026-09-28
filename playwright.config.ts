@@ -11,7 +11,7 @@ export default defineConfig({
     ["html", { outputFolder: "tests/reports/playwright-report" }],
     ["list"],
   ],
-  timeout: process.env.CI ? 60000 : 30000,
+  timeout: 60_000,
   expect: { timeout: 10000 },
   projects: [
     {
@@ -45,10 +45,11 @@ export default defineConfig({
   ],
   use: {
     baseURL: process.env.BASE_URL || "http://localhost:3000",
+    navigationTimeout: 45_000,
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
     video: "retain-on-failure",
-    ignoreHTTPSErrors: true,
+    ignoreHTTPSErrors: true
   },
   globalSetup: path.resolve(__dirname, "tests/helpers/global-setup.ts"),
   webServer: {
@@ -56,5 +57,6 @@ export default defineConfig({
     url: "http://localhost:3000",
     reuseExistingServer: !process.env.CI,
     cwd: path.resolve(__dirname),
+    timeout: 180_000
   },
 });

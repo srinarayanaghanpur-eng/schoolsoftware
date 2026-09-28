@@ -13,6 +13,7 @@
     "build:mobile:web": "node scripts/build-mobile-web.mjs",
     "build:vercel": "npm run build:mobile:web && npm run build:web",
     "typecheck:web": "npm --workspace @sri-narayana/web run typecheck",
+    "test": "node scripts/run-tests.mjs",
     "test:hydration": "node scripts/hydration-guard.mjs",
     "check:admin-api-auth": "node scripts/check-admin-api-auth.js",
     "seed": "npm --workspace @sri-narayana/shared run seed",

@@ -6,8 +6,6 @@ import { createApprovalRequest } from "@/lib/approvalEngine";
 import { docCursor, logFirestoreRead, readLimit } from "@/lib/firestoreReadLogger";
 import { getSchoolId } from "@/lib/schoolScope";
 
-const db = adminDb();
-
 const CLASS_ORDER = ["Nur", "LKG", "UKG", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"];
 
 function nextClass(currentClass: string): string | null {
@@ -25,6 +23,7 @@ function prevClass(currentClass: string): string | null {
 const COLLECTION = "promotions";
 
 export async function GET(req: Request) {
+  const db = adminDb();
   const token = await requirePermission(req, "promotions.view");
   if (!token) {
     return json({ ok: false, error: "Access denied" }, { status: 403 });
@@ -68,6 +67,7 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+  const db = adminDb();
   const token = await requirePermission(req, "promotions.create");
   if (!token) {
     return json({ ok: false, error: "Access denied" }, { status: 403 });

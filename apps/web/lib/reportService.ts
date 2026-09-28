@@ -2,7 +2,6 @@ import { adminDb } from '@/lib/firebaseAdmin';
 import { logFirestoreRead } from "@/lib/firestoreReadLogger";
 import { Payment } from '@/types/fee.types';
 
-const db = adminDb();
 const DEFAULT_REPORT_LIMIT = 500;
 const DEFAULT_PAYMENT_REPORT_LIMIT = 1000;
 
@@ -11,6 +10,7 @@ export const reportService = {
     class?: string;
     dateRange?: { from: Date; to: Date };
   }): Promise<any[]> {
+    const db = adminDb();
     let queryRef: FirebaseFirestore.Query = db.collection('students');
     if (filters?.class) {
       queryRef = queryRef.where('class', '==', filters.class);
@@ -64,6 +64,7 @@ export const reportService = {
   async generateStudentWiseFeeReport(filters?: {
     class?: string;
   }): Promise<any[]> {
+    const db = adminDb();
     let queryRef: FirebaseFirestore.Query = db.collection('students');
 
     if (filters?.class) {
@@ -120,6 +121,7 @@ export const reportService = {
     minAttendance?: number;
     maxAttendance?: number;
   }): Promise<any[]> {
+    const db = adminDb();
     let studentsQuery: FirebaseFirestore.Query = db.collection('students');
     if (filters?.class) {
       studentsQuery = studentsQuery.where('class', '==', filters.class);
@@ -182,6 +184,7 @@ export const reportService = {
   },
 
   async generateMonthlyCollectionReport(month: number, year: number): Promise<any> {
+    const db = adminDb();
     const startDate = new Date(year, month - 1, 1);
     const endDate = new Date(year, month, 0);
 
@@ -231,6 +234,7 @@ export const reportService = {
   },
 
   async generateClassWiseFeeStatusReport(): Promise<any[]> {
+    const db = adminDb();
     const studentsSnapshot = await db.collection('students').limit(DEFAULT_REPORT_LIMIT).get();
     logFirestoreRead("LegacyReportService", "students", studentsSnapshot, { report: "class-fee-status", limit: DEFAULT_REPORT_LIMIT });
     const students = studentsSnapshot.docs.map((doc) => ({

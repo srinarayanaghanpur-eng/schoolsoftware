@@ -5,8 +5,6 @@ import { markSummaryDirty } from "@/lib/markSummaryDirty";
 import { writeAuditLog } from "@/lib/auditLog";
 import { recalculateStudentFeeSummary } from "@/lib/feeRecalculation";
 
-const db = adminDb();
-
 function normalizeText(value: unknown) {
   return String(value ?? "").trim().toLowerCase();
 }
@@ -21,6 +19,7 @@ function searchKeywords(name: string, admissionNumber: string, phone: string) {
  * Fetch a single student by ID.
  */
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+  const db = adminDb();
   try {
     const auth = await requirePermission(request, "students.view");
     if (!auth) return json({ success: false, error: 'Unauthorized' }, { status: 401 });
@@ -43,6 +42,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
  * Update an existing student. Fee fields are recomputed so totals stay consistent.
  */
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
+  const db = adminDb();
   // Use requirePermission so admins whose role lives in the users/{uid} Firestore
   // doc (not as a custom claim) are authorized consistently with GET/POST.
   const authResult = await requirePermission(request, "students.edit");
@@ -175,6 +175,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
  * Remove a student record.
  */
 export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+  const db = adminDb();
   // Consistent auth with GET/POST: resolves role from custom claim OR users/{uid} doc.
   const authResult = await requirePermission(request, "students.delete");
   if (!authResult) {

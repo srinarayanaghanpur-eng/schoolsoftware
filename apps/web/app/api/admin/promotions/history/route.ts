@@ -1,9 +1,11 @@
 import { adminDb } from "@/lib/firebaseAdmin";
 import { requirePermission, serializeDoc, json } from "@/lib/apiUtils";
 import { docCursor, logFirestoreRead, readLimit } from "@/lib/firestoreReadLogger";
-const db = adminDb();
+
+export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
+  const db = adminDb();
   const token = await requirePermission(req, "promotions.view");
   if (!token) {
     return json({ ok: false, error: "Access denied" }, { status: 403 });

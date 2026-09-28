@@ -5,8 +5,6 @@ import { createApprovalRequest } from "@/lib/approvalEngine";
 import { writeAuditLog } from "@/lib/auditLog";
 import { recalculateStudentFeeSummary } from "@/lib/feeRecalculation";
 
-const db = adminDb();
-
 /**
  * GET /api/concessions/[id]
  * Get a specific concession
@@ -15,6 +13,7 @@ export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  const db = adminDb();
   try {
     const auth = await requirePermission(request, "fees.view");
     if (!auth) return json({ success: false, error: "Unauthorized" }, { status: 401 });
@@ -49,6 +48,7 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  const db = adminDb();
   try {
     const auth = await requirePermission(request, "fees.edit");
     if (!auth) return json({ success: false, error: "Unauthorized" }, { status: 401 });
@@ -225,6 +225,7 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  const db = adminDb();
   try {
     const auth = await requirePermission(request, "fees.delete");
     if (!auth) return json({ success: false, error: "Unauthorized" }, { status: 401 });
