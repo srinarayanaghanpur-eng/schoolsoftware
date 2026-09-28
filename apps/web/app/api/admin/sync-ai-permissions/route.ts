@@ -2,6 +2,7 @@ import { requireSuperAdmin, json } from "@/lib/apiUtils";
 import { ensureRoleDocuments, updateRolePermission } from "@/lib/rbacAdmin";
 import { AI_AGENT_PERMISSIONS } from "@/lib/ai/aiPermissions";
 import { adminDb } from "@/lib/firebaseAdmin";
+import type { Permission, Role } from "@sri-narayana/shared";
 
 export async function POST(req: Request) {
   try {
@@ -17,7 +18,7 @@ export async function POST(req: Request) {
       const roles = await ensureRoleDocuments(token.uid);
       let updated = 0;
 
-      const ROLE_AI_PERMS: Record<string, readonly string[]> = {
+      const ROLE_AI_PERMS: Partial<Record<Role, readonly Permission[]>> = {
         super_admin: AI_AGENT_PERMISSIONS,
         admin: ["ai_agent.view", "ai_agent.chat", "ai_agent.settings", "ai_agent.logs",
                 "ai_agent.generate_notice", "ai_agent.generate_fee_message",
@@ -34,9 +35,10 @@ export async function POST(req: Request) {
       const db = adminDb();
 
       for (const [role, aiPerms] of Object.entries(ROLE_AI_PERMS)) {
+        if (!aiPerms) continue;
         for (const permission of aiPerms) {
           await updateRolePermission({
-            role: role as any,
+            role: role as Role,
             permission,
             allowed: true,
             changedBy: token.uid,

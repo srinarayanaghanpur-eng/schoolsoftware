@@ -189,8 +189,12 @@ export function trackWebVitals(): void {
 export function logMemoryUsage(): void {
   if (process.env.NODE_ENV === 'production') return;
 
-  if ((performance as any).memory) {
-    const memory = (performance as any).memory;
+  const memory = (
+    performance as Performance & {
+      memory?: { usedJSHeapSize: number; totalJSHeapSize: number; jsHeapSizeLimit: number };
+    }
+  ).memory;
+  if (memory) {
     console.log('Memory Usage:', {
       usedJSHeapSize: `${(memory.usedJSHeapSize / 1048576).toFixed(2)} MB`,
       totalJSHeapSize: `${(memory.totalJSHeapSize / 1048576).toFixed(2)} MB`,

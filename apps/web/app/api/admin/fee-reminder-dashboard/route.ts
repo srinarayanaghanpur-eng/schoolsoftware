@@ -10,8 +10,8 @@ const QUEUE_COLLECTION = "fee_reminder_queue";
 function isToday(dateVal: unknown): boolean {
   if (!dateVal) return false;
   let ts: number;
-  if (dateVal && typeof dateVal === "object" && "toMillis" in dateVal && typeof (dateVal as any).toMillis === "function") {
-    ts = (dateVal as any).toMillis();
+  if (dateVal && typeof dateVal === "object" && "toMillis" in dateVal && typeof dateVal.toMillis === "function") {
+    ts = dateVal.toMillis();
   } else if (dateVal instanceof Date) {
     ts = dateVal.getTime();
   } else {

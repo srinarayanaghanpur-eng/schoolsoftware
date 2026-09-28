@@ -76,6 +76,6 @@ function serializeFirestoreValue(value: unknown): unknown {
   return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, serializeFirestoreValue(item)]));
 }
 
-export function serializeTeacherDoc(doc: QueryDocumentSnapshot | DocumentSnapshot): Teacher {
+export function serializeTeacherDoc(doc: Pick<DocumentSnapshot, "id" | "data">): Teacher {
   return serializeFirestoreValue({ id: doc.id, ...doc.data() }) as Teacher;
 }

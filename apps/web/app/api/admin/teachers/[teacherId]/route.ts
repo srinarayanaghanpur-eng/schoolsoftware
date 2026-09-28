@@ -11,8 +11,8 @@ function isLateDeductionMode(value: unknown): value is LateDeductionMode {
 
 function safeString(val: unknown): string | undefined {
   if (typeof val === "string" && val.trim()) return val.trim();
-  if (typeof val === "object" && val !== null && "toDate" in val && typeof (val as any).toDate === "function") {
-    return (val as any).toDate().toISOString().slice(0, 10);
+  if (typeof val === "object" && val !== null && "toDate" in val && typeof val.toDate === "function") {
+    return val.toDate().toISOString().slice(0, 10);
   }
   return undefined;
 }
@@ -142,7 +142,7 @@ export async function PATCH(req: Request, { params }: { params: { teacherId: str
     return json({
       ok: true,
       message: "Teacher details updated successfully.",
-      teacher: serializeTeacherDoc({ id: params.teacherId, exists: () => true, data: () => updatedTeacherData } as any)
+      teacher: serializeTeacherDoc({ id: params.teacherId, data: () => updatedTeacherData })
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to update teacher";

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { buildDailyAttendanceRows } from "@sri-narayana/shared/services/reports";
+import type { AttendanceRecord, Teacher } from "@sri-narayana/shared";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { requireAdmin, startTimer } from "@/lib/apiUtils";
 
@@ -22,8 +23,8 @@ export async function GET(req: Request) {
 
   const buildTimer = startTimer();
   const rows = buildDailyAttendanceRows(
-    attendanceSnapshot.docs.map((doc) => doc.data() as any),
-    teachersSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }) as any)
+    attendanceSnapshot.docs.map((doc) => doc.data() as AttendanceRecord),
+    teachersSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }) as Teacher)
   );
   const buildMs = buildTimer();
   

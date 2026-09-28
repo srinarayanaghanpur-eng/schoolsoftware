@@ -484,7 +484,7 @@ runTest("legacy report with 0 present / 0 CL / 0 unpaid absent cannot show full 
     unpaidAbsentDays: 0,
     netPayable: 32500,
     payrollFinalized: true
-  } as any);
+  } as Parameters<typeof normalizeSalaryReport>[0]);
   assert.equal(legacy.unpaidAbsentDays, 31, "unpaid absent recomputed from working days");
   assertMoney(legacy.netPayable, 0, "net payable forced to 0");
   assert.equal(legacy.salaryStatus, "Invalid");

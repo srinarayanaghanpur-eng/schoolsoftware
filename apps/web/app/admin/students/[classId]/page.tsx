@@ -1178,9 +1178,13 @@ export default function StudentsPage() {
     const prevSchool = student.previousSchool as { name?: string; address?: string; yearLeft?: string } | null | undefined;
     const emergContact = student.emergencyContact as { name?: string; phone?: string; relation?: string } | null | undefined;
     const fs = feeStructures.find((s) => s.className === student.class);
-    const existingHeads = (student as any).feeHeads as { name: string; original: number; committed: number }[] | undefined;
-    const studentAny = student as any;
-    const committedPayable = studentAny.commitmentFee ?? studentAny.committedPayableFee ?? student.annualEnrollmentFee ?? 0;
+    const studentFees = student as typeof student & {
+      feeHeads?: { name: string; original: number; committed: number }[];
+      commitmentFee?: number;
+      committedPayableFee?: number;
+    };
+    const existingHeads = studentFees.feeHeads;
+    const committedPayable = studentFees.commitmentFee ?? studentFees.committedPayableFee ?? student.annualEnrollmentFee ?? 0;
     const feeHeads = existingHeads && existingHeads.length > 0 ? [...existingHeads] : (fs?.heads.map((h) => ({
       name: h.name,
       original: h.amount,

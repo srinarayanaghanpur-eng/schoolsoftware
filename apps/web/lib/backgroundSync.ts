@@ -112,7 +112,7 @@ export function initializeBackgroundSync(interval: number = 30000): () => void {
 
     // Use requestIdleCallback if available for better performance
     if ('requestIdleCallback' in window) {
-      (window as any).requestIdleCallback(
+      window.requestIdleCallback(
         async () => {
           await backgroundSync.startSync();
           isScheduled = false;
