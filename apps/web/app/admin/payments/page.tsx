@@ -11,8 +11,6 @@ import { useAdminSession } from "@/components/AdminSessionContext";
 import { useAcademicYears } from "@/components/AcademicYearContext";
 import { hasPermission } from "@sri-narayana/shared";
 import { adminApiRequest } from "@/lib/adminApiClient";
-import { db, isFirebaseConfigured } from "@sri-narayana/shared/firebase/client";
-import { doc, getDoc } from "firebase/firestore";
 import { UpiQr, DEFAULT_UPI_ID, DEFAULT_UPI_PAYEE_NAME } from "@/components/UpiQr";
 import { useRefreshOnFocus } from "@/lib/useRefreshOnFocus";
 import { useClassSections } from "@/lib/useClassSections";
@@ -470,11 +468,12 @@ function PaymentForm({
   const [cardTxnId, setCardTxnId] = useState("");
 
   useEffect(() => {
-    if (!isFirebaseConfigured) return;
-    getDoc(doc(db, "settings", "payment"))
-      .then((snapshot) => {
-        if (!snapshot.exists()) return;
-        const data = snapshot.data() as { upiId?: string; payeeName?: string };
+    adminApiRequest<{ ok: boolean; settings: { upiId?: string; payeeName?: string } | null }>(
+      "/api/admin/payment-settings"
+    )
+      .then((res) => {
+        const data = res.settings;
+        if (!data) return;
         setUpi({ upiId: data.upiId || DEFAULT_UPI_ID, payeeName: data.payeeName || DEFAULT_UPI_PAYEE_NAME });
       })
       .catch(() => undefined);
@@ -510,34 +509,36 @@ function PaymentForm({
   const selectedStudent = students.find((student) => student.id === studentId);
 
   useEffect(() => {
-    if (!studentId || !db) { setStudentFeeHeads(null); return; }
+    if (!studentId) { setStudentFeeHeads(null); return; }
     setStudentFeeHeads(null);
-    getDoc(doc(db, "students", studentId)).then((snap) => {
-      if (!snap.exists()) return;
-      const data = snap.data() as Record<string, unknown>;
-      const heads = data.feeHeads as FeeHeadOption[] | undefined;
+    adminApiRequest<{ success: boolean; data?: Record<string, unknown> }>(
+      `/api/admin/students/${encodeURIComponent(studentId)}`
+    ).then((result) => {
+      const heads = result.data?.feeHeads as FeeHeadOption[] | undefined;
       if (heads && heads.length > 0) {
         setStudentFeeHeads(heads);
         setPaymentType(heads[0]!.name.toLowerCase().replace(/\s+/g, "_"));
       }
     }).catch(() => {});
-  }, [studentId, db]);
+  }, [studentId]);
 
   const [liveBalance, setLiveBalance] = useState<number | null>(null);
   const [liveFeeStatus, setLiveFeeStatus] = useState<string | null>(null);
   const [balanceLoading, setBalanceLoading] = useState(false);
 
   useEffect(() => {
-    if (!studentId || !isFirebaseConfigured) {
+    if (!studentId) {
       setLiveBalance(null);
       setLiveFeeStatus(null);
       return;
     }
     setBalanceLoading(true);
-    getDoc(doc(db, "students", studentId))
-      .then((snap) => {
-        if (!snap.exists()) return;
-        const data = snap.data();
+    adminApiRequest<{ success: boolean; data?: Record<string, unknown> }>(
+      `/api/admin/students/${encodeURIComponent(studentId)}`
+    )
+      .then((result) => {
+        const data = result.data;
+        if (!data) return;
         const due = Math.max(0, Number(data.totalFeesDue ?? 0));
         const status = String(data.feeStatus || "pending");
         setLiveBalance(due);

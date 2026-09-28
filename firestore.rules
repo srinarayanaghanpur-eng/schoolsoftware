@@ -392,6 +392,13 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // ===== Student QR tokens =====
+    // Short-lived capabilities issued and resolved exclusively by the Admin
+    // SDK (POST/GET /api/student-qr). No client SDK access, ever.
+    match /student_qr_tokens/{tokenId} {
+      allow read, write: if false;
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }
