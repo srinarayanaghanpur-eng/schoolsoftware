@@ -399,6 +399,13 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // ===== Backup audit log =====
+    // Written only by the Admin SDK (GET /api/cron/drive-backup). Records which
+    // collections were exported and which secret fields were stripped.
+    match /backup_logs/{logId} {
+      allow read, write: if false;
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }
