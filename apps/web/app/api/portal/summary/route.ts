@@ -1,16 +1,21 @@
 import { NextResponse } from "next/server";
-import { hasPermission, type Role } from "@sri-narayana/shared";
-import { adminDb, verifyBearerToken } from "@/lib/firebaseAdmin";
-import { resolveRole } from "@/lib/apiUtils";
-import { getPortalLinkedStudents, verifyStudentLinked } from "@/lib/portalHelpers";
+import { adminDb } from "@/lib/firebaseAdmin";
+import {
+  authorizePortalRequest,
+  getPortalLinkedStudents,
+  resolveLinkedStudentId,
+  verifyStudentLinked
+} from "@/lib/portalHelpers";
 
 export async function GET(req: Request) {
-  const token = await verifyBearerToken(req);
-  if (!token) return NextResponse.json({ ok: false, error: "Authentication required" }, { status: 401 });
-  const role = await resolveRole(token);
-  if (!hasPermission(role, "portal.view")) {
-    return NextResponse.json({ ok: false, error: "Portal access denied" }, { status: 403 });
+  const access = await authorizePortalRequest(req);
+  if (!access.ok) {
+    return NextResponse.json(
+      { ok: false, error: access.status === 401 ? "Authentication required" : "Portal access denied" },
+      { status: access.status }
+    );
   }
+  const { token, role } = access;
 
   const db = adminDb();
   const { searchParams } = new URL(req.url);
@@ -21,9 +26,10 @@ export async function GET(req: Request) {
     return NextResponse.json({ ok: false, error: "No student linked to this account" }, { status: 404 });
   }
 
-  const studentId = requestedStudentId && linkedStudents.some((s) => s.id === requestedStudentId)
-    ? requestedStudentId
-    : linkedStudents[0].id;
+  const studentId = resolveLinkedStudentId(linkedStudents, requestedStudentId);
+  if (!studentId) {
+    return NextResponse.json({ ok: false, error: "No student linked to this account" }, { status: 404 });
+  }
 
   const valid = await verifyStudentLinked(token, studentId);
   if (!valid) {
@@ -35,7 +41,8 @@ export async function GET(req: Request) {
   const s = studentSnap.data() as Record<string, unknown>;
 
   const marksSnap = await db.collection("exam_marks").where("studentId", "==", studentId).limit(500).get();
-  const examIds = [...new Set(marksSnap.docs.map((d) => d.data().examId as string))];
+  // Bounded fan-out: one student's distinct exams, capped before the parallel fetch.
+  const examIds = [...new Set(marksSnap.docs.map((d) => d.data().examId as string))].slice(0, 50);
   const publishedExamNames = new Map<string, string>();
   await Promise.all(
     examIds.map(async (eid) => {
