@@ -14,7 +14,11 @@ export const mobileAttendancePayloadSchema = z.object({
   latitude: z.number().optional(),
   longitude: z.number().optional(),
   accuracyMeters: z.number().optional(),
-  deviceInfo: z.string().min(1)
+  deviceInfo: z.string().min(1),
+  // Deterministic idempotency key minted by the mobile client
+  // (teacherId:eventType:timestamp). Retries carry the same key so the
+  // server can return the existing record instead of logging twice.
+  clientRequestId: z.string().trim().min(1).max(200).optional()
 });
 
 export const biometricPayloadSchema = z.object({

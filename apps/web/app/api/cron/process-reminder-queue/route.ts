@@ -1,7 +1,9 @@
+import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 import { FieldValue } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { errorMessage, requireAdmin } from "@/lib/apiUtils";
+import { checkRateLimit } from "@/lib/quota/rateLimiter";
 import { cleanPhoneNumber, getChannelFromPriority } from "@/lib/reminder/messageBuilder";
 import { sendWhatsAppReminder } from "@/lib/reminder/whatsappProvider";
 import { sendSmsReminder } from "@/lib/reminder/smsProvider";
@@ -43,15 +45,29 @@ async function sendOnChannel(
   });
 }
 
+function secretsEqual(provided: string, expected: string): boolean {
+  const left = Buffer.from(provided, "utf8");
+  const right = Buffer.from(expected, "utf8");
+  if (left.length !== right.length) {
+    timingSafeEqual(left, left);
+    return false;
+  }
+  return timingSafeEqual(left, right);
+}
+
 /**
  * Auth: this endpoint sends real WhatsApp/SMS messages, so it must never be
  * publicly callable. Allowed callers:
- *  1. An external scheduler presenting `x-cron-secret` matching CRON_SECRET.
+ *  1. An external scheduler presenting `x-cron-secret` matching CRON_SECRET
+ *     (compared in constant time).
  *  2. A signed-in admin (manual "run now" from the fee-reminders UI).
  */
 async function isAuthorizedCronCall(req: Request): Promise<boolean> {
   const secret = process.env.CRON_SECRET;
-  if (secret && req.headers.get("x-cron-secret") === secret) return true;
+  if (secret) {
+    const presented = req.headers.get("x-cron-secret") || "";
+    if (presented && secretsEqual(presented, secret)) return true;
+  }
   return Boolean(await requireAdmin(req));
 }
 
@@ -59,6 +75,11 @@ export async function PUT(req: Request) {
   try {
     if (!(await isAuthorizedCronCall(req))) {
       return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+    }
+    // This endpoint spends real money per call — throttle automated + manual runs.
+    const limit = await checkRateLimit({ key: "process-reminder-queue", maxRequests: 20, windowMinutes: 60 });
+    if (!limit.allowed) {
+      return NextResponse.json({ ok: false, error: "Too many requests" }, { status: 429 });
     }
     const db = adminDb();
     const settingsSnap = await db.collection("fee_reminder_settings")

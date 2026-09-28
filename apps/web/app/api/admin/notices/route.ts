@@ -1,7 +1,8 @@
 import { FieldValue } from "firebase-admin/firestore";
 import { noticeCreateSchema } from "@sri-narayana/shared";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { requirePermission, serializeDoc, json } from "@/lib/apiUtils";
+import { enforceBodyLimit, requirePermission, serializeDoc, json } from "@/lib/apiUtils";
+import { checkRateLimit } from "@/lib/quota/rateLimiter";
 
 const COLLECTION = "notices";
 
@@ -19,6 +20,12 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   const token = await requirePermission(req, "communication.create");
   if (!token) return json({ ok: false, error: "Access denied" }, { status: 403 });
+
+  const limit = await checkRateLimit({ key: `notice-create:${token.uid}`, maxRequests: 30, windowMinutes: 1 });
+  if (!limit.allowed) return json({ ok: false, error: "Too many requests" }, { status: 429 });
+
+  const bodyLimit = enforceBodyLimit(req, 32 * 1024);
+  if (bodyLimit) return bodyLimit;
 
   try {
     const parsed = noticeCreateSchema.parse(await req.json());

@@ -14,7 +14,8 @@ import {
 import { FieldValue } from "firebase-admin/firestore";
 import { managementHolidayMessage } from "@sri-narayana/shared";
 import { adminDb, verifyBearerToken } from "@/lib/firebaseAdmin";
-import { resolveRole } from "@/lib/apiUtils";
+import { enforceBodyLimit, resolveRole } from "@/lib/apiUtils";
+import { checkRateLimit } from "@/lib/quota/rateLimiter";
 import { removeUndefinedFields } from "@/lib/firestoreSanitize";
 import { getAttendanceRecord, getHolidayByDate, getSchoolSettings, getTeacherById } from "@/lib/firestoreServer";
 import { getSchoolId } from "@/lib/schoolScope";
@@ -52,6 +53,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: "Authentication required" }, { status: 401 });
     }
 
+    const bodyLimit = enforceBodyLimit(req, 8192);
+    if (bodyLimit) return bodyLimit;
+
     const payload = mobileAttendancePayloadSchema.parse(await req.json());
     const teacher = await getTeacherById(payload.teacherId);
     if (!teacher || teacher.status !== "active") {
@@ -63,6 +67,16 @@ export async function POST(req: Request) {
     const isAdmin = role === "super_admin" || role === "admin";
     if (!isAdmin && teacher.uid !== decodedToken.uid) {
       return NextResponse.json({ ok: false, error: "You can only mark your own attendance" }, { status: 403 });
+    }
+
+    // Device-ingest endpoint: throttle GPS-spam/retries per account.
+    const markLimit = await checkRateLimit({
+      key: `attendance-mark:${decodedToken.uid}`,
+      maxRequests: 30,
+      windowMinutes: 1
+    });
+    if (!markLimit.allowed) {
+      return NextResponse.json({ ok: false, error: "Too many requests" }, { status: 429 });
     }
 
     const schoolSettings = await getSchoolSettings();
@@ -130,6 +144,22 @@ export async function POST(req: Request) {
 
     const date = toDateKey(payload.timestamp, settings.timezone);
     const attendanceDocumentId = createAttendanceDocumentId(payload.teacherId, date);
+
+    // Idempotent retry: the mobile client re-sends the same clientRequestId
+    // on network retries. A matching log row means this exact event was
+    // already processed — return the current record without writing again.
+    if (payload.clientRequestId) {
+      const dupeSnap = await adminDb().collection("attendance_logs")
+        .where("clientRequestId", "==", payload.clientRequestId)
+        .limit(1)
+        .get()
+        .catch(() => null);
+      if (dupeSnap && !dupeSnap.empty) {
+        const current = await getAttendanceRecord(attendanceDocumentId);
+        return NextResponse.json({ ok: true, attendance: current, gpsRequired, deduped: true });
+      }
+    }
+
     const existing = await getAttendanceRecord(attendanceDocumentId);
     const attendance = mergeAttendanceEvent(
       existing,
@@ -195,6 +225,7 @@ export async function POST(req: Request) {
       timestamp: payload.timestamp,
       source: "mobile",
       eventType: payload.eventType,
+      clientRequestId: payload.clientRequestId,
       schoolId,
       academicYearId,
       latitude: payload.latitude,
