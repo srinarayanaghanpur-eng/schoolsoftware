@@ -1,3 +1,4 @@
+import { createHash, timingSafeEqual } from "crypto";
 import { biometricPayloadSchema } from "../types/schemas";
 import type { BiometricLog, Teacher, SchoolSettings, AttendanceRecord } from "../types/models";
 import { createAttendanceDocumentId, mergeAttendanceEvent } from "./attendanceService";
@@ -11,7 +12,10 @@ export type ProcessBiometricLogInput = {
 };
 
 export function validateBiometricSecret(requestSecret: string | null, configuredSecret?: string) {
-  return Boolean(configuredSecret && requestSecret && requestSecret === configuredSecret);
+  if (!configuredSecret || !requestSecret) return false;
+  const requestHash = createHash("sha256").update(requestSecret).digest();
+  const configuredHash = createHash("sha256").update(configuredSecret).digest();
+  return timingSafeEqual(requestHash, configuredHash);
 }
 
 export function processBiometricLog(input: ProcessBiometricLogInput) {

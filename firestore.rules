@@ -249,11 +249,11 @@ service cloud.firestore {
     // writes via admin SDK (API enforces per-role permissions).
     match /vehicles/{id} { allow read: if signedIn(); allow write: if isAdmin(); }
     match /transport_routes/{id} { allow read: if signedIn(); allow write: if isAdmin(); }
-    match /transport_assignments/{id} { allow read: if signedIn(); allow write: if isAdmin(); }
+    match /transport_assignments/{id} { allow read: if isAdmin(); allow write: if isAdmin(); }
     match /books/{id} { allow read: if signedIn(); allow write: if isAdmin(); }
-    match /library_issues/{id} { allow read: if signedIn(); allow write: if isAdmin(); }
+    match /library_issues/{id} { allow read: if isAdmin(); allow write: if isAdmin(); }
     match /hostel_rooms/{id} { allow read: if signedIn(); allow write: if isAdmin(); }
-    match /hostel_allotments/{id} { allow read: if signedIn(); allow write: if isAdmin(); }
+    match /hostel_allotments/{id} { allow read: if isAdmin(); allow write: if isAdmin(); }
     match /inventory_items/{id} { allow read: if signedIn(); allow write: if isAdmin(); }
     match /inventory_sales/{id} { allow read: if signedIn(); allow write: if isAdmin(); }
 
