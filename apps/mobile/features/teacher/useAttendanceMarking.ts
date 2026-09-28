@@ -5,7 +5,7 @@
  * permission → getCurrentPositionAsync → geofence check → POST /api/attendance/mark
  * The server re-validates the geofence; the client check is a fast-fail UX guard.
  */
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Platform } from "react-native";
 import * as Location from "expo-location";
 import * as Device from "expo-device";
@@ -49,6 +49,9 @@ function deviceInfo() {
 
 export function useAttendanceMarking(teacherId?: string) {
   const [state, setState] = useState<MarkingState>(INITIAL);
+  // Ref mirror of `submitting`: state updates are async, so a rapid
+  // double-tap would otherwise fire two POSTs before the flag lands.
+  const submittingRef = useRef(false);
 
   const locate = useCallback(async () => {
     setState((s) => ({ ...s, locating: true, error: null }));
@@ -102,9 +105,16 @@ export function useAttendanceMarking(teacherId?: string) {
         setState((s) => ({ ...s, error: "Your teacher profile isn’t linked yet. Contact the office." }));
         return { ok: false as const, message: "Teacher profile not linked" };
       }
+      if (submittingRef.current) {
+        return { ok: false as const, message: "Already submitting — please wait." };
+      }
+      submittingRef.current = true;
 
       const fix = await locate();
-      if (!fix) return { ok: false as const, message: "Location unavailable" };
+      if (!fix) {
+        submittingRef.current = false;
+        return { ok: false as const, message: "Location unavailable" };
+      }
 
       setState((s) => ({ ...s, submitting: true, error: null }));
       try {
@@ -126,6 +136,8 @@ export function useAttendanceMarking(teacherId?: string) {
         const message = err instanceof Error ? err.message : "Attendance failed. Please try again.";
         setState((s) => ({ ...s, submitting: false, error: message }));
         return { ok: false as const, message };
+      } finally {
+        submittingRef.current = false;
       }
     },
     [locate, teacherId]
