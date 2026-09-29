@@ -29,27 +29,54 @@ async function fetchWithTimeout(url: string, options: RequestInit, timeoutMs = 1
   }
 }
 
-export async function postAttendance(payload: Record<string, unknown>) {
+export class AttendanceSubmitError extends Error {
+  /** HTTP status when the server answered; undefined on network failure. */
+  status?: number;
+  constructor(message: string, status?: number) {
+    super(message);
+    this.name = "AttendanceSubmitError";
+    this.status = status;
+  }
+}
+
+export async function postAttendance(
+  payload: Record<string, unknown>,
+  opts?: { clientRequestId?: string; capturedAt?: string }
+) {
   const token = await getValidToken();
 
   if (!API_REQUESTS_AVAILABLE) {
-    throw new Error("API URL not configured. Please set EXPO_PUBLIC_WEB_API_URL.");
+    throw new AttendanceSubmitError("API URL not configured. Please set EXPO_PUBLIC_WEB_API_URL.");
   }
 
-  // Deterministic idempotency key: retries of the same payroll event carry
-  // the same key, so the server can dedupe them (see /api/attendance/mark).
-  const clientRequestId = [payload.teacherId, payload.eventType, payload.timestamp]
-    .map((part) => String(part ?? ""))
-    .join(":");
+  // Deterministic idempotency key for live attempts (retries of the same
+  // payroll event carry the same key); queued offline attempts pass their
+  // own uuid via opts so each attempt stays unique.
+  const clientRequestId =
+    opts?.clientRequestId ??
+    [payload.teacherId, payload.eventType, payload.timestamp]
+      .map((part) => String(part ?? ""))
+      .join(":");
 
-  const response = await fetchWithTimeout(`${API_BASE_URL}/api/attendance/mark`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${token}`
-    },
-    body: JSON.stringify({ ...payload, clientRequestId })
-  });
+  let response: Response;
+  try {
+    response = await fetchWithTimeout(`${API_BASE_URL}/api/attendance/mark`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        ...payload,
+        clientRequestId,
+        ...(opts?.capturedAt ? { capturedAt: opts.capturedAt } : {})
+      })
+    });
+  } catch (err) {
+    throw new AttendanceSubmitError(
+      err instanceof Error ? err.message : "Network request failed."
+    );
+  }
   const text = await response.text();
   let result: { error?: string } & Record<string, unknown> = {};
   try {
@@ -58,6 +85,6 @@ export async function postAttendance(payload: Record<string, unknown>) {
     // Non-JSON body (proxy error page, empty 204, …): fall through to the
     // status check below instead of crashing on a parse error.
   }
-  if (!response.ok) throw new Error(result.error ?? "Attendance failed");
+  if (!response.ok) throw new AttendanceSubmitError(result.error ?? "Attendance failed", response.status);
   return result;
 }

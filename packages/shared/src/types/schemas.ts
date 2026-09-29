@@ -18,7 +18,10 @@ export const mobileAttendancePayloadSchema = z.object({
   // Deterministic idempotency key minted by the mobile client
   // (teacherId:eventType:timestamp). Retries carry the same key so the
   // server can return the existing record instead of logging twice.
-  clientRequestId: z.string().trim().min(1).max(200).optional()
+  clientRequestId: z.string().trim().min(1).max(200).optional(),
+  // Offline-queue capture time (Phase 5). The server validates it against
+  // server time and runs geofence/window checks against it, not sync time.
+  capturedAt: z.string().datetime().optional()
 });
 
 export const biometricPayloadSchema = z.object({

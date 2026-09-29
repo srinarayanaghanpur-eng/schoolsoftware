@@ -106,6 +106,27 @@ function TeacherAttendance() {
         </Card>
       ) : null}
 
+      {/* offline backlog */}
+      {marking.pendingCount > 0 ? (
+        <Card style={styles.pendingCard}>
+          <Icon name="cloud-upload" size={20} tint={color.warning} />
+          <DSText variant="bodyMedium" style={{ flex: 1 }}>
+            {marking.pendingCount} {marking.pendingCount === 1 ? "attempt" : "attempts"} pending sync
+          </DSText>
+          <PillButton
+            label={marking.syncing ? "Syncing…" : "Retry now"}
+            icon="refresh"
+            bg={color.warningContainer}
+            fg={color.warning}
+            onPress={() => {
+              if (!marking.syncing) {
+                void marking.retryPending().then((result) => toast.show(result.message));
+              }
+            }}
+          />
+        </Card>
+      ) : null}
+
       {/* actions */}
       <View style={styles.actions}>
         <View style={{ flex: 1 }}>
@@ -169,6 +190,14 @@ const styles = StyleSheet.create({
     gap: space.md,
     backgroundColor: color.errorContainer,
     borderColor: color.errorContainer,
+    borderRadius: radius.md
+  },
+  pendingCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: space.md,
+    backgroundColor: color.warningContainer,
+    borderColor: color.warningContainer,
     borderRadius: radius.md
   },
   actions: { flexDirection: "row", gap: space.md }

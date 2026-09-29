@@ -16,6 +16,7 @@ import { managementHolidayMessage } from "@sri-narayana/shared";
 import { adminDb, verifyBearerToken } from "@/lib/firebaseAdmin";
 import { enforceBodyLimit, resolveRole } from "@/lib/apiUtils";
 import { checkRateLimit } from "@/lib/quota/rateLimiter";
+import { validateCapturedAt } from "./capturedAt";
 import { removeUndefinedFields } from "@/lib/firestoreSanitize";
 import { getAttendanceRecord, getHolidayByDate, getSchoolSettings, getTeacherById } from "@/lib/firestoreServer";
 import { getSchoolId } from "@/lib/schoolScope";
@@ -79,10 +80,20 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: "Too many requests" }, { status: 429 });
     }
 
+    // Offline-sync path: accept the client's captured moment only inside a
+    // tight window around server time, then run every time-based check
+    // (holiday date, windows, doc id) against it — never against sync time.
+    const capturedCheck = validateCapturedAt(payload.capturedAt, Date.now());
+    if (!capturedCheck.ok) {
+      return NextResponse.json({ ok: false, error: capturedCheck.error }, { status: 400 });
+    }
+    const effectiveTimestamp = payload.capturedAt ?? payload.timestamp;
+    const offlineSync = Boolean(payload.capturedAt);
+
     const schoolSettings = await getSchoolSettings();
 
     // ===== Management-declared holiday: no check-in or check-out required =====
-    const attendanceDate = toDateKey(payload.timestamp, schoolSettings.timezone);
+    const attendanceDate = toDateKey(effectiveTimestamp, schoolSettings.timezone);
     const holidayToday = await getHolidayByDate(attendanceDate);
     if (!isAdmin && holidayToday?.type === "management_declared") {
       return NextResponse.json(
@@ -128,13 +139,13 @@ export async function POST(req: Request) {
     const employmentType = teacher.employmentType ?? "full_time";
     const window = ATTENDANCE_WINDOWS[employmentType] ?? ATTENDANCE_WINDOWS.full_time;
     if (!isAdmin) {
-      if (payload.eventType === "checkin" && !isWithinCheckInWindow(payload.timestamp, settings, employmentType)) {
+      if (payload.eventType === "checkin" && !isWithinCheckInWindow(effectiveTimestamp, settings, employmentType)) {
         return NextResponse.json(
           { ok: false, error: `Check-in is only allowed between ${window.checkInStart} and ${window.checkInEnd}.` },
           { status: 403 }
         );
       }
-      if (payload.eventType === "checkout" && !isWithinCheckOutWindow(payload.timestamp, settings, employmentType)) {
+      if (payload.eventType === "checkout" && !isWithinCheckOutWindow(effectiveTimestamp, settings, employmentType)) {
         return NextResponse.json(
           { ok: false, error: `Check-out is only allowed between ${window.checkOutStart} and ${window.checkOutEnd}.` },
           { status: 403 }
@@ -142,7 +153,7 @@ export async function POST(req: Request) {
       }
     }
 
-    const date = toDateKey(payload.timestamp, settings.timezone);
+    const date = toDateKey(effectiveTimestamp, settings.timezone);
     const attendanceDocumentId = createAttendanceDocumentId(payload.teacherId, date);
 
     // Idempotent retry: the mobile client re-sends the same clientRequestId
@@ -165,7 +176,7 @@ export async function POST(req: Request) {
       existing,
       {
         teacherId: payload.teacherId,
-        timestamp: payload.timestamp,
+        timestamp: effectiveTimestamp,
         source: "mobile",
         eventType: payload.eventType,
         gps,
@@ -184,7 +195,11 @@ export async function POST(req: Request) {
     const attendancePayload = removeUndefinedFields({
       ...attendance,
       schoolId,
-      academicYearId
+      academicYearId,
+      // Offline-sync provenance for admin review (live marks omit these).
+      capturedAt: payload.capturedAt,
+      syncedAt: offlineSync ? nowIso() : undefined,
+      syncedLate: offlineSync ? true : undefined
     });
 
     // Use a transaction so the CL deduction reads the freshest late-entry count atomically
@@ -222,10 +237,12 @@ export async function POST(req: Request) {
     await db.collection("attendance_logs").add(removeUndefinedFields({
       teacherId: payload.teacherId,
       date,
-      timestamp: payload.timestamp,
+      timestamp: effectiveTimestamp,
       source: "mobile",
       eventType: payload.eventType,
       clientRequestId: payload.clientRequestId,
+      capturedAt: payload.capturedAt,
+      syncedLate: offlineSync ? true : undefined,
       schoolId,
       academicYearId,
       latitude: payload.latitude,
