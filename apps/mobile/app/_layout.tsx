@@ -4,12 +4,18 @@
  * provider, and the router stack. No visual shell here: workspace layouts
  * (e.g. app/parent/_layout.tsx) own their own chrome.
  */
-import React from "react";
+import React, { useEffect } from "react";
 import { Stack } from "expo-router";
 import { Platform, StatusBar, StyleSheet, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { MobileSessionProvider } from "@/lib/mobileSession";
+import { setupPushListeners } from "@/lib/pushNotifications";
 import { color } from "@/design-system/tokens";
+
+function PushBootstrap({ children }: { children: React.ReactNode }) {
+  useEffect(() => setupPushListeners(), []);
+  return <>{children}</>;
+}
 
 export default function RootLayout() {
   return (
@@ -18,7 +24,9 @@ export default function RootLayout() {
       <View style={styles.stage}>
         <View style={styles.appFrame}>
           <MobileSessionProvider>
-            <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: color.background } }} />
+            <PushBootstrap>
+              <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: color.background } }} />
+            </PushBootstrap>
           </MobileSessionProvider>
         </View>
       </View>

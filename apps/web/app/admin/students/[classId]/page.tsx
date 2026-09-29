@@ -801,46 +801,51 @@ export default function StudentsPage() {
     resetForm();
   };
 
-  const encodeQrPayload = (student: Student) => {
-    const payload = {
-      name: student.studentName,
-      fatherName: student.fatherName || "",
-      motherName: student.motherName || "",
-      phone: student.phone || "",
-      address: student.address || ""
-    };
-    const json = JSON.stringify(payload);
-    const bytes = new TextEncoder().encode(json);
-    let binary = "";
-    bytes.forEach((byte) => {
-      binary += String.fromCharCode(byte);
-    });
-    return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
-  };
-
-  const qrContent = (student: Student) => {
+  // The QR URL carries only an opaque server-issued token; the student details
+  // are stored server-side and never encoded into the link.
+  const issueQrUrl = async (student: Student): Promise<{ url: string; ttl: number }> => {
     const origin = typeof window === "undefined" ? "" : window.location.origin;
-    return `${origin}/student-qr?d=${encodeQrPayload(student)}`;
+    const issued = await adminApiRequest<{ ok: true; token: string; expiresInMs: number }>(
+      "/api/student-qr",
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ studentId: student.id })
+      }
+    );
+    return {
+      url: `${origin}/student-qr?t=${encodeURIComponent(issued.token)}`,
+      ttl: issued.expiresInMs
+    };
   };
 
-  const [qrCanvas, setQrCanvas] = useState<Record<string, string>>({});
+  const [qrCanvas, setQrCanvas] = useState<Record<string, { url: string; at: number; ttl: number }>>({});
 
   // QR codes are generated on demand for the student whose modal is open,
-  // instead of encoding every visible row on each students fetch.
+  // instead of encoding every visible row on each students fetch. A cached code
+  // is re-issued once the token is near expiry so a QR reopened later still scans.
   useEffect(() => {
-    if (!showQrModal || qrCanvas[showQrModal]) return;
+    if (!showQrModal) return;
+    const cached = qrCanvas[showQrModal];
+    if (cached && Date.now() - cached.at < cached.ttl * 0.8) return;
     const student = students.find((s) => s.id === showQrModal);
     if (!student) return;
     let cancelled = false;
     (async () => {
       const QRCode = (await import("qrcode")).default;
       try {
-        const url = await QRCode.toDataURL(qrContent(student), {
+        const issued = await issueQrUrl(student);
+        const dataUrl = await QRCode.toDataURL(issued.url, {
           width: 160,
           margin: 1,
           color: { dark: "#1b1d32", light: "#ffffff" }
         });
-        if (!cancelled) setQrCanvas((prev) => ({ ...prev, [student.id]: url }));
+        if (!cancelled) {
+          setQrCanvas((prev) => ({
+            ...prev,
+            [student.id]: { url: dataUrl, at: Date.now(), ttl: issued.ttl }
+          }));
+        }
       } catch { /* skip */ }
     })();
     return () => {
@@ -1223,7 +1228,7 @@ export default function StudentsPage() {
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setShowQrModal(null)}>
             <div className="w-full max-w-xs rounded-2xl bg-white p-6 text-center shadow-2xl" onClick={(e) => e.stopPropagation()}>
               {qrCanvas[showQrModal] ? (
-                <img src={qrCanvas[showQrModal]} alt="Student QR Code" className="mx-auto" />
+                <img src={qrCanvas[showQrModal].url} alt="Student QR Code" className="mx-auto" />
               ) : (
                 <div className="mx-auto grid h-[160px] w-[160px] place-items-center rounded-xl bg-[#f3f4fb] text-xs font-semibold text-[#7d86a8]">Generating…</div>
               )}

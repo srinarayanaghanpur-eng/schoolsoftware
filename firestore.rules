@@ -249,11 +249,11 @@ service cloud.firestore {
     // writes via admin SDK (API enforces per-role permissions).
     match /vehicles/{id} { allow read: if signedIn(); allow write: if isAdmin(); }
     match /transport_routes/{id} { allow read: if signedIn(); allow write: if isAdmin(); }
-    match /transport_assignments/{id} { allow read: if signedIn(); allow write: if isAdmin(); }
+    match /transport_assignments/{id} { allow read: if isAdmin(); allow write: if isAdmin(); }
     match /books/{id} { allow read: if signedIn(); allow write: if isAdmin(); }
-    match /library_issues/{id} { allow read: if signedIn(); allow write: if isAdmin(); }
+    match /library_issues/{id} { allow read: if isAdmin(); allow write: if isAdmin(); }
     match /hostel_rooms/{id} { allow read: if signedIn(); allow write: if isAdmin(); }
-    match /hostel_allotments/{id} { allow read: if signedIn(); allow write: if isAdmin(); }
+    match /hostel_allotments/{id} { allow read: if isAdmin(); allow write: if isAdmin(); }
     match /inventory_items/{id} { allow read: if signedIn(); allow write: if isAdmin(); }
     match /inventory_sales/{id} { allow read: if signedIn(); allow write: if isAdmin(); }
 
@@ -390,6 +390,27 @@ service cloud.firestore {
     match /classes/{classId} {
       allow read: if signedIn();
       allow write: if isAdmin();
+    }
+
+    // ===== Student QR tokens =====
+    // Short-lived capabilities issued and resolved exclusively by the Admin
+    // SDK (POST/GET /api/student-qr). No client SDK access, ever.
+    match /student_qr_tokens/{tokenId} {
+      allow read, write: if false;
+    }
+
+    // ===== Backup audit log =====
+    // Written only by the Admin SDK (GET /api/cron/drive-backup). Records which
+    // collections were exported and which secret fields were stripped.
+    match /backup_logs/{logId} {
+      allow read, write: if false;
+    }
+
+    // ===== Push tokens =====
+    // Written only by the Admin SDK (POST /api/push/register + unregister,
+    // and server-side sends). No client SDK access, ever.
+    match /push_tokens/{tokenHash} {
+      allow read, write: if false;
     }
 
     match /{document=**} {

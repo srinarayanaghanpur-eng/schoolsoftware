@@ -31,7 +31,53 @@ export type PortalHomework = {
   assignedDate?: string;
 };
 
-export type PortalAttendanceSummary = { percentage?: number } & Record<string, unknown>;
+export type PortalPaymentFull = {
+  id: string;
+  amountPaid: number;
+  paymentType: string;
+  paymentMethod: string;
+  transactionId: string;
+  status: string;
+  receiptNumber: string;
+  createdAt: string;
+};
+
+export type PortalReceiptStudent = {
+  id: string;
+  name: string;
+  admissionNo: string;
+  className: string;
+  section: string;
+  fatherName: string;
+} | null;
+
+export type PortalReceipt = {
+  receiptNo: string;
+  paymentId: string;
+  schoolName: string;
+  schoolAddress: string;
+  date: string;
+  student: PortalReceiptStudent;
+  amount: number;
+  paymentType: string;
+  paymentMethod: string;
+  transactionId: string;
+  status: string;
+};
+
+export type PortalAttendanceDay = {
+  id: string;
+  date: string;
+  status: string;
+  checkIn?: string;
+  checkOut?: string;
+};
+
+export type PortalAttendanceResponse = {
+  student: PortalStudent;
+  summary: { present: number; absent: number; late: number; total: number; percentage: number };
+  attendance: PortalAttendanceDay[];
+};
 
 async function portalGet<T>(path: string): Promise<T> {
   const user = auth.currentUser;
@@ -57,8 +103,24 @@ export async function fetchHomework(studentId: string) {
   return portalGet<{ homework: PortalHomework[] }>(`/api/portal/homework?studentId=${encodeURIComponent(studentId)}`);
 }
 
-export async function fetchAttendance(studentId: string) {
-  return portalGet<PortalAttendanceSummary>(`/api/portal/attendance?studentId=${encodeURIComponent(studentId)}`);
+export async function fetchAttendance(studentId: string, month?: string) {
+  const qs = month ? `&month=${encodeURIComponent(month)}` : "";
+  return portalGet<PortalAttendanceResponse>(
+    `/api/portal/attendance?studentId=${encodeURIComponent(studentId)}${qs}`
+  );
+}
+
+export async function fetchPayments(studentId?: string) {
+  const qs = studentId ? `?studentId=${encodeURIComponent(studentId)}` : "";
+  return portalGet<{ payments: PortalPaymentFull[]; linkedStudents: PortalStudent[] }>(
+    `/api/portal/payments${qs}`
+  );
+}
+
+export async function fetchReceipt(paymentId: string) {
+  return portalGet<{ receipt: PortalReceipt }>(
+    `/api/portal/payments/${encodeURIComponent(paymentId)}/receipt`
+  );
 }
 
 /**

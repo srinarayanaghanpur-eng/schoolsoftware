@@ -52,9 +52,9 @@ function ParentProfileScreen() {
         <Avatar label={initials(parentName)} size={64} bg={color.success} />
         <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
           <DSText variant="title" style={{ fontSize: 19 }}>{parentName}</DSText>
-          {summary ? (
+          {summary?.student ? (
             <DSText variant="label">
-              Parent of {summary.student.name} · Class {summary.student.className}{summary.student.section}
+              Parent of {summary.student.name ?? "—"} · Class {summary.student.className ?? "—"}{summary.student.section ?? ""}
             </DSText>
           ) : null}
           <DSText variant="label">{session.profile?.email ?? session.profile?.employeeId ?? ""}</DSText>
@@ -81,10 +81,10 @@ function ParentProfileScreen() {
       {/* fee receipts */}
       {summary ? (
         <SectionCard heading="FEE RECEIPTS">
-          {summary.recentPayments.length === 0 ? (
+          {(summary.recentPayments ?? []).length === 0 ? (
             <DSText variant="label">No payments recorded yet.</DSText>
           ) : (
-            summary.recentPayments.map((payment) => (
+            (summary.recentPayments ?? []).map((payment) => (
               <ListRow
                 key={payment.id}
                 leading={
@@ -97,7 +97,7 @@ function ParentProfileScreen() {
               />
             ))
           )}
-          {summary.fees.due > 0 ? (
+          {(summary.fees?.due ?? 0) > 0 ? (
             <ListRow
               leading={
                 <TonalTile bg={color.warningContainer} size={36}>
