@@ -8,7 +8,12 @@ const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = path.resolve(scriptDir, "..");
 const mobileRoot = path.join(repositoryRoot, "apps", "mobile");
 const outputRoot = path.join(repositoryRoot, "apps", "web", "public", "__mobile");
-const expoCli = require.resolve("@expo/cli/build/bin/cli");
+const expoCliPkg = require.resolve("@expo/cli/package.json");
+// Resolve the CLI entry via the package root instead of a deep subpath:
+// @expo/cli ≥57 ships an `exports` map that blocks `@expo/cli/build/bin/cli`
+// (it rewrites to a `.js` file that does not exist; the real entry is the
+// extensionless `cli` file, which node runs fine when spawned explicitly).
+const expoCli = path.join(path.dirname(expoCliPkg), "build", "bin", "cli");
 
 const firebaseKeys = [
   "API_KEY",
