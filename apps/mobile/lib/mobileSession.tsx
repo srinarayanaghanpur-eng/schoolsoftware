@@ -6,6 +6,7 @@ import { ROLE_LABELS, type Role, isValidRole } from "@sri-narayana/shared";
 import { auth, db } from "@/lib/firebase";
 import { clearMobileAuthStorage } from "@/lib/authStorage";
 import { mobileCache } from "@/lib/cache/mobileCache";
+import { ensurePushRegistration, unregisterPushToken } from "@/lib/pushNotifications";
 import { dashboardPathForRole } from "@/lib/roleRouting";
 
 export type MobileAuthStatus = "checking" | "unauthenticated" | "authenticated" | "error";
@@ -118,6 +119,9 @@ export function MobileSessionProvider({ children }: { children: React.ReactNode 
       if (currentRun !== getRun()) return;
       setProfile(nextProfile);
       setStatus("authenticated");
+      // Best-effort: register this device for push. Failures (simulator,
+      // denied permission, offline) are silent by design.
+      void ensurePushRegistration();
     } catch (err) {
       if (currentRun !== getRun()) return;
       const message = err instanceof Error ? err.message : "Unable to verify your session.";
@@ -146,6 +150,8 @@ export function MobileSessionProvider({ children }: { children: React.ReactNode 
   }, [applyUser]);
 
   const logout = useCallback(async () => {
+    // Unregister push BEFORE signing out so the request still carries auth.
+    await unregisterPushToken();
     await signOut(auth);
     await clearMobileAuthStorage();
     await mobileCache.clearAllNamespaces().catch(() => undefined);

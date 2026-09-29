@@ -406,6 +406,13 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // ===== Push tokens =====
+    // Written only by the Admin SDK (POST /api/push/register + unregister,
+    // and server-side sends). No client SDK access, ever.
+    match /push_tokens/{tokenHash} {
+      allow read, write: if false;
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

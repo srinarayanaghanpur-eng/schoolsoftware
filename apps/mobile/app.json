@@ -13,6 +13,12 @@
         {
           "locationAlwaysAndWhenInUsePermission": "Allow Sri Narayana School ERP to use your location for campus attendance."
         }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#3033a1"
+        }
       ]
     ],
     "ios": {
