@@ -31,8 +31,16 @@
       "package": "com.srinarayana.attendance",
       "permissions": [
         "ACCESS_FINE_LOCATION",
-        "ACCESS_COARSE_LOCATION"
+        "ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
       ]
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "39b21e76-f36a-41eb-9681-5b457c64f2fc"
+      }
+    },
+    "owner": "narayana2s-team"
   }
 }
