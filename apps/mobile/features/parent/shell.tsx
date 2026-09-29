@@ -13,6 +13,8 @@ import { color, radius } from "@/design-system/tokens";
 
 const TABS = [
   { href: "/parent", match: ["/parent", "/parent/index"], icon: "home" as const, label: "Home" },
+  { href: "/parent/fees", match: ["/parent/fees"], icon: "payments" as const, label: "Fees" },
+  { href: "/parent/attendance", match: ["/parent/attendance"], icon: "event-available" as const, label: "Attend." },
   { href: "/parent/homework", match: ["/parent/homework"], icon: "menu-book" as const, label: "Homework" },
   { href: "/parent/messages", match: ["/parent/messages"], icon: "chat-bubble" as const, label: "Messages" },
   { href: "/parent/profile", match: ["/parent/profile"], icon: "person" as const, label: "Profile" }

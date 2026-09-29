@@ -6,9 +6,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { mobileCache } from "@/lib/cache/mobileCache";
 import {
+  fetchAttendance,
   fetchHomework,
+  fetchPayments,
   fetchSummary,
+  type PortalAttendanceResponse,
   type PortalHomework,
+  type PortalPaymentFull,
   type PortalStudent,
   type PortalSummary
 } from "./api";
@@ -17,6 +21,8 @@ type AsyncState<T> = { data: T | null; loading: boolean; error: string | null };
 
 const SUMMARY_TTL_MIN = 5;
 const HOMEWORK_TTL_MIN = 10;
+const PAYMENTS_TTL_MIN = 5;
+const ATTENDANCE_TTL_MIN = 10;
 
 export function useParentSummary(studentId?: string) {
   const [state, setState] = useState<AsyncState<{ summary: PortalSummary; linkedStudents: PortalStudent[] }>>({
@@ -96,6 +102,84 @@ export function useParentHomework(studentId?: string) {
   }), [state, load, studentId]);
 }
 
+export function useParentPayments(studentId?: string) {
+  const [state, setState] = useState<AsyncState<PortalPaymentFull[]>>({ data: null, loading: true, error: null });
+
+  const load = useCallback(async (force = false) => {
+    const cacheKey = `portal-payments:${studentId ?? "default"}`;
+    setState((s) => ({ ...s, loading: s.data === null, error: null }));
+    try {
+      if (!force) {
+        const cached = await mobileCache.get<PortalPaymentFull[]>(cacheKey);
+        if (cached !== null) {
+          setState({ data: cached, loading: false, error: null });
+          return;
+        }
+      }
+      const fresh = await fetchPayments(studentId);
+      await mobileCache.set(cacheKey, fresh.payments, PAYMENTS_TTL_MIN);
+      setState({ data: fresh.payments, loading: false, error: null });
+    } catch (err) {
+      setState((s) => ({
+        data: s.data,
+        loading: false,
+        error: err instanceof Error ? err.message : "Unable to load payments."
+      }));
+    }
+  }, [studentId]);
+
+  useEffect(() => { void load(); }, [load]);
+
+  return useMemo(() => ({
+    payments: state.data ?? [],
+    loading: state.loading,
+    error: state.error,
+    refresh: () => load(true)
+  }), [state, load]);
+}
+
+export function useParentAttendance(studentId?: string, month?: string) {
+  const [state, setState] = useState<AsyncState<PortalAttendanceResponse>>({
+    data: null,
+    loading: true,
+    error: null
+  });
+
+  const load = useCallback(async (force = false) => {
+    if (!studentId) return;
+    const monthKey = month ?? "current";
+    const cacheKey = `portal-attendance:${studentId}:${monthKey}`;
+    setState((s) => ({ ...s, loading: s.data === null, error: null }));
+    try {
+      if (!force) {
+        const cached = await mobileCache.get<PortalAttendanceResponse>(cacheKey);
+        if (cached !== null) {
+          setState({ data: cached, loading: false, error: null });
+          return;
+        }
+      }
+      const fresh = await fetchAttendance(studentId, month);
+      await mobileCache.set(cacheKey, fresh, ATTENDANCE_TTL_MIN);
+      setState({ data: fresh, loading: false, error: null });
+    } catch (err) {
+      setState((s) => ({
+        data: s.data,
+        loading: false,
+        error: err instanceof Error ? err.message : "Unable to load attendance."
+      }));
+    }
+  }, [studentId, month]);
+
+  useEffect(() => { void load(); }, [load]);
+
+  return useMemo(() => ({
+    record: state.data,
+    loading: state.loading && studentId !== undefined,
+    error: state.error,
+    refresh: () => load(true)
+  }), [state, load, studentId]);
+}
+
 /* ---------------- display helpers (pure) ---------------- */
 
 const SUBJECT_STYLES: Array<{ match: RegExp; code: string }> = [
@@ -136,4 +220,21 @@ export function greeting(): string {
 
 export function formatMoney(amount: number): string {
   return `₹${amount.toLocaleString("en-IN")}`;
+}
+
+/** Shift a YYYY-MM month key by delta months (pure, for month navigation). */
+export function shiftMonth(month: string, delta: number): string {
+  const match = /^(\d{4})-(\d{2})$/.exec(month);
+  const base = match ? new Date(Number(match[1]), Number(match[2]) - 1, 1) : new Date();
+  if (Number.isNaN(base.getTime())) return new Date().toISOString().slice(0, 7);
+  base.setMonth(base.getMonth() + delta);
+  return `${base.getFullYear()}-${String(base.getMonth() + 1).padStart(2, "0")}`;
+}
+
+/** "2026-09" → "September 2026" for screen headings. */
+export function monthLabel(month: string): string {
+  const match = /^(\d{4})-(\d{2})$/.exec(month);
+  if (!match) return month;
+  const date = new Date(Number(match[1]), Number(match[2]) - 1, 1);
+  return date.toLocaleDateString(undefined, { month: "long", year: "numeric" });
 }
