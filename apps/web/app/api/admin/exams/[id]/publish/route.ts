@@ -2,6 +2,7 @@ import { FieldValue } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { enforceBodyLimit, requirePermission, json } from "@/lib/apiUtils";
 import { checkRateLimit } from "@/lib/quota/rateLimiter";
+import { getParentUidsForClass, sendPushToUsers } from "@/lib/push/sendPush";
 
 // POST /api/admin/exams/[id]/publish — publish results (status = "published").
 // Requires the approve permission (principal/admin).
@@ -17,8 +18,26 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   if (bodyLimit) return bodyLimit;
 
   const ref = adminDb().collection("exams").doc(params.id);
-  if (!(await ref.get()).exists) return json({ ok: false, error: "Exam not found" }, { status: 404 });
+  const snap = await ref.get();
+  if (!snap.exists) return json({ ok: false, error: "Exam not found" }, { status: 404 });
+  const exam = snap.data() as Record<string, unknown>;
   await ref.update({ status: "published", updatedAt: FieldValue.serverTimestamp() });
+  // Notify parents of the exam's class — fire-and-forget, never blocks this write.
+  void notifyExamParents(exam).catch(() => undefined);
   return json({ ok: true });
+}
+
+async function notifyExamParents(exam: Record<string, unknown>): Promise<void> {
+  const className = String(exam.className || "");
+  if (!className) return;
+  const section = String(exam.section || "") || undefined;
+  const uids = await getParentUidsForClass(className, section);
+  if (uids.length === 0) return;
+  await sendPushToUsers(uids, {
+    category: "exams",
+    title: "Results published",
+    body: `Results published: ${String(exam.name || "exam")}`,
+    route: "/parent"
+  });
 }
 

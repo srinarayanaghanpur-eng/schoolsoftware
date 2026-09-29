@@ -4,6 +4,7 @@ import { homeworkCreateSchema } from "@sri-narayana/shared";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { enforceBodyLimit, requirePermission, serializeDoc, json } from "@/lib/apiUtils";
 import { checkRateLimit } from "@/lib/quota/rateLimiter";
+import { getParentUidsForClass, sendPushToUsers } from "@/lib/push/sendPush";
 import { docCursor, logFirestoreRead, readLimit } from "@/lib/firestoreReadLogger";
 
 const COLLECTION = "homework";
@@ -76,9 +77,34 @@ export async function POST(req: Request) {
       createdAt: now,
       updatedAt: now,
     });
+    // Push to parents of the target class/section — fire-and-forget, never
+    // blocks or fails this write.
+    void notifyHomeworkParents(parsed).catch(() => undefined);
     return json({ ok: true, id: ref.id });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to create homework";
     return json({ ok: false, error: message }, { status: 400 });
   }
+}
+
+async function notifyHomeworkParents(input: {
+  className: string;
+  section?: string;
+  academicYearId?: string;
+  subject: string;
+  title: string;
+}): Promise<void> {
+  const uids = await getParentUidsForClass(
+    input.className,
+    input.section || undefined,
+    input.academicYearId || undefined
+  );
+  if (uids.length === 0) return;
+  const where = input.section ? `Class ${input.className}${input.section}` : `Class ${input.className}`;
+  await sendPushToUsers(uids, {
+    category: "homework",
+    title: "New homework",
+    body: `${input.subject}: ${input.title} (${where})`,
+    route: "/parent/homework"
+  });
 }

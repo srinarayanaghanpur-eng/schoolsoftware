@@ -1,9 +1,12 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  applyPreferenceFilter,
   chunkTokens,
   findDeadTokens,
+  firstNameOf,
   isValidExpoPushToken,
+  pushPrefsSchema,
   pushRegisterSchema,
   sendPushToUsers,
   sha256Hex,
@@ -50,6 +53,50 @@ describe("pushRegisterSchema", () => {
   });
 });
 
+describe("pushPrefsSchema", () => {
+  it("accepts partial prefs and rejects non-booleans", () => {
+    assert.deepEqual(pushPrefsSchema.parse({ fees: false }), { fees: false });
+    assert.deepEqual(pushPrefsSchema.parse({}), {});
+    assert.throws(() => pushPrefsSchema.parse({ fees: "no" }));
+    // Unknown keys are stripped (zod default), never stored.
+    assert.deepEqual(pushPrefsSchema.parse({ unknown: true }), {});
+  });
+});
+
+describe("applyPreferenceFilter", () => {
+  it("keeps opted-in and undecided users, drops opted-out", () => {
+    const kept = applyPreferenceFilter(
+      {
+        "uid-on": { pushPrefs: { fees: true } },
+        "uid-missing": null,
+        "uid-empty": {},
+        "uid-off": { pushPrefs: { fees: false } }
+      },
+      ["uid-on", "uid-missing", "uid-empty", "uid-off", "uid-unknown"],
+      "fees"
+    );
+    assert.deepEqual(kept, ["uid-on", "uid-missing", "uid-empty", "uid-unknown"]);
+  });
+
+  it("only gates the requested category", () => {
+    const kept = applyPreferenceFilter(
+      { "uid-1": { pushPrefs: { fees: false, homework: true } } },
+      ["uid-1"],
+      "homework"
+    );
+    assert.deepEqual(kept, ["uid-1"]);
+  });
+});
+
+describe("firstNameOf", () => {
+  it("takes the first token of a display name", () => {
+    assert.equal(firstNameOf("Aarav Kumar"), "Aarav");
+    assert.equal(firstNameOf("  Aarav  "), "Aarav");
+    assert.equal(firstNameOf(""), "");
+    assert.equal(firstNameOf(undefined), "");
+    assert.equal(firstNameOf(null), "");
+  });
+});
 describe("sha256Hex", () => {
   it("is deterministic and 64 hex chars", () => {
     const first = sha256Hex(GOOD_TOKEN);
@@ -182,6 +229,28 @@ describe("sendPushToUsers", () => {
       touchTokens: async () => undefined
     });
     assert.deepEqual(result, { sent: 0, failed: 0, removed: 0 });
+  });
+
+  it("skips opted-out users before resolving tokens", async () => {
+    let resolvedFor: string[] = [];
+    const fetchFn = (async () => ({
+      text: async () => JSON.stringify({ data: [okTicket("t1")] })
+    })) as unknown as typeof fetch;
+    const result = await sendPushToUsers(["uid-off", "uid-on"], { ...MESSAGE, category: "fees" }, {
+      fetchFn,
+      resolveTokens: async (uids) => {
+        resolvedFor = uids;
+        return [GOOD_TOKEN];
+      },
+      resolvePrefs: async () => ({
+        "uid-off": { pushPrefs: { fees: false } },
+        "uid-on": { pushPrefs: { fees: true } }
+      }),
+      removeTokens: async () => undefined,
+      touchTokens: async () => undefined
+    });
+    assert.deepEqual(resolvedFor, ["uid-on"]);
+    assert.deepEqual(result, { sent: 1, failed: 0, removed: 0 });
   });
 
   it("honors the time budget on a hanging fetch", async () => {

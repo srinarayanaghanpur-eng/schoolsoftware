@@ -1,7 +1,8 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import { FieldValue } from "firebase-admin/firestore";
-import { adminDb } from "@/lib/firebaseAdmin";
+// Relative (not @/) so this module also loads under plain node:test.
+import { adminDb } from "../firebaseAdmin";
 
 /**
  * Expo push delivery (Phase 1).
@@ -34,11 +35,60 @@ export const pushUnregisterSchema = z.object({
   token: z.string().min(1).max(500).refine(isValidExpoPushToken, "Invalid push token")
 });
 
+export const PUSH_CATEGORIES = ["fees", "attendance", "homework", "notices", "exams"] as const;
+export type PushCategory = (typeof PUSH_CATEGORIES)[number];
+
+export const pushCategorySchema = z.enum(PUSH_CATEGORIES);
+
+export const pushPrefsSchema = z.object({
+  fees: z.boolean().optional(),
+  attendance: z.boolean().optional(),
+  homework: z.boolean().optional(),
+  notices: z.boolean().optional(),
+  exams: z.boolean().optional()
+});
+export type PushPrefs = Partial<Record<PushCategory, boolean>>;
+
+export const DEFAULT_PUSH_PREFS: Record<PushCategory, boolean> = {
+  fees: true,
+  attendance: true,
+  homework: true,
+  notices: true,
+  exams: true
+};
+
+/**
+ * Pure preference gate: keep uids whose stored prefs do not explicitly
+ * disable the category. Missing prefs (or missing docs) default to ON.
+ */
+export function applyPreferenceFilter(
+  prefsByUid: Record<string, { pushPrefs?: PushPrefs } | null | undefined>,
+  uids: string[],
+  category: PushCategory
+): string[] {
+  return uids.filter((uid) => {
+    const prefs = prefsByUid[uid]?.pushPrefs;
+    if (!prefs) return true;
+    return prefs[category] !== false;
+  });
+}
+
+/** First token of a display name for privacy-safe bodies ("Aarav Kumar" → "Aarav"). */
+export function firstNameOf(fullName: unknown): string {
+  const parts = String(fullName ?? "").trim().split(/\s+/).filter(Boolean);
+  return parts[0] ?? "";
+}
+
 export type PushMessage = {
   title: string;
   body: string;
   route?: string;
   data?: Record<string, string | number | boolean>;
+  /**
+   * Preference category. When set, users who switched this category OFF in
+   * their push preferences are skipped (default for every category is ON).
+   */
+  category?: PushCategory;
 };
 
 export type PushResult = { sent: number; failed: number; removed: number };
@@ -111,10 +161,28 @@ export function findDeadTokens(
 type PushDeps = {
   fetchFn?: typeof fetch;
   resolveTokens?: (uids: string[]) => Promise<string[]>;
+  resolvePrefs?: (uids: string[]) => Promise<Record<string, { pushPrefs?: PushPrefs } | null>>;
   removeTokens?: (tokens: string[]) => Promise<void>;
   touchTokens?: (tokens: string[]) => Promise<void>;
   timeBudgetMs?: number;
 };
+
+export type PrefsMap = Record<string, { pushPrefs?: PushPrefs } | null>;
+
+async function defaultResolvePrefs(uids: string[]): Promise<PrefsMap> {
+  const db = adminDb();
+  const map: PrefsMap = {};
+  for (const uidChunk of chunkTokens(uids, 25)) {
+    const snaps = await Promise.all(
+      uidChunk.map((uid) => db.collection("users").doc(uid).get().catch(() => null))
+    );
+    snaps.forEach((snap, index) => {
+      map[uidChunk[index]] =
+        snap && snap.exists ? ((snap.data() as Record<string, unknown>) as { pushPrefs?: PushPrefs }) : null;
+    });
+  }
+  return map;
+}
 
 async function defaultResolveTokens(uids: string[]): Promise<string[]> {
   const db = adminDb();
@@ -196,9 +264,23 @@ async function runPush(
   fetchFn: typeof fetch,
   resolveTokens: (uids: string[]) => Promise<string[]>,
   removeTokens: (tokens: string[]) => Promise<void>,
-  touchTokens: (tokens: string[]) => Promise<void>
+  touchTokens: (tokens: string[]) => Promise<void>,
+  resolvePrefs: (uids: string[]) => Promise<PrefsMap>
 ): Promise<PushResult> {
-  const tokens = (await resolveTokens(uids)).filter(isValidExpoPushToken);
+  // Preference gate first: opted-out users never even resolve tokens.
+  // A prefs-read failure falls back to sending (fail open, like the limiter).
+  let eligible = uids;
+  if (message.category) {
+    try {
+      const prefsMap = await resolvePrefs(uids);
+      eligible = applyPreferenceFilter(prefsMap, uids, message.category);
+    } catch {
+      eligible = uids;
+    }
+  }
+  if (eligible.length === 0) return { ...ZERO_RESULT };
+
+  const tokens = (await resolveTokens(eligible)).filter(isValidExpoPushToken);
   if (tokens.length === 0) return { ...ZERO_RESULT };
 
   const tickets: Array<{ token: string; ticket: ExpoTicket }> = [];
@@ -264,14 +346,90 @@ export async function sendPushToUsers(
   const resolveTokens = deps.resolveTokens ?? defaultResolveTokens;
   const removeTokens = deps.removeTokens ?? defaultRemoveTokens;
   const touchTokens = deps.touchTokens ?? defaultTouchTokens;
+  const resolvePrefs = deps.resolvePrefs ?? defaultResolvePrefs;
   const budget = deps.timeBudgetMs ?? PUSH_TIME_BUDGET_MS;
   try {
     return await withBudget(
-      runPush(uids, message, fetchFn, resolveTokens, removeTokens, touchTokens),
+      runPush(uids, message, fetchFn, resolveTokens, removeTokens, touchTokens, resolvePrefs),
       budget,
       { ...ZERO_RESULT }
     );
   } catch {
     return { ...ZERO_RESULT };
   }
+}
+
+/* ---------------- audience resolution (Phase 3 triggers) ---------------- */
+
+const MAX_CLASS_STUDENTS = 300;
+const MAX_PARENT_SCAN = 500;
+const MAX_TEACHER_SCAN = 200;
+
+/**
+ * Parent uids linked to the given students, via the same
+ * parent_student_links collection the portal uses. Bounded: at most 500
+ * students in, `in`-queries chunked by 30.
+ */
+export async function getParentUidsForStudents(studentIds: string[]): Promise<string[]> {
+  const unique = [...new Set(studentIds)].filter(Boolean).slice(0, 500);
+  if (unique.length === 0) return [];
+  const db = adminDb();
+  const uids = new Set<string>();
+  for (const idChunk of chunkTokens(unique, TOKEN_LOOKUP_CHUNK)) {
+    const snap = await db.collection("parent_student_links").where("studentId", "in", idChunk).get();
+    for (const doc of snap.docs) {
+      const parentUid = (doc.data() as Record<string, unknown>)?.parentUid;
+      if (typeof parentUid === "string" && parentUid) uids.add(parentUid);
+    }
+  }
+  return [...uids];
+}
+
+/**
+ * Parent uids for a class, optionally narrowed by section/academic year.
+ * Students are matched on the `class` field (the field the students
+ * collection uses — verified against report-card/hall-ticket/parents
+ * routes); section/year Narrowing happens in memory so no composite
+ * index is required.
+ */
+export async function getParentUidsForClass(
+  className: string,
+  section?: string,
+  academicYearId?: string
+): Promise<string[]> {
+  const snap = await adminDb()
+    .collection("students")
+    .where("class", "==", className)
+    .limit(MAX_CLASS_STUDENTS)
+    .get();
+  const ids: string[] = [];
+  for (const doc of snap.docs) {
+    const data = doc.data() as Record<string, unknown>;
+    if (section && data.section !== section) continue;
+    if (academicYearId && data.academicYearId !== academicYearId) continue;
+    ids.push(doc.id);
+  }
+  return getParentUidsForStudents(ids);
+}
+
+/** Every linked parent uid, capped — for school-wide notices. */
+export async function getAllParentUids(limit: number = MAX_PARENT_SCAN): Promise<string[]> {
+  const snap = await adminDb().collection("parent_student_links").limit(limit).get();
+  const uids = new Set<string>();
+  for (const doc of snap.docs) {
+    const parentUid = (doc.data() as Record<string, unknown>)?.parentUid;
+    if (typeof parentUid === "string" && parentUid) uids.add(parentUid);
+  }
+  return [...uids];
+}
+
+/** Staff uids from teacher docs, capped — for staff-targeted notices. */
+export async function getTeacherUids(limit: number = MAX_TEACHER_SCAN): Promise<string[]> {
+  const snap = await adminDb().collection("teachers").limit(limit).get();
+  const uids = new Set<string>();
+  for (const doc of snap.docs) {
+    const uid = (doc.data() as Record<string, unknown>)?.uid;
+    if (typeof uid === "string" && uid) uids.add(uid);
+  }
+  return [...uids];
 }

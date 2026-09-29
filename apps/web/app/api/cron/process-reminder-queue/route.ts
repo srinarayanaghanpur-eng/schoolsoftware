@@ -4,6 +4,7 @@ import { FieldValue } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { errorMessage, requireAdmin } from "@/lib/apiUtils";
 import { checkRateLimit } from "@/lib/quota/rateLimiter";
+import { firstNameOf, getParentUidsForStudents, sendPushToUsers } from "@/lib/push/sendPush";
 import { cleanPhoneNumber, getChannelFromPriority } from "@/lib/reminder/messageBuilder";
 import { sendWhatsAppReminder } from "@/lib/reminder/whatsappProvider";
 import { sendSmsReminder } from "@/lib/reminder/smsProvider";
@@ -129,6 +130,11 @@ export async function PUT(req: Request) {
         let providerMessageId = "";
         let lastError = "";
 
+        // Push FIRST (free channel): best-effort, fire-and-forget. It is not
+        // counted in processed/sent/failed and never retries — the paid
+        // channels below remain the source of truth.
+        void notifyFeeReminder(item).catch(() => undefined);
+
         const primaryResult = await sendOnChannel(item, channelInfo.primary, settings);
         totalProcessed++;
         usedChannel = channelInfo.primary;
@@ -192,4 +198,19 @@ export async function PUT(req: Request) {
   } catch (error) {
     return NextResponse.json({ ok: false, error: errorMessage(error) }, { status: 400 });
   }
+}
+
+async function notifyFeeReminder(item: Record<string, unknown>): Promise<void> {
+  const studentId = String(item.studentId || "");
+  if (!studentId) return;
+  const uids = await getParentUidsForStudents([studentId]);
+  if (uids.length === 0) return;
+  const firstName = firstNameOf(item.studentName) || "Your child";
+  const due = Number(item.dueAmount || 0);
+  await sendPushToUsers(uids, {
+    category: "fees",
+    title: "Fee reminder",
+    body: due > 0 ? `${firstName} has a fee due of ₹${due}.` : `${firstName} has a fee due.`,
+    route: "/parent/fees"
+  });
 }
