@@ -37,6 +37,15 @@ function friendlyAuthMessage(error: unknown): string {
   return "Couldn't sign you in. Please check your details and try again.";
 }
 
+/** Tap-outside-to-dismiss only makes sense where a software keyboard can
+ *  cover the form. On web the wrapper's dismiss fires after the browser
+ *  focuses the tapped input and immediately blurs it again, so text fields
+ *  can never take focus — bypass it there. */
+function DismissKeyboard({ children }: { children: React.ReactNode }) {
+  if (Platform.OS === "web") return <>{children}</>;
+  return <TouchableWithoutFeedback onPress={Keyboard.dismiss}>{children}</TouchableWithoutFeedback>;
+}
+
 export default function Login() {
   const [employeeId, setEmployeeId] = useState("");
   const [password, setPassword] = useState("");
@@ -89,7 +98,7 @@ export default function Login() {
 
   return (
     <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.flex}>
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+      <DismissKeyboard>
         <ScrollView
           contentContainerStyle={[styles.page, { paddingTop: insets.top + space.xxl, paddingBottom: insets.bottom + space.xl }]}
           keyboardShouldPersistTaps="handled"
@@ -173,7 +182,7 @@ export default function Login() {
             <DSText variant="caption">Secure sign-in · contact the office if you need access</DSText>
           </View>
         </ScrollView>
-      </TouchableWithoutFeedback>
+      </DismissKeyboard>
     </KeyboardAvoidingView>
   );
 }
