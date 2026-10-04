@@ -13,6 +13,8 @@ import {
 import { color, elevation, radius, space } from "@/design-system/tokens";
 import { useMobileSession } from "@/lib/mobileSession";
 import { ParentShell } from "@/features/parent/shell";
+import { ChildSwitcher } from "@/features/parent/ChildSwitcher";
+import { useSelectChild, useSelectedChildId, useSelectedChildRaw } from "@/features/parent/SelectedChild";
 import { formatDue, formatMoney, greeting, initials, subjectCode, useParentHomework, useParentSummary } from "@/features/parent/hooks";
 
 const SUBJECT_TILES: Record<string, { bg: string; fg: string }> = {
@@ -39,8 +41,11 @@ function ParentHome() {
   const router = useRouter();
   const toast = useToast();
   const { profile } = useMobileSession();
-  const { summary, loading, error, refresh } = useParentSummary();
-  const { homework } = useParentHomework(summary?.student.id);
+  const rawChoice = useSelectedChildRaw();
+  const { summary, linkedStudents, loading, error, refresh } = useParentSummary(rawChoice);
+  const activeId = useSelectedChildId(linkedStudents);
+  const select = useSelectChild();
+  const { homework } = useParentHomework(activeId);
 
   if (loading && !summary) return <LoadingState label="Opening your family portal…" />;
   if (error && !summary) return <ErrorState message={error} onRetry={refresh} />;
@@ -64,6 +69,8 @@ function ParentHome() {
         </View>
         <Avatar label={initials(parentName)} size={42} bg={color.success} />
       </View>
+
+      <ChildSwitcher children={linkedStudents} selectedId={activeId} onSelect={select} />
 
       {/* child card */}
       <View style={[styles.childCard, elevation.hero]}>
@@ -133,28 +140,6 @@ function ParentHome() {
             );
           })
         )}
-      </SectionCard>
-
-      {/* from teachers (placeholder — no teacher-remark endpoint yet) */}
-      <SectionCard heading="FROM TEACHERS">
-        <View style={styles.remarkRow}>
-          <Avatar label="PS" size={36} />
-          <View style={{ flex: 1, minWidth: 0 }}>
-            <DSText variant="bodyMedium">Ms. Sharma · Class teacher</DSText>
-            <DSText variant="body" style={{ marginTop: 2 }}>
-              {student.name.split(" ")[0]} did very well in the Unit 4 test. Keep encouraging the daily practice.
-            </DSText>
-            <DSText variant="caption" style={{ marginTop: 4 }}>Today, 3:05 PM</DSText>
-          </View>
-        </View>
-        <PressableScale
-          accessibilityLabel="Message the class teacher"
-          onPress={() => router.push("/parent/messages" as never)}
-          style={styles.remarkCta}
-        >
-          <Icon name="chat" size={18} tint={color.primary} />
-          <DSText variant="bodyMedium" tint={color.primary}>Message class teacher</DSText>
-        </PressableScale>
       </SectionCard>
 
       {/* notices */}

@@ -20,6 +20,8 @@ import {
 import { color, motion, radius, space } from "@/design-system/tokens";
 import { sendParentMessage } from "@/features/parent/api";
 import { useParentSummary } from "@/features/parent/hooks";
+import { ChildSwitcher } from "@/features/parent/ChildSwitcher";
+import { useSelectChild, useSelectedChildId, useSelectedChildRaw } from "@/features/parent/SelectedChild";
 import { ParentShell } from "@/features/parent/shell";
 
 export default function ParentMessagesRoute() {
@@ -33,7 +35,10 @@ export default function ParentMessagesRoute() {
 function ParentMessagesScreen() {
   const insets = useSafeAreaInsets();
   const toast = useToast();
-  const { summary, loading, error, refresh } = useParentSummary();
+  const rawChoice = useSelectedChildRaw();
+  const { summary, linkedStudents, loading, error, refresh } = useParentSummary(rawChoice);
+  const activeId = useSelectedChildId(linkedStudents);
+  const select = useSelectChild();
   const [composeOpen, setComposeOpen] = useState(false);
   const [body, setBody] = useState("");
   const [sending, setSending] = useState(false);
@@ -82,6 +87,9 @@ function ParentMessagesScreen() {
         <DSText variant="display" style={{ paddingHorizontal: space.xl, paddingTop: 6, paddingBottom: space.md }}>
           Messages
         </DSText>
+        <View style={{ paddingHorizontal: space.xl, paddingBottom: space.sm }}>
+          <ChildSwitcher children={linkedStudents} selectedId={activeId} onSelect={select} />
+        </View>
 
         {loading && !summary ? <LoadingState /> : null}
         {error && !summary ? <ErrorState message={error} onRetry={refresh} /> : null}

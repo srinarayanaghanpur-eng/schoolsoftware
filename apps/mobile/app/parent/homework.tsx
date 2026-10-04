@@ -7,6 +7,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Badge, Card, DSText, EmptyState, ErrorState, ListRow, LoadingState, TonalTile } from "@/design-system/components";
 import { color, space } from "@/design-system/tokens";
 import { ParentShell } from "@/features/parent/shell";
+import { ChildSwitcher } from "@/features/parent/ChildSwitcher";
+import { useSelectChild, useSelectedChildId, useSelectedChildRaw } from "@/features/parent/SelectedChild";
 import { formatDue, subjectCode, useParentHomework, useParentSummary } from "@/features/parent/hooks";
 
 const SUBJECT_TILES: Record<string, { bg: string; fg: string }> = {
@@ -26,8 +28,12 @@ export default function ParentHomeworkRoute() {
 
 function ParentHomeworkScreen() {
   const insets = useSafeAreaInsets();
-  const { summary, loading: summaryLoading, error: summaryError, refresh: refreshSummary } = useParentSummary();
-  const { homework, loading, error, refresh } = useParentHomework(summary?.student.id);
+  const rawChoice = useSelectedChildRaw();
+  const { summary, linkedStudents, loading: summaryLoading, error: summaryError, refresh: refreshSummary } =
+    useParentSummary(rawChoice);
+  const activeId = useSelectedChildId(linkedStudents);
+  const select = useSelectChild();
+  const { homework, loading, error, refresh } = useParentHomework(activeId);
 
   const busy = summaryLoading || loading;
 
@@ -38,6 +44,7 @@ function ParentHomeworkScreen() {
       refreshControl={<RefreshControl refreshing={busy} onRefresh={() => { refreshSummary(); refresh(); }} tintColor={color.primary} />}
     >
       <DSText variant="display" style={{ paddingTop: 6 }}>Homework</DSText>
+      <ChildSwitcher children={linkedStudents} selectedId={activeId} onSelect={select} />
       {summary ? (
         <DSText variant="label" style={{ marginTop: -6 }}>
           {summary.student.name} · Class {summary.student.className}{summary.student.section}

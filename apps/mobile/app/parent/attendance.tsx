@@ -7,12 +7,13 @@ import React, { useCallback, useState } from "react";
 import { Pressable, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
-  DSText, ErrorState, Icon, ListRow, LoadingState,
+  DSText, EmptyState, ErrorState, Icon, ListRow, LoadingState,
   SectionCard, TonalTile
 } from "@/design-system/components";
 import { color, space } from "@/design-system/tokens";
 import { ParentShell } from "@/features/parent/shell";
 import { ChildSwitcher } from "@/features/parent/ChildSwitcher";
+import { useSelectChild, useSelectedChildId, useSelectedChildRaw } from "@/features/parent/SelectedChild";
 import { monthLabel, shiftMonth, useParentAttendance, useParentSummary } from "@/features/parent/hooks";
 
 const STATUS_TILE: Record<string, { bg: string; fg: string; icon: "check" | "close" | "schedule" }> = {
@@ -35,11 +36,12 @@ export default function ParentAttendanceRoute() {
 
 function ParentAttendanceScreen() {
   const insets = useSafeAreaInsets();
-  const [childId, setChildId] = useState<string | undefined>(undefined);
   const [month, setMonth] = useState(() => new Date().toISOString().slice(0, 7));
+  const rawChoice = useSelectedChildRaw();
   const { summary, linkedStudents, loading: summaryLoading, error: summaryError, refresh: refreshSummary } =
-    useParentSummary(childId);
-  const activeId = childId ?? summary?.student.id;
+    useParentSummary(rawChoice);
+  const select = useSelectChild();
+  const activeId = useSelectedChildId(linkedStudents);
   const { record, loading: recordLoading, error: recordError, refresh: refreshRecord } =
     useParentAttendance(activeId, month);
 
@@ -65,7 +67,7 @@ function ParentAttendanceScreen() {
       showsVerticalScrollIndicator={false}
       refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor={color.primary} />}
     >
-      <ChildSwitcher children={linkedStudents} selectedId={activeId} onSelect={setChildId} />
+      <ChildSwitcher children={linkedStudents} selectedId={activeId} onSelect={select} />
 
       <View style={styles.monthRow}>
         <Pressable

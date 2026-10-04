@@ -7,12 +7,14 @@ import { RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import {
-  Avatar, DSText, ErrorState, Icon, ListRow, LoadingState,
+  Avatar, DSText, EmptyState, ErrorState, Icon, ListRow, LoadingState,
   PillButton, SectionCard, TonalTile, useToast
 } from "@/design-system/components";
 import { color, space } from "@/design-system/tokens";
 import { useMobileSession } from "@/lib/mobileSession";
 import { formatMoney, initials, useParentSummary } from "@/features/parent/hooks";
+import { ChildSwitcher } from "@/features/parent/ChildSwitcher";
+import { useSelectChild, useSelectedChildId, useSelectedChildRaw } from "@/features/parent/SelectedChild";
 import { ParentShell } from "@/features/parent/shell";
 
 export default function ParentProfileRoute() {
@@ -28,7 +30,10 @@ function ParentProfileScreen() {
   const router = useRouter();
   const toast = useToast();
   const session = useMobileSession();
-  const { summary, linkedStudents, loading, error, refresh } = useParentSummary();
+  const rawChoice = useSelectedChildRaw();
+  const { summary, linkedStudents, loading, error, refresh } = useParentSummary(rawChoice);
+  const activeId = useSelectedChildId(linkedStudents);
+  const select = useSelectChild();
 
   const parentName = session.profile?.displayName ?? "Parent";
 
@@ -64,6 +69,8 @@ function ParentProfileScreen() {
       {loading && !summary ? <LoadingState /> : null}
       {error && !summary ? <ErrorState message={error} onRetry={refresh} /> : null}
 
+      <ChildSwitcher children={linkedStudents} selectedId={activeId} onSelect={select} />
+
       {/* children */}
       {linkedStudents.length > 1 ? (
         <SectionCard heading="MY CHILDREN">
@@ -82,7 +89,7 @@ function ParentProfileScreen() {
       {summary ? (
         <SectionCard heading="FEE RECEIPTS">
           {(summary.recentPayments ?? []).length === 0 ? (
-            <DSText variant="label">No payments recorded yet.</DSText>
+            <EmptyState icon="receipt" label="No payments recorded yet." />
           ) : (
             (summary.recentPayments ?? []).map((payment) => (
               <ListRow

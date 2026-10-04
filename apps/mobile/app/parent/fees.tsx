@@ -3,16 +3,17 @@
  * payment history from /api/portal/payments. Receipts open the share sheet
  * with data from /api/portal/payments/[paymentId]/receipt.
  */
-import React, { useCallback, useState } from "react";
+import React, { useCallback } from "react";
 import { RefreshControl, ScrollView, Share, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
-  DSText, ErrorState, Icon, ListRow, LoadingState,
+  DSText, EmptyState, ErrorState, Icon, ListRow, LoadingState,
   SectionCard, TonalTile, useToast
 } from "@/design-system/components";
 import { color, space } from "@/design-system/tokens";
 import { ParentShell } from "@/features/parent/shell";
 import { ChildSwitcher } from "@/features/parent/ChildSwitcher";
+import { useSelectChild, useSelectedChildId, useSelectedChildRaw } from "@/features/parent/SelectedChild";
 import { fetchReceipt } from "@/features/parent/api";
 import { formatMoney, useParentPayments, useParentSummary } from "@/features/parent/hooks";
 
@@ -27,10 +28,11 @@ export default function ParentFeesRoute() {
 function ParentFeesScreen() {
   const insets = useSafeAreaInsets();
   const toast = useToast();
-  const [childId, setChildId] = useState<string | undefined>(undefined);
+  const rawChoice = useSelectedChildRaw();
   const { summary, linkedStudents, loading: summaryLoading, error: summaryError, refresh: refreshSummary } =
-    useParentSummary(childId);
-  const activeId = childId ?? summary?.student.id;
+    useParentSummary(rawChoice);
+  const select = useSelectChild();
+  const activeId = useSelectedChildId(linkedStudents);
   const { payments, loading: paymentsLoading, error: paymentsError, refresh: refreshPayments } =
     useParentPayments(activeId);
 
@@ -72,7 +74,7 @@ function ParentFeesScreen() {
       showsVerticalScrollIndicator={false}
       refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor={color.primary} />}
     >
-      <ChildSwitcher children={linkedStudents} selectedId={activeId} onSelect={setChildId} />
+      <ChildSwitcher children={linkedStudents} selectedId={activeId} onSelect={select} />
 
       {summary ? (
         <SectionCard heading="FEE SUMMARY">
@@ -105,7 +107,7 @@ function ParentFeesScreen() {
         {paymentsError && payments.length === 0 ? (
           <ErrorState message={paymentsError} onRetry={refresh} />
         ) : payments.length === 0 ? (
-          <DSText variant="label">No payments recorded yet.</DSText>
+          <EmptyState icon="receipt" label="No payments recorded yet." />
         ) : (
           payments.map((payment) => (
             <ListRow
