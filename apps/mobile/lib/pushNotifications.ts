@@ -90,12 +90,13 @@ export function setupPushListeners(): () => void {
   });
 
   // Re-register when the OS rotates the device token (guarded: the API is
-  // version-dependent and its absence must not break startup).
+  // version-dependent and its absence must not break startup; on web the
+  // listener is a no-op, so skip it there to avoid a console warning).
   const api = Notifications as unknown as {
     addPushTokenListener?: (listener: () => void) => { remove: () => void };
   };
   const tokenSub =
-    typeof api.addPushTokenListener === "function"
+    Platform.OS !== "web" && typeof api.addPushTokenListener === "function"
       ? api.addPushTokenListener(() => {
           void ensurePushRegistration();
         })
