@@ -1,7 +1,15 @@
 import { Platform } from "react-native";
 import { auth } from "./firebase";
 
-const API_URL = process.env.EXPO_PUBLIC_WEB_API_URL?.replace(/\/$/, "");
+const ENV_URL = process.env.EXPO_PUBLIC_WEB_API_URL?.replace(/\/$/, "");
+// On web with no baked URL, talk to whichever host served the app — this
+// keeps previews and deployments working without rebuilding per host.
+// (Native has no page origin, so it still requires the env var.)
+const WEB_ORIGIN =
+  Platform.OS === "web" && typeof window !== "undefined" && window.location?.origin
+    ? window.location.origin.replace(/\/$/, "")
+    : "";
+const API_URL = ENV_URL || WEB_ORIGIN;
 if (!API_URL && Platform.OS !== "web" && __DEV__) {
   console.warn("[MobileAPI] EXPO_PUBLIC_WEB_API_URL is not set. Native API calls will fail.");
 }
