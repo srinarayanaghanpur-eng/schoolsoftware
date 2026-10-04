@@ -10,11 +10,11 @@
  * fetch when the endpoint lands; the section structure already handles data.
  */
 import React from "react";
-import { RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import {
-  Avatar, Badge, DSText, ErrorState, Hero, Icon, ListRow, LoadingState,
+  Avatar, DSText, EmptyState, ErrorState, Hero, Icon, ListRow, LoadingState,
   PillButton, PressableScale, ScreenHeader, SectionCard, StatTile, TonalTile, useToast
 } from "@/design-system/components";
 import { color, radius, space } from "@/design-system/tokens";
@@ -31,20 +31,6 @@ const QUICK_ACTIONS = [
   { key: "tasks", icon: "task-alt" as const, label: "Tasks", href: "/teacher/tasks" },
   { key: "inbox", icon: "mail-outline" as const, label: "Inbox", href: "/teacher/inbox" }
 ];
-
-/**
- * PLACEHOLDER — sample timetable, shown until /api/teacher/timetable exists.
- * Replace `TODAY_CLASSES` with the fetched schedule; the render loop below is
- * already data-driven.
- */
-const TODAY_CLASSES = [
-  { id: "now", subject: "Mathematics · 9A", meta: "Now · Rm 301", live: true },
-  { id: "free", subject: "Free period", meta: "11:15 – 12:00", live: false },
-  { id: "next", subject: "Mathematics · 10B", meta: "12:10 – 12:55 · Rm 108", live: false }
-];
-
-/** PLACEHOLDER — top principal-assigned task, until /api/tasks exists. */
-const TOP_TASK = { title: "Upload Unit 4 test marks", from: "Principal", due: "Today, 4:00 PM", pending: 3 };
 
 export default function TeacherHomeRoute() {
   return (
@@ -75,7 +61,6 @@ function TeacherHome() {
     <ScrollView
       contentContainerStyle={[styles.page, { paddingTop: insets.top + space.xs }]}
       showsVerticalScrollIndicator={false}
-      refreshControl={<RefreshControl refreshing={loading} onRefresh={() => undefined} tintColor={color.primary} />}
     >
       <ScreenHeader
         eyebrow={`${greeting()} · ${dateLabel()}`}
@@ -137,7 +122,7 @@ function TeacherHome() {
         </Hero>
       )}
 
-      {/* today's classes (placeholder timetable) */}
+      {/* today's classes — no timetable endpoint yet, so say so plainly */}
       <SectionCard
         heading="TODAY’S CLASSES"
         trailing={
@@ -146,37 +131,12 @@ function TeacherHome() {
           </PressableScale>
         }
       >
-        {TODAY_CLASSES.map((cls) => (
-          <View key={cls.id} style={[styles.classRow, cls.live && styles.classRowLive]}>
-            <View style={[styles.dot, { backgroundColor: cls.live ? color.primary : color.faint }]} />
-            <View style={{ flex: 1, minWidth: 0 }}>
-              <DSText variant="bodyMedium" tint={cls.live ? color.onPrimaryContainer : color.ink} numberOfLines={1}>
-                {cls.subject}
-              </DSText>
-              <DSText variant="label" tint={cls.live ? color.primaryDeep : color.muted} numberOfLines={1}>
-                {cls.meta}
-              </DSText>
-            </View>
-            {cls.live ? (
-              <PillButton
-                label="Mark"
-                icon="how-to-reg"
-                onPress={() => router.push("/teacher/attendance" as never)}
-              />
-            ) : null}
-          </View>
-        ))}
+        <EmptyState icon="event" label="Your timetable will appear here once the school publishes it." />
       </SectionCard>
 
-      {/* tasks summary (placeholder) */}
-      <SectionCard heading="TASKS" trailing={<Badge label={`${TOP_TASK.pending} due`} />}>
-        <ListRow
-          leading={<TonalTile bg={color.warningSurface}><Icon name="upload-file" size={19} tint={color.warning} /></TonalTile>}
-          title={TOP_TASK.title}
-          subtitle={`From ${TOP_TASK.from} · due ${TOP_TASK.due}`}
-          chevron
-          onPress={() => router.push("/teacher/tasks" as never)}
-        />
+      {/* tasks — no tasks endpoint yet, so say so plainly */}
+      <SectionCard heading="TASKS">
+        <EmptyState icon="task-alt" label="Tasks from the principal will appear here." />
       </SectionCard>
 
       {/* quick actions */}
@@ -260,16 +220,6 @@ const styles = StyleSheet.create({
   },
   heroTitle: { fontSize: 15, fontWeight: "600", color: color.onPrimary },
   heroMeta: { fontSize: 12.5, color: color.onPrimary, opacity: 0.8, marginTop: 2 },
-  classRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: space.md,
-    paddingVertical: 10,
-    paddingHorizontal: space.md,
-    borderRadius: radius.sm + 2
-  },
-  classRowLive: { backgroundColor: color.primaryContainer },
-  dot: { width: 8, height: 8, borderRadius: 4 },
   statRow: { flexDirection: "row", gap: 10 },
   quickGrid: { flexDirection: "row", gap: 10 },
   quickTile: {
