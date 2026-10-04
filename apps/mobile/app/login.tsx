@@ -19,6 +19,24 @@ import { DSText, Icon, PressableScale } from "@/design-system/components";
 import { color, elevation, radius, space } from "@/design-system/tokens";
 import { dashboardPathForRole } from "@/lib/roleRouting";
 
+/** Firebase speaks in codes — parents should see plain words. */
+function friendlyAuthMessage(error: unknown): string {
+  const code = error instanceof Error ? error.message : "";
+  if (code.includes("auth/invalid-credential") || code.includes("auth/wrong-password") || code.includes("auth/user-not-found")) {
+    return "Wrong login ID or password. Please try again.";
+  }
+  if (code.includes("auth/too-many-requests")) {
+    return "Too many tries. Please wait a few minutes and try again.";
+  }
+  if (code.includes("auth/network-request-failed")) {
+    return "No internet connection. Please check and try again.";
+  }
+  if (code.includes("auth/invalid-email")) {
+    return "That login ID doesn't look right. Please check it.";
+  }
+  return "Couldn't sign you in. Please check your details and try again.";
+}
+
 export default function Login() {
   const [employeeId, setEmployeeId] = useState("");
   const [password, setPassword] = useState("");
@@ -61,8 +79,7 @@ export default function Login() {
       redirectedRef.current = true;
       router.replace(path as never);
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Please check your credentials.";
-      setErrorMessage(message);
+      setErrorMessage(friendlyAuthMessage(error));
       await signOut(auth).catch(() => undefined);
       await clearMobileAuthStorage().catch(() => undefined);
     } finally {

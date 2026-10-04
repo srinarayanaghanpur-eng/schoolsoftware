@@ -2,8 +2,8 @@
  * Parent Profile tab — live summary data: parent identity, linked children,
  * fee receipts (recent payments), menu, logout.
  */
-import React from "react";
-import { RefreshControl, ScrollView, StyleSheet, View } from "react-native";
+import React, { useCallback, useEffect, useState } from "react";
+import { RefreshControl, ScrollView, StyleSheet, Switch, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import {
@@ -13,6 +13,7 @@ import {
 import { color, space } from "@/design-system/tokens";
 import { useMobileSession } from "@/lib/mobileSession";
 import { formatMoney, initials, useParentSummary } from "@/features/parent/hooks";
+import { fetchPushPreferences, updatePushPreferences, type PushPrefs } from "@/features/parent/api";
 import { ChildSwitcher } from "@/features/parent/ChildSwitcher";
 import { useSelectChild, useSelectedChildId, useSelectedChildRaw } from "@/features/parent/SelectedChild";
 import { ParentShell } from "@/features/parent/shell";
@@ -25,6 +26,14 @@ export default function ParentProfileRoute() {
   );
 }
 
+const PREF_ROWS: Array<{ key: keyof PushPrefs; title: string; subtitle: string }> = [
+  { key: "fees", title: "Fee reminders", subtitle: "Due dates and receipts" },
+  { key: "attendance", title: "Attendance", subtitle: "Absence alerts for your child" },
+  { key: "homework", title: "Homework", subtitle: "New homework assigned" },
+  { key: "notices", title: "Notices", subtitle: "School announcements" },
+  { key: "exams", title: "Exam results", subtitle: "Published results" }
+];
+
 function ParentProfileScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -36,6 +45,36 @@ function ParentProfileScreen() {
   const select = useSelectChild();
 
   const parentName = session.profile?.displayName ?? "Parent";
+
+  const [prefs, setPrefs] = useState<PushPrefs | null>(null);
+  const [prefsFailed, setPrefsFailed] = useState(false);
+
+  const loadPrefs = useCallback(async () => {
+    try {
+      const { prefs: fresh } = await fetchPushPreferences();
+      setPrefs(fresh);
+      setPrefsFailed(false);
+    } catch {
+      setPrefsFailed(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadPrefs();
+  }, [loadPrefs]);
+
+  const togglePref = useCallback(async (key: keyof PushPrefs) => {
+    if (!prefs) return;
+    const previous = prefs;
+    const next = { ...prefs, [key]: !prefs[key] };
+    setPrefs(next);
+    try {
+      await updatePushPreferences({ [key]: next[key] });
+    } catch {
+      setPrefs(previous);
+      toast.show("Couldn't save that setting. Please try again.");
+    }
+  }, [prefs, toast]);
 
   const logout = async () => {
     try {
@@ -115,6 +154,35 @@ function ParentProfileScreen() {
               subtitle="Pay at the school office or web portal"
             />
           ) : null}
+        </SectionCard>
+      ) : null}
+
+      {/* message settings */}
+      {prefs ? (
+        <SectionCard heading="MESSAGE SETTINGS">
+          {PREF_ROWS.map((row) => (
+            <ListRow
+              key={row.key}
+              title={row.title}
+              subtitle={row.subtitle}
+              trailing={
+                <Switch
+                  value={prefs[row.key]}
+                  onValueChange={() => void togglePref(row.key)}
+                  trackColor={{ false: color.outline, true: color.primary }}
+                />
+              }
+            />
+          ))}
+        </SectionCard>
+      ) : prefsFailed ? (
+        <SectionCard heading="MESSAGE SETTINGS">
+          <ListRow
+            title="Couldn't load message settings"
+            subtitle="Tap to retry"
+            chevron
+            onPress={() => void loadPrefs()}
+          />
         </SectionCard>
       ) : null}
 

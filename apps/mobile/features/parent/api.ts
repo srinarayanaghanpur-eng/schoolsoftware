@@ -94,6 +94,39 @@ async function portalGet<T>(path: string): Promise<T> {
   return result as T;
 }
 
+async function portalPut<T>(path: string, body: Record<string, unknown>): Promise<T> {
+  const user = auth.currentUser;
+  if (!user) throw new Error("Please sign in again.");
+  if (!API_REQUESTS_AVAILABLE) throw new Error("API URL not configured. Please set EXPO_PUBLIC_WEB_API_URL.");
+  const token = await user.getIdToken();
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify(body)
+  });
+  const result = (await response.json()) as { ok?: boolean; error?: string } & Record<string, unknown>;
+  if (!response.ok || result.ok === false) {
+    throw new Error(result.error ?? "Request failed. Please try again.");
+  }
+  return result as T;
+}
+
+export type PushPrefs = {
+  fees: boolean;
+  attendance: boolean;
+  homework: boolean;
+  notices: boolean;
+  exams: boolean;
+};
+
+export async function fetchPushPreferences() {
+  return portalGet<{ prefs: PushPrefs }>(`/api/push/preferences`);
+}
+
+export async function updatePushPreferences(prefs: Partial<PushPrefs>) {
+  return portalPut<{ prefs: PushPrefs }>(`/api/push/preferences`, { prefs });
+}
+
 export async function fetchSummary(studentId?: string) {
   const qs = studentId ? `?studentId=${encodeURIComponent(studentId)}` : "";
   return portalGet<{ summary: PortalSummary; linkedStudents: PortalStudent[] }>(`/api/portal/summary${qs}`);
