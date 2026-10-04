@@ -28,6 +28,7 @@ export function ChildSwitcher({
             accessibilityRole="tab"
             accessibilityState={{ selected: active }}
             accessibilityLabel={child.name}
+            hitSlop={8}
             onPress={() => onSelect(child.id)}
             style={[styles.chip, active && styles.chipActive]}
           >

@@ -4,7 +4,7 @@
  * with data from /api/portal/payments/[paymentId]/receipt.
  */
 import React, { useCallback } from "react";
-import { RefreshControl, ScrollView, Share, StyleSheet, View } from "react-native";
+import { FlatList, RefreshControl, Share, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   DSText, EmptyState, ErrorState, Icon, ListRow, LoadingState,
@@ -68,72 +68,81 @@ function ParentFeesScreen() {
     return <ErrorState message={summaryError || "No student is linked to this account yet."} onRetry={refresh} />;
   }
 
+  // Virtualized: payment history grows every term and must not all mount.
   return (
-    <ScrollView
+    <FlatList
+      data={payments}
+      keyExtractor={(payment) => payment.id}
+      renderItem={({ item: payment }) => (
+        <ListRow
+          leading={
+            <TonalTile bg={color.successContainer} size={36}>
+              <Icon name="receipt" size={18} tint={color.success} />
+            </TonalTile>
+          }
+          title={`${formatMoney(payment.amountPaid)} · ${payment.paymentMethod || "—"}`}
+          subtitle={`${(payment.createdAt || "").slice(0, 10)}${payment.receiptNumber ? ` · Receipt ${payment.receiptNumber}` : ""}`}
+          chevron
+          onPress={() => void shareReceipt(payment.id)}
+        />
+      )}
+      ItemSeparatorComponent={() => <View style={styles.separator} />}
       contentContainerStyle={[styles.page, { paddingTop: insets.top + space.sm }]}
       showsVerticalScrollIndicator={false}
       refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor={color.primary} />}
-    >
-      <ChildSwitcher children={linkedStudents} selectedId={activeId} onSelect={select} />
+      ListHeaderComponent={
+        <View style={styles.header}>
+          <ChildSwitcher children={linkedStudents} selectedId={activeId} onSelect={select} />
 
-      {summary ? (
-        <SectionCard heading="FEE SUMMARY">
-          <ListRow
-            leading={
-              <TonalTile bg={color.primaryContainer} size={36}>
-                <Icon name="payments" size={18} tint={color.onPrimaryContainer} />
-              </TonalTile>
-            }
-            title={`${formatMoney(summary.fees.paid)} paid of ${formatMoney(summary.fees.total)}`}
-            subtitle={summary.fees.status ? `Status: ${summary.fees.status}` : `${summary.student.name} · Class ${summary.student.className}${summary.student.section}`}
-          />
-          <ListRow
-            leading={
-              <TonalTile bg={summary.fees.due > 0 ? color.warningContainer : color.successContainer} size={36}>
-                <Icon
-                  name={summary.fees.due > 0 ? "schedule" : "check"}
-                  size={18}
-                  tint={summary.fees.due > 0 ? color.warning : color.success}
-                />
-              </TonalTile>
-            }
-            title={summary.fees.due > 0 ? `${formatMoney(summary.fees.due)} outstanding` : "No dues — all clear"}
-            subtitle={summary.fees.due > 0 ? "Pay at the school office or web portal" : undefined}
-          />
-        </SectionCard>
-      ) : null}
+          {summary ? (
+            <SectionCard heading="FEE SUMMARY">
+              <ListRow
+                leading={
+                  <TonalTile bg={color.primaryContainer} size={36}>
+                    <Icon name="payments" size={18} tint={color.onPrimaryContainer} />
+                  </TonalTile>
+                }
+                title={`${formatMoney(summary.fees.paid)} paid of ${formatMoney(summary.fees.total)}`}
+                subtitle={summary.fees.status ? `Status: ${summary.fees.status}` : `${summary.student.name} · Class ${summary.student.className}${summary.student.section}`}
+              />
+              <ListRow
+                leading={
+                  <TonalTile bg={summary.fees.due > 0 ? color.warningContainer : color.successContainer} size={36}>
+                    <Icon
+                      name={summary.fees.due > 0 ? "schedule" : "check"}
+                      size={18}
+                      tint={summary.fees.due > 0 ? color.warning : color.success}
+                    />
+                  </TonalTile>
+                }
+                title={summary.fees.due > 0 ? `${formatMoney(summary.fees.due)} outstanding` : "No dues — all clear"}
+                subtitle={summary.fees.due > 0 ? "Pay at the school office or web portal" : undefined}
+              />
+            </SectionCard>
+          ) : null}
 
-      <SectionCard heading="PAYMENT HISTORY">
-        {paymentsError && payments.length === 0 ? (
+          <DSText variant="overline">PAYMENT HISTORY</DSText>
+        </View>
+      }
+      ListEmptyComponent={
+        loading ? null : paymentsError ? (
           <ErrorState message={paymentsError} onRetry={refresh} />
-        ) : payments.length === 0 ? (
-          <EmptyState icon="receipt" label="No payments recorded yet." />
         ) : (
-          payments.map((payment) => (
-            <ListRow
-              key={payment.id}
-              leading={
-                <TonalTile bg={color.successContainer} size={36}>
-                  <Icon name="receipt" size={18} tint={color.success} />
-                </TonalTile>
-              }
-              title={`${formatMoney(payment.amountPaid)} · ${payment.paymentMethod || "—"}`}
-              subtitle={`${(payment.createdAt || "").slice(0, 10)}${payment.receiptNumber ? ` · Receipt ${payment.receiptNumber}` : ""}`}
-              chevron
-              onPress={() => void shareReceipt(payment.id)}
-            />
-          ))
-        )}
-      </SectionCard>
-
-      <View style={styles.hint}>
-        <DSText variant="label">Tap a payment to share its receipt.</DSText>
-      </View>
-    </ScrollView>
+          <EmptyState icon="receipt" label="No payments recorded yet." />
+        )
+      }
+      ListFooterComponent={
+        <View style={styles.hint}>
+          <DSText variant="label">Tap a payment to share its receipt.</DSText>
+        </View>
+      }
+    />
   );
 }
 
 const styles = StyleSheet.create({
   page: { paddingHorizontal: space.xl, paddingBottom: space.xl, gap: 14 },
+  header: { gap: 14 },
+  separator: { height: StyleSheet.hairlineWidth, backgroundColor: color.outline, marginLeft: 52 },
   hint: { alignItems: "center" }
 });

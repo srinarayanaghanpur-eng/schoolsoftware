@@ -5,6 +5,7 @@
  */
 import { auth } from "@/lib/firebase";
 import { API_BASE_URL, API_REQUESTS_AVAILABLE } from "@/lib/api";
+import { deduped } from "@/lib/fetchDedupe";
 
 export type PortalStudent = { id: string; name: string; className: string; section: string; admissionNo: string };
 export type PortalFees = { total: number; paid: number; due: number; status?: string; feeBalanceCarriedForward: number };
@@ -83,15 +84,18 @@ async function portalGet<T>(path: string): Promise<T> {
   const user = auth.currentUser;
   if (!user) throw new Error("Please sign in again.");
   if (!API_REQUESTS_AVAILABLE) throw new Error("API URL not configured. Please set EXPO_PUBLIC_WEB_API_URL.");
-  const token = await user.getIdToken();
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    headers: { Authorization: `Bearer ${token}` }
+  // Screens mount together and ask for the same URLs — share one request.
+  return deduped(`GET ${path}`, async () => {
+    const token = await user.getIdToken();
+    const response = await fetch(`${API_BASE_URL}${path}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    const result = (await response.json()) as { ok?: boolean; error?: string } & Record<string, unknown>;
+    if (!response.ok || result.ok === false) {
+      throw new Error(result.error ?? "Request failed. Please try again.");
+    }
+    return result as T;
   });
-  const result = (await response.json()) as { ok?: boolean; error?: string } & Record<string, unknown>;
-  if (!response.ok || result.ok === false) {
-    throw new Error(result.error ?? "Request failed. Please try again.");
-  }
-  return result as T;
 }
 
 async function portalPut<T>(path: string, body: Record<string, unknown>): Promise<T> {

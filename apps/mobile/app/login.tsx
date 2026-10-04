@@ -161,6 +161,7 @@ export default function Login() {
               />
               <PressableScale
                 accessibilityLabel={showPassword ? "Hide password" : "Show password"}
+                hitSlop={12}
                 onPress={() => setShowPassword((v) => !v)}
               >
                 <Icon name={showPassword ? "visibility-off" : "visibility"} size={20} tint={color.muted} />

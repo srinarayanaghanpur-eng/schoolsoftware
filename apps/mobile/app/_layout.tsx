@@ -10,6 +10,7 @@ import { Platform, StatusBar, StyleSheet, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { MobileSessionProvider } from "@/lib/mobileSession";
 import { setupPushListeners } from "@/lib/pushNotifications";
+import { ErrorBoundary } from "@/lib/ErrorBoundary";
 import { color } from "@/design-system/tokens";
 
 function PushBootstrap({ children }: { children: React.ReactNode }) {
@@ -23,11 +24,13 @@ export default function RootLayout() {
       <StatusBar barStyle="dark-content" backgroundColor={color.background} />
       <View style={styles.stage}>
         <View style={styles.appFrame}>
-          <MobileSessionProvider>
-            <PushBootstrap>
-              <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: color.background } }} />
-            </PushBootstrap>
-          </MobileSessionProvider>
+          <ErrorBoundary>
+            <MobileSessionProvider>
+              <PushBootstrap>
+                <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: color.background } }} />
+              </PushBootstrap>
+            </MobileSessionProvider>
+          </ErrorBoundary>
         </View>
       </View>
     </SafeAreaProvider>

@@ -74,18 +74,22 @@ export function PressableScale({
   onPress,
   children,
   style,
-  accessibilityLabel
+  accessibilityLabel,
+  hitSlop
 }: {
   onPress?: () => void;
   children: React.ReactNode;
   style?: StyleProp<ViewStyle>;
   accessibilityLabel?: string;
+  /** Expand the touch area without changing visuals (min 44px targets). */
+  hitSlop?: number;
 }) {
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
       onPress={onPress}
+      hitSlop={hitSlop}
       style={({ pressed }) => [style, pressed && { transform: [{ scale: motion.pressScale }], opacity: 0.92 }]}
     >
       {children}

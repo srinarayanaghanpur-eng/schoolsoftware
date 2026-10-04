@@ -6,7 +6,7 @@
  * here means one implementation instead of two drifting copies.
  */
 import React, { useMemo, useState } from "react";
-import { RefreshControl, ScrollView, StyleSheet, View } from "react-native";
+import { FlatList, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import {
@@ -45,54 +45,58 @@ export function StaffScreen() {
 
   const attendanceRate = attendance.total > 0 ? (attendance.present / attendance.total) * 100 : 0;
 
+  // Virtualized: the directory holds every staff member, not just a page.
   return (
-    <ScrollView
+    <FlatList
+      data={visible}
+      keyExtractor={(member) => member.id}
+      renderItem={({ item: member }) => (
+        <ListRow
+          leading={<Avatar label={initials(member.fullName ?? "?")} size={40} />}
+          title={member.fullName ?? "Unnamed"}
+          subtitle={`${member.subject ?? "—"}${member.employeeId ? ` · ${member.employeeId}` : ""}`}
+          trailing={
+            <Badge
+              label={(member.status ?? "active") === "active" ? "Active" : "Inactive"}
+              bg={(member.status ?? "active") === "active" ? color.successContainer : color.surfaceVariant}
+              fg={(member.status ?? "active") === "active" ? color.onSuccessContainer : color.ink2}
+            />
+          }
+        />
+      )}
+      ItemSeparatorComponent={() => <View style={styles.separator} />}
       contentContainerStyle={[styles.page, { paddingTop: insets.top + space.xs }]}
       showsVerticalScrollIndicator={false}
       refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor={color.primary} />}
-    >
-      <PageTitle>Staff</PageTitle>
+      ListHeaderComponent={
+        <View style={styles.header}>
+          <PageTitle>Staff</PageTitle>
 
-      <View style={styles.statRow}>
-        <StatTile value={attendance.present} label="Present today" tint={color.success} />
-        <StatTile value={attendance.late} label="Late" tint={color.warning} />
-        <StatTile value={attendance.absent} label="Absent" tint={color.error} />
-        <StatTile value={staff.length} label="On roll" tint={color.primary} />
-      </View>
+          <View style={styles.statRow}>
+            <StatTile value={attendance.present} label="Present today" tint={color.success} />
+            <StatTile value={attendance.late} label="Late" tint={color.warning} />
+            <StatTile value={attendance.absent} label="Absent" tint={color.error} />
+            <StatTile value={staff.length} label="On roll" tint={color.primary} />
+          </View>
 
-      <SectionCard heading="TODAY’S ATTENDANCE">
-        <ProgressRow
-          label="Staff present"
-          percent={attendanceRate}
-          valueLabel={`${attendance.present} / ${attendance.total}`}
-          tint={attendanceRate >= 90 ? color.success : color.warning}
-        />
-      </SectionCard>
-
-      <FilterChips options={STAFF_FILTERS} value={filter} onChange={setFilter} />
-
-      <SectionCard heading={`${visible.length} STAFF`}>
-        {visible.length === 0 ? (
-          <EmptyState icon="groups" label={`No ${filter.toLowerCase()} staff to show.`} />
-        ) : (
-          visible.map((member) => (
-            <ListRow
-              key={member.id}
-              leading={<Avatar label={initials(member.fullName ?? "?")} size={40} />}
-              title={member.fullName ?? "Unnamed"}
-              subtitle={`${member.subject ?? "—"}${member.employeeId ? ` · ${member.employeeId}` : ""}`}
-              trailing={
-                <Badge
-                  label={(member.status ?? "active") === "active" ? "Active" : "Inactive"}
-                  bg={(member.status ?? "active") === "active" ? color.successContainer : color.surfaceVariant}
-                  fg={(member.status ?? "active") === "active" ? color.onSuccessContainer : color.ink2}
-                />
-              }
+          <SectionCard heading="TODAY’S ATTENDANCE">
+            <ProgressRow
+              label="Staff present"
+              percent={attendanceRate}
+              valueLabel={`${attendance.present} / ${attendance.total}`}
+              tint={attendanceRate >= 90 ? color.success : color.warning}
             />
-          ))
-        )}
-      </SectionCard>
-    </ScrollView>
+          </SectionCard>
+
+          <FilterChips options={STAFF_FILTERS} value={filter} onChange={setFilter} />
+
+          <DSText variant="overline">{`${visible.length} STAFF`}</DSText>
+        </View>
+      }
+      ListEmptyComponent={
+        <EmptyState icon="groups" label={`No ${filter.toLowerCase()} staff to show.`} />
+      }
+    />
   );
 }
 
@@ -298,6 +302,8 @@ export function ManagementProfileScreen() {
 
 const styles = StyleSheet.create({
   page: { paddingHorizontal: space.xl, paddingBottom: space.xl, gap: 14 },
+  header: { gap: 14 },
+  separator: { height: StyleSheet.hairlineWidth, backgroundColor: color.outline, marginLeft: 56 },
   statRow: { flexDirection: "row", gap: space.sm },
   identityRow: { flexDirection: "row", alignItems: "center", gap: 14, paddingTop: 10 },
   decisionRow: { flexDirection: "row", gap: space.md, marginTop: space.md }

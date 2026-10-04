@@ -73,6 +73,7 @@ function ParentAttendanceScreen() {
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Previous month"
+          hitSlop={12}
           onPress={() => setMonth((m) => shiftMonth(m, -1))}
           style={styles.monthBtn}
         >
@@ -82,6 +83,7 @@ function ParentAttendanceScreen() {
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Next month"
+          hitSlop={12}
           disabled={!canGoNext}
           onPress={() => setMonth((m) => shiftMonth(m, 1))}
           style={[styles.monthBtn, !canGoNext && styles.monthBtnDisabled]}
