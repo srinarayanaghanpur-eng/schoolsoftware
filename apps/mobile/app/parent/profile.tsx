@@ -3,10 +3,10 @@
  * fee receipts (recent payments), menu, logout.
  */
 import React, { useCallback, useEffect, useState } from "react";
-import { Alert, RefreshControl, ScrollView, StyleSheet, Switch, View } from "react-native";
+import { RefreshControl, ScrollView, StyleSheet, Switch, View } from "react-native";
 import { useRouter } from "expo-router";
 import {
-  Avatar, Badge, DSText, EmptyState, ErrorState, Icon, ListRow, LoadingState,
+  Avatar, Badge, BottomSheet, DSText, EmptyState, ErrorState, Icon, ListRow, LoadingState,
   PageTitle, PillButton, SectionCard, TonalTile, useToast
 } from "@/design-system/components";
 import { radius, space } from "@/design-system/tokens";
@@ -97,12 +97,8 @@ function ParentProfileScreen() {
     }
   };
 
-  const confirmLogout = () => {
-    Alert.alert("Log out?", "You are getting logged out from this device.", [
-      { text: "Stay", style: "cancel" },
-      { text: "Log out", style: "destructive", onPress: () => { void logout(); } }
-    ]);
-  };
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const confirmLogout = () => setConfirmOpen(true);
 
   return (
     <ScrollView
@@ -256,6 +252,28 @@ function ParentProfileScreen() {
       </SectionCard>
 
       <PillButton label="Logout from this device" bg={t.bad} fg="#FFFFFF" onPress={confirmLogout} />
+
+      <BottomSheet
+        visible={confirmOpen}
+        title="Log out?"
+        onClose={() => setConfirmOpen(false)}
+      >
+        <DSText variant="label">You are getting logged out from this device.</DSText>
+        <View style={{ flexDirection: "row", gap: 10, marginTop: 16 }}>
+          <View style={{ flex: 1 }}>
+            <PillButton label="Stay" block onPress={() => setConfirmOpen(false)} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <PillButton
+              label="Log out"
+              block
+              bg={t.bad}
+              fg="#FFFFFF"
+              onPress={() => { setConfirmOpen(false); void logout(); }}
+            />
+          </View>
+        </View>
+      </BottomSheet>
     </ScrollView>
   );
 }
