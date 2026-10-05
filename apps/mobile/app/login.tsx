@@ -1,12 +1,14 @@
 /**
- * Login — rebuilt on the new design system.
- * Auth flow is unchanged (employeeIdToInternalEmail → Firebase sign-in →
- * resolveMobileSession); only the presentation is new.
+ * Login — rebuilt from scratch (new UI).
+ * Brand hero on top, form sheet below. Logic unchanged: Login ID sign-in
+ * via Firebase, session resolution, role-based redirect.
+ * The Login ID field is CAPS-LOCKED: every keystroke is uppercased so IDs
+ * like PAR001 can never mismatch on case.
  */
 import React, { useEffect, useRef, useState } from "react";
 import {
-  Keyboard, KeyboardAvoidingView, Platform, ScrollView, StyleSheet,
-  Text, TextInput, TouchableWithoutFeedback, View
+  KeyboardAvoidingView, Platform, ScrollView, StyleSheet,
+  Text, TextInput, View
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -16,7 +18,7 @@ import { auth } from "@/lib/firebase";
 import { clearMobileAuthStorage } from "@/lib/authStorage";
 import { resolveMobileSession, useMobileSession } from "@/lib/mobileSession";
 import { DSText, Icon, PressableScale } from "@/design-system/components";
-import { color, elevation, radius, space } from "@/design-system/tokens";
+import { color, radius, space } from "@/design-system/tokens";
 import { dashboardPathForRole } from "@/lib/roleRouting";
 
 /** Firebase speaks in codes — parents should see plain words. */
@@ -35,15 +37,6 @@ function friendlyAuthMessage(error: unknown): string {
     return "That login ID doesn't look right. Please check it.";
   }
   return "Couldn't sign you in. Please check your details and try again.";
-}
-
-/** Tap-outside-to-dismiss only makes sense where a software keyboard can
- *  cover the form. On web the wrapper's dismiss fires after the browser
- *  focuses the tapped input and immediately blurs it again, so text fields
- *  can never take focus — bypass it there. */
-function DismissKeyboard({ children }: { children: React.ReactNode }) {
-  if (Platform.OS === "web") return <>{children}</>;
-  return <TouchableWithoutFeedback onPress={Keyboard.dismiss}>{children}</TouchableWithoutFeedback>;
 }
 
 export default function Login() {
@@ -97,127 +90,141 @@ export default function Login() {
   };
 
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.flex}>
-      <DismissKeyboard>
+    <View style={styles.root}>
+      {/* brand hero */}
+      <View style={[styles.hero, { paddingTop: insets.top + space.xl }]}>
+        <View style={styles.logo}>
+          <Icon name="school" size={36} tint={color.onPrimary} />
+        </View>
+        <Text style={styles.schoolName}>Sri Narayana High School</Text>
+        <Text style={styles.schoolSub}>SCHOOL ERP · PARENT & STAFF APP</Text>
+      </View>
+
+      {/* form sheet */}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={styles.sheetWrap}
+      >
         <ScrollView
-          contentContainerStyle={[styles.page, { paddingTop: insets.top + space.xxl, paddingBottom: insets.bottom + space.xl }]}
+          contentContainerStyle={[styles.sheet, { paddingBottom: insets.bottom + space.xl }]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* brand */}
-          <View style={styles.brand}>
-            <View style={[styles.logo, elevation.hero]}>
-              <Icon name="school" size={34} tint={color.onPrimary} />
+          <DSText variant="title" style={styles.welcome}>Welcome back</DSText>
+          <DSText variant="label" style={styles.welcomeSub}>
+            Sign in with the login ID given by the school office.
+          </DSText>
+
+          {errorMessage || session.error ? (
+            <View style={styles.errorBox}>
+              <Icon name="error-outline" size={18} tint={color.error} />
+              <DSText variant="label" tint={color.error} style={{ flex: 1 }}>
+                {errorMessage ?? session.error}
+              </DSText>
             </View>
-            <Text style={styles.brandName}>Sri Narayana High School</Text>
-            <Text style={styles.brandSub}>School ERP</Text>
+          ) : null}
+
+          <DSText variant="overline" style={styles.fieldLabel}>LOGIN ID · CAPITALS</DSText>
+          <View style={styles.inputRow}>
+            <Icon name="badge" size={19} tint={color.muted} />
+            <TextInput
+              style={[styles.input, styles.capsInput]}
+              placeholder="e.g. PAR001"
+              placeholderTextColor={color.muted}
+              autoCapitalize="characters"
+              autoCorrect={false}
+              value={employeeId}
+              onChangeText={(text) => setEmployeeId(text.toUpperCase())}
+              returnKeyType="next"
+              onSubmitEditing={() => passwordRef.current?.focus()}
+            />
           </View>
 
-          {/* form */}
-          <View style={styles.formCard}>
-            <DSText variant="title" style={{ fontSize: 20 }}>Welcome back</DSText>
-            <DSText variant="label" style={{ marginTop: -2 }}>
-              Sign in with the login ID given by the school office.
-            </DSText>
-
-            {errorMessage || session.error ? (
-              <View style={styles.errorBox}>
-                <Icon name="error-outline" size={18} tint={color.error} />
-                <DSText variant="label" tint={color.error} style={{ flex: 1 }}>
-                  {errorMessage ?? session.error}
-                </DSText>
-              </View>
-            ) : null}
-
-            <DSText variant="overline" style={styles.fieldLabel}>LOGIN ID</DSText>
-            <View style={styles.inputRow}>
-              <Icon name="badge" size={19} tint={color.muted} />
-              <TextInput
-                style={styles.input}
-                placeholder="e.g. TCH001 or PAR001"
-                placeholderTextColor={color.muted}
-                autoCapitalize="characters"
-                autoCorrect={false}
-                value={employeeId}
-                onChangeText={setEmployeeId}
-                returnKeyType="next"
-                onSubmitEditing={() => passwordRef.current?.focus()}
-              />
-            </View>
-
-            <DSText variant="overline" style={styles.fieldLabel}>PASSWORD</DSText>
-            <View style={styles.inputRow}>
-              <Icon name="lock-outline" size={19} tint={color.muted} />
-              <TextInput
-                ref={passwordRef}
-                style={styles.input}
-                placeholder="Enter password"
-                placeholderTextColor={color.muted}
-                secureTextEntry={!showPassword}
-                value={password}
-                onChangeText={setPassword}
-                returnKeyType="go"
-                onSubmitEditing={login}
-              />
-              <PressableScale
-                accessibilityLabel={showPassword ? "Hide password" : "Show password"}
-                hitSlop={12}
-                onPress={() => setShowPassword((v) => !v)}
-              >
-                <Icon name={showPassword ? "visibility-off" : "visibility"} size={20} tint={color.muted} />
-              </PressableScale>
-            </View>
-
+          <DSText variant="overline" style={styles.fieldLabel}>PASSWORD</DSText>
+          <View style={styles.inputRow}>
+            <Icon name="lock-outline" size={19} tint={color.muted} />
+            <TextInput
+              ref={passwordRef}
+              style={styles.input}
+              placeholder="Enter password"
+              placeholderTextColor={color.muted}
+              secureTextEntry={!showPassword}
+              value={password}
+              onChangeText={setPassword}
+              returnKeyType="go"
+              onSubmitEditing={login}
+            />
             <PressableScale
-              accessibilityLabel="Sign in"
-              onPress={loading ? undefined : login}
-              style={[styles.button, loading && { opacity: 0.6 }]}
+              accessibilityLabel={showPassword ? "Hide password" : "Show password"}
+              hitSlop={12}
+              onPress={() => setShowPassword((v) => !v)}
             >
-              <Text style={styles.buttonText}>{loading ? "Signing in…" : "Sign in"}</Text>
-              {loading ? null : <Icon name="arrow-forward" size={19} tint={color.onPrimary} />}
+              <Icon name={showPassword ? "visibility-off" : "visibility"} size={20} tint={color.muted} />
             </PressableScale>
           </View>
+
+          <PressableScale
+            accessibilityLabel="Sign in"
+            onPress={loading ? undefined : login}
+            style={[styles.button, loading && { opacity: 0.6 }]}
+          >
+            <Text style={styles.buttonText}>{loading ? "Signing in…" : "Sign in"}</Text>
+            {loading ? null : <Icon name="arrow-forward" size={19} tint={color.onPrimary} />}
+          </PressableScale>
 
           <View style={styles.footer}>
             <Icon name="lock" size={13} tint={color.muted} />
             <DSText variant="caption">Secure sign-in · contact the office if you need access</DSText>
           </View>
         </ScrollView>
-      </DismissKeyboard>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1, backgroundColor: color.background },
-  page: { flexGrow: 1, justifyContent: "center", paddingHorizontal: space.xl, gap: space.xl },
-  brand: { alignItems: "center", gap: space.sm },
+  root: { flex: 1, backgroundColor: color.primaryDeep },
+  hero: {
+    alignItems: "center",
+    paddingBottom: space.xxl,
+    gap: space.sm
+  },
   logo: {
-    width: 76,
-    height: 76,
-    borderRadius: radius.xl,
-    backgroundColor: color.primaryGradientA,
+    width: 84,
+    height: 84,
+    borderRadius: 26,
+    backgroundColor: "rgba(255,255,255,0.16)",
+    borderWidth: 1.5,
+    borderColor: "rgba(255,255,255,0.35)",
     alignItems: "center",
     justifyContent: "center",
     marginBottom: space.xs
   },
-  brandName: {
-    fontSize: 22,
+  schoolName: {
+    fontSize: 23,
     fontWeight: "700",
-    color: color.ink,
+    color: color.onPrimary,
     letterSpacing: -0.4,
     textAlign: "center"
   },
-  brandSub: { fontSize: 13, fontWeight: "600", color: color.primary, letterSpacing: 0.5 },
-  formCard: {
-    backgroundColor: color.surface,
-    borderWidth: 1,
-    borderColor: color.outline,
-    borderRadius: radius.xl,
-    padding: 20,
-    gap: space.sm,
-    ...elevation.card
+  schoolSub: {
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 1.6,
+    color: "rgba(255,255,255,0.75)"
   },
+  sheetWrap: { flex: 1, marginTop: -space.xxl },
+  sheet: {
+    flexGrow: 1,
+    backgroundColor: color.background,
+    borderTopLeftRadius: radius.xl,
+    borderTopRightRadius: radius.xl,
+    paddingHorizontal: space.xl,
+    paddingTop: space.xl,
+    gap: space.sm
+  },
+  welcome: { fontSize: 20 },
+  welcomeSub: { marginTop: -2 },
   errorBox: {
     backgroundColor: color.errorContainer,
     borderRadius: radius.sm,
@@ -232,20 +239,21 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: space.sm,
-    backgroundColor: color.surfaceVariant,
+    backgroundColor: color.surface,
     borderWidth: 1,
-    borderColor: color.outline,
+    borderColor: color.outlineStrong,
     borderRadius: radius.md,
     paddingHorizontal: 14
   },
   input: {
     flex: 1,
-    paddingVertical: 14,
-    fontSize: 15,
+    paddingVertical: 15,
+    fontSize: 16,
     color: color.ink
   },
+  capsInput: { letterSpacing: 1.5, fontWeight: "600" },
   button: {
-    minHeight: 54,
+    minHeight: 56,
     backgroundColor: color.primary,
     borderRadius: radius.pill,
     flexDirection: "row",
@@ -255,5 +263,5 @@ const styles = StyleSheet.create({
     marginTop: space.lg
   },
   buttonText: { color: color.onPrimary, fontSize: 16, fontWeight: "600" },
-  footer: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: space.xs + 2 }
+  footer: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: space.xs + 2, marginTop: space.sm }
 });
