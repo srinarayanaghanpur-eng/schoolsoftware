@@ -5,12 +5,12 @@
  */
 import React, { useMemo } from "react";
 import { ScrollView, StyleSheet } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   Avatar, DSText, EmptyState, ErrorState, Icon, ListRow, LoadingState, PageTitle,
   SectionCard, TonalTile
 } from "@/design-system/components";
-import { color, space } from "@/design-system/tokens";
+import { space } from "@/design-system/tokens";
+import { useTheme } from "@/lib/Theme";
 import { useTeacherAttendanceData } from "@/lib/useTeacherAttendanceData";
 import { TeacherShell } from "@/features/teacher/shell";
 
@@ -23,7 +23,7 @@ export default function TeacherInboxRoute() {
 }
 
 function TeacherInbox() {
-  const insets = useSafeAreaInsets();
+  const { t } = useTheme();
   const { holidays, loading, error } = useTeacherAttendanceData();
 
   /** Management-declared holidays are the school's announcements to staff. */
@@ -47,7 +47,7 @@ function TeacherInbox() {
 
   return (
     <ScrollView
-      contentContainerStyle={[styles.page, { paddingTop: insets.top + space.xs }]}
+      contentContainerStyle={styles.page}
       showsVerticalScrollIndicator={false}
     >
       <PageTitle>Messages</PageTitle>
@@ -59,7 +59,7 @@ function TeacherInbox() {
           announcements.map((item) => (
             <ListRow
               key={`${item.date}-${item.title}`}
-              leading={<Avatar label="SO" size={44} bg={color.tileLavender} fg={color.primaryDeep} />}
+              leading={<Avatar label="SO" size={44} bg={t.tint} fg={t.blue} />}
               title={item.title}
               subtitle={`School office · ${new Date(item.date).toLocaleDateString("en-IN", {
                 day: "numeric",
@@ -78,8 +78,8 @@ function TeacherInbox() {
             <ListRow
               key={`${item.date}-${item.title}`}
               leading={
-                <TonalTile bg={color.tileSky}>
-                  <Icon name="campaign" size={19} tint={color.primary} />
+                <TonalTile bg={t.tint}>
+                  <Icon name="campaign" size={19} tint={t.blue} />
                 </TonalTile>
               }
               title={item.title}

@@ -3,20 +3,22 @@
  */
 import React from "react";
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Avatar, Badge, Card, DSText, EmptyState, ErrorState, ListRow, LoadingState, TonalTile } from "@/design-system/components";
-import { color, elevation, radius, space } from "@/design-system/tokens";
+import { Avatar, Badge, Card, DSText, EmptyState, ErrorState, ListRow, LoadingState, PageTitle, TonalTile } from "@/design-system/components";
+import { radius, space } from "@/design-system/tokens";
+import { useTheme } from "@/lib/Theme";
+import type { Palette } from "@/lib/Theme";
 import { ParentShell } from "@/features/parent/shell";
 import { ChildSwitcher } from "@/features/parent/ChildSwitcher";
 import { useSelectChild, useSelectedChildId, useSelectedChildRaw } from "@/features/parent/SelectedChild";
 import { formatDue, initials, subjectCode, useParentHomework, useParentSummary } from "@/features/parent/hooks";
 
-const SUBJECT_TILES: Record<string, { bg: string; fg: string }> = {
-  MATH: { bg: color.tileLavender, fg: color.primaryDeep },
-  SCI: { bg: color.tileMint, fg: color.success },
-  ENG: { bg: color.tileLemon, fg: color.onWarningDeep },
-  HIN: { bg: color.tileRose, fg: color.error }
-};
+function tileFor(code: string, t: Palette): { bg: string; fg: string } {
+  if (code === "MATH") return { bg: t.tint, fg: t.blue };
+  if (code === "SCI") return { bg: t.okBg, fg: t.ok };
+  if (code === "ENG") return { bg: t.warnBg, fg: t.warn };
+  if (code === "HIN") return { bg: t.badBg, fg: t.bad };
+  return { bg: t.tint, fg: t.blue };
+}
 
 export default function ParentHomeworkRoute() {
   return (
@@ -27,7 +29,7 @@ export default function ParentHomeworkRoute() {
 }
 
 function ParentHomeworkScreen() {
-  const insets = useSafeAreaInsets();
+  const { t } = useTheme();
   const rawChoice = useSelectedChildRaw();
   const { summary, linkedStudents, loading: summaryLoading, error: summaryError, refresh: refreshSummary } =
     useParentSummary(rawChoice);
@@ -39,23 +41,23 @@ function ParentHomeworkScreen() {
 
   return (
     <ScrollView
-      contentContainerStyle={[styles.page, { paddingTop: insets.top + space.sm }]}
+      contentContainerStyle={styles.page}
       showsVerticalScrollIndicator={false}
-      refreshControl={<RefreshControl refreshing={busy} onRefresh={() => { refreshSummary(); refresh(); }} tintColor={color.primary} />}
+      refreshControl={<RefreshControl refreshing={busy} onRefresh={() => { refreshSummary(); refresh(); }} tintColor={t.blue} />}
     >
-      <DSText variant="display" style={{ paddingTop: 6 }}>Homework</DSText>
+      <PageTitle>Homework</PageTitle>
       <ChildSwitcher children={linkedStudents} selectedId={activeId} onSelect={select} />
       {summary ? (
-        <View style={[styles.identityRow, elevation.card]}>
-          <Avatar label={initials(summary.student.name)} size={42} bg={color.tileSky} fg={color.primaryDeep} />
+        <Card style={styles.identityRow}>
+          <Avatar label={initials(summary.student.name)} size={42} bg={t.tint} fg={t.blue} />
           <View style={{ flex: 1, minWidth: 0 }}>
             <DSText variant="title" style={styles.identityName} numberOfLines={1}>{summary.student.name}</DSText>
             <DSText variant="label" numberOfLines={1}>
               Class {summary.student.className}{summary.student.section}
             </DSText>
           </View>
-          <Badge label={`${homework.length} given`} bg={color.tileLavender} fg={color.primaryDeep} />
-        </View>
+          <Badge label={`${homework.length} given`} bg={t.tint} fg={t.blue} />
+        </Card>
       ) : null}
 
       {busy && homework.length === 0 ? <LoadingState /> : null}
@@ -68,7 +70,7 @@ function ParentHomeworkScreen() {
 
       {homework.map((hw) => {
         const code = subjectCode(hw.subject);
-        const tile = SUBJECT_TILES[code] ?? { bg: color.tileSky, fg: color.ink2 };
+        const tile = tileFor(code, t);
         const due = formatDue(hw.dueDate);
         return (
           <Card key={hw.id} style={styles.hwCard}>
@@ -83,8 +85,8 @@ function ParentHomeworkScreen() {
               trailing={
                 <Badge
                   label={due.label}
-                  bg={due.overdue ? color.tileRose : color.tileLemon}
-                  fg={due.overdue ? color.error : color.onWarningDeep}
+                  bg={due.overdue ? t.badBg : t.warnBg}
+                  fg={due.overdue ? t.bad : t.warn}
                 />
               }
             />
@@ -97,16 +99,12 @@ function ParentHomeworkScreen() {
 }
 
 const styles = StyleSheet.create({
-  page: { paddingHorizontal: space.xl, paddingBottom: space.xl, gap: 12 },
+  page: { paddingHorizontal: space.xl, paddingBottom: space.xl, paddingTop: space.md, gap: 12 },
   identityRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: space.md,
-    backgroundColor: color.surface,
-    borderWidth: 1,
-    borderColor: color.outline,
-    borderRadius: radius.xl,
-    padding: space.lg
+    borderRadius: radius.xl
   },
   identityName: { fontSize: 16, fontWeight: "700" },
   hwCard: { borderRadius: 20 }

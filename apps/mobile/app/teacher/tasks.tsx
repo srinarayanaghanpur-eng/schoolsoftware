@@ -7,9 +7,8 @@
  */
 import React from "react";
 import { ScrollView, StyleSheet } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { DSText, EmptyState, PageTitle, SectionCard } from "@/design-system/components";
-import { color, space } from "@/design-system/tokens";
+import { space } from "@/design-system/tokens";
 import { TeacherShell } from "@/features/teacher/shell";
 
 export default function TeacherTasksRoute() {
@@ -21,11 +20,9 @@ export default function TeacherTasksRoute() {
 }
 
 function TeacherTasks() {
-  const insets = useSafeAreaInsets();
-
   return (
     <ScrollView
-      contentContainerStyle={[styles.page, { paddingTop: insets.top + space.xs }]}
+      contentContainerStyle={styles.page}
       showsVerticalScrollIndicator={false}
     >
       <PageTitle>Tasks</PageTitle>

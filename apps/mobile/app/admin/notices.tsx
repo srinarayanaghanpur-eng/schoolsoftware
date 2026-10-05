@@ -3,21 +3,14 @@
  */
 import React from "react";
 import { RefreshControl, ScrollView, StyleSheet, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   DSText, EmptyState, ErrorState, Icon, ListRow, LoadingState, PageTitle,
   SectionCard, TonalTile
 } from "@/design-system/components";
-import { color, space } from "@/design-system/tokens";
+import { space } from "@/design-system/tokens";
+import { useTheme } from "@/lib/Theme";
 import { AdminShell } from "@/features/admin/shell";
 import { formatDate, useNotices } from "@/features/admin/hooks";
-
-const NOTICE_TILES = [
-  { bg: color.tileLavender, tint: color.primary },
-  { bg: color.tileSky, tint: color.primary },
-  { bg: color.tilePeach, tint: color.warning },
-  { bg: color.tileMint, tint: color.success }
-];
 
 export default function AdminNoticesRoute() {
   return (
@@ -28,17 +21,24 @@ export default function AdminNoticesRoute() {
 }
 
 function AdminNotices() {
-  const insets = useSafeAreaInsets();
+  const { t } = useTheme();
   const { notices, loading, error, refresh } = useNotices();
+
+  const tiles = [
+    { bg: t.tint, tint: t.blue },
+    { bg: t.tint, tint: t.blue },
+    { bg: t.warnBg, tint: t.warn },
+    { bg: t.okBg, tint: t.ok }
+  ];
 
   if (loading && notices.length === 0) return <LoadingState label="Loading notices…" />;
   if (error && notices.length === 0) return <ErrorState message={error} onRetry={refresh} />;
 
   return (
     <ScrollView
-      contentContainerStyle={[styles.page, { paddingTop: insets.top + space.xs }]}
+      contentContainerStyle={styles.page}
       showsVerticalScrollIndicator={false}
-      refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor={color.primary} />}
+      refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor={t.blue} />}
     >
       <PageTitle>Notices</PageTitle>
 
@@ -47,10 +47,10 @@ function AdminNotices() {
           <EmptyState icon="campaign" label="No notices published yet." />
         ) : (
           notices.map((notice, index) => {
-            const tile = NOTICE_TILES[index % NOTICE_TILES.length];
+            const tile = tiles[index % tiles.length];
             return (
               <View key={notice.id}>
-                {index > 0 ? <View style={styles.divider} /> : null}
+                {index > 0 ? <View style={[styles.divider, { backgroundColor: t.line }]} /> : null}
                 <ListRow
                   leading={
                     <TonalTile bg={tile.bg}>
@@ -75,6 +75,6 @@ function AdminNotices() {
 }
 
 const styles = StyleSheet.create({
-  page: { paddingHorizontal: space.xl, paddingBottom: space.xl, gap: 14 },
-  divider: { height: StyleSheet.hairlineWidth, backgroundColor: color.outline }
+  page: { paddingHorizontal: space.xl, paddingBottom: space.xl, paddingTop: space.md, gap: 14 },
+  divider: { height: StyleSheet.hairlineWidth }
 });

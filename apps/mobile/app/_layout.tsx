@@ -8,9 +8,18 @@ import React, { useEffect } from "react";
 import { Stack } from "expo-router";
 import { Platform, StatusBar, StyleSheet, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { useFonts } from "expo-font";
+import {
+  PlusJakartaSans_400Regular,
+  PlusJakartaSans_500Medium,
+  PlusJakartaSans_600SemiBold,
+  PlusJakartaSans_700Bold,
+  PlusJakartaSans_800ExtraBold
+} from "@expo-google-fonts/plus-jakarta-sans";
 import { MobileSessionProvider } from "@/lib/mobileSession";
 import { setupPushListeners } from "@/lib/pushNotifications";
 import { ErrorBoundary } from "@/lib/ErrorBoundary";
+import { ThemeProvider } from "@/lib/Theme";
 import { color } from "@/design-system/tokens";
 
 function PushBootstrap({ children }: { children: React.ReactNode }) {
@@ -19,17 +28,27 @@ function PushBootstrap({ children }: { children: React.ReactNode }) {
 }
 
 export default function RootLayout() {
+  const [fontsLoaded] = useFonts({
+    PlusJakartaSans_400Regular,
+    PlusJakartaSans_500Medium,
+    PlusJakartaSans_600SemiBold,
+    PlusJakartaSans_700Bold,
+    PlusJakartaSans_800ExtraBold
+  });
+  if (!fontsLoaded) return null;
   return (
     <SafeAreaProvider>
       <StatusBar barStyle="dark-content" backgroundColor={color.background} />
       <View style={styles.stage}>
         <View style={styles.appFrame}>
           <ErrorBoundary>
-            <MobileSessionProvider>
-              <PushBootstrap>
-                <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: color.background } }} />
-              </PushBootstrap>
-            </MobileSessionProvider>
+            <ThemeProvider>
+              <MobileSessionProvider>
+                <PushBootstrap>
+                  <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: color.background } }} />
+                </PushBootstrap>
+              </MobileSessionProvider>
+            </ThemeProvider>
           </ErrorBoundary>
         </View>
       </View>

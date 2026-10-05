@@ -4,28 +4,27 @@
  */
 import React from "react";
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
+import { LinearGradient } from "expo-linear-gradient";
 import {
   Avatar, Badge, Card, DSText, ErrorState, Icon, ListRow, LoadingState,
-  PillButton, PressableScale, SectionCard, TonalTile, useToast
+  PillButton, PressableScale, ScreenHeader, SectionCard, TonalTile, useToast
 } from "@/design-system/components";
-import { color, elevation, radius, space } from "@/design-system/tokens";
+import { radius, space } from "@/design-system/tokens";
+import { useTheme } from "@/lib/Theme";
 import { useMobileSession } from "@/lib/mobileSession";
 import { ParentShell } from "@/features/parent/shell";
 import { ChildSwitcher } from "@/features/parent/ChildSwitcher";
 import { useSelectChild, useSelectedChildId, useSelectedChildRaw } from "@/features/parent/SelectedChild";
 import { formatDue, formatMoney, greeting, initials, subjectCode, useParentHomework, useParentSummary } from "@/features/parent/hooks";
+import type { Palette } from "@/lib/Theme";
 
-const SUBJECT_TILES: Record<string, { bg: string; fg: string }> = {
-  MATH: { bg: color.tileLavender, fg: color.primaryDeep },
-  SCI: { bg: color.tileMint, fg: color.success },
-  ENG: { bg: color.tileLemon, fg: color.onWarningDeep },
-  HIN: { bg: color.tileRose, fg: color.error }
-};
-
-function tileFor(code: string) {
-  return SUBJECT_TILES[code] ?? { bg: color.tileSky, fg: color.ink2 };
+function tileFor(code: string, t: Palette): { bg: string; fg: string } {
+  if (code === "MATH") return { bg: t.tint, fg: t.blue };
+  if (code === "SCI") return { bg: t.okBg, fg: t.ok };
+  if (code === "ENG") return { bg: t.warnBg, fg: t.warn };
+  if (code === "HIN") return { bg: t.badBg, fg: t.bad };
+  return { bg: t.tint, fg: t.blue };
 }
 
 export default function ParentHomeRoute() {
@@ -37,7 +36,7 @@ export default function ParentHomeRoute() {
 }
 
 function ParentHome() {
-  const insets = useSafeAreaInsets();
+  const { t } = useTheme();
   const router = useRouter();
   const toast = useToast();
   const { profile } = useMobileSession();
@@ -57,102 +56,125 @@ function ParentHome() {
 
   return (
     <ScrollView
-      contentContainerStyle={[styles.page, { paddingTop: insets.top + space.xs }]}
+      contentContainerStyle={styles.page}
       showsVerticalScrollIndicator={false}
-      refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor={color.primary} />}
+      refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor={t.blue} />}
     >
-      {/* delivery-app identity header */}
-      <View style={styles.headerRow}>
-        <Avatar label={initials(parentName)} size={46} bg={color.primary} fg={color.onPrimary} />
-        <View style={{ flex: 1, minWidth: 0 }}>
-          <DSText variant="label" tint={color.ink3} style={{ fontWeight: "500" }}>{greeting()}</DSText>
-          <DSText variant="title" style={styles.headerName} numberOfLines={1}>{parentName}</DSText>
-        </View>
-        <Badge label={`Class ${student.className}`} bg={color.tileLavender} fg={color.primaryDeep} />
-      </View>
+      {/* greeting header — Welcome small + name h1 */}
+      <ScreenHeader eyebrow={`Welcome · ${greeting()}`} title={parentName} />
 
       <ChildSwitcher children={linkedStudents} selectedId={activeId} onSelect={select} />
 
       {/* child identity card */}
-      <View style={[styles.childCard, elevation.card]}>
-        <Avatar label={initials(student.name)} size={50} bg={color.tileSky} fg={color.primaryDeep} />
+      <Card style={styles.childCard}>
+        <Avatar label={initials(student.name)} size={50} bg={t.tint} fg={t.blue} />
         <View style={{ flex: 1, minWidth: 0 }}>
-          <Text style={styles.childName} numberOfLines={1}>{student.name}</Text>
-          <Text style={styles.childMeta} numberOfLines={1}>
+          <Text style={[styles.childName, { color: t.ink }]} numberOfLines={1}>{student.name}</Text>
+          <Text style={[styles.childMeta, { color: t.mute }]} numberOfLines={1}>
             Class {student.className}{student.section ? student.section : ""} · Adm {student.admissionNo}
           </Text>
           <View style={styles.chipRow}>
-            <Badge label={`Class ${student.className}${student.section ? student.section : ""}`} bg={color.tileLavender} fg={color.primaryDeep} />
+            <Badge label={`Class ${student.className}${student.section ? student.section : ""}`} bg={t.tint} fg={t.blue} />
           </View>
         </View>
-      </View>
+      </Card>
 
-      {/* fees due banner */}
+      {/* fees due hero — blue gradient + white Pay now */}
       {fees.due > 0 ? (
-        <View style={[styles.feeBanner, elevation.card]}>
-          <TonalTile bg={color.tilePeach}>
-            <Icon name="receipt-long" size={20} tint={color.onWarningDeep} />
-          </TonalTile>
+        <LinearGradient
+          colors={[t.heroFrom, t.heroMid, t.heroTo]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.hero}
+        >
+          <View style={styles.heroCircle} pointerEvents="none" />
           <View style={{ flex: 1, minWidth: 0 }}>
-            <DSText variant="label" tint={color.ink3}>Fees due</DSText>
-            <DSText variant="title" style={styles.feeAmount}>{formatMoney(fees.due)} outstanding</DSText>
+            <DSText variant="caption" tint="rgba(255,255,255,0.8)">FEES DUE</DSText>
+            <DSText variant="display" tint="#FFFFFF" style={styles.heroMoney} numberOfLines={1}>
+              {formatMoney(fees.due)}
+            </DSText>
+            <DSText variant="label" tint="rgba(255,255,255,0.8)">Pay at the school office or web portal</DSText>
           </View>
           <PillButton
             label="Pay now"
-            bg={color.primary}
-            fg={color.onPrimary}
+            bg="#FFFFFF"
+            fg={t.blue}
             onPress={() => toast.show("Please pay at the school office or web portal.")}
           />
-        </View>
+        </LinearGradient>
       ) : null}
 
-      {/* quick summary tiles */}
-      <View style={styles.statRow}>
-        <Card style={styles.statTile}>
-          <TonalTile bg={color.tileMint} size={36}>
-            <Icon name="payments" size={18} tint={color.success} />
-          </TonalTile>
-          <DSText variant="title" style={styles.statValue} numberOfLines={1}>{formatMoney(fees.paid)}</DSText>
-          <DSText variant="label" style={styles.statLabel}>Fees paid</DSText>
-        </Card>
-        <Card style={styles.statTile}>
-          <TonalTile bg={color.tileLavender} size={36}>
-            <Icon name="school" size={18} tint={color.primary} />
-          </TonalTile>
-          <DSText variant="title" style={styles.statValue}>{summary.marks.length}</DSText>
-          <DSText variant="label" style={styles.statLabel}>Published marks</DSText>
-        </Card>
-        <Card style={styles.statTile}>
-          <TonalTile bg={color.tileSky} size={36}>
-            <Icon name="event-available" size={18} tint={color.primaryDeep} />
-          </TonalTile>
-          <DSText variant="title" style={styles.statValue}>{summary.upcomingHolidays.length}</DSText>
-          <DSText variant="label" style={styles.statLabel}>Holidays ahead</DSText>
-        </Card>
+      {/* services 4-tile grid */}
+      <View>
+        <DSText variant="overline" style={styles.servicesLabel}>SERVICES</DSText>
+        <View style={styles.servicesGrid}>
+          <PressableScale
+            accessibilityLabel="Receipts"
+            onPress={() => router.push("/parent/fees" as never)}
+            style={[styles.serviceTile, { backgroundColor: t.card, borderColor: t.line }]}
+          >
+            <TonalTile bg={t.tint} size={38}>
+              <Icon name="receipt-long" size={20} tint={t.blue} />
+            </TonalTile>
+            <DSText variant="caption" tint={t.mute} style={styles.serviceLabel}>Receipts</DSText>
+          </PressableScale>
+          <PressableScale
+            accessibilityLabel="Report card"
+            onPress={() => toast.show("Report cards are available in the web portal.")}
+            style={[styles.serviceTile, { backgroundColor: t.card, borderColor: t.line }]}
+          >
+            <TonalTile bg={t.okBg} size={38}>
+              <Icon name="description" size={20} tint={t.ok} />
+            </TonalTile>
+            <DSText variant="caption" tint={t.mute} style={styles.serviceLabel}>Report card</DSText>
+          </PressableScale>
+          <PressableScale
+            accessibilityLabel="Timetable"
+            onPress={() => toast.show("Timetables are available in the web portal.")}
+            style={[styles.serviceTile, { backgroundColor: t.card, borderColor: t.line }]}
+          >
+            <TonalTile bg={t.warnBg} size={38}>
+              <Icon name="calendar-month" size={20} tint={t.warn} />
+            </TonalTile>
+            <DSText variant="caption" tint={t.mute} style={styles.serviceLabel}>Timetable</DSText>
+          </PressableScale>
+          <PressableScale
+            accessibilityLabel="Message"
+            onPress={() => router.push("/parent/messages" as never)}
+            style={[styles.serviceTile, { backgroundColor: t.card, borderColor: t.line }]}
+          >
+            <TonalTile bg={t.badBg} size={38}>
+              <Icon name="chat-bubble" size={20} tint={t.bad} />
+            </TonalTile>
+            <DSText variant="caption" tint={t.mute} style={styles.serviceLabel}>Message</DSText>
+          </PressableScale>
+        </View>
       </View>
 
       {/* recent receipts — latest few, full history lives on Fees */}
       {summary.recentPayments.length > 0 ? (
         <SectionCard heading="RECENT RECEIPTS">
-          {summary.recentPayments.slice(0, 3).map((payment) => (
-            <ListRow
-              key={payment.id}
-              leading={
-                <TonalTile bg={color.tileMint} size={36}>
-                  <Icon name="receipt" size={18} tint={color.success} />
-                </TonalTile>
-              }
-              title={`${formatMoney(payment.amountPaid)} · ${payment.paymentMethod || "—"}`}
-              subtitle={`${(payment.createdAt || "").slice(0, 10)}${payment.receiptNumber ? ` · Receipt ${payment.receiptNumber}` : ""}`}
-            />
+          {summary.recentPayments.slice(0, 3).map((payment, index) => (
+            <View key={payment.id}>
+              {index > 0 ? <View style={[styles.divider, { backgroundColor: t.line }]} /> : null}
+              <ListRow
+                leading={
+                  <TonalTile bg={t.okBg} size={36}>
+                    <Icon name="receipt" size={18} tint={t.ok} />
+                  </TonalTile>
+                }
+                title={`${formatMoney(payment.amountPaid)} · ${payment.paymentMethod || "—"}`}
+                subtitle={`${(payment.createdAt || "").slice(0, 10)}${payment.receiptNumber ? ` · Receipt ${payment.receiptNumber}` : ""}`}
+              />
+            </View>
           ))}
           <PressableScale
             accessibilityLabel="View all receipts"
             onPress={() => router.push("/parent/fees" as never)}
             style={styles.viewAll}
           >
-            <DSText variant="bodyMedium" tint={color.primary}>View all</DSText>
-            <Icon name="chevron-right" size={18} tint={color.primary} />
+            <DSText variant="bodyMedium" tint={t.blue}>View all</DSText>
+            <Icon name="chevron-right" size={18} tint={t.blue} />
           </PressableScale>
         </SectionCard>
       ) : null}
@@ -160,40 +182,45 @@ function ParentHome() {
       {/* homework today */}
       <SectionCard
         heading="HOMEWORK"
-        trailing={dueHomework.length > 0 ? <Badge label={`${dueHomework.length} due`} bg={color.tileLemon} fg={color.onWarningDeep} /> : undefined}
+        trailing={dueHomework.length > 0 ? <Badge label={`${dueHomework.length} due`} bg={t.warnBg} fg={t.warn} /> : undefined}
       >
         {dueHomework.length === 0 ? (
           <DSText variant="label">No homework due — all caught up.</DSText>
         ) : (
-          dueHomework.map((hw) => {
+          dueHomework.map((hw, index) => {
             const code = subjectCode(hw.subject);
-            const tile = tileFor(code);
+            const tile = tileFor(code, t);
             return (
-              <ListRow
-                key={hw.id}
-                leading={<TonalTile bg={tile.bg}><Text style={{ fontSize: 11, fontWeight: "700", color: tile.fg }}>{code}</Text></TonalTile>}
-                title={hw.title}
-                subtitle={`${hw.subject} · ${formatDue(hw.dueDate).label}`}
-                chevron
-                onPress={() => router.push("/parent/homework" as never)}
-              />
+              <View key={hw.id}>
+                {index > 0 ? <View style={[styles.divider, { backgroundColor: t.line }]} /> : null}
+                <ListRow
+                  leading={<TonalTile bg={tile.bg}><Text style={{ fontSize: 11, fontWeight: "700", color: tile.fg }}>{code}</Text></TonalTile>}
+                  title={hw.title}
+                  subtitle={`${hw.subject} · ${formatDue(hw.dueDate).label}`}
+                  chevron
+                  onPress={() => router.push("/parent/homework" as never)}
+                />
+              </View>
             );
           })
         )}
       </SectionCard>
 
-      {/* notices */}
+      {/* latest notice card */}
       <SectionCard heading="SCHOOL NOTICES">
         {notices.length === 0 ? (
           <DSText variant="label">No notices right now.</DSText>
         ) : (
           notices.slice(0, 3).map((notice, index) => (
-            <ListRow
-              key={index}
-              leading={<TonalTile bg={color.tileSky}><Icon name="campaign" size={19} tint={color.primary} /></TonalTile>}
-              title={notice.title}
-              subtitle={notice.body}
-            />
+            <View key={index} style={[styles.noticeCard, { backgroundColor: t.bg, borderColor: t.line }]}>
+              <View style={styles.noticeTop}>
+                <DSText variant="bodyMedium" style={{ flex: 1 }} numberOfLines={2}>{notice.title}</DSText>
+                {notice.createdAt ? (
+                  <Badge label={notice.createdAt.slice(0, 10)} bg={t.tint} fg={t.blue} />
+                ) : null}
+              </View>
+              <DSText variant="label" numberOfLines={3}>{notice.body}</DSText>
+            </View>
           ))
         )}
       </SectionCard>
@@ -202,59 +229,66 @@ function ParentHome() {
       <PressableScale
         accessibilityLabel="Message the school"
         onPress={() => router.push("/parent/messages" as never)}
-        style={styles.messageCta}
+        style={[styles.messageCta, { backgroundColor: t.blue }]}
       >
-        <Icon name="chat" size={18} tint={color.onPrimary} />
-        <DSText variant="bodyMedium" tint={color.onPrimary}>Message the school</DSText>
+        <Icon name="chat" size={18} tint="#FFFFFF" />
+        <DSText variant="bodyMedium" tint="#FFFFFF">Message the school</DSText>
       </PressableScale>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  page: { paddingHorizontal: space.xl, paddingBottom: space.xl, gap: 14 },
-  headerRow: {
+  page: { paddingHorizontal: space.xl, paddingBottom: space.xl, paddingTop: space.md, gap: 14 },
+  childCard: {
     flexDirection: "row",
     alignItems: "center",
-    gap: space.md,
-    paddingTop: space.sm,
-    backgroundColor: color.surface,
-    borderWidth: 1,
-    borderColor: color.outline,
+    gap: 14,
     borderRadius: radius.xl,
-    padding: space.lg
+    paddingHorizontal: 18
   },
-  headerName: { fontSize: 18, fontWeight: "700" },
-  childCard: {
-    backgroundColor: color.surface,
-    borderWidth: 1,
-    borderColor: color.outline,
+  childName: { fontSize: 16, fontWeight: "700" },
+  childMeta: { fontSize: 12.5, marginTop: 2 },
+  chipRow: { flexDirection: "row", marginTop: 6 },
+  hero: {
     borderRadius: radius.xl,
     padding: space.lg,
     paddingHorizontal: 18,
     flexDirection: "row",
     alignItems: "center",
-    gap: 14
+    gap: 14,
+    overflow: "hidden"
   },
-  childName: { fontSize: 16, fontWeight: "700", color: color.ink },
-  childMeta: { fontSize: 12.5, color: color.ink3, marginTop: 2 },
-  chipRow: { flexDirection: "row", marginTop: 6 },
-  feeBanner: {
-    backgroundColor: color.surface,
+  heroCircle: {
+    position: "absolute",
+    top: -70,
+    right: -50,
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    backgroundColor: "rgba(255,255,255,0.1)"
+  },
+  heroMoney: { fontSize: 26, fontWeight: "800" },
+  servicesLabel: { marginBottom: space.sm },
+  servicesGrid: { flexDirection: "row", gap: 10 },
+  serviceTile: {
+    flex: 1,
     borderWidth: 1,
-    borderColor: color.outline,
-    borderRadius: radius.xl,
-    padding: 14,
-    paddingHorizontal: space.lg,
-    flexDirection: "row",
+    borderRadius: radius.lg,
+    paddingVertical: space.md + 2,
+    paddingHorizontal: space.xs,
     alignItems: "center",
-    gap: space.md
+    gap: space.sm
   },
-  feeAmount: { fontWeight: "700", fontSize: 15 },
-  statRow: { flexDirection: "row", gap: 10 },
-  statTile: { flex: 1, padding: space.md, paddingHorizontal: space.sm, alignItems: "center", borderRadius: radius.lg, gap: 4 },
-  statValue: { fontSize: 16, fontWeight: "700" },
-  statLabel: { fontSize: 11, marginTop: 2, textAlign: "center" },
+  serviceLabel: { fontWeight: "500", textAlign: "center" },
+  divider: { height: StyleSheet.hairlineWidth },
+  noticeCard: {
+    borderWidth: 1,
+    borderRadius: radius.lg,
+    padding: space.md,
+    gap: 6
+  },
+  noticeTop: { flexDirection: "row", alignItems: "flex-start", gap: space.sm },
   viewAll: {
     flexDirection: "row",
     alignItems: "center",
@@ -263,7 +297,6 @@ const styles = StyleSheet.create({
     paddingVertical: space.sm
   },
   messageCta: {
-    backgroundColor: color.primary,
     borderRadius: radius.pill,
     padding: 13,
     flexDirection: "row",

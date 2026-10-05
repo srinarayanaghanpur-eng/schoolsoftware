@@ -14,10 +14,11 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
-  Avatar, DSText, EmptyState, ErrorState, Icon, ListRow, LoadingState,
-  PressableScale, TextField, TonalTile, useToast
+  Avatar, Badge, Card, DSText, EmptyState, ErrorState, Icon, LoadingState,
+  PageTitle, PressableScale, TextField, TonalTile, useToast
 } from "@/design-system/components";
-import { color, elevation, motion, radius, space } from "@/design-system/tokens";
+import { motion, radius, space } from "@/design-system/tokens";
+import { useTheme } from "@/lib/Theme";
 import { sendParentMessage } from "@/features/parent/api";
 import { useParentSummary } from "@/features/parent/hooks";
 import { ChildSwitcher } from "@/features/parent/ChildSwitcher";
@@ -33,6 +34,7 @@ export default function ParentMessagesRoute() {
 }
 
 function ParentMessagesScreen() {
+  const { t } = useTheme();
   const insets = useSafeAreaInsets();
   const toast = useToast();
   const rawChoice = useSelectedChildRaw();
@@ -80,16 +82,12 @@ function ParentMessagesScreen() {
   return (
     <View style={{ flex: 1 }}>
       <ScrollView
-        contentContainerStyle={[styles.page, { paddingTop: insets.top + space.sm }]}
+        contentContainerStyle={styles.page}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor={color.primary} />}
+        refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor={t.blue} />}
       >
-        <DSText variant="display" style={{ paddingHorizontal: space.xl, paddingTop: 6 }}>
-          Messages
-        </DSText>
-        <View style={{ paddingHorizontal: space.xl, paddingBottom: space.sm }}>
-          <ChildSwitcher children={linkedStudents} selectedId={activeId} onSelect={select} />
-        </View>
+        <PageTitle>Messages</PageTitle>
+        <ChildSwitcher children={linkedStudents} selectedId={activeId} onSelect={select} />
 
         {loading && !summary ? <LoadingState /> : null}
         {error && !summary ? <ErrorState message={error} onRetry={refresh} /> : null}
@@ -102,36 +100,43 @@ function ParentMessagesScreen() {
         ) : null}
 
         {notices.map((notice, index) => (
-          <View key={index} style={[styles.inboxRow, elevation.card]}>
-            <ListRow
-              leading={<Avatar label="SA" size={44} bg={color.tileLavender} fg={color.primaryDeep} />}
-              title={notice.title}
-              subtitle={notice.body}
-            />
-          </View>
+          <Card key={index} style={styles.noticeCard}>
+            <View style={styles.noticeTop}>
+              <Avatar label="SA" size={40} bg={t.tint} fg={t.blue} />
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <DSText variant="bodyMedium" numberOfLines={2}>{notice.title}</DSText>
+                {notice.createdAt ? (
+                  <View style={styles.pillRow}>
+                    <Badge label={notice.createdAt.slice(0, 10)} bg={t.tint} fg={t.blue} />
+                  </View>
+                ) : null}
+              </View>
+            </View>
+            <DSText variant="label" style={styles.noticeBody}>{notice.body}</DSText>
+          </Card>
         ))}
       </ScrollView>
 
       {/* compose FAB */}
-      <PressableScale accessibilityLabel="Message the school" onPress={openCompose} style={[styles.fab, { bottom: 20 + insets.bottom }]}>
-        <Icon name="edit" size={22} tint={color.onPrimary} />
+      <PressableScale accessibilityLabel="Message the school" onPress={openCompose} style={[styles.fab, { backgroundColor: t.blue, bottom: 20 + insets.bottom }]}>
+        <Icon name="edit" size={22} tint="#FFFFFF" />
       </PressableScale>
 
       {/* compose sheet (mirrors the design's thread overlay) */}
       {composeOpen ? (
         <Animated.View
-          style={[styles.sheet, {
+          style={[styles.sheet, { backgroundColor: t.bg }, {
             opacity: sheetAnim,
             transform: [{ translateY: sheetAnim.interpolate({ inputRange: [0, 1], outputRange: [28, 0] }) }]
           }]}
         >
           <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1 }}>
-            <View style={[styles.sheetHeader, { paddingTop: insets.top + 6 }]}>
+            <View style={[styles.sheetHeader, { borderBottomColor: t.line, paddingTop: insets.top + 6 }]}>
               <PressableScale accessibilityLabel="Close" onPress={() => setComposeOpen(false)} style={styles.backButton}>
-                <Icon name="arrow-back" size={22} tint={color.ink} />
+                <Icon name="arrow-back" size={22} tint={t.ink} />
               </PressableScale>
-              <TonalTile bg={color.tileLavender} size={36}>
-                <Icon name="school" size={18} tint={color.primary} />
+              <TonalTile bg={t.tint} size={36}>
+                <Icon name="school" size={18} tint={t.blue} />
               </TonalTile>
               <View>
                 <DSText variant="title" style={{ fontSize: 15 }}>School office</DSText>
@@ -140,7 +145,7 @@ function ParentMessagesScreen() {
             </View>
             <View style={{ flex: 1, padding: space.xl }}>
               <DSText variant="label" style={{ marginBottom: space.sm }}>
-                Your message goes to the school office and your child's class teacher.
+                Your message goes to the school office and your child&apos;s class teacher.
               </DSText>
               <TextField
                 value={body}
@@ -152,13 +157,13 @@ function ParentMessagesScreen() {
               />
             </View>
             <View style={[styles.sendRow, { paddingBottom: 14 + insets.bottom }]}>
-              <View style={styles.sendHint}>
+              <View style={[styles.sendHint, { backgroundColor: t.card, borderColor: t.line }]}>
                 <DSText variant="label" numberOfLines={1}>
                   {summary ? `About ${summary.student.name} · Class ${summary.student.className}` : "General enquiry"}
                 </DSText>
               </View>
-              <PressableScale accessibilityLabel="Send message" onPress={send} style={[styles.sendButton, sending && { opacity: 0.6 }]}>
-                <Icon name="send" size={20} tint={color.onPrimary} />
+              <PressableScale accessibilityLabel="Send message" onPress={send} style={[styles.sendButton, { backgroundColor: t.blue }, sending && { opacity: 0.6 }]}>
+                <Icon name="send" size={20} tint="#FFFFFF" />
               </PressableScale>
             </View>
           </KeyboardAvoidingView>
@@ -169,61 +174,37 @@ function ParentMessagesScreen() {
 }
 
 const styles = StyleSheet.create({
-  page: { paddingBottom: 100, gap: 10 },
-  inboxLabel: { paddingHorizontal: space.xl, marginTop: space.sm },
-  inboxRow: {
-    marginHorizontal: space.xl,
-    backgroundColor: color.surface,
-    borderWidth: 1,
-    borderColor: color.outline,
-    borderRadius: 18,
-    paddingHorizontal: space.lg,
-    paddingVertical: space.sm
-  },
+  page: { paddingHorizontal: space.xl, paddingBottom: 100, paddingTop: space.md, gap: 10 },
+  inboxLabel: { marginTop: space.sm },
+  noticeCard: { borderRadius: 18, gap: space.sm },
+  noticeTop: { flexDirection: "row", gap: space.md, alignItems: "flex-start" },
+  pillRow: { flexDirection: "row", marginTop: 6 },
+  noticeBody: { lineHeight: 18 },
   fab: {
     position: "absolute",
     right: 20,
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: color.primary,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: color.primary,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
     elevation: 6
   },
-  sheet: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: color.background, zIndex: 30 },
+  sheet: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 30 },
   sheetHeader: {
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
     paddingHorizontal: space.md,
     paddingBottom: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: color.outline
+    borderBottomWidth: StyleSheet.hairlineWidth
   },
   backButton: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center" },
   composeBox: { minHeight: 120 },
-  input: {
-    flex: 1,
-    backgroundColor: color.surface,
-    borderWidth: 1,
-    borderColor: color.outline,
-    borderRadius: radius.lg,
-    padding: space.lg,
-    fontSize: 14,
-    color: color.ink,
-    textAlignVertical: "top"
-  },
   sendRow: { flexDirection: "row", alignItems: "center", gap: space.sm, paddingHorizontal: space.md, paddingTop: 10 },
   sendHint: {
     flex: 1,
-    backgroundColor: color.surface,
     borderWidth: 1,
-    borderColor: color.outline,
     borderRadius: radius.pill,
     paddingHorizontal: 18,
     paddingVertical: 13
@@ -232,7 +213,6 @@ const styles = StyleSheet.create({
     width: 46,
     height: 46,
     borderRadius: 23,
-    backgroundColor: color.primary,
     alignItems: "center",
     justifyContent: "center"
   }

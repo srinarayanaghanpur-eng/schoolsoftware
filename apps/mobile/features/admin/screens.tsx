@@ -7,14 +7,14 @@
  */
 import React, { useMemo, useState } from "react";
 import { Alert, FlatList, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import {
   Avatar, Badge, Card, DSText, EmptyState, ErrorState, FilterChips, Icon, ListRow,
-  LoadingState, PageTitle, PillButton, ProgressRow, SectionCard, TonalTile, useToast,
+  LoadingState, PageTitle, PillButton, PressableScale, ProgressRow, SectionCard, TonalTile, useToast,
   type IconName
 } from "@/design-system/components";
-import { color, elevation, radius, space } from "@/design-system/tokens";
+import { radius, space } from "@/design-system/tokens";
+import { useTheme } from "@/lib/Theme";
 import { useMobileSession } from "@/lib/mobileSession";
 import { dashboardPathForRole, workspaceForRole, workspaceLabel } from "@/lib/roleRouting";
 import { displayLoginContact } from "@/lib/text";
@@ -29,15 +29,8 @@ import {
 
 const STAFF_FILTERS = ["All", "Active", "Inactive"];
 
-const MANAGE_TILES = [
-  { bg: color.tileSky, tint: color.primary },
-  { bg: color.tilePeach, tint: color.warning },
-  { bg: color.tileMint, tint: color.success },
-  { bg: color.tileLavender, tint: color.primary }
-];
-
 export function StaffScreen() {
-  const insets = useSafeAreaInsets();
+  const { t } = useTheme();
   const [filter, setFilter] = useState("All");
   const { staff, loading, error, refresh } = useStaff();
   const attendance = useTodayAttendance();
@@ -66,16 +59,16 @@ export function StaffScreen() {
           trailing={
             <Badge
               label={(member.status ?? "active") === "active" ? "Active" : "Inactive"}
-              bg={(member.status ?? "active") === "active" ? color.tileMint : color.surfaceVariant}
-              fg={(member.status ?? "active") === "active" ? color.onSuccessContainer : color.ink2}
+              bg={(member.status ?? "active") === "active" ? t.okBg : t.line}
+              fg={(member.status ?? "active") === "active" ? t.ok : t.mute}
             />
           }
         />
       )}
-      ItemSeparatorComponent={() => <View style={styles.separator} />}
-      contentContainerStyle={[styles.page, { paddingTop: insets.top + space.xs }]}
+      ItemSeparatorComponent={() => <View style={[styles.separator, { backgroundColor: t.line }]} />}
+      contentContainerStyle={styles.page}
       showsVerticalScrollIndicator={false}
-      refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor={color.primary} />}
+      refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor={t.blue} />}
       ListHeaderComponent={
         <View style={styles.header}>
           <PageTitle>Staff</PageTitle>
@@ -83,8 +76,8 @@ export function StaffScreen() {
           <View style={styles.moneyGrid}>
             <View style={styles.moneyRow}>
               <Card style={styles.moneyCard}>
-                <TonalTile bg={color.tileMint} size={34}>
-                  <Icon name="how-to-reg" size={18} tint={color.success} />
+                <TonalTile bg={t.okBg} size={34}>
+                  <Icon name="how-to-reg" size={18} tint={t.ok} />
                 </TonalTile>
                 <DSText variant="display" style={styles.moneyValue} numberOfLines={1}>
                   {attendance.present}
@@ -92,8 +85,8 @@ export function StaffScreen() {
                 <DSText variant="overline" style={styles.moneyLabel} numberOfLines={1}>PRESENT</DSText>
               </Card>
               <Card style={styles.moneyCard}>
-                <TonalTile bg={color.tilePeach} size={34}>
-                  <Icon name="schedule" size={18} tint={color.warning} />
+                <TonalTile bg={t.warnBg} size={34}>
+                  <Icon name="schedule" size={18} tint={t.warn} />
                 </TonalTile>
                 <DSText variant="display" style={styles.moneyValue} numberOfLines={1}>
                   {attendance.late}
@@ -103,8 +96,8 @@ export function StaffScreen() {
             </View>
             <View style={styles.moneyRow}>
               <Card style={styles.moneyCard}>
-                <TonalTile bg={color.tileRose} size={34}>
-                  <Icon name="person-off" size={18} tint={color.error} />
+                <TonalTile bg={t.badBg} size={34}>
+                  <Icon name="person-off" size={18} tint={t.bad} />
                 </TonalTile>
                 <DSText variant="display" style={styles.moneyValue} numberOfLines={1}>
                   {attendance.absent}
@@ -112,8 +105,8 @@ export function StaffScreen() {
                 <DSText variant="overline" style={styles.moneyLabel} numberOfLines={1}>ABSENT</DSText>
               </Card>
               <Card style={styles.moneyCard}>
-                <TonalTile bg={color.tileLavender} size={34}>
-                  <Icon name="groups" size={18} tint={color.primary} />
+                <TonalTile bg={t.tint} size={34}>
+                  <Icon name="groups" size={18} tint={t.blue} />
                 </TonalTile>
                 <DSText variant="display" style={styles.moneyValue} numberOfLines={1}>
                   {staff.length}
@@ -128,7 +121,7 @@ export function StaffScreen() {
               label="Staff present"
               percent={attendanceRate}
               valueLabel={`${attendance.present} / ${attendance.total}`}
-              tint={attendanceRate >= 90 ? color.success : color.warning}
+              tint={attendanceRate >= 90 ? t.ok : t.warn}
             />
           </SectionCard>
 
@@ -149,7 +142,7 @@ export function StaffScreen() {
 const APPROVAL_FILTERS = ["Pending", "Approved", "Rejected"];
 
 export function ApprovalsScreen() {
-  const insets = useSafeAreaInsets();
+  const { t } = useTheme();
   const toast = useToast();
   const [filter, setFilter] = useState("Pending");
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -178,9 +171,9 @@ export function ApprovalsScreen() {
 
   return (
     <ScrollView
-      contentContainerStyle={[styles.page, { paddingTop: insets.top + space.xs }]}
+      contentContainerStyle={styles.page}
       showsVerticalScrollIndicator={false}
-      refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor={color.primary} />}
+      refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor={t.blue} />}
     >
       <PageTitle>Approvals</PageTitle>
 
@@ -220,8 +213,8 @@ export function ApprovalsScreen() {
                     label={busyId === request.id ? "Saving…" : "Approve"}
                     block
                     icon="check"
-                    bg={color.primary}
-                    fg={color.onPrimary}
+                    bg={t.blue}
+                    fg="#FFFFFF"
                     onPress={() => { if (!busyId) void decide(request.id, "approved"); }}
                   />
                 </View>
@@ -230,8 +223,8 @@ export function ApprovalsScreen() {
                     label="Reject"
                     block
                     icon="close"
-                    bg={color.tileRose}
-                    fg={color.error}
+                    bg={t.badBg}
+                    fg={t.bad}
                     onPress={() => { if (!busyId) void decide(request.id, "rejected"); }}
                   />
                 </View>
@@ -247,7 +240,7 @@ export function ApprovalsScreen() {
 /* ---------------------------------------------------------------- Profile */
 
 export function ManagementProfileScreen() {
-  const insets = useSafeAreaInsets();
+  const { t } = useTheme();
   const router = useRouter();
   const toast = useToast();
   const session = useMobileSession();
@@ -280,6 +273,16 @@ export function ManagementProfileScreen() {
             { icon: "campaign", title: "Notices", href: `${base}/notices` }
           ];
 
+  const tileForIndex = (index: number) => {
+    const tones = [
+      { bg: t.tint, tint: t.blue },
+      { bg: t.warnBg, tint: t.warn },
+      { bg: t.okBg, tint: t.ok },
+      { bg: t.tint, tint: t.blue }
+    ];
+    return tones[index % tones.length];
+  };
+
   const logout = async () => {
     try {
       await session.logout();
@@ -298,11 +301,11 @@ export function ManagementProfileScreen() {
 
   return (
     <ScrollView
-      contentContainerStyle={[styles.page, { paddingTop: insets.top + space.sm }]}
+      contentContainerStyle={styles.page}
       showsVerticalScrollIndicator={false}
     >
       <View style={styles.identityRow}>
-        <Avatar label={initials(name)} size={64} bg={color.accountPurple} />
+        <Avatar label={initials(name)} size={64} bg={t.blue} />
         <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
           <DSText variant="title" style={{ fontSize: 19 }} numberOfLines={1}>{name}</DSText>
           <DSText variant="label">{workspaceLabel(session.profile?.role)}</DSText>
@@ -314,8 +317,8 @@ export function ManagementProfileScreen() {
 
       <View style={styles.statRow}>
         <Card style={styles.moneyCard}>
-          <TonalTile bg={color.tileSky} size={34}>
-            <Icon name="school" size={18} tint={color.primary} />
+          <TonalTile bg={t.tint} size={34}>
+            <Icon name="school" size={18} tint={t.blue} />
           </TonalTile>
           <DSText variant="display" style={styles.moneyValue} numberOfLines={1}>
             {stats?.totalStudents ?? 0}
@@ -323,8 +326,8 @@ export function ManagementProfileScreen() {
           <DSText variant="overline" style={styles.moneyLabel} numberOfLines={1}>STUDENTS</DSText>
         </Card>
         <Card style={styles.moneyCard}>
-          <TonalTile bg={color.tileLavender} size={34}>
-            <Icon name="groups" size={18} tint={color.primary} />
+          <TonalTile bg={t.tint} size={34}>
+            <Icon name="groups" size={18} tint={t.blue} />
           </TonalTile>
           <DSText variant="display" style={styles.moneyValue} numberOfLines={1}>
             {attendance.total}
@@ -332,8 +335,8 @@ export function ManagementProfileScreen() {
           <DSText variant="overline" style={styles.moneyLabel} numberOfLines={1}>STAFF</DSText>
         </Card>
         <Card style={styles.moneyCard}>
-          <TonalTile bg={color.tileMint} size={34}>
-            <Icon name="payments" size={18} tint={color.success} />
+          <TonalTile bg={t.okBg} size={34}>
+            <Icon name="payments" size={18} tint={t.ok} />
           </TonalTile>
           <DSText variant="display" style={styles.moneyValue} numberOfLines={1}>
             {formatMoney(stats?.monthlyCollection)}
@@ -342,62 +345,77 @@ export function ManagementProfileScreen() {
         </Card>
       </View>
 
-      <SectionCard heading="MANAGE">
+      <DSText variant="overline">MANAGE</DSText>
+      <View style={styles.actionGrid}>
         {manageLinks.map((link, index) => {
-          const tile = MANAGE_TILES[index % MANAGE_TILES.length];
+          const tile = tileForIndex(index);
           return (
-            <View key={link.href}>
-              {index > 0 ? <View style={styles.divider} /> : null}
-              <ListRow
-                leading={
-                  <TonalTile bg={tile.bg} size={36}>
-                    <Icon name={link.icon} size={19} tint={tile.tint} />
-                  </TonalTile>
-                }
-                title={link.title}
-                chevron
-                onPress={() => router.push(link.href as never)}
-              />
-            </View>
+            <PressableScale
+              key={link.href}
+              accessibilityLabel={link.title}
+              onPress={() => router.push(link.href as never)}
+              style={styles.actionPress}
+            >
+              <Card style={styles.actionTile}>
+                <TonalTile bg={tile.bg} size={36}>
+                  <Icon name={link.icon} size={19} tint={tile.tint} />
+                </TonalTile>
+                <DSText variant="bodyMedium" numberOfLines={2} style={styles.actionLabel}>{link.title}</DSText>
+                <DSText variant="label" tint={t.blue}>
+                  Open →
+                </DSText>
+              </Card>
+            </PressableScale>
           );
         })}
-      </SectionCard>
+      </View>
 
-      <SectionCard heading="MORE">
-        <ListRow
-          leading={
-            <TonalTile bg={color.tileSky} size={36}>
-              <Icon name="insights" size={19} tint={color.primary} />
-            </TonalTile>
-          }
-          title="Reports & exports"
-          subtitle="Available in the web dashboard"
-          chevron
+      <DSText variant="overline">MORE</DSText>
+      <View style={styles.actionGrid}>
+        <PressableScale
+          accessibilityLabel="Reports and exports"
           onPress={() => toast.show("Open the web dashboard for full reports.")}
-        />
-        <View style={styles.divider} />
-        <ListRow
-          leading={
-            <TonalTile bg={color.tileLemon} size={36}>
-              <Icon name="help-outline" size={19} tint={color.warning} />
+          style={styles.actionPress}
+        >
+          <Card style={styles.actionTile}>
+            <TonalTile bg={t.tint} size={36}>
+              <Icon name="insights" size={19} tint={t.blue} />
             </TonalTile>
-          }
-          title="Help & support"
-          chevron
+            <DSText variant="bodyMedium" style={styles.actionLabel}>Reports & exports</DSText>
+            <DSText variant="label">Available in the web dashboard</DSText>
+            <DSText variant="label" tint={t.blue}>
+              Open →
+            </DSText>
+          </Card>
+        </PressableScale>
+        <PressableScale
+          accessibilityLabel="Help and support"
           onPress={() => toast.show("Contact your system administrator.")}
-        />
-      </SectionCard>
+          style={styles.actionPress}
+        >
+          <Card style={styles.actionTile}>
+            <TonalTile bg={t.warnBg} size={36}>
+              <Icon name="help-outline" size={19} tint={t.warn} />
+            </TonalTile>
+            <DSText variant="bodyMedium" style={styles.actionLabel}>Help & support</DSText>
+            <DSText variant="label">Contact your administrator</DSText>
+            <DSText variant="label" tint={t.blue}>
+              Contact →
+            </DSText>
+          </Card>
+        </PressableScale>
+      </View>
 
-      <PillButton label="Logout from this device" block bg={color.error} icon="logout" onPress={confirmLogout} />
+      <PillButton label="Logout from this device" block bg={t.bad} fg="#FFFFFF" icon="logout" onPress={confirmLogout} />
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  page: { paddingHorizontal: space.xl, paddingBottom: space.xl, gap: 14 },
+  page: { paddingHorizontal: space.xl, paddingBottom: space.xl, paddingTop: space.md, gap: 14 },
   header: { gap: 14 },
-  separator: { height: StyleSheet.hairlineWidth, backgroundColor: color.outline, marginLeft: 56 },
-  divider: { height: StyleSheet.hairlineWidth, backgroundColor: color.outline },
+  separator: { height: StyleSheet.hairlineWidth, marginLeft: 56 },
+  divider: { height: StyleSheet.hairlineWidth },
   statRow: { flexDirection: "row", gap: space.sm },
   moneyGrid: { gap: 10 },
   moneyRow: { flexDirection: "row", gap: 10 },
@@ -407,11 +425,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.sm,
     alignItems: "flex-start",
     gap: 6,
-    borderRadius: radius.lg,
-    ...elevation.card
+    borderRadius: radius.lg
   },
   moneyValue: { fontSize: 17, fontWeight: "800" },
   moneyLabel: { fontSize: 10 },
   identityRow: { flexDirection: "row", alignItems: "center", gap: 14, paddingTop: 10 },
-  decisionRow: { flexDirection: "row", gap: space.md, marginTop: space.md }
+  decisionRow: { flexDirection: "row", gap: space.md, marginTop: space.md },
+  actionGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
+  actionPress: { flex: 1, minWidth: "46%" },
+  actionTile: { gap: 8 },
+  actionLabel: { fontWeight: "700" }
 });

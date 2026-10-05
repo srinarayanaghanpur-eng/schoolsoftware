@@ -4,13 +4,14 @@
  */
 import React, { useCallback, useEffect, useState } from "react";
 import { Alert, RefreshControl, ScrollView, StyleSheet, Switch, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import {
   Avatar, Badge, DSText, EmptyState, ErrorState, Icon, ListRow, LoadingState,
-  PillButton, SectionCard, TonalTile, useToast
+  PageTitle, PillButton, SectionCard, TonalTile, useToast
 } from "@/design-system/components";
-import { color, elevation, radius, space } from "@/design-system/tokens";
+import { radius, space } from "@/design-system/tokens";
+import { useTheme } from "@/lib/Theme";
+import type { Palette } from "@/lib/Theme";
 import { useMobileSession } from "@/lib/mobileSession";
 import { formatMoney, initials, useParentSummary } from "@/features/parent/hooks";
 import { fetchPushPreferences, updatePushPreferences, type PushPrefs } from "@/features/parent/api";
@@ -35,17 +36,18 @@ const PREF_ROWS: Array<{ key: keyof PushPrefs; title: string; subtitle: string }
   { key: "exams", title: "Exam results", subtitle: "Published results" }
 ];
 
-const CHILD_TILES: Array<{ bg: string; fg: string }> = [
-  { bg: color.tileLavender, fg: color.primaryDeep },
-  { bg: color.tileSky, fg: color.primaryDeep },
-  { bg: color.tileMint, fg: color.success },
-  { bg: color.tilePeach, fg: color.onWarningDeep },
-  { bg: color.tileRose, fg: color.error },
-  { bg: color.tileLemon, fg: color.onWarningDeep }
-];
+function childTile(index: number, t: Palette): { bg: string; fg: string } {
+  const tiles = [
+    { bg: t.tint, fg: t.blue },
+    { bg: t.okBg, fg: t.ok },
+    { bg: t.warnBg, fg: t.warn },
+    { bg: t.badBg, fg: t.bad }
+  ];
+  return tiles[index % tiles.length] ?? { bg: t.tint, fg: t.blue };
+}
 
 function ParentProfileScreen() {
-  const insets = useSafeAreaInsets();
+  const { t } = useTheme();
   const router = useRouter();
   const toast = useToast();
   const session = useMobileSession();
@@ -104,21 +106,24 @@ function ParentProfileScreen() {
 
   return (
     <ScrollView
-      contentContainerStyle={[styles.page, { paddingTop: insets.top + space.sm }]}
+      contentContainerStyle={styles.page}
       showsVerticalScrollIndicator={false}
-      refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor={color.primary} />}
+      refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor={t.blue} />}
     >
-      {/* delivery-app identity header */}
-      <View style={[styles.identityRow, elevation.card]}>
-        <Avatar label={initials(parentName)} size={56} bg={color.primary} fg={color.onPrimary} />
+      <PageTitle>Profile</PageTitle>
+
+      {/* greeting header — Welcome small + name h1 */}
+      <View style={[styles.identityRow, { backgroundColor: t.card, borderColor: t.line }]}>
+        <Avatar label={initials(parentName)} size={56} bg={t.blue} fg="#FFFFFF" />
         <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
+          <DSText variant="caption" tint={t.mute}>Welcome</DSText>
           <DSText variant="title" style={styles.identityName} numberOfLines={1}>{parentName}</DSText>
           {summary?.student ? (
             <View style={styles.chipRow}>
               <Badge
                 label={`Class ${summary.student.className ?? "—"}${summary.student.section ?? ""}`}
-                bg={color.tileLavender}
-                fg={color.primaryDeep}
+                bg={t.tint}
+                fg={t.blue}
               />
             </View>
           ) : null}
@@ -140,14 +145,16 @@ function ParentProfileScreen() {
       {linkedStudents.length > 1 ? (
         <SectionCard heading="MY CHILDREN">
           {linkedStudents.map((child, index) => {
-            const tile = CHILD_TILES[index % CHILD_TILES.length] ?? { bg: color.tileSky, fg: color.primaryDeep };
+            const tile = childTile(index, t);
             return (
-              <ListRow
-                key={child.id}
-                leading={<Avatar label={initials(child.name)} size={36} bg={tile.bg} fg={tile.fg} />}
-                title={child.name}
-                subtitle={`Class ${child.className}${child.section} · Adm ${child.admissionNo}`}
-              />
+              <View key={child.id}>
+                {index > 0 ? <View style={[styles.divider, { backgroundColor: t.line }]} /> : null}
+                <ListRow
+                  leading={<Avatar label={initials(child.name)} size={36} bg={tile.bg} fg={tile.fg} />}
+                  title={child.name}
+                  subtitle={`Class ${child.className}${child.section} · Adm ${child.admissionNo}`}
+                />
+              </View>
             );
           })}
         </SectionCard>
@@ -159,29 +166,34 @@ function ParentProfileScreen() {
           {(summary.recentPayments ?? []).length === 0 ? (
             <EmptyState icon="receipt" label="No payments recorded yet." />
           ) : (
-            (summary.recentPayments ?? []).map((payment) => (
-              <ListRow
-                key={payment.id}
-                leading={
-                  <TonalTile bg={color.tileMint} size={36}>
-                    <Icon name="check" size={18} tint={color.success} />
-                  </TonalTile>
-                }
-                title={`${formatMoney(payment.amountPaid)} · ${payment.paymentMethod || "—"}`}
-                subtitle={`Paid ${payment.createdAt}${payment.receiptNumber ? ` · Receipt ${payment.receiptNumber}` : ""}`}
-              />
+            (summary.recentPayments ?? []).map((payment, index) => (
+              <View key={payment.id}>
+                {index > 0 ? <View style={[styles.divider, { backgroundColor: t.line }]} /> : null}
+                <ListRow
+                  leading={
+                    <TonalTile bg={t.okBg} size={36}>
+                      <Icon name="check" size={18} tint={t.ok} />
+                    </TonalTile>
+                  }
+                  title={`${formatMoney(payment.amountPaid)} · ${payment.paymentMethod || "—"}`}
+                  subtitle={`Paid ${payment.createdAt}${payment.receiptNumber ? ` · Receipt ${payment.receiptNumber}` : ""}`}
+                />
+              </View>
             ))
           )}
           {(summary.fees?.due ?? 0) > 0 ? (
-            <ListRow
-              leading={
-                <TonalTile bg={color.tilePeach} size={36}>
-                  <Icon name="schedule" size={18} tint={color.onWarningDeep} />
-                </TonalTile>
-              }
-              title={`${formatMoney(summary.fees.due)} outstanding`}
-              subtitle="Pay at the school office or web portal"
-            />
+            <View>
+              {(summary.recentPayments ?? []).length > 0 ? <View style={[styles.divider, { backgroundColor: t.line }]} /> : null}
+              <ListRow
+                leading={
+                  <TonalTile bg={t.warnBg} size={36}>
+                    <Icon name="schedule" size={18} tint={t.warn} />
+                  </TonalTile>
+                }
+                title={`${formatMoney(summary.fees.due)} outstanding`}
+                subtitle="Pay at the school office or web portal"
+              />
+            </View>
           ) : null}
         </SectionCard>
       ) : null}
@@ -189,19 +201,21 @@ function ParentProfileScreen() {
       {/* message settings */}
       {prefs ? (
         <SectionCard heading="MESSAGE SETTINGS">
-          {PREF_ROWS.map((row) => (
-            <ListRow
-              key={row.key}
-              title={row.title}
-              subtitle={row.subtitle}
-              trailing={
-                <Switch
-                  value={prefs[row.key]}
-                  onValueChange={() => void togglePref(row.key)}
-                  trackColor={{ false: color.outline, true: color.primary }}
-                />
-              }
-            />
+          {PREF_ROWS.map((row, index) => (
+            <View key={row.key}>
+              {index > 0 ? <View style={[styles.divider, { backgroundColor: t.line }]} /> : null}
+              <ListRow
+                title={row.title}
+                subtitle={row.subtitle}
+                trailing={
+                  <Switch
+                    value={prefs[row.key]}
+                    onValueChange={() => void togglePref(row.key)}
+                    trackColor={{ false: t.line, true: t.blue }}
+                  />
+                }
+              />
+            </View>
           ))}
         </SectionCard>
       ) : prefsFailed ? (
@@ -219,8 +233,8 @@ function ParentProfileScreen() {
       <SectionCard heading="MORE">
         <ListRow
           leading={
-            <TonalTile bg={color.tileLavender} size={36}>
-              <Icon name="description" size={19} tint={color.primary} />
+            <TonalTile bg={t.tint} size={36}>
+              <Icon name="description" size={19} tint={t.blue} />
             </TonalTile>
           }
           title="Documents & receipts"
@@ -228,10 +242,11 @@ function ParentProfileScreen() {
           chevron
           onPress={() => toast.show("Open the web portal for downloads.")}
         />
+        <View style={[styles.divider, { backgroundColor: t.line }]} />
         <ListRow
           leading={
-            <TonalTile bg={color.tileSky} size={36}>
-              <Icon name="help-outline" size={19} tint={color.primary} />
+            <TonalTile bg={t.tint} size={36}>
+              <Icon name="help-outline" size={19} tint={t.blue} />
             </TonalTile>
           }
           title="Help & support"
@@ -240,24 +255,22 @@ function ParentProfileScreen() {
         />
       </SectionCard>
 
-      <PillButton label="Logout from this device" bg={color.error} onPress={confirmLogout} />
+      <PillButton label="Logout from this device" bg={t.bad} fg="#FFFFFF" onPress={confirmLogout} />
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  page: { paddingHorizontal: space.xl, paddingBottom: space.xl, gap: 14 },
+  page: { paddingHorizontal: space.xl, paddingBottom: space.xl, paddingTop: space.md, gap: 14 },
   identityRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 14,
-    paddingTop: 10,
-    backgroundColor: color.surface,
     borderWidth: 1,
-    borderColor: color.outline,
     borderRadius: radius.xl,
     padding: space.lg
   },
   identityName: { fontSize: 19, fontWeight: "700" },
-  chipRow: { flexDirection: "row" }
+  chipRow: { flexDirection: "row" },
+  divider: { height: StyleSheet.hairlineWidth }
 });

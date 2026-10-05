@@ -4,12 +4,12 @@
  */
 import React, { useMemo, useState } from "react";
 import { RefreshControl, ScrollView, StyleSheet, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   Card, DSText, EmptyState, ErrorState, FilterChips, Icon, ListRow, LoadingState,
-  PageTitle, SectionCard, TonalTile
+  PageTitle, PillButton, SectionCard, TonalTile, useToast
 } from "@/design-system/components";
-import { color, elevation, radius, space } from "@/design-system/tokens";
+import { radius, space } from "@/design-system/tokens";
+import { useTheme } from "@/lib/Theme";
 import { AccountantShell } from "@/features/admin/shell";
 import { formatDate, formatMoney, formatMoneyShort, useRecentPayments } from "@/features/admin/hooks";
 
@@ -24,7 +24,8 @@ export default function AccountantCollectionsRoute() {
 }
 
 function AccountantCollections() {
-  const insets = useSafeAreaInsets();
+  const { t } = useTheme();
+  const toast = useToast();
   const [filter, setFilter] = useState("All");
   const { payments, loading, error, refresh } = useRecentPayments();
 
@@ -43,16 +44,16 @@ function AccountantCollections() {
 
   return (
     <ScrollView
-      contentContainerStyle={[styles.page, { paddingTop: insets.top + space.xs }]}
+      contentContainerStyle={styles.page}
       showsVerticalScrollIndicator={false}
-      refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor={color.primary} />}
+      refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor={t.blue} />}
     >
       <PageTitle>Collections</PageTitle>
 
       <View style={styles.statRow}>
         <Card style={styles.moneyCard}>
-          <TonalTile bg={color.tileSky} size={36}>
-            <Icon name="receipt-long" size={19} tint={color.primary} />
+          <TonalTile bg={t.tint} size={36}>
+            <Icon name="receipt-long" size={19} tint={t.blue} />
           </TonalTile>
           <DSText variant="display" style={styles.moneyValue} numberOfLines={1}>
             {visible.length}
@@ -60,8 +61,8 @@ function AccountantCollections() {
           <DSText variant="overline" style={styles.moneyLabel} numberOfLines={1}>RECEIPTS</DSText>
         </Card>
         <Card style={styles.moneyCard}>
-          <TonalTile bg={color.tileMint} size={36}>
-            <Icon name="payments" size={19} tint={color.success} />
+          <TonalTile bg={t.okBg} size={36}>
+            <Icon name="payments" size={19} tint={t.ok} />
           </TonalTile>
           <DSText variant="display" style={styles.moneyValue} numberOfLines={1}>
             {formatMoneyShort(total)}
@@ -69,6 +70,14 @@ function AccountantCollections() {
           <DSText variant="overline" style={styles.moneyLabel} numberOfLines={1}>{`${filter.toUpperCase()} TOTAL`}</DSText>
         </Card>
       </View>
+
+      <PillButton
+        label="Record a payment"
+        block
+        bg={t.blue}
+        fg="#FFFFFF"
+        onPress={() => toast.show("Recording payments and issuing receipts is done in the web dashboard.")}
+      />
 
       <FilterChips options={FILTERS} value={filter} onChange={setFilter} />
 
@@ -78,18 +87,18 @@ function AccountantCollections() {
         ) : (
           visible.map((payment, index) => (
             <View key={payment.id}>
-              {index > 0 ? <View style={styles.divider} /> : null}
+              {index > 0 ? <View style={[styles.divider, { backgroundColor: t.line }]} /> : null}
               <ListRow
                 leading={
-                  <TonalTile bg={color.tileMint}>
-                    <Icon name="receipt" size={19} tint={color.success} />
+                  <TonalTile bg={t.okBg}>
+                    <Icon name="receipt" size={19} tint={t.ok} />
                   </TonalTile>
                 }
                 title={payment.studentName ?? "Payment"}
                 subtitle={`${payment.paymentMethod || "—"}${payment.receiptNumber ? ` · Receipt ${payment.receiptNumber}` : ""}`}
                 trailing={
                   <View style={{ alignItems: "flex-end" }}>
-                    <DSText variant="bodyMedium" tint={color.success} style={styles.receiptMoney}>{formatMoney(payment.amountPaid)}</DSText>
+                    <DSText variant="bodyMedium" tint={t.ok} style={styles.receiptMoney}>{formatMoney(payment.amountPaid)}</DSText>
                     <DSText variant="caption">{formatDate(payment.createdAt)}</DSText>
                   </View>
                 }
@@ -103,7 +112,7 @@ function AccountantCollections() {
 }
 
 const styles = StyleSheet.create({
-  page: { paddingHorizontal: space.xl, paddingBottom: space.xl, gap: 14 },
+  page: { paddingHorizontal: space.xl, paddingBottom: space.xl, paddingTop: space.md, gap: 14 },
   statRow: { flexDirection: "row", gap: 10 },
   moneyCard: {
     flex: 1,
@@ -111,11 +120,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.sm,
     alignItems: "flex-start",
     gap: 6,
-    borderRadius: radius.lg,
-    ...elevation.card
+    borderRadius: radius.lg
   },
   moneyValue: { fontSize: 17, fontWeight: "800" },
   moneyLabel: { fontSize: 10 },
   receiptMoney: { fontWeight: "800" },
-  divider: { height: StyleSheet.hairlineWidth, backgroundColor: color.outline }
+  divider: { height: StyleSheet.hairlineWidth }
 });

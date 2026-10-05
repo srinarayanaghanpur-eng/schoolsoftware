@@ -5,12 +5,13 @@
  */
 import React, { useCallback, useMemo, useState } from "react";
 import { FlatList, RefreshControl, Share, StyleSheet, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { LinearGradient } from "expo-linear-gradient";
 import {
-  Avatar, DSText, EmptyState, ErrorState, FilterChips, Icon, ListRow, LoadingState,
-  SectionCard, TonalTile, useToast
+  Avatar, DSText, EmptyState, ErrorState, FilterChips, ListRow, LoadingState,
+  PageTitle, PillButton, useToast
 } from "@/design-system/components";
-import { color, elevation, radius, space } from "@/design-system/tokens";
+import { radius, space } from "@/design-system/tokens";
+import { useTheme } from "@/lib/Theme";
 import { ParentShell } from "@/features/parent/shell";
 import { ChildSwitcher } from "@/features/parent/ChildSwitcher";
 import { useSelectChild, useSelectedChildId, useSelectedChildRaw } from "@/features/parent/SelectedChild";
@@ -33,7 +34,8 @@ const METHOD_LABELS: Record<string, string> = {
   cheque: "Cheque"
 };
 
-function ParentFeesScreen() {  const insets = useSafeAreaInsets();
+function ParentFeesScreen() {
+  const { t } = useTheme();
   const toast = useToast();
   const rawChoice = useSelectedChildRaw();
   const { summary, linkedStudents, loading: summaryLoading, error: summaryError, refresh: refreshSummary } =
@@ -90,6 +92,11 @@ function ParentFeesScreen() {  const insets = useSafeAreaInsets();
     return <ErrorState message={summaryError || "No student is linked to this account yet."} onRetry={refresh} />;
   }
 
+  const studentName = summary?.student.name ?? "Fees";
+  const studentMeta = summary
+    ? `Class ${summary.student.className}${summary.student.section} · Adm ${summary.student.admissionNo}`
+    : "";
+
   // Virtualized: payment history grows every term and must not all mount.
   return (
     <FlatList
@@ -98,66 +105,72 @@ function ParentFeesScreen() {  const insets = useSafeAreaInsets();
       renderItem={({ item: payment }) => (
         <ListRow
           leading={
-            <TonalTile bg={color.tileMint} size={36}>
-              <Icon name="receipt" size={18} tint={color.success} />
-            </TonalTile>
+            <Avatar label={summary ? initials(summary.student.name) : "—"} size={40} bg={t.tint} fg={t.blue} />
           }
-          title={`${formatMoney(payment.amountPaid)} · ${payment.paymentMethod || "—"}`}
-          subtitle={`${(payment.createdAt || "").slice(0, 10)}${payment.receiptNumber ? ` · Receipt ${payment.receiptNumber}` : ""}`}
+          title={studentName}
+          subtitle={`${summary ? `Class ${summary.student.className} · ` : ""}${payment.paymentMethod || "—"}${payment.receiptNumber ? ` · Receipt ${payment.receiptNumber}` : ""}`}
+          trailing={
+            <View style={{ alignItems: "flex-end" }}>
+              <DSText variant="bodyMedium" style={styles.receiptMoney}>{formatMoney(payment.amountPaid)}</DSText>
+              <DSText variant="caption">{(payment.createdAt || "").slice(0, 10)}</DSText>
+            </View>
+          }
           chevron
           onPress={() => void shareReceipt(payment.id)}
         />
       )}
-      ItemSeparatorComponent={() => <View style={styles.separator} />}
-      contentContainerStyle={[styles.page, { paddingTop: insets.top + space.sm }]}
+      ItemSeparatorComponent={() => <View style={[styles.separator, { backgroundColor: t.line }]} />}
+      contentContainerStyle={styles.page}
       showsVerticalScrollIndicator={false}
-      refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor={color.primary} />}
+      refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor={t.blue} />}
       ListHeaderComponent={
         <View style={styles.header}>
+          <PageTitle>Fees</PageTitle>
           <ChildSwitcher children={linkedStudents} selectedId={activeId} onSelect={select} />
 
-          <View style={[styles.identityRow, elevation.card]}>
+          <View style={[styles.identityRow, { backgroundColor: t.card, borderColor: t.line }]}>
             <Avatar
               label={summary ? initials(summary.student.name) : "—"}
               size={46}
-              bg={color.tileLavender}
-              fg={color.primaryDeep}
+              bg={t.tint}
+              fg={t.blue}
             />
             <View style={{ flex: 1, minWidth: 0 }}>
               <DSText variant="title" style={styles.identityName} numberOfLines={1}>
-                {summary?.student.name ?? "Fees"}
+                {studentName}
               </DSText>
               <DSText variant="label" numberOfLines={1}>
-                {summary ? `Class ${summary.student.className}${summary.student.section} · Adm ${summary.student.admissionNo}` : ""}
+                {studentMeta}
               </DSText>
             </View>
           </View>
 
           {summary ? (
-            <SectionCard heading="FEE SUMMARY">
-              <ListRow
-                leading={
-                  <TonalTile bg={color.tileLavender} size={36}>
-                    <Icon name="payments" size={18} tint={color.primary} />
-                  </TonalTile>
-                }
-                title={`${formatMoney(summary.fees.paid)} paid of ${formatMoney(summary.fees.total)}`}
-                subtitle={summary.fees.status ? `Status: ${summary.fees.status}` : `${summary.student.name} · Class ${summary.student.className}${summary.student.section}`}
-              />
-              <ListRow
-                leading={
-                  <TonalTile bg={summary.fees.due > 0 ? color.tilePeach : color.tileMint} size={36}>
-                    <Icon
-                      name={summary.fees.due > 0 ? "schedule" : "check"}
-                      size={18}
-                      tint={summary.fees.due > 0 ? color.onWarningDeep : color.success}
-                    />
-                  </TonalTile>
-                }
-                title={summary.fees.due > 0 ? `${formatMoney(summary.fees.due)} outstanding` : "No dues — all clear"}
-                subtitle={summary.fees.due > 0 ? "Pay at the school office or web portal" : undefined}
-              />
-            </SectionCard>
+            <LinearGradient
+              colors={[t.heroFrom, t.heroMid, t.heroTo]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.hero}
+            >
+              <View style={styles.heroCircle} pointerEvents="none" />
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <DSText variant="caption" tint="rgba(255,255,255,0.8)">OUTSTANDING</DSText>
+                <DSText variant="display" tint="#FFFFFF" style={styles.heroMoney} numberOfLines={1}>
+                  {summary.fees.due > 0 ? formatMoney(summary.fees.due) : "All clear"}
+                </DSText>
+                <DSText variant="label" tint="rgba(255,255,255,0.8)" numberOfLines={2}>
+                  {`${formatMoney(summary.fees.paid)} paid of ${formatMoney(summary.fees.total)}${summary.fees.status ? ` · ${summary.fees.status}` : ""}`}
+                </DSText>
+              </View>
+              {summary.fees.due > 0 ? (
+                <PillButton
+                  label="Pay now"
+                  bg="#FFFFFF"
+                  fg={t.blue}
+                  onPress={() => toast.show("Please pay at the school office or web portal.")}
+                />
+              ) : null}
+            </LinearGradient>
           ) : null}
 
           <DSText variant="overline">PAYMENT HISTORY</DSText>
@@ -193,19 +206,37 @@ function ParentFeesScreen() {  const insets = useSafeAreaInsets();
 }
 
 const styles = StyleSheet.create({
-  page: { paddingHorizontal: space.xl, paddingBottom: space.xl, gap: 14 },
+  page: { paddingHorizontal: space.xl, paddingBottom: space.xl, paddingTop: space.md, gap: 14 },
   header: { gap: 14 },
   identityRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: space.md,
-    backgroundColor: color.surface,
     borderWidth: 1,
-    borderColor: color.outline,
     borderRadius: radius.xl,
     padding: space.lg
   },
   identityName: { fontSize: 17, fontWeight: "700" },
-  separator: { height: StyleSheet.hairlineWidth, backgroundColor: color.outline, marginLeft: 52 },
+  hero: {
+    borderRadius: radius.xl,
+    padding: space.lg,
+    paddingHorizontal: 18,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    overflow: "hidden"
+  },
+  heroCircle: {
+    position: "absolute",
+    top: -70,
+    right: -50,
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    backgroundColor: "rgba(255,255,255,0.1)"
+  },
+  heroMoney: { fontSize: 26, fontWeight: "800" },
+  receiptMoney: { fontWeight: "800" },
+  separator: { height: StyleSheet.hairlineWidth, marginLeft: 52 },
   hint: { alignItems: "center" }
 });

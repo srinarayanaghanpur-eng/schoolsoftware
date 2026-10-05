@@ -8,23 +8,15 @@
  */
 import React, { useMemo } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   Card, DSText, EmptyState, ErrorState, Icon, ListRow, LoadingState, PageTitle,
-  ProgressRow, SectionCard, TonalTile
+  ProgressRow, SectionCard, TonalTile, type IconName
 } from "@/design-system/components";
-import { color, radius, space } from "@/design-system/tokens";
+import { space } from "@/design-system/tokens";
+import { useTheme } from "@/lib/Theme";
 import { useTeacherAttendanceData } from "@/lib/useTeacherAttendanceData";
 import { TeacherShell } from "@/features/teacher/shell";
 import { useAttendanceSummary } from "@/features/teacher/hooks";
-
-const HOLIDAY_TONE: Record<string, { bg: string; fg: string; icon: "beach-access" | "campaign" | "event" | "school" }> = {
-  school: { bg: color.tileSky, fg: color.primary, icon: "event" },
-  public: { bg: color.tileRose, fg: color.error, icon: "campaign" },
-  exam: { bg: color.tileLemon, fg: color.warning, icon: "school" },
-  other: { bg: color.tileLavender, fg: color.ink2, icon: "event" },
-  management_declared: { bg: color.tilePeach, fg: color.warning, icon: "beach-access" }
-};
 
 export default function TeacherAcademicsRoute() {
   return (
@@ -35,9 +27,17 @@ export default function TeacherAcademicsRoute() {
 }
 
 function TeacherAcademics() {
-  const insets = useSafeAreaInsets();
+  const { t } = useTheme();
   const { teacher, records, holidays, loading, error } = useTeacherAttendanceData();
   const summary = useAttendanceSummary(records);
+
+  const HOLIDAY_TONE: Record<string, { bg: string; fg: string; icon: IconName }> = {
+    school: { bg: t.tint, fg: t.blue, icon: "event" },
+    public: { bg: t.badBg, fg: t.bad, icon: "campaign" },
+    exam: { bg: t.warnBg, fg: t.warn, icon: "school" },
+    other: { bg: t.tint, fg: t.mute, icon: "event" },
+    management_declared: { bg: t.warnBg, fg: t.warn, icon: "beach-access" }
+  };
 
   const upcoming = useMemo(() => {
     const today = new Date().toISOString().slice(0, 10);
@@ -54,7 +54,7 @@ function TeacherAcademics() {
 
   return (
     <ScrollView
-      contentContainerStyle={[styles.page, { paddingTop: insets.top + space.xs }]}
+      contentContainerStyle={styles.page}
       showsVerticalScrollIndicator={false}
     >
       <PageTitle>Academics</PageTitle>
@@ -62,13 +62,13 @@ function TeacherAcademics() {
       {/* teacher assignment */}
       <SectionCard heading="MY ASSIGNMENT">
         <ListRow
-          leading={<TonalTile bg={color.tileSky}><Icon name="school" size={19} tint={color.primary} /></TonalTile>}
+          leading={<TonalTile bg={t.tint}><Icon name="school" size={19} tint={t.blue} /></TonalTile>}
           title={teacher?.subject ?? "Subject not set"}
           subtitle={teacher?.employeeId ? `Employee ${teacher.employeeId}` : "Assigned by the school office"}
         />
         {teacher?.employmentType ? (
           <ListRow
-            leading={<TonalTile bg={color.tileLavender}><Icon name="badge" size={19} tint={color.ink2} /></TonalTile>}
+            leading={<TonalTile bg={t.tint}><Icon name="badge" size={19} tint={t.mute} /></TonalTile>}
             title={teacher.employmentType.replace(/_/g, " ")}
             subtitle="Employment type"
           />
@@ -82,7 +82,7 @@ function TeacherAcademics() {
           label="Attendance"
           percent={summary.percentage}
           valueLabel={`${summary.percentage}%`}
-          tint={summary.percentage >= 90 ? color.success : color.warning}
+          tint={summary.percentage >= 90 ? t.ok : t.warn}
         />
         <ProgressRow
           label="Days recorded"

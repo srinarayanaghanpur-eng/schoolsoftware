@@ -5,25 +5,23 @@
  */
 import React, { useCallback, useState } from "react";
 import { Pressable, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   Avatar, Badge, DSText, ErrorState, Icon, ListRow, LoadingState,
-  SectionCard, TonalTile
+  PageTitle, SectionCard, TonalTile
 } from "@/design-system/components";
-import { color, elevation, radius, space } from "@/design-system/tokens";
+import { radius, space } from "@/design-system/tokens";
+import { useTheme } from "@/lib/Theme";
+import type { Palette } from "@/lib/Theme";
 import { ParentShell } from "@/features/parent/shell";
 import { ChildSwitcher } from "@/features/parent/ChildSwitcher";
 import { useSelectChild, useSelectedChildId, useSelectedChildRaw } from "@/features/parent/SelectedChild";
 import { initials, monthLabel, shiftMonth, useParentAttendance, useParentSummary } from "@/features/parent/hooks";
 
-const STATUS_TILE: Record<string, { bg: string; fg: string; icon: "check" | "close" | "schedule" }> = {
-  present: { bg: color.tileMint, fg: color.success, icon: "check" },
-  absent: { bg: color.tileRose, fg: color.error, icon: "close" },
-  late: { bg: color.tileLemon, fg: color.onWarningDeep, icon: "schedule" }
-};
-
-function tileFor(status: string) {
-  return STATUS_TILE[status] ?? { bg: color.tileSky, fg: color.ink2, icon: "check" as const };
+function tileFor(status: string, t: Palette): { bg: string; fg: string; icon: "check" | "close" | "schedule" } {
+  if (status === "present") return { bg: t.okBg, fg: t.ok, icon: "check" };
+  if (status === "absent") return { bg: t.badBg, fg: t.bad, icon: "close" };
+  if (status === "late") return { bg: t.warnBg, fg: t.warn, icon: "schedule" };
+  return { bg: t.tint, fg: t.blue, icon: "check" };
 }
 
 export default function ParentAttendanceRoute() {
@@ -35,7 +33,7 @@ export default function ParentAttendanceRoute() {
 }
 
 function ParentAttendanceScreen() {
-  const insets = useSafeAreaInsets();
+  const { t } = useTheme();
   const [month, setMonth] = useState(() => new Date().toISOString().slice(0, 7));
   const rawChoice = useSelectedChildRaw();
   const { summary, linkedStudents, loading: summaryLoading, error: summaryError, refresh: refreshSummary } =
@@ -63,15 +61,16 @@ function ParentAttendanceScreen() {
 
   return (
     <ScrollView
-      contentContainerStyle={[styles.page, { paddingTop: insets.top + space.sm }]}
+      contentContainerStyle={styles.page}
       showsVerticalScrollIndicator={false}
-      refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor={color.primary} />}
+      refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor={t.blue} />}
     >
+      <PageTitle>Attendance</PageTitle>
       <ChildSwitcher children={linkedStudents} selectedId={activeId} onSelect={select} />
 
       {summary ? (
-        <View style={[styles.identityRow, elevation.card]}>
-          <Avatar label={initials(summary.student.name)} size={42} bg={color.tileMint} fg={color.success} />
+        <View style={[styles.identityRow, { backgroundColor: t.card, borderColor: t.line }]}>
+          <Avatar label={initials(summary.student.name)} size={42} bg={t.okBg} fg={t.ok} />
           <View style={{ flex: 1, minWidth: 0 }}>
             <DSText variant="title" style={styles.identityName} numberOfLines={1}>{summary.student.name}</DSText>
             <DSText variant="label" numberOfLines={1}>
@@ -80,13 +79,13 @@ function ParentAttendanceScreen() {
           </View>
           <Badge
             label={totals ? `${totals.percentage}% present` : "Attendance"}
-            bg={color.tileLavender}
-            fg={color.primaryDeep}
+            bg={t.tint}
+            fg={t.blue}
           />
         </View>
       ) : null}
 
-      <View style={[styles.monthRow, elevation.card]}>
+      <View style={[styles.monthRow, { backgroundColor: t.card, borderColor: t.line }]}>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Previous month"
@@ -94,7 +93,7 @@ function ParentAttendanceScreen() {
           onPress={() => setMonth((m) => shiftMonth(m, -1))}
           style={styles.monthBtn}
         >
-          <Icon name="chevron-left" size={24} tint={color.ink} />
+          <Icon name="chevron-left" size={24} tint={t.ink} />
         </Pressable>
         <DSText variant="title" style={styles.monthLabel}>{monthLabel(month)}</DSText>
         <Pressable
@@ -105,7 +104,7 @@ function ParentAttendanceScreen() {
           onPress={() => setMonth((m) => shiftMonth(m, 1))}
           style={[styles.monthBtn, !canGoNext && styles.monthBtnDisabled]}
         >
-          <Icon name="chevron-right" size={24} tint={canGoNext ? color.ink : color.ink2} />
+          <Icon name="chevron-right" size={24} tint={canGoNext ? t.ink : t.faint} />
         </Pressable>
       </View>
 
@@ -115,7 +114,7 @@ function ParentAttendanceScreen() {
         <SectionCard heading="SUMMARY">
           <View style={styles.tiles}>
             {(["present", "absent", "late"] as const).map((key) => {
-              const tile = tileFor(key);
+              const tile = tileFor(key, t);
               const value = totals ? totals[key] : 0;
               return (
                 <View key={key} style={styles.tile}>
@@ -128,8 +127,8 @@ function ParentAttendanceScreen() {
               );
             })}
             <View style={styles.tile}>
-              <TonalTile bg={color.tileLavender} size={40}>
-                <Icon name="event-available" size={20} tint={color.primary} />
+              <TonalTile bg={t.tint} size={40}>
+                <Icon name="event-available" size={20} tint={t.blue} />
               </TonalTile>
               <DSText variant="title" style={styles.tileValue}>{`${totals ? totals.percentage : 0}%`}</DSText>
               <DSText variant="label">Present</DSText>
@@ -145,19 +144,21 @@ function ParentAttendanceScreen() {
 
       {record && record.attendance.length > 0 ? (
         <SectionCard heading="DAY BY DAY">
-          {record.attendance.map((day) => {
-            const tile = tileFor(String(day.status));
+          {record.attendance.map((day, index) => {
+            const tile = tileFor(String(day.status), t);
             return (
-              <ListRow
-                key={day.id}
-                leading={
-                  <TonalTile bg={tile.bg} size={36}>
-                    <Icon name={tile.icon} size={18} tint={tile.fg} />
-                  </TonalTile>
-                }
-                title={String(day.date)}
-                subtitle={[day.checkIn ? `In ${day.checkIn}` : "", day.checkOut ? `Out ${day.checkOut}` : ""].filter(Boolean).join(" · ") || String(day.status)}
-              />
+              <View key={day.id}>
+                {index > 0 ? <View style={[styles.divider, { backgroundColor: t.line }]} /> : null}
+                <ListRow
+                  leading={
+                    <TonalTile bg={tile.bg} size={36}>
+                      <Icon name={tile.icon} size={18} tint={tile.fg} />
+                    </TonalTile>
+                  }
+                  title={String(day.date)}
+                  subtitle={[day.checkIn ? `In ${day.checkIn}` : "", day.checkOut ? `Out ${day.checkOut}` : ""].filter(Boolean).join(" · ") || String(day.status)}
+                />
+              </View>
             );
           })}
         </SectionCard>
@@ -167,14 +168,12 @@ function ParentAttendanceScreen() {
 }
 
 const styles = StyleSheet.create({
-  page: { paddingHorizontal: space.xl, paddingBottom: space.xl, gap: 14 },
+  page: { paddingHorizontal: space.xl, paddingBottom: space.xl, paddingTop: space.md, gap: 14 },
   identityRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: space.md,
-    backgroundColor: color.surface,
     borderWidth: 1,
-    borderColor: color.outline,
     borderRadius: radius.xl,
     padding: space.lg
   },
@@ -183,9 +182,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: color.surface,
     borderWidth: 1,
-    borderColor: color.outline,
     borderRadius: radius.pill,
     paddingHorizontal: space.sm,
     paddingVertical: space.xs
@@ -195,5 +192,6 @@ const styles = StyleSheet.create({
   monthBtnDisabled: { opacity: 0.4 },
   tiles: { flexDirection: "row", gap: space.sm },
   tile: { flex: 1, alignItems: "center", gap: 4 },
-  tileValue: { fontWeight: "700" }
+  tileValue: { fontWeight: "700" },
+  divider: { height: StyleSheet.hairlineWidth }
 });
