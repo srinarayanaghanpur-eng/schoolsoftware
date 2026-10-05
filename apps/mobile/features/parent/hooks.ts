@@ -24,6 +24,43 @@ const HOMEWORK_TTL_MIN = 10;
 const PAYMENTS_TTL_MIN = 5;
 const ATTENDANCE_TTL_MIN = 10;
 
+type SummaryPayload = { summary: PortalSummary; linkedStudents: PortalStudent[] };
+
+/**
+ * Guarantee every field screens touch. The server sends full shapes today,
+ * but cached payloads from older builds (or a partial backend response)
+ * must never crash a render — missing pieces become safe empties.
+ */
+function normalizeSummaryPayload(input: SummaryPayload | null): SummaryPayload | null {
+  if (!input) return null;
+  const s = (input.summary ?? {}) as Partial<PortalSummary>;
+  const student = (s.student ?? {}) as Partial<PortalStudent>;
+  const fees = (s.fees ?? {}) as Partial<PortalSummary["fees"]>;
+  return {
+    summary: {
+      student: {
+        id: String(student.id ?? ""),
+        name: String(student.name ?? ""),
+        className: String(student.className ?? ""),
+        section: String(student.section ?? ""),
+        admissionNo: String(student.admissionNo ?? "")
+      },
+      fees: {
+        total: Number(fees.total ?? 0),
+        paid: Number(fees.paid ?? 0),
+        due: Number(fees.due ?? 0),
+        feeBalanceCarriedForward: Number(fees.feeBalanceCarriedForward ?? 0),
+        ...(typeof fees.status === "string" ? { status: fees.status } : {})
+      },
+      marks: Array.isArray(s.marks) ? s.marks : [],
+      notices: Array.isArray(s.notices) ? s.notices : [],
+      recentPayments: Array.isArray(s.recentPayments) ? s.recentPayments : [],
+      upcomingHolidays: Array.isArray(s.upcomingHolidays) ? s.upcomingHolidays : []
+    },
+    linkedStudents: Array.isArray(input.linkedStudents) ? input.linkedStudents : []
+  };
+}
+
 export function useParentSummary(studentId?: string) {
   const [state, setState] = useState<AsyncState<{ summary: PortalSummary; linkedStudents: PortalStudent[] }>>({
     data: null,
@@ -38,13 +75,13 @@ export function useParentSummary(studentId?: string) {
       if (!force) {
         const cached = await mobileCache.get<{ summary: PortalSummary; linkedStudents: PortalStudent[] }>(cacheKey);
         if (cached) {
-          setState({ data: cached, loading: false, error: null });
+          setState({ data: normalizeSummaryPayload(cached), loading: false, error: null });
           return;
         }
       }
       const fresh = await fetchSummary(studentId);
       await mobileCache.set(cacheKey, fresh, SUMMARY_TTL_MIN);
-      setState({ data: fresh, loading: false, error: null });
+      setState({ data: normalizeSummaryPayload(fresh), loading: false, error: null });
     } catch (err) {
       setState((s) => ({
         data: s.data,
@@ -102,8 +139,7 @@ export function useParentHomework(studentId?: string) {
   }), [state, load, studentId]);
 }
 
-export function useParentPayments(studentId?: string) {
-  const [state, setState] = useState<AsyncState<PortalPaymentFull[]>>({ data: null, loading: true, error: null });
+export function useParentPayments(studentId?: string) {  const [state, setState] = useState<AsyncState<PortalPaymentFull[]>>({ data: null, loading: true, error: null });
 
   const load = useCallback(async (force = false) => {
     const cacheKey = `portal-payments:${studentId ?? "default"}`;
@@ -154,13 +190,13 @@ export function useParentAttendance(studentId?: string, month?: string) {
       if (!force) {
         const cached = await mobileCache.get<PortalAttendanceResponse>(cacheKey);
         if (cached !== null) {
-          setState({ data: cached, loading: false, error: null });
+          setState({ data: normalizeAttendanceRecord(cached), loading: false, error: null });
           return;
         }
       }
       const fresh = await fetchAttendance(studentId, month);
       await mobileCache.set(cacheKey, fresh, ATTENDANCE_TTL_MIN);
-      setState({ data: fresh, loading: false, error: null });
+      setState({ data: normalizeAttendanceRecord(fresh), loading: false, error: null });
     } catch (err) {
       setState((s) => ({
         data: s.data,
@@ -178,6 +214,23 @@ export function useParentAttendance(studentId?: string, month?: string) {
     error: state.error,
     refresh: () => load(true)
   }), [state, load, studentId]);
+}
+
+/** Same guarantee as normalizeSummaryPayload, for the attendance record. */
+function normalizeAttendanceRecord(input: PortalAttendanceResponse | null): PortalAttendanceResponse | null {
+  if (!input) return null;
+  const summary = (input.summary ?? {}) as Partial<PortalAttendanceResponse["summary"]>;
+  return {
+    student: input.student,
+    summary: {
+      present: Number(summary.present ?? 0),
+      absent: Number(summary.absent ?? 0),
+      late: Number(summary.late ?? 0),
+      total: Number(summary.total ?? 0),
+      percentage: Number(summary.percentage ?? 0)
+    },
+    attendance: Array.isArray(input.attendance) ? input.attendance : []
+  };
 }
 
 /* ---------------- display helpers (pure) ---------------- */

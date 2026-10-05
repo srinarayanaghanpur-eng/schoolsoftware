@@ -12,13 +12,16 @@ import { Card, DSText, Icon, PillButton } from "@/design-system/components";
 import { color, space } from "@/design-system/tokens";
 
 type Props = { children: React.ReactNode };
-type State = { crashed: boolean };
+type State = { crashed: boolean; message: string };
 
 export class ErrorBoundary extends React.Component<Props, State> {
-  state: State = { crashed: false };
+  state: State = { crashed: false, message: "" };
 
-  static getDerivedStateFromError(): State {
-    return { crashed: true };
+  static getDerivedStateFromError(error: unknown): State {
+    return {
+      crashed: true,
+      message: error instanceof Error ? error.message : "Unknown render error"
+    };
   }
 
   componentDidCatch(): void {
@@ -27,7 +30,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
   }
 
   private retry = () => {
-    this.setState({ crashed: false });
+    this.setState({ crashed: false, message: "" });
   };
 
   render() {
@@ -40,6 +43,11 @@ export class ErrorBoundary extends React.Component<Props, State> {
           <DSText variant="label" style={styles.message}>
             The screen ran into a problem. Your data is safe — try again.
           </DSText>
+          {this.state.message ? (
+            <DSText variant="caption" style={styles.detail}>
+              {this.state.message}
+            </DSText>
+          ) : null}
           <PillButton label="Try again" onPress={this.retry} block />
         </Card>
       </View>
@@ -57,5 +65,6 @@ const styles = StyleSheet.create({
   },
   card: { alignItems: "center", gap: space.sm, width: "100%", maxWidth: 360 },
   title: { fontSize: 18 },
-  message: { textAlign: "center" }
+  message: { textAlign: "center" },
+  detail: { textAlign: "center", opacity: 0.75 }
 });
