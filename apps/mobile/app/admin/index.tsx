@@ -14,7 +14,7 @@ import { color, radius, space } from "@/design-system/tokens";
 import { useMobileSession } from "@/lib/mobileSession";
 import { AdminShell } from "@/features/admin/shell";
 import {
-  formatDate, formatMoney, formatMoneyShort, useDashboardStats, useLeaveRequests,
+  formatDate, formatMoney, formatMoneyShort, formatText, useDashboardStats, useLeaveRequests,
   useRecentPayments, useTodayAttendance
 } from "@/features/admin/hooks";
 import { dateLabel, greeting, initials } from "@/features/teacher/hooks";
@@ -135,8 +135,8 @@ function AdminHome() {
             <ListRow
               key={request.id}
               leading={<TonalTile bg={color.warningContainer}><Icon name="flight-takeoff" size={19} tint={color.warning} /></TonalTile>}
-              title={request.teacherName ?? "Staff leave request"}
-              subtitle={`${request.leaveType ?? "Leave"} · ${formatDate(request.fromDate)}`}
+              title={formatText(request.teacherName, "Staff leave request")}
+              subtitle={`${formatText(request.leaveType, "Leave")} · ${formatDate(request.fromDate)}`}
               chevron
               onPress={() => router.push("/admin/approvals" as never)}
             />
@@ -168,7 +168,7 @@ function AdminHome() {
             <ListRow
               key={payment.id}
               leading={<TonalTile bg={color.successContainer}><Icon name="check" size={19} tint={color.success} /></TonalTile>}
-              title={payment.studentName ?? "Payment"}
+              title={formatText(payment.studentName, "Payment")}
               subtitle={`${formatMoney(payment.amountPaid)} · ${payment.paymentMethod || "—"}`}
               trailing={<DSText variant="caption">{formatDate(payment.createdAt)}</DSText>}
             />

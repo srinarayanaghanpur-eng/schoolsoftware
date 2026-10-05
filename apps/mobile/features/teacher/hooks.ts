@@ -31,9 +31,11 @@ export function localDateKey(date = new Date()) {
   return new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 10);
 }
 
-export function formatTime(iso?: string) {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" });
+export function formatTime(iso?: unknown) {
+  if (typeof iso !== "string" || !iso) return "—";
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "—";
+  return date.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" });
 }
 
 export type AttendanceTone = "success" | "warning" | "error" | "neutral";

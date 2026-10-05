@@ -4,6 +4,7 @@
  */
 import { useCallback, useEffect, useState } from "react";
 import { mobileCache } from "@/lib/cache/mobileCache";
+import { asDateString, asText } from "@/lib/text";
 import {
   fetchDashboardStats, fetchFinanceSummary, fetchLeaveRequests, fetchNotices,
   fetchRecentPayments, fetchTeachers, fetchTodayAttendance,
@@ -139,9 +140,21 @@ export function formatMoneyShort(value?: number) {
   return `₹${amount}`;
 }
 
-export function formatDate(value?: string) {
-  if (!value) return "—";
+export function formatDate(value?: unknown) {
+  if (value === null || value === undefined || value === "") return "—";
+  // Firestore Timestamps (live instances or {_seconds} JSON) must become
+  // text here — returning the raw value crashes the render (error #31).
+  if (typeof value !== "string") {
+    const converted = asDateString(value, "");
+    return converted || "—";
+  }
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
+  if (Number.isNaN(date.getTime())) return "—";
   return date.toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+}
+
+/** Non-string display values become safe text (never an object child). */
+export function formatText(value: unknown, fallback = "—"): string {
+  const text = asText(value);
+  return text || fallback;
 }
