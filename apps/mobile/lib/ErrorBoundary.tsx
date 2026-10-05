@@ -12,15 +12,27 @@ import { Card, DSText, Icon, PillButton } from "@/design-system/components";
 import { color, space } from "@/design-system/tokens";
 
 type Props = { children: React.ReactNode };
-type State = { crashed: boolean; message: string; stack: string };
+type State = { crashed: boolean; message: string; stack: string; route: string };
+
+function currentRoute(): string {
+  try {
+    if (typeof window !== "undefined" && window.location?.pathname) {
+      return window.location.pathname;
+    }
+  } catch {
+    // never let diagnostics break the fallback
+  }
+  return "native";
+}
 
 export class ErrorBoundary extends React.Component<Props, State> {
-  state: State = { crashed: false, message: "", stack: "" };
+  state: State = { crashed: false, message: "", stack: "", route: "" };
 
   static getDerivedStateFromError(error: unknown): Partial<State> {
     return {
       crashed: true,
-      message: error instanceof Error ? error.message : "Unknown render error"
+      message: error instanceof Error ? error.message : "Unknown render error",
+      route: currentRoute()
     };
   }
 
@@ -39,9 +51,8 @@ export class ErrorBoundary extends React.Component<Props, State> {
   }
 
   private retry = () => {
-    this.setState({ crashed: false, message: "", stack: "" });
+    this.setState({ crashed: false, message: "", stack: "", route: "" });
   };
-
   render() {
     if (!this.state.crashed) return this.props.children;
     return (
@@ -55,6 +66,11 @@ export class ErrorBoundary extends React.Component<Props, State> {
           {this.state.message ? (
             <DSText variant="caption" style={styles.detail}>
               {this.state.message}
+            </DSText>
+          ) : null}
+          {this.state.route ? (
+            <DSText variant="caption" style={styles.detail}>
+              Screen: {this.state.route}
             </DSText>
           ) : null}
           {this.state.stack ? (
