@@ -59,7 +59,7 @@ function TeacherInbox() {
           announcements.map((item) => (
             <ListRow
               key={`${item.date}-${item.title}`}
-              leading={<Avatar label="SO" size={44} bg={color.accountPurple} />}
+              leading={<Avatar label="SO" size={44} bg={color.tileLavender} fg={color.primaryDeep} />}
               title={item.title}
               subtitle={`School office · ${new Date(item.date).toLocaleDateString("en-IN", {
                 day: "numeric",
@@ -78,7 +78,7 @@ function TeacherInbox() {
             <ListRow
               key={`${item.date}-${item.title}`}
               leading={
-                <TonalTile bg={color.primaryContainer}>
+                <TonalTile bg={color.tileSky}>
                   <Icon name="campaign" size={19} tint={color.primary} />
                 </TonalTile>
               }

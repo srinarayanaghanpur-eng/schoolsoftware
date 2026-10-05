@@ -17,7 +17,7 @@ import {
   Avatar, DSText, EmptyState, ErrorState, Icon, ListRow, LoadingState,
   PressableScale, TonalTile, useToast
 } from "@/design-system/components";
-import { color, motion, radius, space } from "@/design-system/tokens";
+import { color, elevation, motion, radius, space } from "@/design-system/tokens";
 import { sendParentMessage } from "@/features/parent/api";
 import { useParentSummary } from "@/features/parent/hooks";
 import { ChildSwitcher } from "@/features/parent/ChildSwitcher";
@@ -84,7 +84,7 @@ function ParentMessagesScreen() {
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor={color.primary} />}
       >
-        <DSText variant="display" style={{ paddingHorizontal: space.xl, paddingTop: 6, paddingBottom: space.md }}>
+        <DSText variant="display" style={{ paddingHorizontal: space.xl, paddingTop: 6 }}>
           Messages
         </DSText>
         <View style={{ paddingHorizontal: space.xl, paddingBottom: space.sm }}>
@@ -97,10 +97,14 @@ function ParentMessagesScreen() {
           <EmptyState icon="chat-bubble-outline" label="No school messages yet." />
         ) : null}
 
+        {summary && notices.length > 0 ? (
+          <DSText variant="overline" style={styles.inboxLabel}>SCHOOL INBOX</DSText>
+        ) : null}
+
         {notices.map((notice, index) => (
-          <View key={index} style={styles.inboxRow}>
+          <View key={index} style={[styles.inboxRow, elevation.card]}>
             <ListRow
-              leading={<Avatar label="SA" size={44} bg={color.accountPurple} />}
+              leading={<Avatar label="SA" size={44} bg={color.tileLavender} fg={color.primaryDeep} />}
               title={notice.title}
               subtitle={notice.body}
             />
@@ -126,7 +130,7 @@ function ParentMessagesScreen() {
               <PressableScale accessibilityLabel="Close" onPress={() => setComposeOpen(false)} style={styles.backButton}>
                 <Icon name="arrow-back" size={22} tint={color.ink} />
               </PressableScale>
-              <TonalTile bg={color.primaryContainer} size={36}>
+              <TonalTile bg={color.tileLavender} size={36}>
                 <Icon name="school" size={18} tint={color.primary} />
               </TonalTile>
               <View>
@@ -165,14 +169,23 @@ function ParentMessagesScreen() {
 }
 
 const styles = StyleSheet.create({
-  page: { paddingBottom: 100 },
-  inboxRow: { paddingHorizontal: space.xl, paddingVertical: space.md },
+  page: { paddingBottom: 100, gap: 10 },
+  inboxLabel: { paddingHorizontal: space.xl, marginTop: space.sm },
+  inboxRow: {
+    marginHorizontal: space.xl,
+    backgroundColor: color.surface,
+    borderWidth: 1,
+    borderColor: color.outline,
+    borderRadius: 18,
+    paddingHorizontal: space.lg,
+    paddingVertical: space.sm
+  },
   fab: {
     position: "absolute",
     right: 20,
     width: 56,
     height: 56,
-    borderRadius: radius.md,
+    borderRadius: 28,
     backgroundColor: color.primary,
     alignItems: "center",
     justifyContent: "center",
@@ -189,13 +202,15 @@ const styles = StyleSheet.create({
     gap: 10,
     paddingHorizontal: space.md,
     paddingBottom: 10,
-    borderBottomWidth: 1,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: color.outline
   },
   backButton: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center" },
   input: {
     flex: 1,
-    backgroundColor: color.surfaceVariant,
+    backgroundColor: color.surface,
+    borderWidth: 1,
+    borderColor: color.outline,
     borderRadius: radius.lg,
     padding: space.lg,
     fontSize: 14,
@@ -205,7 +220,9 @@ const styles = StyleSheet.create({
   sendRow: { flexDirection: "row", alignItems: "center", gap: space.sm, paddingHorizontal: space.md, paddingTop: 10 },
   sendHint: {
     flex: 1,
-    backgroundColor: color.surfaceVariant,
+    backgroundColor: color.surface,
+    borderWidth: 1,
+    borderColor: color.outline,
     borderRadius: radius.pill,
     paddingHorizontal: 18,
     paddingVertical: 13

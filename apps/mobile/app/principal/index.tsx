@@ -8,10 +8,10 @@ import { RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import {
-  Avatar, Badge, DSText, ErrorState, Hero, Icon, ListRow, LoadingState,
-  PillButton, PressableScale, ProgressRow, ScreenHeader, SectionCard, StatTile, TonalTile, useToast
+  Avatar, Badge, Card, DSText, ErrorState, Hero, Icon, ListRow, LoadingState,
+  PillButton, PressableScale, ProgressRow, ScreenHeader, SectionCard, TonalTile, useToast
 } from "@/design-system/components";
-import { color, radius, space } from "@/design-system/tokens";
+import { color, elevation, radius, space } from "@/design-system/tokens";
 import { useMobileSession } from "@/lib/mobileSession";
 import { PrincipalShell } from "@/features/admin/shell";
 import {
@@ -21,10 +21,10 @@ import {
 import { dateLabel, greeting, initials } from "@/features/teacher/hooks";
 
 const QUICK_ACTIONS = [
-  { key: "staff", icon: "groups" as const, label: "Staff", href: "/principal/staff" },
-  { key: "approvals", icon: "fact-check" as const, label: "Approvals", href: "/principal/approvals" },
-  { key: "attendance", icon: "how-to-reg" as const, label: "Attendance", href: "/principal/staff" },
-  { key: "profile", icon: "person-outline" as const, label: "Profile", href: "/principal/profile" }
+  { key: "staff", icon: "groups" as const, label: "Staff", href: "/principal/staff", tile: color.tileSky, tint: color.primary },
+  { key: "approvals", icon: "fact-check" as const, label: "Approvals", href: "/principal/approvals", tile: color.tilePeach, tint: color.warning },
+  { key: "attendance", icon: "how-to-reg" as const, label: "Attendance", href: "/principal/staff", tile: color.tileMint, tint: color.success },
+  { key: "profile", icon: "person-outline" as const, label: "Profile", href: "/principal/profile", tile: color.tileLavender, tint: color.primary }
 ];
 
 export default function PrincipalHomeRoute() {
@@ -108,13 +108,33 @@ function PrincipalHome() {
       </Hero>
 
       <View style={styles.statRow}>
-        <StatTile value={staff.length} label="Staff on roll" tint={color.primary} />
-        <StatTile value={stats?.totalStudents ?? 0} label="Students" tint={color.accountPurple} />
-        <StatTile
-          value={pendingLeave.length}
-          label="Awaiting you"
-          tint={pendingLeave.length > 0 ? color.warning : color.success}
-        />
+        <Card style={styles.moneyCard}>
+          <TonalTile bg={color.tileSky} size={36}>
+            <Icon name="groups" size={19} tint={color.primary} />
+          </TonalTile>
+          <DSText variant="display" style={styles.moneyValue} numberOfLines={1}>
+            {staff.length}
+          </DSText>
+          <DSText variant="overline" style={styles.moneyLabel} numberOfLines={1}>ON ROLL</DSText>
+        </Card>
+        <Card style={styles.moneyCard}>
+          <TonalTile bg={color.tileLavender} size={36}>
+            <Icon name="school" size={19} tint={color.primary} />
+          </TonalTile>
+          <DSText variant="display" style={styles.moneyValue} numberOfLines={1}>
+            {stats?.totalStudents ?? 0}
+          </DSText>
+          <DSText variant="overline" style={styles.moneyLabel} numberOfLines={1}>STUDENTS</DSText>
+        </Card>
+        <Card style={styles.moneyCard}>
+          <TonalTile bg={pendingLeave.length > 0 ? color.tilePeach : color.tileMint} size={36}>
+            <Icon name="fact-check" size={19} tint={pendingLeave.length > 0 ? color.warning : color.success} />
+          </TonalTile>
+          <DSText variant="display" style={styles.moneyValue} numberOfLines={1}>
+            {pendingLeave.length}
+          </DSText>
+          <DSText variant="overline" style={styles.moneyLabel} numberOfLines={1}>AWAITING</DSText>
+        </Card>
       </View>
 
       {/* assign a task prompt (staff task assignment — Phase 2) */}
@@ -149,15 +169,17 @@ function PrincipalHome() {
         {pendingLeave.length === 0 ? (
           <DSText variant="label">Nothing waiting on you. All caught up.</DSText>
         ) : (
-          pendingLeave.slice(0, 3).map((request) => (
-            <ListRow
-              key={request.id}
-              leading={<Avatar label={initials(request.teacherName ?? "?")} size={38} />}
-              title={request.teacherName ?? "Staff leave request"}
-              subtitle={`${request.leaveType ?? "Leave"} · ${formatDate(request.fromDate)}`}
-              chevron
-              onPress={() => router.push("/principal/approvals" as never)}
-            />
+          pendingLeave.slice(0, 3).map((request, index) => (
+            <View key={request.id}>
+              {index > 0 ? <View style={styles.divider} /> : null}
+              <ListRow
+                leading={<Avatar label={initials(request.teacherName ?? "?")} size={38} />}
+                title={request.teacherName ?? "Staff leave request"}
+                subtitle={`${request.leaveType ?? "Leave"} · ${formatDate(request.fromDate)}`}
+                chevron
+                onPress={() => router.push("/principal/approvals" as never)}
+              />
+            </View>
           ))
         )}
       </SectionCard>
@@ -171,7 +193,9 @@ function PrincipalHome() {
             onPress={() => router.push(action.href as never)}
             style={styles.quickTile}
           >
-            <Icon name={action.icon} size={22} tint={color.primary} />
+            <TonalTile bg={action.tile} size={38}>
+              <Icon name={action.icon} size={22} tint={action.tint} />
+            </TonalTile>
             <DSText variant="caption" tint={color.ink2} style={{ fontWeight: "500" }}>{action.label}</DSText>
           </PressableScale>
         ))}
@@ -182,13 +206,15 @@ function PrincipalHome() {
         {notices.length === 0 ? (
           <DSText variant="label">No notices published yet.</DSText>
         ) : (
-          notices.slice(0, 3).map((notice) => (
-            <ListRow
-              key={notice.id}
-              leading={<TonalTile bg={color.primaryContainer}><Icon name="campaign" size={19} tint={color.primary} /></TonalTile>}
-              title={notice.title ?? "Untitled notice"}
-              subtitle={`${notice.audience ?? "All"} · ${formatDate(notice.createdAt)}`}
-            />
+          notices.slice(0, 3).map((notice, index) => (
+            <View key={notice.id}>
+              {index > 0 ? <View style={styles.divider} /> : null}
+              <ListRow
+                leading={<TonalTile bg={color.tileLavender}><Icon name="campaign" size={19} tint={color.primary} /></TonalTile>}
+                title={notice.title ?? "Untitled notice"}
+                subtitle={`${notice.audience ?? "All"} · ${formatDate(notice.createdAt)}`}
+              />
+            </View>
           ))
         )}
       </SectionCard>
@@ -199,19 +225,22 @@ function PrincipalHome() {
         onPress={() => toast.show("Staff announcements arrive in the next release.")}
         style={styles.broadcast}
       >
-        <Icon name="campaign" size={19} tint={color.primary} />
+        <TonalTile bg={color.tileLavender} size={34}>
+          <Icon name="campaign" size={19} tint={color.primary} />
+        </TonalTile>
         <DSText variant="bodyMedium" tint={color.primary}>Send announcement to all staff</DSText>
       </PressableScale>
 
       {/* fee position — secondary for this role */}
       <SectionCard heading="FEE POSITION">
         <ListRow
-          leading={<TonalTile bg={color.successContainer}><Icon name="trending-up" size={19} tint={color.success} /></TonalTile>}
+          leading={<TonalTile bg={color.tileMint}><Icon name="trending-up" size={19} tint={color.success} /></TonalTile>}
           title={formatMoneyShort(stats?.totalFeeCollected)}
           subtitle="Collected to date"
         />
+        <View style={styles.divider} />
         <ListRow
-          leading={<TonalTile bg={color.errorContainer}><Icon name="error-outline" size={19} tint={color.error} /></TonalTile>}
+          leading={<TonalTile bg={color.tileRose}><Icon name="error-outline" size={19} tint={color.error} /></TonalTile>}
           title={formatMoneyShort(stats?.totalFeeOutstanding)}
           subtitle={`${stats?.studentsWithOutstandingFees ?? 0} students with dues`}
         />
@@ -223,27 +252,43 @@ function PrincipalHome() {
 const styles = StyleSheet.create({
   page: { paddingHorizontal: space.xl, paddingBottom: space.xl, gap: 14 },
   statRow: { flexDirection: "row", gap: 10 },
-  promptTitle: { fontSize: 15, fontWeight: "600", color: color.onPrimary },
+  moneyCard: {
+    flex: 1,
+    padding: space.md,
+    paddingHorizontal: space.sm,
+    alignItems: "flex-start",
+    gap: 6,
+    borderRadius: radius.lg,
+    ...elevation.card
+  },
+  moneyValue: { fontSize: 17, fontWeight: "800" },
+  moneyLabel: { fontSize: 10 },
+  divider: { height: StyleSheet.hairlineWidth, backgroundColor: color.outline },
+  promptTitle: { fontSize: 15, fontWeight: "700", color: color.onPrimary },
   promptMeta: { fontSize: 12.5, color: color.onPrimary, opacity: 0.8, marginTop: 2 },
   quickGrid: { flexDirection: "row", gap: 10 },
   quickTile: {
     flex: 1,
-    backgroundColor: color.surfaceVariant,
-    borderRadius: radius.md,
-    paddingVertical: space.md + 4,
+    backgroundColor: color.surface,
+    borderWidth: 1,
+    borderColor: color.outline,
+    borderRadius: radius.lg,
+    paddingVertical: space.md + 2,
     paddingHorizontal: space.xs,
     alignItems: "center",
-    gap: space.sm
+    gap: space.sm,
+    ...elevation.card
   },
   broadcast: {
-    borderWidth: 1.5,
-    borderStyle: "dashed",
-    borderColor: color.faint,
-    borderRadius: radius.md,
+    backgroundColor: color.surface,
+    borderWidth: 1,
+    borderColor: color.outline,
+    borderRadius: radius.lg,
     padding: 13,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: space.sm
+    gap: space.sm,
+    ...elevation.card
   }
 });

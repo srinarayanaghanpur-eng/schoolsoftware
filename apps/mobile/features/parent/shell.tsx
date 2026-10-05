@@ -20,6 +20,16 @@ const TABS = [
   { href: "/parent/profile", match: ["/parent/profile"], icon: "person" as const, label: "Profile" }
 ];
 
+/** Zepto-style pastel tile wash behind each inactive tab icon. */
+const TILE_ORDER = [
+  color.tileLavender,
+  color.tilePeach,
+  color.tileMint,
+  color.tileSky,
+  color.tileRose,
+  color.tileLemon,
+] as const;
+
 export function ParentShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -30,7 +40,7 @@ export function ParentShell({ children }: { children: React.ReactNode }) {
       <View style={styles.root}>
         <View style={{ flex: 1 }}>{children}</View>
         <View style={[styles.navBar, { paddingBottom: Math.max(insets.bottom, 10) }]}>
-          {TABS.map((tab) => {
+          {TABS.map((tab, index) => {
             const active = tab.match.includes(pathname);
             return (
               <Pressable
@@ -41,8 +51,13 @@ export function ParentShell({ children }: { children: React.ReactNode }) {
                 onPress={() => { if (!active) router.replace(tab.href as never); }}
                 style={({ pressed }) => [styles.navItem, pressed && { transform: [{ scale: 0.93 }] }]}
               >
-                <View style={[styles.navPill, active && { backgroundColor: color.primaryContainer }]}>
-                  <Icon name={tab.icon} size={21} tint={active ? color.onPrimaryContainer : color.ink2} />
+                <View
+                  style={[
+                    styles.navPill,
+                    { backgroundColor: active ? color.primary : TILE_ORDER[index % TILE_ORDER.length] },
+                  ]}
+                >
+                  <Icon name={tab.icon} size={21} tint={active ? color.onPrimary : color.ink} />
                 </View>
                 <Text style={[styles.navLabel, active && styles.navLabelActive]}>{tab.label}</Text>
               </Pressable>
@@ -58,14 +73,14 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: color.background },
   navBar: {
     flexDirection: "row",
-    backgroundColor: color.surfaceVariant,
+    backgroundColor: color.surface,
     borderTopWidth: 1,
-    borderTopColor: color.outlineStrong,
-    paddingTop: 8,
-    paddingHorizontal: 4
+    borderTopColor: color.outline,
+    paddingTop: 10,
+    paddingHorizontal: 6
   },
-  navItem: { flex: 1, alignItems: "center", gap: 3 },
-  navPill: { width: 56, height: 30, borderRadius: radius.pill, alignItems: "center", justifyContent: "center" },
-  navLabel: { fontSize: 11, fontWeight: "500", color: color.ink2 },
-  navLabelActive: { fontWeight: "700", color: color.ink }
+  navItem: { flex: 1, alignItems: "center", gap: 4 },
+  navPill: { width: 58, height: 32, borderRadius: radius.pill, alignItems: "center", justifyContent: "center" },
+  navLabel: { fontSize: 10.5, fontWeight: "500", color: color.ink2 },
+  navLabelActive: { fontWeight: "800", color: color.primary }
 });

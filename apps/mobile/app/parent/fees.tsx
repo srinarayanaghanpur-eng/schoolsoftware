@@ -7,15 +7,15 @@ import React, { useCallback } from "react";
 import { FlatList, RefreshControl, Share, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
-  DSText, EmptyState, ErrorState, Icon, ListRow, LoadingState,
+  Avatar, DSText, EmptyState, ErrorState, Icon, ListRow, LoadingState,
   SectionCard, TonalTile, useToast
 } from "@/design-system/components";
-import { color, space } from "@/design-system/tokens";
+import { color, elevation, radius, space } from "@/design-system/tokens";
 import { ParentShell } from "@/features/parent/shell";
 import { ChildSwitcher } from "@/features/parent/ChildSwitcher";
 import { useSelectChild, useSelectedChildId, useSelectedChildRaw } from "@/features/parent/SelectedChild";
 import { fetchReceipt } from "@/features/parent/api";
-import { formatMoney, useParentPayments, useParentSummary } from "@/features/parent/hooks";
+import { formatMoney, initials, useParentPayments, useParentSummary } from "@/features/parent/hooks";
 
 export default function ParentFeesRoute() {
   return (
@@ -76,7 +76,7 @@ function ParentFeesScreen() {
       renderItem={({ item: payment }) => (
         <ListRow
           leading={
-            <TonalTile bg={color.successContainer} size={36}>
+            <TonalTile bg={color.tileMint} size={36}>
               <Icon name="receipt" size={18} tint={color.success} />
             </TonalTile>
           }
@@ -94,12 +94,29 @@ function ParentFeesScreen() {
         <View style={styles.header}>
           <ChildSwitcher children={linkedStudents} selectedId={activeId} onSelect={select} />
 
+          <View style={[styles.identityRow, elevation.card]}>
+            <Avatar
+              label={summary ? initials(summary.student.name) : "—"}
+              size={46}
+              bg={color.tileLavender}
+              fg={color.primaryDeep}
+            />
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <DSText variant="title" style={styles.identityName} numberOfLines={1}>
+                {summary?.student.name ?? "Fees"}
+              </DSText>
+              <DSText variant="label" numberOfLines={1}>
+                {summary ? `Class ${summary.student.className}${summary.student.section} · Adm ${summary.student.admissionNo}` : ""}
+              </DSText>
+            </View>
+          </View>
+
           {summary ? (
             <SectionCard heading="FEE SUMMARY">
               <ListRow
                 leading={
-                  <TonalTile bg={color.primaryContainer} size={36}>
-                    <Icon name="payments" size={18} tint={color.onPrimaryContainer} />
+                  <TonalTile bg={color.tileLavender} size={36}>
+                    <Icon name="payments" size={18} tint={color.primary} />
                   </TonalTile>
                 }
                 title={`${formatMoney(summary.fees.paid)} paid of ${formatMoney(summary.fees.total)}`}
@@ -107,11 +124,11 @@ function ParentFeesScreen() {
               />
               <ListRow
                 leading={
-                  <TonalTile bg={summary.fees.due > 0 ? color.warningContainer : color.successContainer} size={36}>
+                  <TonalTile bg={summary.fees.due > 0 ? color.tilePeach : color.tileMint} size={36}>
                     <Icon
                       name={summary.fees.due > 0 ? "schedule" : "check"}
                       size={18}
-                      tint={summary.fees.due > 0 ? color.warning : color.success}
+                      tint={summary.fees.due > 0 ? color.onWarningDeep : color.success}
                     />
                   </TonalTile>
                 }
@@ -143,6 +160,17 @@ function ParentFeesScreen() {
 const styles = StyleSheet.create({
   page: { paddingHorizontal: space.xl, paddingBottom: space.xl, gap: 14 },
   header: { gap: 14 },
+  identityRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: space.md,
+    backgroundColor: color.surface,
+    borderWidth: 1,
+    borderColor: color.outline,
+    borderRadius: radius.xl,
+    padding: space.lg
+  },
+  identityName: { fontSize: 17, fontWeight: "700" },
   separator: { height: StyleSheet.hairlineWidth, backgroundColor: color.outline, marginLeft: 52 },
   hint: { alignItems: "center" }
 });

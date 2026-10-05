@@ -50,16 +50,16 @@ function TeacherAttendance() {
     >
       <PageTitle>Attendance</PageTitle>
 
-      {/* geofence status */}
+      {/* geofence status — GPS flow unchanged, Zepto pastel tiles only */}
       <Hero tone={marking.insideCampus ? "success" : "warning"}>
         <TonalTile
-          bg={marking.insideCampus ? color.success : color.warningContainer}
+          bg={marking.insideCampus ? color.tileMint : color.tileLemon}
           size={40}
         >
           <Icon
             name={marking.insideCampus ? "location-on" : "location-searching"}
             size={22}
-            tint={marking.insideCampus ? color.onPrimary : color.warning}
+            tint={marking.insideCampus ? color.success : color.warning}
           />
         </TonalTile>
         <View style={{ flex: 1, minWidth: 0 }}>
@@ -99,7 +99,9 @@ function TeacherAttendance() {
 
       {marking.error ? (
         <Card style={styles.errorCard}>
-          <Icon name="error-outline" size={20} tint={color.error} />
+          <TonalTile bg={color.tileRose} size={36}>
+            <Icon name="error-outline" size={20} tint={color.error} />
+          </TonalTile>
           <DSText variant="bodyMedium" tint={color.error} style={{ flex: 1 }}>
             {marking.error}
           </DSText>
@@ -109,7 +111,9 @@ function TeacherAttendance() {
       {/* offline backlog */}
       {marking.pendingCount > 0 ? (
         <Card style={styles.pendingCard}>
-          <Icon name="cloud-upload" size={20} tint={color.warning} />
+          <TonalTile bg={color.tileLemon} size={36}>
+            <Icon name="cloud-upload" size={20} tint={color.warning} />
+          </TonalTile>
           <DSText variant="bodyMedium" style={{ flex: 1 }}>
             {marking.pendingCount} {marking.pendingCount === 1 ? "attempt" : "attempts"} pending sync
           </DSText>
@@ -155,7 +159,7 @@ function TeacherAttendance() {
         label={marking.locating ? "Locating…" : "Refresh location"}
         block
         icon="my-location"
-        bg={color.surfaceVariant}
+        bg={color.surface}
         fg={color.ink2}
         onPress={() => { void marking.refreshLocation(); }}
       />
@@ -163,12 +167,12 @@ function TeacherAttendance() {
       {/* today's record */}
       <SectionCard heading="TODAY’S RECORD">
         <ListRow
-          leading={<TonalTile bg={color.primaryContainer}><Icon name="login" size={19} tint={color.primary} /></TonalTile>}
+          leading={<TonalTile bg={color.tileSky}><Icon name="login" size={19} tint={color.primary} /></TonalTile>}
           title="Checked in"
           subtitle={formatTime(summary.today?.checkInTime)}
         />
         <ListRow
-          leading={<TonalTile bg={color.surfaceVariant}><Icon name="logout" size={19} tint={color.ink2} /></TonalTile>}
+          leading={<TonalTile bg={color.tileLavender}><Icon name="logout" size={19} tint={color.ink2} /></TonalTile>}
           title="Checked out"
           subtitle={formatTime(summary.today?.checkOutTime)}
         />
@@ -190,7 +194,7 @@ const styles = StyleSheet.create({
     gap: space.md,
     backgroundColor: color.errorContainer,
     borderColor: color.errorContainer,
-    borderRadius: radius.md
+    borderRadius: radius.lg
   },
   pendingCard: {
     flexDirection: "row",
@@ -198,7 +202,7 @@ const styles = StyleSheet.create({
     gap: space.md,
     backgroundColor: color.warningContainer,
     borderColor: color.warningContainer,
-    borderRadius: radius.md
+    borderRadius: radius.lg
   },
   actions: { flexDirection: "row", gap: space.md }
 });

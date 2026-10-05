@@ -2,7 +2,7 @@
  * Admin Notices — school circulars, newest first.
  */
 import React from "react";
-import { RefreshControl, ScrollView, StyleSheet } from "react-native";
+import { RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   DSText, EmptyState, ErrorState, Icon, ListRow, LoadingState, PageTitle,
@@ -11,6 +11,13 @@ import {
 import { color, space } from "@/design-system/tokens";
 import { AdminShell } from "@/features/admin/shell";
 import { formatDate, useNotices } from "@/features/admin/hooks";
+
+const NOTICE_TILES = [
+  { bg: color.tileLavender, tint: color.primary },
+  { bg: color.tileSky, tint: color.primary },
+  { bg: color.tilePeach, tint: color.warning },
+  { bg: color.tileMint, tint: color.success }
+];
 
 export default function AdminNoticesRoute() {
   return (
@@ -39,18 +46,23 @@ function AdminNotices() {
         {notices.length === 0 ? (
           <EmptyState icon="campaign" label="No notices published yet." />
         ) : (
-          notices.map((notice) => (
-            <ListRow
-              key={notice.id}
-              leading={
-                <TonalTile bg={color.primaryContainer}>
-                  <Icon name="campaign" size={19} tint={color.primary} />
-                </TonalTile>
-              }
-              title={notice.title ?? "Untitled notice"}
-              subtitle={`${notice.audience ?? "All"} · ${formatDate(notice.createdAt)}`}
-            />
-          ))
+          notices.map((notice, index) => {
+            const tile = NOTICE_TILES[index % NOTICE_TILES.length];
+            return (
+              <View key={notice.id}>
+                {index > 0 ? <View style={styles.divider} /> : null}
+                <ListRow
+                  leading={
+                    <TonalTile bg={tile.bg}>
+                      <Icon name="campaign" size={19} tint={tile.tint} />
+                    </TonalTile>
+                  }
+                  title={notice.title ?? "Untitled notice"}
+                  subtitle={`${notice.audience ?? "All"} · ${formatDate(notice.createdAt)}`}
+                />
+              </View>
+            );
+          })
         )}
       </SectionCard>
 
@@ -63,5 +75,6 @@ function AdminNotices() {
 }
 
 const styles = StyleSheet.create({
-  page: { paddingHorizontal: space.xl, paddingBottom: space.xl, gap: 14 }
+  page: { paddingHorizontal: space.xl, paddingBottom: space.xl, gap: 14 },
+  divider: { height: StyleSheet.hairlineWidth, backgroundColor: color.outline }
 });

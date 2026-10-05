@@ -18,14 +18,14 @@ import { useSelectChild, useSelectedChildId, useSelectedChildRaw } from "@/featu
 import { formatDue, formatMoney, greeting, initials, subjectCode, useParentHomework, useParentSummary } from "@/features/parent/hooks";
 
 const SUBJECT_TILES: Record<string, { bg: string; fg: string }> = {
-  MATH: { bg: color.primaryContainer, fg: color.onPrimaryContainer },
-  SCI: { bg: color.successContainer, fg: color.onSuccessContainer },
-  ENG: { bg: color.warningContainer, fg: color.onWarningDeep },
-  HIN: { bg: color.errorContainer, fg: color.onErrorContainer }
+  MATH: { bg: color.tileLavender, fg: color.primaryDeep },
+  SCI: { bg: color.tileMint, fg: color.success },
+  ENG: { bg: color.tileLemon, fg: color.onWarningDeep },
+  HIN: { bg: color.tileRose, fg: color.error }
 };
 
 function tileFor(code: string) {
-  return SUBJECT_TILES[code] ?? { bg: color.surfaceVariant, fg: color.ink2 };
+  return SUBJECT_TILES[code] ?? { bg: color.tileSky, fg: color.ink2 };
 }
 
 export default function ParentHomeRoute() {
@@ -61,58 +61,72 @@ function ParentHome() {
       showsVerticalScrollIndicator={false}
       refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor={color.primary} />}
     >
-      {/* greeting */}
+      {/* delivery-app identity header */}
       <View style={styles.headerRow}>
-        <View style={{ flex: 1 }}>
+        <Avatar label={initials(parentName)} size={46} bg={color.primary} fg={color.onPrimary} />
+        <View style={{ flex: 1, minWidth: 0 }}>
           <DSText variant="label" tint={color.ink3} style={{ fontWeight: "500" }}>{greeting()}</DSText>
-          <DSText variant="display">{parentName}</DSText>
+          <DSText variant="title" style={styles.headerName} numberOfLines={1}>{parentName}</DSText>
         </View>
-        <Avatar label={initials(parentName)} size={42} bg={color.success} />
+        <Badge label={`Class ${student.className}`} bg={color.tileLavender} fg={color.primaryDeep} />
       </View>
 
       <ChildSwitcher children={linkedStudents} selectedId={activeId} onSelect={select} />
 
-      {/* child card */}
-      <View style={[styles.childCard, elevation.hero]}>
-        <Avatar label={initials(student.name)} size={50} bg="rgba(255,255,255,0.18)" />
+      {/* child identity card */}
+      <View style={[styles.childCard, elevation.card]}>
+        <Avatar label={initials(student.name)} size={50} bg={color.tileSky} fg={color.primaryDeep} />
         <View style={{ flex: 1, minWidth: 0 }}>
-          <Text style={styles.childName}>{student.name}</Text>
-          <Text style={styles.childMeta}>
+          <Text style={styles.childName} numberOfLines={1}>{student.name}</Text>
+          <Text style={styles.childMeta} numberOfLines={1}>
             Class {student.className}{student.section ? student.section : ""} · Adm {student.admissionNo}
           </Text>
+          <View style={styles.chipRow}>
+            <Badge label={`Class ${student.className}${student.section ? student.section : ""}`} bg={color.tileLavender} fg={color.primaryDeep} />
+          </View>
         </View>
       </View>
 
       {/* fees due banner */}
       {fees.due > 0 ? (
-        <View style={styles.feeBanner}>
-          <TonalTile bg={color.warningContainer}>
-            <Icon name="receipt-long" size={20} tint={color.warning} />
+        <View style={[styles.feeBanner, elevation.card]}>
+          <TonalTile bg={color.tilePeach}>
+            <Icon name="receipt-long" size={20} tint={color.onWarningDeep} />
           </TonalTile>
           <View style={{ flex: 1, minWidth: 0 }}>
-            <DSText variant="bodyMedium" tint={color.onWarningDeep}>Fees due</DSText>
-            <DSText variant="label" tint={color.warning}>{formatMoney(fees.due)} outstanding</DSText>
+            <DSText variant="label" tint={color.ink3}>Fees due</DSText>
+            <DSText variant="title" style={styles.feeAmount}>{formatMoney(fees.due)} outstanding</DSText>
           </View>
           <PillButton
             label="Pay now"
-            bg={color.onWarningDeep}
+            bg={color.primary}
+            fg={color.onPrimary}
             onPress={() => toast.show("Please pay at the school office or web portal.")}
           />
         </View>
       ) : null}
 
-      {/* stat tiles */}
+      {/* quick summary tiles */}
       <View style={styles.statRow}>
         <Card style={styles.statTile}>
-          <DSText variant="display" tint={color.success} style={styles.statValue}>{formatMoney(fees.paid)}</DSText>
+          <TonalTile bg={color.tileMint} size={36}>
+            <Icon name="payments" size={18} tint={color.success} />
+          </TonalTile>
+          <DSText variant="title" style={styles.statValue} numberOfLines={1}>{formatMoney(fees.paid)}</DSText>
           <DSText variant="label" style={styles.statLabel}>Fees paid</DSText>
         </Card>
         <Card style={styles.statTile}>
-          <DSText variant="display" tint={color.primary} style={styles.statValue}>{summary.marks.length}</DSText>
+          <TonalTile bg={color.tileLavender} size={36}>
+            <Icon name="school" size={18} tint={color.primary} />
+          </TonalTile>
+          <DSText variant="title" style={styles.statValue}>{summary.marks.length}</DSText>
           <DSText variant="label" style={styles.statLabel}>Published marks</DSText>
         </Card>
         <Card style={styles.statTile}>
-          <DSText variant="display" style={styles.statValue}>{summary.upcomingHolidays.length}</DSText>
+          <TonalTile bg={color.tileSky} size={36}>
+            <Icon name="event-available" size={18} tint={color.primaryDeep} />
+          </TonalTile>
+          <DSText variant="title" style={styles.statValue}>{summary.upcomingHolidays.length}</DSText>
           <DSText variant="label" style={styles.statLabel}>Holidays ahead</DSText>
         </Card>
       </View>
@@ -120,7 +134,7 @@ function ParentHome() {
       {/* homework today */}
       <SectionCard
         heading="HOMEWORK"
-        trailing={dueHomework.length > 0 ? <Badge label={`${dueHomework.length} due`} /> : undefined}
+        trailing={dueHomework.length > 0 ? <Badge label={`${dueHomework.length} due`} bg={color.tileLemon} fg={color.onWarningDeep} /> : undefined}
       >
         {dueHomework.length === 0 ? (
           <DSText variant="label">No homework due — all caught up.</DSText>
@@ -150,7 +164,7 @@ function ParentHome() {
           notices.slice(0, 3).map((notice, index) => (
             <ListRow
               key={index}
-              leading={<TonalTile bg={color.primaryContainer}><Icon name="campaign" size={19} tint={color.primary} /></TonalTile>}
+              leading={<TonalTile bg={color.tileSky}><Icon name="campaign" size={19} tint={color.primary} /></TonalTile>}
               title={notice.title}
               subtitle={notice.body}
             />
@@ -164,8 +178,8 @@ function ParentHome() {
         onPress={() => router.push("/parent/messages" as never)}
         style={styles.messageCta}
       >
-        <Icon name="chat" size={18} tint={color.primary} />
-        <DSText variant="bodyMedium" tint={color.primary}>Message the school</DSText>
+        <Icon name="chat" size={18} tint={color.onPrimary} />
+        <DSText variant="bodyMedium" tint={color.onPrimary}>Message the school</DSText>
       </PressableScale>
     </ScrollView>
   );
@@ -173,9 +187,22 @@ function ParentHome() {
 
 const styles = StyleSheet.create({
   page: { paddingHorizontal: space.xl, paddingBottom: space.xl, gap: 14 },
-  headerRow: { flexDirection: "row", alignItems: "center", gap: space.md, paddingTop: space.sm },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: space.md,
+    paddingTop: space.sm,
+    backgroundColor: color.surface,
+    borderWidth: 1,
+    borderColor: color.outline,
+    borderRadius: radius.xl,
+    padding: space.lg
+  },
+  headerName: { fontSize: 18, fontWeight: "700" },
   childCard: {
-    backgroundColor: color.primaryGradientA,
+    backgroundColor: color.surface,
+    borderWidth: 1,
+    borderColor: color.outline,
     borderRadius: radius.xl,
     padding: space.lg,
     paddingHorizontal: 18,
@@ -183,10 +210,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 14
   },
-  childName: { fontSize: 16, fontWeight: "600", color: color.onPrimary },
-  childMeta: { fontSize: 12.5, color: color.onPrimary, opacity: 0.8, marginTop: 2 },
+  childName: { fontSize: 16, fontWeight: "700", color: color.ink },
+  childMeta: { fontSize: 12.5, color: color.ink3, marginTop: 2 },
+  chipRow: { flexDirection: "row", marginTop: 6 },
   feeBanner: {
-    backgroundColor: color.warningSurface,
+    backgroundColor: color.surface,
+    borderWidth: 1,
+    borderColor: color.outline,
     borderRadius: radius.xl,
     padding: 14,
     paddingHorizontal: space.lg,
@@ -194,28 +224,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: space.md
   },
+  feeAmount: { fontWeight: "700", fontSize: 15 },
   statRow: { flexDirection: "row", gap: 10 },
-  statTile: { flex: 1, padding: space.md, paddingHorizontal: space.sm, alignItems: "center", borderRadius: radius.md },
-  remarkRow: { flexDirection: "row", alignItems: "flex-start", gap: space.md },
-  remarkCta: {
-    borderWidth: 1.5,
-    borderStyle: "dashed",
-    borderColor: color.faint,
-    borderRadius: radius.md,
-    padding: 11,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: space.sm
-  },
-  statValue: { fontSize: 17 },
+  statTile: { flex: 1, padding: space.md, paddingHorizontal: space.sm, alignItems: "center", borderRadius: radius.lg, gap: 4 },
+  statValue: { fontSize: 16, fontWeight: "700" },
   statLabel: { fontSize: 11, marginTop: 2, textAlign: "center" },
   messageCta: {
-    borderWidth: 1.5,
-    borderStyle: "dashed",
-    borderColor: color.faint,
-    borderRadius: radius.md,
-    padding: 11,
+    backgroundColor: color.primary,
+    borderRadius: radius.pill,
+    padding: 13,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",

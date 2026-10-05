@@ -7,23 +7,23 @@ import React, { useCallback, useState } from "react";
 import { Pressable, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
-  DSText, EmptyState, ErrorState, Icon, ListRow, LoadingState,
+  Avatar, Badge, DSText, ErrorState, Icon, ListRow, LoadingState,
   SectionCard, TonalTile
 } from "@/design-system/components";
-import { color, space } from "@/design-system/tokens";
+import { color, elevation, radius, space } from "@/design-system/tokens";
 import { ParentShell } from "@/features/parent/shell";
 import { ChildSwitcher } from "@/features/parent/ChildSwitcher";
 import { useSelectChild, useSelectedChildId, useSelectedChildRaw } from "@/features/parent/SelectedChild";
-import { monthLabel, shiftMonth, useParentAttendance, useParentSummary } from "@/features/parent/hooks";
+import { initials, monthLabel, shiftMonth, useParentAttendance, useParentSummary } from "@/features/parent/hooks";
 
 const STATUS_TILE: Record<string, { bg: string; fg: string; icon: "check" | "close" | "schedule" }> = {
-  present: { bg: color.successContainer, fg: color.success, icon: "check" },
-  absent: { bg: color.errorContainer, fg: color.error, icon: "close" },
-  late: { bg: color.warningContainer, fg: color.warning, icon: "schedule" }
+  present: { bg: color.tileMint, fg: color.success, icon: "check" },
+  absent: { bg: color.tileRose, fg: color.error, icon: "close" },
+  late: { bg: color.tileLemon, fg: color.onWarningDeep, icon: "schedule" }
 };
 
 function tileFor(status: string) {
-  return STATUS_TILE[status] ?? { bg: color.surfaceVariant, fg: color.ink2, icon: "check" as const };
+  return STATUS_TILE[status] ?? { bg: color.tileSky, fg: color.ink2, icon: "check" as const };
 }
 
 export default function ParentAttendanceRoute() {
@@ -69,7 +69,24 @@ function ParentAttendanceScreen() {
     >
       <ChildSwitcher children={linkedStudents} selectedId={activeId} onSelect={select} />
 
-      <View style={styles.monthRow}>
+      {summary ? (
+        <View style={[styles.identityRow, elevation.card]}>
+          <Avatar label={initials(summary.student.name)} size={42} bg={color.tileMint} fg={color.success} />
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <DSText variant="title" style={styles.identityName} numberOfLines={1}>{summary.student.name}</DSText>
+            <DSText variant="label" numberOfLines={1}>
+              Class {summary.student.className}{summary.student.section}
+            </DSText>
+          </View>
+          <Badge
+            label={totals ? `${totals.percentage}% present` : "Attendance"}
+            bg={color.tileLavender}
+            fg={color.primaryDeep}
+          />
+        </View>
+      ) : null}
+
+      <View style={[styles.monthRow, elevation.card]}>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Previous month"
@@ -105,16 +122,16 @@ function ParentAttendanceScreen() {
                   <TonalTile bg={tile.bg} size={40}>
                     <Icon name={tile.icon} size={20} tint={tile.fg} />
                   </TonalTile>
-                  <DSText variant="title">{String(value)}</DSText>
+                  <DSText variant="title" style={styles.tileValue}>{String(value)}</DSText>
                   <DSText variant="label">{key[0].toUpperCase() + key.slice(1)}</DSText>
                 </View>
               );
             })}
             <View style={styles.tile}>
-              <TonalTile bg={color.primaryContainer} size={40}>
-                <Icon name="event-available" size={20} tint={color.onPrimaryContainer} />
+              <TonalTile bg={color.tileLavender} size={40}>
+                <Icon name="event-available" size={20} tint={color.primary} />
               </TonalTile>
-              <DSText variant="title">{`${totals ? totals.percentage : 0}%`}</DSText>
+              <DSText variant="title" style={styles.tileValue}>{`${totals ? totals.percentage : 0}%`}</DSText>
               <DSText variant="label">Present</DSText>
             </View>
           </View>
@@ -151,10 +168,32 @@ function ParentAttendanceScreen() {
 
 const styles = StyleSheet.create({
   page: { paddingHorizontal: space.xl, paddingBottom: space.xl, gap: 14 },
-  monthRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  monthLabel: { fontSize: 17 },
-  monthBtn: { padding: space.xs },
+  identityRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: space.md,
+    backgroundColor: color.surface,
+    borderWidth: 1,
+    borderColor: color.outline,
+    borderRadius: radius.xl,
+    padding: space.lg
+  },
+  identityName: { fontSize: 16, fontWeight: "700" },
+  monthRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: color.surface,
+    borderWidth: 1,
+    borderColor: color.outline,
+    borderRadius: radius.pill,
+    paddingHorizontal: space.sm,
+    paddingVertical: space.xs
+  },
+  monthLabel: { fontSize: 16, fontWeight: "700" },
+  monthBtn: { padding: space.xs, width: 40, height: 40, alignItems: "center", justifyContent: "center", borderRadius: 20 },
   monthBtnDisabled: { opacity: 0.4 },
   tiles: { flexDirection: "row", gap: space.sm },
-  tile: { flex: 1, alignItems: "center", gap: 4 }
+  tile: { flex: 1, alignItems: "center", gap: 4 },
+  tileValue: { fontWeight: "700" }
 });

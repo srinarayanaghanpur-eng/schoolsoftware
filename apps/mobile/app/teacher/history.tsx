@@ -16,10 +16,10 @@ import { formatTime, statusTone, useAttendanceSummary } from "@/features/teacher
 const FILTERS = ["All", "Present", "Late", "Absent"];
 
 const TONE_STYLE = {
-  success: { bg: color.successContainer, fg: color.onSuccessContainer, icon: "check-circle" as const },
-  warning: { bg: color.warningContainer, fg: color.onWarningDeep, icon: "schedule" as const },
-  error: { bg: color.errorContainer, fg: color.error, icon: "cancel" as const },
-  neutral: { bg: color.surfaceVariant, fg: color.ink2, icon: "remove-circle-outline" as const }
+  success: { bg: color.tileMint, fg: color.onSuccessContainer, icon: "check-circle" as const },
+  warning: { bg: color.tileLemon, fg: color.onWarningDeep, icon: "schedule" as const },
+  error: { bg: color.tileRose, fg: color.error, icon: "cancel" as const },
+  neutral: { bg: color.tileLavender, fg: color.ink2, icon: "remove-circle-outline" as const }
 };
 
 export default function TeacherHistoryRoute() {

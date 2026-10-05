@@ -10,11 +10,11 @@ import { FlatList, RefreshControl, ScrollView, StyleSheet, View } from "react-na
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import {
-  Avatar, Badge, DSText, EmptyState, ErrorState, FilterChips, Icon, ListRow,
-  LoadingState, PageTitle, PillButton, ProgressRow, SectionCard, StatTile, useToast,
+  Avatar, Badge, Card, DSText, EmptyState, ErrorState, FilterChips, Icon, ListRow,
+  LoadingState, PageTitle, PillButton, ProgressRow, SectionCard, TonalTile, useToast,
   type IconName
 } from "@/design-system/components";
-import { color, space } from "@/design-system/tokens";
+import { color, elevation, radius, space } from "@/design-system/tokens";
 import { useMobileSession } from "@/lib/mobileSession";
 import { dashboardPathForRole, workspaceForRole, workspaceLabel } from "@/lib/roleRouting";
 import { initials } from "@/features/teacher/hooks";
@@ -27,6 +27,13 @@ import {
 /* ------------------------------------------------------------------ Staff */
 
 const STAFF_FILTERS = ["All", "Active", "Inactive"];
+
+const MANAGE_TILES = [
+  { bg: color.tileSky, tint: color.primary },
+  { bg: color.tilePeach, tint: color.warning },
+  { bg: color.tileMint, tint: color.success },
+  { bg: color.tileLavender, tint: color.primary }
+];
 
 export function StaffScreen() {
   const insets = useSafeAreaInsets();
@@ -58,7 +65,7 @@ export function StaffScreen() {
           trailing={
             <Badge
               label={(member.status ?? "active") === "active" ? "Active" : "Inactive"}
-              bg={(member.status ?? "active") === "active" ? color.successContainer : color.surfaceVariant}
+              bg={(member.status ?? "active") === "active" ? color.tileMint : color.surfaceVariant}
               fg={(member.status ?? "active") === "active" ? color.onSuccessContainer : color.ink2}
             />
           }
@@ -72,11 +79,47 @@ export function StaffScreen() {
         <View style={styles.header}>
           <PageTitle>Staff</PageTitle>
 
-          <View style={styles.statRow}>
-            <StatTile value={attendance.present} label="Present today" tint={color.success} />
-            <StatTile value={attendance.late} label="Late" tint={color.warning} />
-            <StatTile value={attendance.absent} label="Absent" tint={color.error} />
-            <StatTile value={staff.length} label="On roll" tint={color.primary} />
+          <View style={styles.moneyGrid}>
+            <View style={styles.moneyRow}>
+              <Card style={styles.moneyCard}>
+                <TonalTile bg={color.tileMint} size={34}>
+                  <Icon name="how-to-reg" size={18} tint={color.success} />
+                </TonalTile>
+                <DSText variant="display" style={styles.moneyValue} numberOfLines={1}>
+                  {attendance.present}
+                </DSText>
+                <DSText variant="overline" style={styles.moneyLabel} numberOfLines={1}>PRESENT</DSText>
+              </Card>
+              <Card style={styles.moneyCard}>
+                <TonalTile bg={color.tilePeach} size={34}>
+                  <Icon name="schedule" size={18} tint={color.warning} />
+                </TonalTile>
+                <DSText variant="display" style={styles.moneyValue} numberOfLines={1}>
+                  {attendance.late}
+                </DSText>
+                <DSText variant="overline" style={styles.moneyLabel} numberOfLines={1}>LATE</DSText>
+              </Card>
+            </View>
+            <View style={styles.moneyRow}>
+              <Card style={styles.moneyCard}>
+                <TonalTile bg={color.tileRose} size={34}>
+                  <Icon name="person-off" size={18} tint={color.error} />
+                </TonalTile>
+                <DSText variant="display" style={styles.moneyValue} numberOfLines={1}>
+                  {attendance.absent}
+                </DSText>
+                <DSText variant="overline" style={styles.moneyLabel} numberOfLines={1}>ABSENT</DSText>
+              </Card>
+              <Card style={styles.moneyCard}>
+                <TonalTile bg={color.tileLavender} size={34}>
+                  <Icon name="groups" size={18} tint={color.primary} />
+                </TonalTile>
+                <DSText variant="display" style={styles.moneyValue} numberOfLines={1}>
+                  {staff.length}
+                </DSText>
+                <DSText variant="overline" style={styles.moneyLabel} numberOfLines={1}>ON ROLL</DSText>
+              </Card>
+            </View>
           </View>
 
           <SectionCard heading="TODAY’S ATTENDANCE">
@@ -176,8 +219,8 @@ export function ApprovalsScreen() {
                     label={busyId === request.id ? "Saving…" : "Approve"}
                     block
                     icon="check"
-                    bg={color.successContainer}
-                    fg={color.onSuccessContainer}
+                    bg={color.primary}
+                    fg={color.onPrimary}
                     onPress={() => { if (!busyId) void decide(request.id, "approved"); }}
                   />
                 </View>
@@ -186,7 +229,7 @@ export function ApprovalsScreen() {
                     label="Reject"
                     block
                     icon="close"
-                    bg={color.errorContainer}
+                    bg={color.tileRose}
                     fg={color.error}
                     onPress={() => { if (!busyId) void decide(request.id, "rejected"); }}
                   />
@@ -262,33 +305,75 @@ export function ManagementProfileScreen() {
       </View>
 
       <View style={styles.statRow}>
-        <StatTile value={stats?.totalStudents ?? 0} label="Students" tint={color.primary} />
-        <StatTile value={attendance.total} label="Staff" tint={color.accountPurple} />
-        <StatTile value={formatMoney(stats?.monthlyCollection)} label="This month" tint={color.success} />
+        <Card style={styles.moneyCard}>
+          <TonalTile bg={color.tileSky} size={34}>
+            <Icon name="school" size={18} tint={color.primary} />
+          </TonalTile>
+          <DSText variant="display" style={styles.moneyValue} numberOfLines={1}>
+            {stats?.totalStudents ?? 0}
+          </DSText>
+          <DSText variant="overline" style={styles.moneyLabel} numberOfLines={1}>STUDENTS</DSText>
+        </Card>
+        <Card style={styles.moneyCard}>
+          <TonalTile bg={color.tileLavender} size={34}>
+            <Icon name="groups" size={18} tint={color.primary} />
+          </TonalTile>
+          <DSText variant="display" style={styles.moneyValue} numberOfLines={1}>
+            {attendance.total}
+          </DSText>
+          <DSText variant="overline" style={styles.moneyLabel} numberOfLines={1}>STAFF</DSText>
+        </Card>
+        <Card style={styles.moneyCard}>
+          <TonalTile bg={color.tileMint} size={34}>
+            <Icon name="payments" size={18} tint={color.success} />
+          </TonalTile>
+          <DSText variant="display" style={styles.moneyValue} numberOfLines={1}>
+            {formatMoney(stats?.monthlyCollection)}
+          </DSText>
+          <DSText variant="overline" style={styles.moneyLabel} numberOfLines={1}>THIS MONTH</DSText>
+        </Card>
       </View>
 
       <SectionCard heading="MANAGE">
-        {manageLinks.map((link) => (
-          <ListRow
-            key={link.href}
-            leading={<Icon name={link.icon} size={21} tint={color.primary} />}
-            title={link.title}
-            chevron
-            onPress={() => router.push(link.href as never)}
-          />
-        ))}
+        {manageLinks.map((link, index) => {
+          const tile = MANAGE_TILES[index % MANAGE_TILES.length];
+          return (
+            <View key={link.href}>
+              {index > 0 ? <View style={styles.divider} /> : null}
+              <ListRow
+                leading={
+                  <TonalTile bg={tile.bg} size={36}>
+                    <Icon name={link.icon} size={19} tint={tile.tint} />
+                  </TonalTile>
+                }
+                title={link.title}
+                chevron
+                onPress={() => router.push(link.href as never)}
+              />
+            </View>
+          );
+        })}
       </SectionCard>
 
       <SectionCard heading="MORE">
         <ListRow
-          leading={<Icon name="insights" size={21} tint={color.primary} />}
+          leading={
+            <TonalTile bg={color.tileSky} size={36}>
+              <Icon name="insights" size={19} tint={color.primary} />
+            </TonalTile>
+          }
           title="Reports & exports"
           subtitle="Available in the web dashboard"
           chevron
           onPress={() => toast.show("Open the web dashboard for full reports.")}
         />
+        <View style={styles.divider} />
         <ListRow
-          leading={<Icon name="help-outline" size={21} tint={color.primary} />}
+          leading={
+            <TonalTile bg={color.tileLemon} size={36}>
+              <Icon name="help-outline" size={19} tint={color.warning} />
+            </TonalTile>
+          }
           title="Help & support"
           chevron
           onPress={() => toast.show("Contact your system administrator.")}
@@ -304,7 +389,21 @@ const styles = StyleSheet.create({
   page: { paddingHorizontal: space.xl, paddingBottom: space.xl, gap: 14 },
   header: { gap: 14 },
   separator: { height: StyleSheet.hairlineWidth, backgroundColor: color.outline, marginLeft: 56 },
+  divider: { height: StyleSheet.hairlineWidth, backgroundColor: color.outline },
   statRow: { flexDirection: "row", gap: space.sm },
+  moneyGrid: { gap: 10 },
+  moneyRow: { flexDirection: "row", gap: 10 },
+  moneyCard: {
+    flex: 1,
+    padding: space.md,
+    paddingHorizontal: space.sm,
+    alignItems: "flex-start",
+    gap: 6,
+    borderRadius: radius.lg,
+    ...elevation.card
+  },
+  moneyValue: { fontSize: 17, fontWeight: "800" },
+  moneyLabel: { fontSize: 10 },
   identityRow: { flexDirection: "row", alignItems: "center", gap: 14, paddingTop: 10 },
   decisionRow: { flexDirection: "row", gap: space.md, marginTop: space.md }
 });

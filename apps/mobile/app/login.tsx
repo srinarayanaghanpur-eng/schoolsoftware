@@ -94,10 +94,14 @@ export default function Login() {
       {/* brand hero */}
       <View style={[styles.hero, { paddingTop: insets.top + space.xl }]}>
         <View style={styles.logo}>
-          <Icon name="school" size={36} tint={color.onPrimary} />
+          <Icon name="school" size={36} tint={color.primary} />
         </View>
         <Text style={styles.schoolName}>Sri Narayana High School</Text>
         <Text style={styles.schoolSub}>SCHOOL ERP · PARENT & STAFF APP</Text>
+        <View style={styles.heroPill}>
+          <Icon name="lock" size={12} tint={color.onPrimary} />
+          <Text style={styles.heroPillText}>SCHOOL-MANAGED · SECURE SIGN-IN</Text>
+        </View>
       </View>
 
       {/* form sheet */}
@@ -110,6 +114,7 @@ export default function Login() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
+          <View style={styles.grabber} />
           <DSText variant="title" style={styles.welcome}>Welcome back</DSText>
           <DSText variant="label" style={styles.welcomeSub}>
             Sign in with the login ID given by the school office.
@@ -124,9 +129,11 @@ export default function Login() {
             </View>
           ) : null}
 
-          <DSText variant="overline" style={styles.fieldLabel}>LOGIN ID · CAPITALS</DSText>
+          <DSText variant="overline" style={styles.fieldLabel}>LOGIN ID</DSText>
           <View style={styles.inputRow}>
-            <Icon name="badge" size={19} tint={color.muted} />
+            <View style={[styles.iconTile, { backgroundColor: color.tileLavender }]}>
+              <Icon name="badge" size={19} tint={color.ink} />
+            </View>
             <TextInput
               style={[styles.input, styles.capsInput]}
               placeholder="e.g. PAR001"
@@ -142,7 +149,9 @@ export default function Login() {
 
           <DSText variant="overline" style={styles.fieldLabel}>PASSWORD</DSText>
           <View style={styles.inputRow}>
-            <Icon name="lock-outline" size={19} tint={color.muted} />
+            <View style={[styles.iconTile, { backgroundColor: color.tileSky }]}>
+              <Icon name="lock-outline" size={19} tint={color.ink} />
+            </View>
             <TextInput
               ref={passwordRef}
               style={styles.input}
@@ -172,6 +181,7 @@ export default function Login() {
             {loading ? null : <Icon name="arrow-forward" size={19} tint={color.onPrimary} />}
           </PressableScale>
 
+          <View style={styles.divider} />
           <View style={styles.footer}>
             <Icon name="lock" size={13} tint={color.muted} />
             <DSText variant="caption">Secure sign-in · contact the office if you need access</DSText>
@@ -183,17 +193,18 @@ export default function Login() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: color.primaryDeep },
+  root: { flex: 1, backgroundColor: color.primary },
   hero: {
     alignItems: "center",
     paddingBottom: space.xxl,
+    paddingHorizontal: space.xl,
     gap: space.sm
   },
   logo: {
     width: 84,
     height: 84,
     borderRadius: 26,
-    backgroundColor: "rgba(255,255,255,0.16)",
+    backgroundColor: color.onPrimary,
     borderWidth: 1.5,
     borderColor: "rgba(255,255,255,0.35)",
     alignItems: "center",
@@ -202,7 +213,7 @@ const styles = StyleSheet.create({
   },
   schoolName: {
     fontSize: 23,
-    fontWeight: "700",
+    fontWeight: "800",
     color: color.onPrimary,
     letterSpacing: -0.4,
     textAlign: "center"
@@ -211,23 +222,49 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "700",
     letterSpacing: 1.6,
-    color: "rgba(255,255,255,0.75)"
+    color: "rgba(255,255,255,0.8)"
+  },
+  heroPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: space.sm,
+    backgroundColor: "rgba(255,255,255,0.16)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.35)",
+    borderRadius: radius.pill,
+    paddingHorizontal: 12,
+    paddingVertical: 7
+  },
+  heroPillText: {
+    fontSize: 10.5,
+    fontWeight: "700",
+    letterSpacing: 1,
+    color: color.onPrimary
   },
   sheetWrap: { flex: 1, marginTop: -space.xxl },
   sheet: {
     flexGrow: 1,
-    backgroundColor: color.background,
+    backgroundColor: color.surface,
     borderTopLeftRadius: radius.xl,
     borderTopRightRadius: radius.xl,
     paddingHorizontal: space.xl,
-    paddingTop: space.xl,
+    paddingTop: space.md,
     gap: space.sm
   },
-  welcome: { fontSize: 20 },
+  grabber: {
+    alignSelf: "center",
+    width: 34,
+    height: 4,
+    borderRadius: radius.pill,
+    backgroundColor: color.outlineStrong,
+    marginBottom: space.sm
+  },
+  welcome: { fontSize: 22, fontWeight: "800" },
   welcomeSub: { marginTop: -2 },
   errorBox: {
     backgroundColor: color.errorContainer,
-    borderRadius: radius.sm,
+    borderRadius: radius.md,
     padding: space.md,
     marginTop: space.xs,
     flexDirection: "row",
@@ -239,21 +276,29 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: space.sm,
-    backgroundColor: color.surface,
+    backgroundColor: color.background,
     borderWidth: 1,
-    borderColor: color.outlineStrong,
+    borderColor: color.outline,
     borderRadius: radius.md,
-    paddingHorizontal: 14
+    paddingHorizontal: 10,
+    paddingVertical: 4
+  },
+  iconTile: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center"
   },
   input: {
     flex: 1,
-    paddingVertical: 15,
+    paddingVertical: 14,
     fontSize: 16,
     color: color.ink
   },
-  capsInput: { letterSpacing: 1.5, fontWeight: "600" },
+  capsInput: { letterSpacing: 1.5, fontWeight: "700" },
   button: {
-    minHeight: 56,
+    minHeight: 58,
     backgroundColor: color.primary,
     borderRadius: radius.pill,
     flexDirection: "row",
@@ -262,6 +307,7 @@ const styles = StyleSheet.create({
     gap: space.sm,
     marginTop: space.lg
   },
-  buttonText: { color: color.onPrimary, fontSize: 16, fontWeight: "600" },
+  buttonText: { color: color.onPrimary, fontSize: 17, fontWeight: "700" },
+  divider: { height: 1, backgroundColor: color.outline, marginTop: space.lg },
   footer: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: space.xs + 2, marginTop: space.sm }
 });

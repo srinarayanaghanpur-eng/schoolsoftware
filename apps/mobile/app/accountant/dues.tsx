@@ -6,9 +6,9 @@ import { RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   Card, DSText, ErrorState, Icon, ListRow, LoadingState, PageTitle,
-  ProgressRow, SectionCard, StatTile, TonalTile
+  ProgressRow, SectionCard, TonalTile
 } from "@/design-system/components";
-import { color, space } from "@/design-system/tokens";
+import { color, elevation, radius, space } from "@/design-system/tokens";
 import { AccountantShell } from "@/features/admin/shell";
 import { formatMoney, formatMoneyShort, useDashboardStats } from "@/features/admin/hooks";
 
@@ -45,9 +45,33 @@ function AccountantDues() {
       <PageTitle>Dues</PageTitle>
 
       <View style={styles.statRow}>
-        <StatTile value={formatMoneyShort(outstanding)} label="Outstanding" tint={color.error} />
-        <StatTile value={stats?.studentsWithOutstandingFees ?? 0} label="Students" tint={color.warning} />
-        <StatTile value={formatMoneyShort(averageDue)} label="Average due" tint={color.primary} />
+        <Card style={styles.moneyCard}>
+          <TonalTile bg={color.tileRose} size={36}>
+            <Icon name="schedule" size={19} tint={color.error} />
+          </TonalTile>
+          <DSText variant="display" style={styles.moneyValue} numberOfLines={1}>
+            {formatMoneyShort(outstanding)}
+          </DSText>
+          <DSText variant="overline" style={styles.moneyLabel} numberOfLines={1}>DUE</DSText>
+        </Card>
+        <Card style={styles.moneyCard}>
+          <TonalTile bg={color.tilePeach} size={36}>
+            <Icon name="group" size={19} tint={color.warning} />
+          </TonalTile>
+          <DSText variant="display" style={styles.moneyValue} numberOfLines={1}>
+            {stats?.studentsWithOutstandingFees ?? 0}
+          </DSText>
+          <DSText variant="overline" style={styles.moneyLabel} numberOfLines={1}>STUDENTS</DSText>
+        </Card>
+        <Card style={styles.moneyCard}>
+          <TonalTile bg={color.tileLavender} size={36}>
+            <Icon name="functions" size={19} tint={color.primary} />
+          </TonalTile>
+          <DSText variant="display" style={styles.moneyValue} numberOfLines={1}>
+            {formatMoneyShort(averageDue)}
+          </DSText>
+          <DSText variant="overline" style={styles.moneyLabel} numberOfLines={1}>AVG DUE</DSText>
+        </Card>
       </View>
 
       <Card style={{ gap: space.md }}>
@@ -65,17 +89,19 @@ function AccountantDues() {
 
       <SectionCard heading="BREAKDOWN">
         <ListRow
-          leading={<TonalTile bg={color.successContainer}><Icon name="check-circle" size={19} tint={color.success} /></TonalTile>}
+          leading={<TonalTile bg={color.tileMint}><Icon name="check-circle" size={19} tint={color.success} /></TonalTile>}
           title={formatMoney(collected)}
           subtitle="Collected to date"
         />
+        <View style={styles.divider} />
         <ListRow
-          leading={<TonalTile bg={color.errorContainer}><Icon name="schedule" size={19} tint={color.error} /></TonalTile>}
+          leading={<TonalTile bg={color.tileRose}><Icon name="schedule" size={19} tint={color.error} /></TonalTile>}
           title={formatMoney(outstanding)}
           subtitle={`${stats?.studentsWithOutstandingFees ?? 0} students still owe`}
         />
+        <View style={styles.divider} />
         <ListRow
-          leading={<TonalTile bg={color.surfaceVariant}><Icon name="functions" size={19} tint={color.ink2} /></TonalTile>}
+          leading={<TonalTile bg={color.tileSky}><Icon name="functions" size={19} tint={color.primary} /></TonalTile>}
           title={formatMoney(total)}
           subtitle="Total demand this year"
         />
@@ -91,5 +117,17 @@ function AccountantDues() {
 
 const styles = StyleSheet.create({
   page: { paddingHorizontal: space.xl, paddingBottom: space.xl, gap: 14 },
-  statRow: { flexDirection: "row", gap: 10 }
+  statRow: { flexDirection: "row", gap: 10 },
+  moneyCard: {
+    flex: 1,
+    padding: space.md,
+    paddingHorizontal: space.sm,
+    alignItems: "flex-start",
+    gap: 6,
+    borderRadius: radius.lg,
+    ...elevation.card
+  },
+  moneyValue: { fontSize: 17, fontWeight: "800" },
+  moneyLabel: { fontSize: 10 },
+  divider: { height: StyleSheet.hairlineWidth, backgroundColor: color.outline }
 });

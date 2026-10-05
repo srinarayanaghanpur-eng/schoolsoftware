@@ -19,11 +19,11 @@ import { TeacherShell } from "@/features/teacher/shell";
 import { useAttendanceSummary } from "@/features/teacher/hooks";
 
 const HOLIDAY_TONE: Record<string, { bg: string; fg: string; icon: "beach-access" | "campaign" | "event" | "school" }> = {
-  school: { bg: color.primaryContainer, fg: color.primary, icon: "event" },
-  public: { bg: color.errorContainer, fg: color.error, icon: "campaign" },
-  exam: { bg: color.warningContainer, fg: color.warning, icon: "school" },
-  other: { bg: color.surfaceVariant, fg: color.ink2, icon: "event" },
-  management_declared: { bg: color.warningContainer, fg: color.warning, icon: "beach-access" }
+  school: { bg: color.tileSky, fg: color.primary, icon: "event" },
+  public: { bg: color.tileRose, fg: color.error, icon: "campaign" },
+  exam: { bg: color.tileLemon, fg: color.warning, icon: "school" },
+  other: { bg: color.tileLavender, fg: color.ink2, icon: "event" },
+  management_declared: { bg: color.tilePeach, fg: color.warning, icon: "beach-access" }
 };
 
 export default function TeacherAcademicsRoute() {
@@ -62,13 +62,13 @@ function TeacherAcademics() {
       {/* teacher assignment */}
       <SectionCard heading="MY ASSIGNMENT">
         <ListRow
-          leading={<TonalTile bg={color.primaryContainer}><Icon name="school" size={19} tint={color.primary} /></TonalTile>}
+          leading={<TonalTile bg={color.tileSky}><Icon name="school" size={19} tint={color.primary} /></TonalTile>}
           title={teacher?.subject ?? "Subject not set"}
           subtitle={teacher?.employeeId ? `Employee ${teacher.employeeId}` : "Assigned by the school office"}
         />
         {teacher?.employmentType ? (
           <ListRow
-            leading={<TonalTile bg={color.surfaceVariant}><Icon name="badge" size={19} tint={color.ink2} /></TonalTile>}
+            leading={<TonalTile bg={color.tileLavender}><Icon name="badge" size={19} tint={color.ink2} /></TonalTile>}
             title={teacher.employmentType.replace(/_/g, " ")}
             subtitle="Employment type"
           />

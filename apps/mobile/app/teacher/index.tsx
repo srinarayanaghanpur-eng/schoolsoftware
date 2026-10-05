@@ -26,10 +26,10 @@ import {
 } from "@/features/teacher/hooks";
 
 const QUICK_ACTIONS = [
-  { key: "attendance", icon: "how-to-reg" as const, label: "Attendance", href: "/teacher/attendance" },
-  { key: "academics", icon: "menu-book" as const, label: "Academics", href: "/teacher/academics" },
-  { key: "tasks", icon: "task-alt" as const, label: "Tasks", href: "/teacher/tasks" },
-  { key: "inbox", icon: "mail-outline" as const, label: "Inbox", href: "/teacher/inbox" }
+  { key: "attendance", icon: "how-to-reg" as const, label: "Attendance", href: "/teacher/attendance", tile: color.tileLavender },
+  { key: "academics", icon: "menu-book" as const, label: "Academics", href: "/teacher/academics", tile: color.tilePeach },
+  { key: "tasks", icon: "task-alt" as const, label: "Tasks", href: "/teacher/tasks", tile: color.tileMint },
+  { key: "inbox", icon: "mail-outline" as const, label: "Inbox", href: "/teacher/inbox", tile: color.tileSky }
 ];
 
 export default function TeacherHomeRoute() {
@@ -82,11 +82,11 @@ function TeacherHome() {
         }
       />
 
-      {/* check-in hero */}
+      {/* check-in hero — bold Zepto purple prompt card */}
       {summary.checkedIn ? (
         <Hero tone="success">
-          <TonalTile bg={color.success} size={40}>
-            <Icon name="check" size={22} tint={color.onPrimary} />
+          <TonalTile bg={color.tileMint} size={40}>
+            <Icon name="check" size={22} tint={color.success} />
           </TonalTile>
           <View style={{ flex: 1, minWidth: 0 }}>
             <DSText variant="bodyMedium" tint={color.onSuccessContainer}>
@@ -96,13 +96,13 @@ function TeacherHome() {
           </View>
           <PillButton
             label="Check out"
-            bg={color.successContainer}
+            bg={color.surface}
             fg={color.success}
             onPress={() => router.push("/teacher/attendance" as never)}
           />
         </Hero>
       ) : (
-        <Hero>
+        <Hero style={{ backgroundColor: color.primary }}>
           <View style={{ flex: 1, minWidth: 0 }}>
             <Text style={styles.heroTitle}>
               {summary.checkedOut ? "Day complete" : "You haven’t checked in"}
@@ -116,7 +116,7 @@ function TeacherHome() {
           <PillButton
             label={summary.checkedOut ? "View" : "Check in"}
             bg={color.surface}
-            fg={color.onPrimaryContainer}
+            fg={color.primary}
             onPress={() => router.push("/teacher/attendance" as never)}
           />
         </Hero>
@@ -139,7 +139,7 @@ function TeacherHome() {
         <EmptyState icon="task-alt" label="Tasks from the principal will appear here." />
       </SectionCard>
 
-      {/* quick actions */}
+      {/* quick actions — white cards with Zepto pastel icon tiles */}
       <View style={styles.quickGrid}>
         {QUICK_ACTIONS.map((action) => (
           <PressableScale
@@ -148,8 +148,10 @@ function TeacherHome() {
             onPress={() => router.push(action.href as never)}
             style={styles.quickTile}
           >
-            <Icon name={action.icon} size={22} tint={color.primary} />
-            <DSText variant="caption" tint={color.ink2} style={{ fontWeight: "500" }}>{action.label}</DSText>
+            <TonalTile bg={action.tile} size={40}>
+              <Icon name={action.icon} size={22} tint={color.primary} />
+            </TonalTile>
+            <DSText variant="caption" tint={color.ink2} style={{ fontWeight: "600" }}>{action.label}</DSText>
           </PressableScale>
         ))}
       </View>
@@ -165,7 +167,7 @@ function TeacherHome() {
       <SectionCard heading="NOTICES & EVENTS">
         {nextHoliday ? (
           <ListRow
-            leading={<TonalTile bg={color.errorContainer}><Icon name="campaign" size={19} tint={color.error} /></TonalTile>}
+            leading={<TonalTile bg={color.tileRose}><Icon name="campaign" size={19} tint={color.error} /></TonalTile>}
             title={nextHoliday.title}
             subtitle={new Date(nextHoliday.date).toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long" })}
           />
@@ -173,7 +175,7 @@ function TeacherHome() {
           <DSText variant="label">No notices right now.</DSText>
         )}
         <ListRow
-          leading={<TonalTile bg={color.primaryContainer}><Icon name="event" size={19} tint={color.primary} /></TonalTile>}
+          leading={<TonalTile bg={color.tileSky}><Icon name="event" size={19} tint={color.primary} /></TonalTile>}
           title="View full school calendar"
           subtitle="Holidays, exams and events"
           chevron
@@ -203,7 +205,9 @@ const styles = StyleSheet.create({
     width: 42,
     height: 42,
     borderRadius: 21,
-    backgroundColor: color.surfaceVariant,
+    backgroundColor: color.surface,
+    borderWidth: 1,
+    borderColor: color.outline,
     alignItems: "center",
     justifyContent: "center"
   },
@@ -216,26 +220,29 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: color.error,
     borderWidth: 2,
-    borderColor: color.surfaceVariant
+    borderColor: color.surface
   },
-  heroTitle: { fontSize: 15, fontWeight: "600", color: color.onPrimary },
-  heroMeta: { fontSize: 12.5, color: color.onPrimary, opacity: 0.8, marginTop: 2 },
+  heroTitle: { fontSize: 17, fontWeight: "700", color: color.onPrimary },
+  heroMeta: { fontSize: 12.5, color: color.onPrimary, opacity: 0.85, marginTop: 3 },
   statRow: { flexDirection: "row", gap: 10 },
   quickGrid: { flexDirection: "row", gap: 10 },
   quickTile: {
     flex: 1,
-    backgroundColor: color.surfaceVariant,
-    borderRadius: radius.md,
-    paddingVertical: space.md + 4,
+    backgroundColor: color.surface,
+    borderWidth: 1,
+    borderColor: color.outline,
+    borderRadius: radius.lg,
+    paddingVertical: space.md + 2,
     paddingHorizontal: space.xs,
     alignItems: "center",
     gap: space.sm
   },
   cta: {
+    backgroundColor: color.surface,
     borderWidth: 1.5,
     borderStyle: "dashed",
     borderColor: color.faint,
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
     padding: 11,
     flexDirection: "row",
     alignItems: "center",

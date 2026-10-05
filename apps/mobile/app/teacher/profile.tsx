@@ -6,7 +6,7 @@ import { ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import {
-  Avatar, DSText, Icon, ListRow, PillButton, ProgressRow, SectionCard, StatTile, useToast
+  Avatar, DSText, Icon, ListRow, PillButton, ProgressRow, SectionCard, StatTile, TonalTile, useToast
 } from "@/design-system/components";
 import { color, space } from "@/design-system/tokens";
 import { useMobileSession } from "@/lib/mobileSession";
@@ -48,7 +48,7 @@ function TeacherProfile() {
       showsVerticalScrollIndicator={false}
     >
       <View style={styles.identityRow}>
-        <Avatar label={initials(name)} size={64} />
+        <Avatar label={initials(name)} size={64} bg={color.tileLavender} fg={color.primaryDeep} />
         <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
           <DSText variant="title" style={{ fontSize: 19 }} numberOfLines={1}>{name}</DSText>
           <DSText variant="label">
@@ -77,17 +77,17 @@ function TeacherProfile() {
 
       <SectionCard heading="MY DETAILS">
         <ListRow
-          leading={<Icon name="badge" size={21} tint={color.primary} />}
+          leading={<TonalTile bg={color.tileSky}><Icon name="badge" size={19} tint={color.primary} /></TonalTile>}
           title="Employee ID"
           subtitle={teacher?.employeeId ?? "Not set"}
         />
         <ListRow
-          leading={<Icon name="phone" size={21} tint={color.primary} />}
+          leading={<TonalTile bg={color.tilePeach}><Icon name="phone" size={19} tint={color.primary} /></TonalTile>}
           title="Phone"
           subtitle={teacher?.phone ?? "Not set"}
         />
         <ListRow
-          leading={<Icon name="fingerprint" size={21} tint={color.primary} />}
+          leading={<TonalTile bg={color.tileMint}><Icon name="fingerprint" size={19} tint={color.success} /></TonalTile>}
           title="Biometric ID"
           subtitle={teacher?.biometricUserId ?? "Not enrolled"}
         />
@@ -95,20 +95,20 @@ function TeacherProfile() {
 
       <SectionCard heading="MORE">
         <ListRow
-          leading={<Icon name="history" size={21} tint={color.primary} />}
+          leading={<TonalTile bg={color.tileLavender}><Icon name="history" size={19} tint={color.primary} /></TonalTile>}
           title="Attendance history"
           chevron
           onPress={() => router.push("/teacher/history" as never)}
         />
         <ListRow
-          leading={<Icon name="description" size={21} tint={color.primary} />}
+          leading={<TonalTile bg={color.tileLemon}><Icon name="description" size={19} tint={color.warning} /></TonalTile>}
           title="Documents & payslips"
           subtitle="Available in the web portal"
           chevron
           onPress={() => toast.show("Open the web portal for downloads.")}
         />
         <ListRow
-          leading={<Icon name="help-outline" size={21} tint={color.primary} />}
+          leading={<TonalTile bg={color.tileRose}><Icon name="help-outline" size={19} tint={color.error} /></TonalTile>}
           title="Help & support"
           chevron
           onPress={() => toast.show("Contact the school office for help.")}
