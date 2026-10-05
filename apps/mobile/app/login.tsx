@@ -17,7 +17,7 @@ import { employeeIdToInternalEmail } from "@sri-narayana/shared";
 import { auth } from "@/lib/firebase";
 import { clearMobileAuthStorage } from "@/lib/authStorage";
 import { resolveMobileSession, useMobileSession } from "@/lib/mobileSession";
-import { DSText, Icon, PressableScale } from "@/design-system/components";
+import { DSText, Icon, PressableScale, TextField } from "@/design-system/components";
 import { color, radius, space } from "@/design-system/tokens";
 import { dashboardPathForRole } from "@/lib/roleRouting";
 
@@ -130,47 +130,49 @@ export default function Login() {
           ) : null}
 
           <DSText variant="overline" style={styles.fieldLabel}>LOGIN ID</DSText>
-          <View style={styles.inputRow}>
-            <View style={[styles.iconTile, { backgroundColor: color.tileLavender }]}>
-              <Icon name="badge" size={19} tint={color.ink} />
-            </View>
-            <TextInput
-              style={[styles.input, styles.capsInput]}
-              placeholder="e.g. PAR001"
-              placeholderTextColor={color.muted}
-              autoCapitalize="characters"
-              autoCorrect={false}
-              value={employeeId}
-              onChangeText={(text) => setEmployeeId(text.toUpperCase())}
-              returnKeyType="next"
-              onSubmitEditing={() => passwordRef.current?.focus()}
-            />
-          </View>
+          <TextField
+            value={employeeId}
+            onChangeText={(text) => setEmployeeId(text.toUpperCase())}
+            placeholder="e.g. PAR001"
+            autoCapitalize="characters"
+            autoCorrect={false}
+            autoComplete="username"
+            returnKeyType="next"
+            onSubmitEditing={() => passwordRef.current?.focus()}
+            accessibilityLabel="Login ID"
+            icon={
+              <View style={[styles.iconTile, { backgroundColor: color.tileLavender }]}>
+                <Icon name="badge" size={19} tint={color.ink} />
+              </View>
+            }
+          />
 
           <DSText variant="overline" style={styles.fieldLabel}>PASSWORD</DSText>
-          <View style={styles.inputRow}>
-            <View style={[styles.iconTile, { backgroundColor: color.tileSky }]}>
-              <Icon name="lock-outline" size={19} tint={color.ink} />
-            </View>
-            <TextInput
-              ref={passwordRef}
-              style={styles.input}
-              placeholder="Enter password"
-              placeholderTextColor={color.muted}
-              secureTextEntry={!showPassword}
-              value={password}
-              onChangeText={setPassword}
-              returnKeyType="go"
-              onSubmitEditing={login}
-            />
-            <PressableScale
-              accessibilityLabel={showPassword ? "Hide password" : "Show password"}
-              hitSlop={12}
-              onPress={() => setShowPassword((v) => !v)}
-            >
-              <Icon name={showPassword ? "visibility-off" : "visibility"} size={20} tint={color.muted} />
-            </PressableScale>
-          </View>
+          <TextField
+            value={password}
+            onChangeText={setPassword}
+            placeholder="Enter password"
+            secureTextEntry={!showPassword}
+            autoComplete="current-password"
+            returnKeyType="go"
+            onSubmitEditing={login}
+            accessibilityLabel="Password"
+            inputRef={passwordRef}
+            icon={
+              <View style={[styles.iconTile, { backgroundColor: color.tileSky }]}>
+                <Icon name="lock-outline" size={19} tint={color.ink} />
+              </View>
+            }
+            trailing={
+              <PressableScale
+                accessibilityLabel={showPassword ? "Hide password" : "Show password"}
+                hitSlop={12}
+                onPress={() => setShowPassword((v) => !v)}
+              >
+                <Icon name={showPassword ? "visibility-off" : "visibility"} size={20} tint={color.muted} />
+              </PressableScale>
+            }
+          />
 
           <PressableScale
             accessibilityLabel="Sign in"

@@ -7,9 +7,11 @@ import {
   Animated,
   Easing,
   Modal,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
+  TextInput,
   View,
   type DimensionValue,
   type StyleProp,
@@ -486,7 +488,96 @@ export function useToast() {
 }
 
 /* ---------------------------------------------------------------- styles */
-/* ------------------------------------------------------------ Skeletons */
+/* ------------------------------------------------------------ TextField */
+
+/**
+ * Shared single-line / multiline text field (input-bug fix).
+ *
+ * The rounded CONTAINER owns every visible pixel (background, border,
+ * radius, focus ring). The inner input is deliberately invisible: no
+ * border, no outline, transparent background, and flex:1 + minWidth:0 so
+ * it can never push past the icon or the container edge. Focus feedback
+ * lives on the container via onFocus/onBlur (:focus-within has no
+ * React-Native equivalent).
+ */
+export function TextField({
+  value,
+  onChangeText,
+  placeholder,
+  placeholderTextColor = color.muted,
+  secureTextEntry,
+  keyboardType,
+  returnKeyType,
+  onSubmitEditing,
+  autoCapitalize = "none",
+  autoCorrect = false,
+  autoComplete,
+  icon,
+  trailing,
+  accessibilityLabel,
+  multiline = false,
+  editable = true,
+  maxLength,
+  inputRef,
+  style
+}: {
+  value: string;
+  onChangeText: (text: string) => void;
+  placeholder?: string;
+  placeholderTextColor?: string;
+  secureTextEntry?: boolean;
+  keyboardType?: "default" | "email-address" | "numeric" | "phone-pad";
+  returnKeyType?: "done" | "go" | "next" | "search" | "send";
+  onSubmitEditing?: () => void;
+  autoCapitalize?: "none" | "sentences" | "words" | "characters";
+  autoCorrect?: boolean;
+  autoComplete?: "username" | "current-password" | "new-password" | "off";
+  icon?: React.ReactNode;
+  trailing?: React.ReactNode;
+  accessibilityLabel?: string;
+  multiline?: boolean;
+  editable?: boolean;
+  maxLength?: number;
+  /** Focus control from the parent (e.g. Login ID "next" focuses password). */
+  inputRef?: React.Ref<TextInput>;
+  style?: StyleProp<ViewStyle>;
+}) {
+  const [focused, setFocused] = useState(false);
+  return (
+    <View
+      style={[
+        styles.fieldContainer,
+        focused && styles.fieldContainerFocused,
+        multiline && styles.fieldContainerMultiline,
+        style
+      ]}
+    >
+      {icon}
+      <TextInput
+        ref={inputRef}
+        style={[styles.fieldInput, multiline && styles.fieldInputMultiline]}
+        value={value}
+        onChangeText={onChangeText}
+        placeholder={placeholder}
+        placeholderTextColor={placeholderTextColor}
+        secureTextEntry={secureTextEntry}
+        keyboardType={keyboardType}
+        returnKeyType={returnKeyType}
+        onSubmitEditing={onSubmitEditing}
+        autoCapitalize={autoCapitalize}
+        autoCorrect={autoCorrect}
+        autoComplete={autoComplete}
+        multiline={multiline}
+        editable={editable}
+        maxLength={maxLength}
+        accessibilityLabel={accessibilityLabel}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+      />
+      {trailing}
+    </View>
+  );
+}
 
 /**
  * Shimmer placeholders for loading lists — calmer and more premium than a
@@ -649,5 +740,39 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     backgroundColor: color.outlineStrong
   },
-  sheetHeader: { flexDirection: "row", alignItems: "center", gap: space.md }
+  sheetHeader: { flexDirection: "row", alignItems: "center", gap: space.md },
+
+  fieldContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: space.md,
+    overflow: "hidden",
+    backgroundColor: color.surfaceVariant,
+    borderWidth: 1,
+    borderColor: color.outline,
+    borderRadius: radius.md,
+    paddingHorizontal: 14
+  },
+  fieldContainerFocused: {
+    borderColor: color.primary,
+    ...Platform.select({
+      web: { boxShadow: `0 0 0 3px ${color.primary}33` },
+      default: {}
+    })
+  },
+  fieldContainerMultiline: { alignItems: "flex-start", paddingVertical: space.md },
+  fieldInput: {
+    flex: 1,
+    minWidth: 0,
+    padding: 0,
+    paddingVertical: 14,
+    fontSize: 15,
+    color: color.ink,
+    backgroundColor: "transparent",
+    borderWidth: 0,
+    // outlineWidth 0 alone removes the browser focus ring (outlineStyle
+    // "none" is web-valid but absent from native types, so it can't be set).
+    outlineWidth: 0
+  },
+  fieldInputMultiline: { paddingVertical: 0, textAlignVertical: "top" }
 });

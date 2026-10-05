@@ -10,12 +10,12 @@
 import React, { useState } from "react";
 import {
   Animated, Easing, KeyboardAvoidingView, Platform, RefreshControl,
-  ScrollView, StyleSheet, TextInput, View
+  ScrollView, StyleSheet, View
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   Avatar, DSText, EmptyState, ErrorState, Icon, ListRow, LoadingState,
-  PressableScale, TonalTile, useToast
+  PressableScale, TextField, TonalTile, useToast
 } from "@/design-system/components";
 import { color, elevation, motion, radius, space } from "@/design-system/tokens";
 import { sendParentMessage } from "@/features/parent/api";
@@ -142,13 +142,13 @@ function ParentMessagesScreen() {
               <DSText variant="label" style={{ marginBottom: space.sm }}>
                 Your message goes to the school office and your child's class teacher.
               </DSText>
-              <TextInput
-                style={styles.input}
-                multiline
-                placeholder="Type your message…"
-                placeholderTextColor={color.muted}
+              <TextField
                 value={body}
                 onChangeText={setBody}
+                placeholder="Type your message…"
+                multiline
+                accessibilityLabel="Message text"
+                style={styles.composeBox}
               />
             </View>
             <View style={[styles.sendRow, { paddingBottom: 14 + insets.bottom }]}>
@@ -206,6 +206,7 @@ const styles = StyleSheet.create({
     borderBottomColor: color.outline
   },
   backButton: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center" },
+  composeBox: { minHeight: 120 },
   input: {
     flex: 1,
     backgroundColor: color.surface,
