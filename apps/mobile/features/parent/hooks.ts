@@ -5,6 +5,7 @@
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { mobileCache } from "@/lib/cache/mobileCache";
+import { asDateString, asText } from "@/lib/text";
 import {
   fetchAttendance,
   fetchHomework,
@@ -39,11 +40,11 @@ function normalizeSummaryPayload(input: SummaryPayload | null): SummaryPayload |
   return {
     summary: {
       student: {
-        id: String(student.id ?? ""),
-        name: String(student.name ?? ""),
-        className: String(student.className ?? ""),
-        section: String(student.section ?? ""),
-        admissionNo: String(student.admissionNo ?? "")
+        id: asText(student.id),
+        name: asText(student.name),
+        className: asText(student.className),
+        section: asText(student.section),
+        admissionNo: asText(student.admissionNo)
       },
       fees: {
         total: Number(fees.total ?? 0),
@@ -53,11 +54,55 @@ function normalizeSummaryPayload(input: SummaryPayload | null): SummaryPayload |
         ...(typeof fees.status === "string" ? { status: fees.status } : {})
       },
       marks: Array.isArray(s.marks) ? s.marks : [],
-      notices: Array.isArray(s.notices) ? s.notices : [],
-      recentPayments: Array.isArray(s.recentPayments) ? s.recentPayments : [],
-      upcomingHolidays: Array.isArray(s.upcomingHolidays) ? s.upcomingHolidays : []
+      notices: Array.isArray(s.notices)
+        ? s.notices.map((notice) => {
+            const n = (notice ?? {}) as Record<string, unknown>;
+            return {
+              title: asText(n.title, "Notice"),
+              body: asText(n.body),
+              createdAt: typeof n.createdAt === "string" ? n.createdAt : undefined
+            };
+          })
+        : [],
+      recentPayments: Array.isArray(s.recentPayments) ? s.recentPayments.map(normalizePaymentLike) : [],
+      upcomingHolidays: Array.isArray(s.upcomingHolidays)
+        ? s.upcomingHolidays.map((holiday) => {
+            const h = (holiday ?? {}) as Record<string, unknown>;
+            return {
+              title: asText(h.title, "Holiday"),
+              date: asDateString(h.date),
+              type: asText(h.type, "holiday")
+            };
+          })
+        : []
     },
-    linkedStudents: Array.isArray(input.linkedStudents) ? input.linkedStudents : []
+    linkedStudents: Array.isArray(input.linkedStudents)
+      ? input.linkedStudents.map((child) => {
+          const c = (child ?? {}) as Partial<PortalStudent>;
+          return {
+            id: asText(c.id),
+            name: asText(c.name),
+            className: asText(c.className),
+            section: asText(c.section),
+            admissionNo: asText(c.admissionNo)
+          };
+        })
+      : []
+  };
+}
+
+/** Shared payment shape scrub — every rendered field becomes safe text. */
+function normalizePaymentLike(payment: unknown): PortalPaymentFull {
+  const p = (payment ?? {}) as Record<string, unknown>;
+  return {
+    id: asText(p.id),
+    amountPaid: Number(p.amountPaid ?? 0),
+    paymentType: asText(p.paymentType),
+    paymentMethod: asText(p.paymentMethod),
+    transactionId: asText(p.transactionId),
+    status: asText(p.status, "completed"),
+    receiptNumber: asText(p.receiptNumber),
+    createdAt: asDateString(p.createdAt) || asText(p.createdAt)
   };
 }
 
@@ -119,7 +164,7 @@ export function useParentHomework(studentId?: string) {
       }
       const fresh = await fetchHomework(studentId);
       await mobileCache.set(cacheKey, fresh.homework, HOMEWORK_TTL_MIN);
-      setState({ data: fresh.homework, loading: false, error: null });
+      setState({ data: normalizeHomeworkList(fresh.homework), loading: false, error: null });
     } catch (err) {
       setState((s) => ({
         data: s.data,
@@ -148,13 +193,13 @@ export function useParentPayments(studentId?: string) {  const [state, setState]
       if (!force) {
         const cached = await mobileCache.get<PortalPaymentFull[]>(cacheKey);
         if (cached !== null) {
-          setState({ data: cached, loading: false, error: null });
+          setState({ data: cached.map(normalizePaymentLike), loading: false, error: null });
           return;
         }
       }
       const fresh = await fetchPayments(studentId);
       await mobileCache.set(cacheKey, fresh.payments, PAYMENTS_TTL_MIN);
-      setState({ data: fresh.payments, loading: false, error: null });
+      setState({ data: fresh.payments.map(normalizePaymentLike), loading: false, error: null });
     } catch (err) {
       setState((s) => ({
         data: s.data,
@@ -216,6 +261,21 @@ export function useParentAttendance(studentId?: string, month?: string) {
   }), [state, load, studentId]);
 }
 
+/** Homework list scrub — titles/bodies/dates become safe text. */
+function normalizeHomeworkList(items: PortalHomework[]): PortalHomework[] {
+  return items.map((item) => {
+    const hw = (item ?? {}) as Record<string, unknown>;
+    return {
+      id: asText(hw.id),
+      title: asText(hw.title, "Homework"),
+      subject: asText(hw.subject),
+      description: asText(hw.description) || undefined,
+      dueDate: asDateString(hw.dueDate) || asText(hw.dueDate) || undefined,
+      assignedDate: asDateString(hw.assignedDate) || asText(hw.assignedDate) || undefined
+    };
+  });
+}
+
 /** Same guarantee as normalizeSummaryPayload, for the attendance record. */
 function normalizeAttendanceRecord(input: PortalAttendanceResponse | null): PortalAttendanceResponse | null {
   if (!input) return null;
@@ -229,7 +289,18 @@ function normalizeAttendanceRecord(input: PortalAttendanceResponse | null): Port
       total: Number(summary.total ?? 0),
       percentage: Number(summary.percentage ?? 0)
     },
-    attendance: Array.isArray(input.attendance) ? input.attendance : []
+    attendance: Array.isArray(input.attendance)
+      ? input.attendance.map((day) => {
+          const d = (day ?? {}) as Record<string, unknown>;
+          return {
+            id: asText(d.id),
+            date: asDateString(d.date) || asText(d.date),
+            status: asText(d.status),
+            checkIn: asText(d.checkIn) || undefined,
+            checkOut: asText(d.checkOut) || undefined
+          };
+        })
+      : []
   };
 }
 

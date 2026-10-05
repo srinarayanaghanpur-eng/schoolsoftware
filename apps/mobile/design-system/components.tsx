@@ -486,6 +486,56 @@ export function useToast() {
 }
 
 /* ---------------------------------------------------------------- styles */
+/* ------------------------------------------------------------ Skeletons */
+
+/**
+ * Shimmer placeholders for loading lists — calmer and more premium than a
+ * spinner. Use inside loading states: <SkeletonRows /> while data loads.
+ */
+export function Skeleton({
+  width,
+  height = 14,
+  radius: r = radius.md
+}: {
+  width?: DimensionValue;
+  height?: number;
+  radius?: number;
+}) {
+  const opacity = useRef(new Animated.Value(0.35)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(opacity, { toValue: 1, duration: 750, useNativeDriver: true }),
+        Animated.timing(opacity, { toValue: 0.35, duration: 750, useNativeDriver: true })
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [opacity]);
+  return (
+    <Animated.View
+      style={{ width: width ?? "100%", height, borderRadius: r, backgroundColor: color.surfaceVariant, opacity }}
+    />
+  );
+}
+
+/** Three list-row skeletons (avatar dot + two text lines each). */
+export function SkeletonRows({ count = 3 }: { count?: number }) {
+  return (
+    <View style={{ gap: space.md }}>
+      {Array.from({ length: count }, (_, i) => (
+        <View key={i} style={{ flexDirection: "row", alignItems: "center", gap: space.md }}>
+          <Skeleton width={40} height={40} radius={radius.circle} />
+          <View style={{ flex: 1, gap: 6 }}>
+            <Skeleton width="70%" height={13} radius={6} />
+            <Skeleton width="45%" height={11} radius={6} />
+          </View>
+        </View>
+      ))}
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   card: {
     backgroundColor: color.surface,
