@@ -131,6 +131,32 @@ function ParentHome() {
         </Card>
       </View>
 
+      {/* recent receipts — latest few, full history lives on Fees */}
+      {summary.recentPayments.length > 0 ? (
+        <SectionCard heading="RECENT RECEIPTS">
+          {summary.recentPayments.slice(0, 3).map((payment) => (
+            <ListRow
+              key={payment.id}
+              leading={
+                <TonalTile bg={color.tileMint} size={36}>
+                  <Icon name="receipt" size={18} tint={color.success} />
+                </TonalTile>
+              }
+              title={`${formatMoney(payment.amountPaid)} · ${payment.paymentMethod || "—"}`}
+              subtitle={`${(payment.createdAt || "").slice(0, 10)}${payment.receiptNumber ? ` · Receipt ${payment.receiptNumber}` : ""}`}
+            />
+          ))}
+          <PressableScale
+            accessibilityLabel="View all receipts"
+            onPress={() => router.push("/parent/fees" as never)}
+            style={styles.viewAll}
+          >
+            <DSText variant="bodyMedium" tint={color.primary}>View all</DSText>
+            <Icon name="chevron-right" size={18} tint={color.primary} />
+          </PressableScale>
+        </SectionCard>
+      ) : null}
+
       {/* homework today */}
       <SectionCard
         heading="HOMEWORK"
@@ -229,6 +255,13 @@ const styles = StyleSheet.create({
   statTile: { flex: 1, padding: space.md, paddingHorizontal: space.sm, alignItems: "center", borderRadius: radius.lg, gap: 4 },
   statValue: { fontSize: 16, fontWeight: "700" },
   statLabel: { fontSize: 11, marginTop: 2, textAlign: "center" },
+  viewAll: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 2,
+    paddingVertical: space.sm
+  },
   messageCta: {
     backgroundColor: color.primary,
     borderRadius: radius.pill,

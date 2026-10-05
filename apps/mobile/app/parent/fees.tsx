@@ -3,11 +3,11 @@
  * payment history from /api/portal/payments. Receipts open the share sheet
  * with data from /api/portal/payments/[paymentId]/receipt.
  */
-import React, { useCallback } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { FlatList, RefreshControl, Share, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
-  Avatar, DSText, EmptyState, ErrorState, Icon, ListRow, LoadingState,
+  Avatar, DSText, EmptyState, ErrorState, FilterChips, Icon, ListRow, LoadingState,
   SectionCard, TonalTile, useToast
 } from "@/design-system/components";
 import { color, elevation, radius, space } from "@/design-system/tokens";
@@ -25,8 +25,15 @@ export default function ParentFeesRoute() {
   );
 }
 
-function ParentFeesScreen() {
-  const insets = useSafeAreaInsets();
+const METHOD_LABELS: Record<string, string> = {
+  cash: "Cash",
+  upi: "UPI",
+  card: "Card",
+  bank_transfer: "Bank",
+  cheque: "Cheque"
+};
+
+function ParentFeesScreen() {  const insets = useSafeAreaInsets();
   const toast = useToast();
   const rawChoice = useSelectedChildRaw();
   const { summary, linkedStudents, loading: summaryLoading, error: summaryError, refresh: refreshSummary } =
@@ -35,6 +42,21 @@ function ParentFeesScreen() {
   const activeId = useSelectedChildId(linkedStudents);
   const { payments, loading: paymentsLoading, error: paymentsError, refresh: refreshPayments } =
     useParentPayments(activeId);
+  const [methodFilter, setMethodFilter] = useState("All");
+
+  const methods = useMemo(() => {
+    const seen: string[] = [];
+    for (const payment of payments) {
+      const method = payment.paymentMethod || "other";
+      if (!seen.includes(method)) seen.push(method);
+    }
+    return ["All", ...seen];
+  }, [payments]);
+
+  const visible = useMemo(() => {
+    if (methodFilter === "All") return payments;
+    return payments.filter((p) => (p.paymentMethod || "other") === methodFilter);
+  }, [payments, methodFilter]);
 
   const loading = summaryLoading || paymentsLoading;
   const refresh = useCallback(() => {
@@ -71,7 +93,7 @@ function ParentFeesScreen() {
   // Virtualized: payment history grows every term and must not all mount.
   return (
     <FlatList
-      data={payments}
+      data={visible}
       keyExtractor={(payment) => payment.id}
       renderItem={({ item: payment }) => (
         <ListRow
@@ -139,13 +161,26 @@ function ParentFeesScreen() {
           ) : null}
 
           <DSText variant="overline">PAYMENT HISTORY</DSText>
+          {methods.length > 2 ? (
+            <FilterChips
+              options={methods.map((method) => (method === "All" ? "All" : METHOD_LABELS[method] ?? method))}
+              value={methodFilter === "All" ? "All" : METHOD_LABELS[methodFilter] ?? methodFilter}
+              onChange={(label) => {
+                const found = methods.find((method) => (method === "All" ? "All" : METHOD_LABELS[method] ?? method) === label);
+                setMethodFilter(found ?? "All");
+              }}
+            />
+          ) : null}
         </View>
       }
       ListEmptyComponent={
-        loading ? null : paymentsError ? (
+        loading ? null : paymentsError && visible.length === 0 ? (
           <ErrorState message={paymentsError} onRetry={refresh} />
         ) : (
-          <EmptyState icon="receipt" label="No payments recorded yet." />
+          <EmptyState
+            icon="receipt"
+            label={methodFilter === "All" ? "No payments recorded yet." : `No ${METHOD_LABELS[methodFilter] ?? methodFilter} payments yet.`}
+          />
         )
       }
       ListFooterComponent={
