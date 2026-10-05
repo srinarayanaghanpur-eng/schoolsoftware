@@ -4,7 +4,8 @@ import { onAuthStateChanged, signOut } from "firebase/auth";
 import { collection, doc, getDoc, getDocs, limit, query, where } from "firebase/firestore";
 import { ROLE_LABELS, type Role, isValidRole } from "@sri-narayana/shared";
 import { auth, db } from "@/lib/firebase";
-import { clearMobileAuthStorage } from "@/lib/authStorage";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { clearMobileAuthStorage, REMEMBER_CHOICE_KEY } from "@/lib/authStorage";
 import { mobileCache } from "@/lib/cache/mobileCache";
 import { ensurePushRegistration, unregisterPushToken } from "@/lib/pushNotifications";
 import { dashboardPathForRole } from "@/lib/roleRouting";
@@ -136,9 +137,24 @@ export function MobileSessionProvider({ children }: { children: React.ReactNode 
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (nextUser) => {
-      runRef.current += 1;
-      const currentRun = runRef.current;
-      void applyUser(nextUser, currentRun, () => runRef.current);
+      void (async () => {
+        if (nextUser) {
+          try {
+            // "Remember Me" was off at the last sign-in: drop the restored
+            // session immediately so this launch starts logged out.
+            const remembered = await AsyncStorage.getItem(REMEMBER_CHOICE_KEY);
+            if (remembered === "0") {
+              await signOut(auth).catch(() => undefined);
+              return;
+            }
+          } catch {
+            // Storage failure must never lock the user out — continue normally.
+          }
+        }
+        runRef.current += 1;
+        const currentRun = runRef.current;
+        await applyUser(nextUser, currentRun, () => runRef.current);
+      })();
     });
     return unsubscribe;
   }, [applyUser]);

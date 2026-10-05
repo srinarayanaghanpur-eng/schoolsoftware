@@ -6,7 +6,7 @@
  * here means one implementation instead of two drifting copies.
  */
 import React, { useMemo, useState } from "react";
-import { FlatList, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
+import { Alert, FlatList, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import {
@@ -17,6 +17,7 @@ import {
 import { color, elevation, radius, space } from "@/design-system/tokens";
 import { useMobileSession } from "@/lib/mobileSession";
 import { dashboardPathForRole, workspaceForRole, workspaceLabel } from "@/lib/roleRouting";
+import { displayLoginContact } from "@/lib/text";
 import { initials } from "@/features/teacher/hooks";
 import { reviewLeaveRequest } from "./api";
 import {
@@ -288,6 +289,13 @@ export function ManagementProfileScreen() {
     }
   };
 
+  const confirmLogout = () => {
+    Alert.alert("Log out?", "You are getting logged out from this device.", [
+      { text: "Stay", style: "cancel" },
+      { text: "Log out", style: "destructive", onPress: () => { void logout(); } }
+    ]);
+  };
+
   return (
     <ScrollView
       contentContainerStyle={[styles.page, { paddingTop: insets.top + space.sm }]}
@@ -299,7 +307,7 @@ export function ManagementProfileScreen() {
           <DSText variant="title" style={{ fontSize: 19 }} numberOfLines={1}>{name}</DSText>
           <DSText variant="label">{workspaceLabel(session.profile?.role)}</DSText>
           <DSText variant="label">
-            {session.profile?.email ?? session.profile?.employeeId ?? ""}
+            {displayLoginContact(session.profile)}
           </DSText>
         </View>
       </View>
@@ -380,7 +388,7 @@ export function ManagementProfileScreen() {
         />
       </SectionCard>
 
-      <PillButton label="Logout from this device" block bg={color.error} icon="logout" onPress={logout} />
+      <PillButton label="Logout from this device" block bg={color.error} icon="logout" onPress={confirmLogout} />
     </ScrollView>
   );
 }

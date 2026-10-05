@@ -2,7 +2,7 @@
  * Teacher Profile — identity, attendance summary, menu, logout.
  */
 import React from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { Alert, ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import {
@@ -14,6 +14,7 @@ import { useTeacherAttendanceData } from "@/lib/useTeacherAttendanceData";
 import { workspaceLabel } from "@/lib/roleRouting";
 import { TeacherShell } from "@/features/teacher/shell";
 import { initials, useAttendanceSummary } from "@/features/teacher/hooks";
+import { displayLoginContact } from "@/lib/text";
 
 export default function TeacherProfileRoute() {
   return (
@@ -42,6 +43,13 @@ function TeacherProfile() {
     }
   };
 
+  const confirmLogout = () => {
+    Alert.alert("Log out?", "You are getting logged out from this device.", [
+      { text: "Stay", style: "cancel" },
+      { text: "Log out", style: "destructive", onPress: () => { void logout(); } }
+    ]);
+  };
+
   return (
     <ScrollView
       contentContainerStyle={[styles.page, { paddingTop: insets.top + space.sm }]}
@@ -56,7 +64,7 @@ function TeacherProfile() {
             {teacher?.subject ? ` · ${teacher.subject}` : ""}
           </DSText>
           <DSText variant="label">
-            {teacher?.employeeId ?? session.profile?.employeeId ?? session.profile?.email ?? ""}
+            {teacher?.employeeId ?? displayLoginContact(session.profile)}
           </DSText>
         </View>
       </View>
@@ -119,7 +127,7 @@ function TeacherProfile() {
         Your details are managed by the school office.
       </DSText>
 
-      <PillButton label="Logout from this device" block bg={color.error} icon="logout" onPress={logout} />
+      <PillButton label="Logout from this device" block bg={color.error} icon="logout" onPress={confirmLogout} />
     </ScrollView>
   );
 }

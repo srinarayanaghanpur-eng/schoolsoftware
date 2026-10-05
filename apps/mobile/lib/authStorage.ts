@@ -1,5 +1,8 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
+/** Login "Remember Me" choice: "1" (default) or "0". See mobileSession. */
+export const REMEMBER_CHOICE_KEY = "sriNarayana.rememberChoice";
+
 const AUTH_STORAGE_KEYS = [
   "sriNarayana.rememberedSession",
   "sriNarayana.auth",
@@ -11,7 +14,10 @@ const AUTH_STORAGE_KEYS = [
   "userRole",
   "dashboardPath",
   "selectedRole",
-  "mobileSession"
+  "mobileSession",
+  // Login "Remember Me" choice (see mobileSession). Cleared on logout so
+  // every sign-in starts from a fresh, default-remembered choice.
+  "sriNarayana.rememberChoice"
 ];
 
 export async function clearMobileAuthStorage() {

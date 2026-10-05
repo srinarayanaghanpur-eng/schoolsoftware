@@ -3,7 +3,7 @@
  * fee receipts (recent payments), menu, logout.
  */
 import React, { useCallback, useEffect, useState } from "react";
-import { RefreshControl, ScrollView, StyleSheet, Switch, View } from "react-native";
+import { Alert, RefreshControl, ScrollView, StyleSheet, Switch, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import {
@@ -14,6 +14,7 @@ import { color, elevation, radius, space } from "@/design-system/tokens";
 import { useMobileSession } from "@/lib/mobileSession";
 import { formatMoney, initials, useParentSummary } from "@/features/parent/hooks";
 import { fetchPushPreferences, updatePushPreferences, type PushPrefs } from "@/features/parent/api";
+import { displayLoginContact } from "@/lib/text";
 import { ChildSwitcher } from "@/features/parent/ChildSwitcher";
 import { useSelectChild, useSelectedChildId, useSelectedChildRaw } from "@/features/parent/SelectedChild";
 import { ParentShell } from "@/features/parent/shell";
@@ -94,6 +95,13 @@ function ParentProfileScreen() {
     }
   };
 
+  const confirmLogout = () => {
+    Alert.alert("Log out?", "You are getting logged out from this device.", [
+      { text: "Stay", style: "cancel" },
+      { text: "Log out", style: "destructive", onPress: () => { void logout(); } }
+    ]);
+  };
+
   return (
     <ScrollView
       contentContainerStyle={[styles.page, { paddingTop: insets.top + space.sm }]}
@@ -119,7 +127,7 @@ function ParentProfileScreen() {
               Parent of {summary.student.name ?? "—"}
             </DSText>
           ) : null}
-          <DSText variant="label" numberOfLines={1}>{session.profile?.email ?? session.profile?.employeeId ?? ""}</DSText>
+          <DSText variant="label" numberOfLines={1}>{displayLoginContact(session.profile)}</DSText>
         </View>
       </View>
 
@@ -232,7 +240,7 @@ function ParentProfileScreen() {
         />
       </SectionCard>
 
-      <PillButton label="Logout from this device" bg={color.error} onPress={logout} />
+      <PillButton label="Logout from this device" bg={color.error} onPress={confirmLogout} />
     </ScrollView>
   );
 }

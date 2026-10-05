@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { asDateString, asText } from "./text";
+import { asDateString, asText, displayLoginContact } from "./text";
 
 describe("asText", () => {
   it("passes strings through and stringifies scalars", () => {
@@ -14,6 +14,16 @@ describe("asText", () => {
     assert.equal(asText(null), "");
     assert.equal(asText(undefined), "");
     assert.equal(asText(null, "—"), "—");
+  });
+});
+
+describe("displayLoginContact", () => {
+  it("hides internal addresses and shows the login ID instead", () => {
+    assert.equal(displayLoginContact({ email: "snhs@srinarayana.local", employeeId: "PAR001" }), "PAR001");
+    assert.equal(displayLoginContact({ email: "Snhs@SriNarayana.Local", employeeId: "PAR001" }), "PAR001");
+    assert.equal(displayLoginContact({ email: "parent@gmail.com", employeeId: "PAR001" }), "parent@gmail.com");
+    assert.equal(displayLoginContact({ employeeId: "TCH002" }), "TCH002");
+    assert.equal(displayLoginContact(null), "");
   });
 });
 
