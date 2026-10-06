@@ -76,14 +76,15 @@ function AdminHome() {
     }));
   }, [payments]);
 
-  if (loading && !stats) return <SkeletonPage />;
-  if (error && !stats) return <ErrorState message={error} onRetry={refresh} />;
-
-  const name = profile?.displayName ?? "Administrator";
   const txns = useMemo(
     () => buildTransactions(payments, expenses, "All").slice(0, 4),
     [payments, expenses]
   );
+
+  if (loading && !stats) return <SkeletonPage />;
+  if (error && !stats) return <ErrorState message={error} onRetry={refresh} />;
+
+  const name = profile?.displayName ?? "Administrator";
   const pendingLeave = requests.filter((r) => r.status === "pending");
   const collectionRate = stats && stats.totalFeeAmount > 0
     ? (stats.totalFeeCollected / stats.totalFeeAmount) * 100
