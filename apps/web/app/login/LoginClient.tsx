@@ -73,7 +73,7 @@ const featureCards: Feature[] = [
     icon: UsersRound
   },
   {
-    title: "Finance",
+    title: "Fees & Finance",
     description: "Collect fees, track dues and accounts",
     icon: WalletCards
   },

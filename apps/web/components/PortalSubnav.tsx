@@ -11,7 +11,7 @@ const TABS = [
   { href: "/portal", label: "Dashboard", icon: LayoutDashboard },
   { href: "/portal/attendance", label: "Attendance", icon: Clock },
   { href: "/portal/homework", label: "Homework", icon: BookOpenCheck },
-  { href: "/portal/fees", label: "Finance", icon: IndianRupee },
+  { href: "/portal/fees", label: "Fees", icon: IndianRupee },
   { href: "/portal/exams", label: "Exams", icon: GraduationCap },
   { href: "/portal/notices", label: "Notices", icon: Megaphone },
   { href: "/portal/calendar", label: "Calendar", icon: CalendarDays },
