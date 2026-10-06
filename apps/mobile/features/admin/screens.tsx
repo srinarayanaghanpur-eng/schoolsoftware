@@ -387,7 +387,7 @@ export function ManagementProfileScreen() {
         </PressableScale>
         <PressableScale
           accessibilityLabel="Help and support"
-          onPress={() => toast.show("Contact your system administrator.")}
+          onPress={() => router.push("/support" as never)}
           style={styles.actionPress}
         >
           <Card style={styles.actionTile}>

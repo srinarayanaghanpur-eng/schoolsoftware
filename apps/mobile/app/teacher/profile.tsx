@@ -122,7 +122,7 @@ function TeacherProfile() {
           leading={<TonalTile bg={t.badBg}><Icon name="help-outline" size={19} tint={t.bad} /></TonalTile>}
           title="Help & support"
           chevron
-          onPress={() => toast.show("Contact the school office for help.")}
+          onPress={() => router.push("/support" as never)}
         />
       </SectionCard>
 

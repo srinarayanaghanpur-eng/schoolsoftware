@@ -248,7 +248,7 @@ function ParentProfileScreen() {
           }
           title="Help & support"
           chevron
-          onPress={() => toast.show("Contact the school office for help.")}
+          onPress={() => router.push("/support" as never)}
         />
       </SectionCard>
 
