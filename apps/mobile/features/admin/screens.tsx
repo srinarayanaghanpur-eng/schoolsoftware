@@ -18,6 +18,7 @@ import { useTheme } from "@/lib/Theme";
 import { useMobileSession } from "@/lib/mobileSession";
 import { dashboardPathForRole, workspaceForRole, workspaceLabel } from "@/lib/roleRouting";
 import { displayLoginContact } from "@/lib/text";
+import { openWebsite } from "@/lib/openWebsite";
 import { initials } from "@/features/teacher/hooks";
 import { reviewLeaveRequest } from "./api";
 import {
@@ -370,7 +371,7 @@ export function ManagementProfileScreen() {
       <View style={styles.actionGrid}>
         <PressableScale
           accessibilityLabel="Reports and exports"
-          onPress={() => toast.show("Open the web dashboard for full reports.")}
+          onPress={() => openWebsite("/admin/reports", "Reports & exports")}
           style={styles.actionPress}
         >
           <Card style={styles.actionTile}>
@@ -378,7 +379,7 @@ export function ManagementProfileScreen() {
               <Icon name="insights" size={19} tint={t.blue} />
             </TonalTile>
             <DSText variant="bodyMedium" style={styles.actionLabel}>Reports & exports</DSText>
-            <DSText variant="label">Available in the web dashboard</DSText>
+            <DSText variant="label">Opens the website in your browser</DSText>
             <DSText variant="label" tint={t.blue}>
               Open →
             </DSText>

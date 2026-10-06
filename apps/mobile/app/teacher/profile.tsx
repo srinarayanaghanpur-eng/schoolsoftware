@@ -16,6 +16,7 @@ import { workspaceLabel } from "@/lib/roleRouting";
 import { TeacherShell } from "@/features/teacher/shell";
 import { initials, useAttendanceSummary } from "@/features/teacher/hooks";
 import { displayLoginContact } from "@/lib/text";
+import { openWebsite } from "@/lib/openWebsite";
 
 export default function TeacherProfileRoute() {
   return (
@@ -113,9 +114,9 @@ function TeacherProfile() {
         <ListRow
           leading={<TonalTile bg={t.warnBg}><Icon name="description" size={19} tint={t.warn} /></TonalTile>}
           title="Documents & payslips"
-          subtitle="Available in the web portal"
+          subtitle="Opens the website in your browser"
           chevron
-          onPress={() => toast.show("Open the web portal for downloads.")}
+          onPress={() => openWebsite("/teacher/salary", "Documents & payslips")}
         />
         <ListRow
           leading={<TonalTile bg={t.badBg}><Icon name="help-outline" size={19} tint={t.bad} /></TonalTile>}

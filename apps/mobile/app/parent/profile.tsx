@@ -16,6 +16,7 @@ import { useMobileSession } from "@/lib/mobileSession";
 import { formatMoney, initials, useParentSummary } from "@/features/parent/hooks";
 import { fetchPushPreferences, updatePushPreferences, type PushPrefs } from "@/features/parent/api";
 import { displayLoginContact } from "@/lib/text";
+import { openWebsite } from "@/lib/openWebsite";
 import { ChildSwitcher } from "@/features/parent/ChildSwitcher";
 import { useSelectChild, useSelectedChildId, useSelectedChildRaw } from "@/features/parent/SelectedChild";
 import { ParentShell } from "@/features/parent/shell";
@@ -234,9 +235,9 @@ function ParentProfileScreen() {
             </TonalTile>
           }
           title="Documents & receipts"
-          subtitle="Available in the web portal"
+          subtitle="Opens the website in your browser"
           chevron
-          onPress={() => toast.show("Open the web portal for downloads.")}
+          onPress={() => openWebsite("/portal/downloads", "Documents & receipts")}
         />
         <View style={[styles.divider, { backgroundColor: t.line }]} />
         <ListRow

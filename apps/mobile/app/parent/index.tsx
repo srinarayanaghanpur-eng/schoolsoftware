@@ -17,6 +17,7 @@ import { ParentShell } from "@/features/parent/shell";
 import { ChildSwitcher } from "@/features/parent/ChildSwitcher";
 import { useSelectChild, useSelectedChildId, useSelectedChildRaw } from "@/features/parent/SelectedChild";
 import { formatDue, formatMoney, greeting, initials, subjectCode, useParentHomework, useParentSummary } from "@/features/parent/hooks";
+import { openWebsite } from "@/lib/openWebsite";
 import type { Palette } from "@/lib/Theme";
 
 function tileFor(code: string, t: Palette): { bg: string; fg: string } {
@@ -120,7 +121,7 @@ function ParentHome() {
           </PressableScale>
           <PressableScale
             accessibilityLabel="Report card"
-            onPress={() => toast.show("Report cards are available in the web portal.")}
+            onPress={() => openWebsite("/portal/exams", "Report card")}
             style={[styles.serviceTile, { backgroundColor: t.card, borderColor: t.line }]}
           >
             <TonalTile bg={t.okBg} size={38}>
@@ -130,7 +131,7 @@ function ParentHome() {
           </PressableScale>
           <PressableScale
             accessibilityLabel="Timetable"
-            onPress={() => toast.show("Timetables are available in the web portal.")}
+            onPress={() => openWebsite("/portal/calendar", "Timetable")}
             style={[styles.serviceTile, { backgroundColor: t.card, borderColor: t.line }]}
           >
             <TonalTile bg={t.warnBg} size={38}>
