@@ -55,11 +55,26 @@ export type DashboardStats = {
 export type AdminPayment = {
   id: string;
   studentName?: string;
+  class?: string;
+  section?: string;
   amountPaid?: number;
   paymentMethod?: string;
   receiptNumber?: string;
   status?: string;
   createdAt?: string;
+};
+
+export type Expense = {
+  id: string;
+  category?: string;
+  description?: string;
+  vendor?: string;
+  amount?: number;
+  date?: string;
+  status?: string;
+  paymentMethod?: string;
+  voucherNo?: number;
+  createdAt?: unknown;
 };
 
 export type LeaveRequest = {
@@ -139,6 +154,11 @@ export async function fetchTeachers(limitTo = 50) {
 export async function fetchFinanceSummary() {
   const result = await adminGet<{ summary: FinanceSummary }>("/api/admin/finance/summary");
   return result.summary;
+}
+
+export async function fetchExpenses() {
+  const result = await adminGet<{ expenses: Expense[] }>("/api/admin/finance/expenses");
+  return result.expenses ?? [];
 }
 
 /** Today's staff attendance snapshot. */

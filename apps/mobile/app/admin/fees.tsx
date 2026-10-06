@@ -1,21 +1,21 @@
 /**
- * Admin Fees — collection summary, recent receipts and finance position.
+ * Admin Finance — collection summary, recent receipts and finance position.
  */
 import React, { useMemo, useState } from "react";
 import { RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import {
   Card, DSText, EmptyState, ErrorState, FilterChips, Icon, ListRow, SkeletonPage,
-  PageTitle, PillButton, ProgressRow, SectionCard, TonalTile, useToast
+  PageTitle, ProgressRow, SectionCard, TonalTile
 } from "@/design-system/components";
 import { radius, space } from "@/design-system/tokens";
 import { useTheme } from "@/lib/Theme";
 import { AdminShell } from "@/features/admin/shell";
 import {
-  formatDate, formatMoney, formatMoneyShort, useDashboardStats, useFinanceSummary,
-  useRecentPayments
+  formatMoney, formatMoneyShort, useDashboardStats, useExpenses, useFinanceSummary,
+  useRecentPayments, buildTransactions
 } from "@/features/admin/hooks";
 
-const FILTERS = ["All", "Cash", "Online", "Cheque"];
+const FILTERS = ["All", "Cash", "Online"];
 
 export default function AdminFeesRoute() {
   return (
@@ -27,18 +27,16 @@ export default function AdminFeesRoute() {
 
 function AdminFees() {
   const { t } = useTheme();
-  const toast = useToast();
   const [filter, setFilter] = useState("All");
   const { stats, loading, error, refresh } = useDashboardStats();
   const { payments, refresh: refreshPayments } = useRecentPayments();
+  const { expenses, refresh: refreshExpenses } = useExpenses();
   const { summary } = useFinanceSummary();
 
-  const visible = useMemo(() => {
-    if (filter === "All") return payments;
-    return payments.filter(
-      (p) => (p.paymentMethod ?? "").toLowerCase() === filter.toLowerCase()
-    );
-  }, [payments, filter]);
+  const visible = useMemo(
+    () => buildTransactions(payments, expenses, filter),
+    [payments, expenses, filter]
+  );
 
   if (loading && !stats) return <SkeletonPage />;
   if (error && !stats) return <ErrorState message={error} onRetry={refresh} />;
@@ -54,12 +52,12 @@ function AdminFees() {
       refreshControl={
         <RefreshControl
           refreshing={loading}
-          onRefresh={() => { refresh(); refreshPayments(); }}
+          onRefresh={() => { refresh(); refreshPayments(); refreshExpenses(); }}
           tintColor={t.blue}
         />
       }
     >
-      <PageTitle>Fees</PageTitle>
+      <PageTitle>Finance</PageTitle>
 
       <View style={styles.statRow}>
         <Card style={styles.moneyCard}>
@@ -90,14 +88,6 @@ function AdminFees() {
           <DSText variant="overline" style={styles.moneyLabel} numberOfLines={1}>THIS MONTH</DSText>
         </Card>
       </View>
-
-      <PillButton
-        label="Record a payment"
-        block
-        bg={t.blue}
-        fg="#FFFFFF"
-        onPress={() => toast.show("Recording payments and issuing receipts is done in the web dashboard.")}
-      />
 
       <Card style={{ gap: space.md }}>
         <DSText variant="overline">COLLECTION PROGRESS</DSText>
@@ -143,30 +133,40 @@ function AdminFees() {
 
       <SectionCard heading="RECENT RECEIPTS">
         {visible.length === 0 ? (
-          <EmptyState icon="receipt-long" label={`No ${filter.toLowerCase()} payments in this period.`} />
+          <EmptyState icon="receipt-long" label={`No ${filter.toLowerCase()} transactions in this period.`} />
         ) : (
-          visible.map((payment, index) => (
-            <View key={payment.id}>
-              {index > 0 ? <View style={[styles.divider, { backgroundColor: t.line }]} /> : null}
-              <ListRow
-                leading={<TonalTile bg={t.okBg}><Icon name="receipt" size={19} tint={t.ok} /></TonalTile>}
-                title={payment.studentName ?? "Payment"}
-                subtitle={`${payment.paymentMethod || "—"}${payment.receiptNumber ? ` · Receipt ${payment.receiptNumber}` : ""}`}
-                trailing={
-                  <View style={{ alignItems: "flex-end" }}>
-                    <DSText variant="bodyMedium" tint={t.ok} style={styles.receiptMoney}>{formatMoney(payment.amountPaid)}</DSText>
-                    <DSText variant="caption">{formatDate(payment.createdAt)}</DSText>
-                  </View>
-                }
-              />
-            </View>
-          ))
+          visible.map((row, index) => {
+            const income = row.kind === "income";
+            return (
+              <View key={row.id}>
+                {index > 0 ? <View style={[styles.divider, { backgroundColor: t.line }]} /> : null}
+                <ListRow
+                  leading={
+                    <TonalTile bg={income ? t.okBg : t.badBg}>
+                      <Icon name="receipt" size={19} tint={income ? t.ok : t.bad} />
+                    </TonalTile>
+                  }
+                  title={row.title}
+                  subtitle={row.subtitle}
+                  trailing={
+                    <View style={{ alignItems: "flex-end" }}>
+                      <DSText
+                        variant="bodyMedium"
+                        tint={income ? t.ok : t.bad}
+                        style={styles.receiptMoney}
+                      >
+                        {income ? formatMoney(row.amount) : `− ${formatMoney(row.amount)}`}
+                      </DSText>
+                      <DSText variant="caption">{row.dateLabel}</DSText>
+                    </View>
+                  }
+                />
+              </View>
+            );
+          })
         )}
       </SectionCard>
 
-      <DSText variant="caption" style={{ textAlign: "center" }}>
-        Recording payments and issuing receipts is done in the web dashboard.
-      </DSText>
     </ScrollView>
   );
 }

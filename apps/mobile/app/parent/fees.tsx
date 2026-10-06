@@ -1,5 +1,5 @@
 /**
- * Parent Fees tab (Phase 4) — fee summary from /api/portal/summary plus full
+ * Parent Finance tab (Phase 4) — fee summary from /api/portal/summary plus full
  * payment history from /api/portal/payments. Receipts open the share sheet
  * with data from /api/portal/payments/[paymentId]/receipt.
  */
@@ -125,7 +125,7 @@ function ParentFeesScreen() {
       refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor={t.blue} />}
       ListHeaderComponent={
         <View style={styles.header}>
-          <PageTitle>Fees</PageTitle>
+          <PageTitle>Finance</PageTitle>
           <ChildSwitcher children={linkedStudents} selectedId={activeId} onSelect={select} />
 
           <View style={[styles.identityRow, { backgroundColor: t.card, borderColor: t.line }]}>

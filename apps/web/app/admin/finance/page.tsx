@@ -422,7 +422,7 @@ export default function FinanceDashboardPage() {
 
   return (
     <FinanceShell
-      title="Fees & Finance"
+      title="Finance"
       description="Manage fee collection, dues, expenses, receipts, and reports."
       action={
         <div className="flex items-center gap-2">

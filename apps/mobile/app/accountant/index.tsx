@@ -21,8 +21,8 @@ import { asDateString } from "@/lib/text";
 import { useMobileSession } from "@/lib/mobileSession";
 import { AccountantShell } from "@/features/admin/shell";
 import {
-  formatDate, formatMoney, formatMoneyShort, useDashboardStats, useFinanceSummary,
-  useRecentPayments
+  formatMoney, formatMoneyShort, useDashboardStats, useExpenses, useFinanceSummary,
+  useRecentPayments, buildTransactions
 } from "@/features/admin/hooks";
 import { dateLabel, greeting, initials } from "@/features/teacher/hooks";
 
@@ -46,6 +46,7 @@ function AccountantHome() {
   const { profile } = useMobileSession();
   const { stats, loading, error, refresh } = useDashboardStats();
   const { payments } = useRecentPayments();
+  const { expenses } = useExpenses();
   const { summary } = useFinanceSummary();
 
   const last7Days = useMemo(() => {
@@ -81,6 +82,10 @@ function AccountantHome() {
   if (error && !stats) return <ErrorState message={error} onRetry={refresh} />;
 
   const name = profile?.displayName ?? "Accounts";
+  const txns = useMemo(
+    () => buildTransactions(payments, expenses, "All").slice(0, 4),
+    [payments, expenses]
+  );
   const collectionRate = stats && stats.totalFeeAmount > 0
     ? (stats.totalFeeCollected / stats.totalFeeAmount) * 100
     : 0;
@@ -218,22 +223,29 @@ function AccountantHome() {
       ) : null}
 
       <SectionCard heading="RECENT RECEIPTS">
-        {payments.length === 0 ? (
+        {txns.length === 0 ? (
           <DSText variant="label">No payments recorded yet.</DSText>
         ) : (
-          payments.slice(0, 4).map((payment, index) => (
-            <View key={payment.id}>
-              {index > 0 ? <View style={[styles.divider, { backgroundColor: t.line }]} /> : null}
-              <ListRow
-                leading={<TonalTile bg={t.okBg}><Icon name="receipt" size={19} tint={t.ok} /></TonalTile>}
-                title={payment.studentName ?? "Payment"}
-                subtitle={`${formatMoney(payment.amountPaid)} · ${payment.paymentMethod || "—"}`}
-                trailing={<DSText variant="caption">{formatDate(payment.createdAt)}</DSText>}
-              />
-            </View>
-          ))
+          txns.map((row, index) => {
+            const income = row.kind === "income";
+            return (
+              <View key={row.id}>
+                {index > 0 ? <View style={[styles.divider, { backgroundColor: t.line }]} /> : null}
+                <ListRow
+                  leading={
+                    <TonalTile bg={income ? t.okBg : t.badBg}>
+                      <Icon name="receipt" size={19} tint={income ? t.ok : t.bad} />
+                    </TonalTile>
+                  }
+                  title={row.title}
+                  subtitle={`${income ? "" : "− "}${formatMoney(row.amount)} · ${row.subtitle}`}
+                  trailing={<DSText variant="caption">{row.dateLabel}</DSText>}
+                />
+              </View>
+            );
+          })
         )}
-        {payments.length > 0 ? (
+        {txns.length > 0 ? (
           <PressableScale
             accessibilityLabel="View all receipts"
             onPress={() => router.push("/accountant/collections" as never)}
@@ -245,9 +257,6 @@ function AccountantHome() {
         ) : null}
       </SectionCard>
 
-      <DSText variant="caption" style={{ textAlign: "center" }}>
-        Recording payments and issuing receipts is done in the web dashboard.
-      </DSText>
     </ScrollView>
   );
 }

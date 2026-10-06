@@ -15,12 +15,13 @@ import { formatDate, useNotices } from "@/features/admin/hooks";
 export default function AdminNoticesRoute() {
   return (
     <AdminShell>
-      <AdminNotices />
+      <NoticesScreen />
     </AdminShell>
   );
 }
 
-function AdminNotices() {
+/** Shared read-only circulars list — reused by principal + accountant routes. */
+export function NoticesScreen() {
   const { t } = useTheme();
   const { notices, loading, error, refresh } = useNotices();
 
@@ -66,10 +67,6 @@ function AdminNotices() {
         )}
       </SectionCard>
 
-      <DSText variant="caption" style={{ textAlign: "center" }}>
-        Composing and sending notices is done in the web dashboard, where
-        SMS and WhatsApp delivery can be reviewed before sending.
-      </DSText>
     </ScrollView>
   );
 }

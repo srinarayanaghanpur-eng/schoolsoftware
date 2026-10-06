@@ -17,13 +17,13 @@ import { asDateString } from "@/lib/text";
 import { useMobileSession } from "@/lib/mobileSession";
 import { AdminShell } from "@/features/admin/shell";
 import {
-  formatDate, formatMoney, formatMoneyShort, formatText, useDashboardStats, useLeaveRequests,
-  useRecentPayments, useTodayAttendance
+  formatDate, formatMoney, formatMoneyShort, formatText, useDashboardStats, useExpenses, useLeaveRequests,
+  useRecentPayments, useTodayAttendance, buildTransactions
 } from "@/features/admin/hooks";
 import { dateLabel, greeting, initials } from "@/features/teacher/hooks";
 
 const QUICK_ACTIONS = [
-  { key: "fees", icon: "payments" as const, label: "Fees", href: "/admin/fees", tone: "ok" as const },
+  { key: "fees", icon: "payments" as const, label: "Finance", href: "/admin/fees", tone: "ok" as const },
   { key: "staff", icon: "groups" as const, label: "Staff", href: "/admin/staff", tone: "info" as const },
   { key: "approvals", icon: "fact-check" as const, label: "Approvals", href: "/admin/approvals", tone: "warn" as const },
   { key: "notices", icon: "campaign" as const, label: "Notices", href: "/admin/notices", tone: "info" as const }
@@ -44,6 +44,7 @@ function AdminHome() {
   const { stats, loading, error, refresh } = useDashboardStats();
   const attendance = useTodayAttendance();
   const { payments } = useRecentPayments();
+  const { expenses } = useExpenses();
   const { requests } = useLeaveRequests();
 
   const last7Days = useMemo(() => {
@@ -79,6 +80,10 @@ function AdminHome() {
   if (error && !stats) return <ErrorState message={error} onRetry={refresh} />;
 
   const name = profile?.displayName ?? "Administrator";
+  const txns = useMemo(
+    () => buildTransactions(payments, expenses, "All").slice(0, 4),
+    [payments, expenses]
+  );
   const pendingLeave = requests.filter((r) => r.status === "pending");
   const collectionRate = stats && stats.totalFeeAmount > 0
     ? (stats.totalFeeCollected / stats.totalFeeAmount) * 100
@@ -234,22 +239,29 @@ function AdminHome() {
 
       {/* recent payments */}
       <SectionCard heading="RECENT PAYMENTS">
-        {payments.length === 0 ? (
+        {txns.length === 0 ? (
           <DSText variant="label">No payments recorded yet today.</DSText>
         ) : (
-          payments.slice(0, 4).map((payment, index) => (
-            <View key={payment.id}>
-              {index > 0 ? <View style={[styles.divider, { backgroundColor: t.line }]} /> : null}
-              <ListRow
-                leading={<TonalTile bg={t.okBg}><Icon name="check" size={19} tint={t.ok} /></TonalTile>}
-                title={formatText(payment.studentName, "Payment")}
-                subtitle={`${formatMoney(payment.amountPaid)} · ${payment.paymentMethod || "—"}`}
-                trailing={<DSText variant="caption">{formatDate(payment.createdAt)}</DSText>}
-              />
-            </View>
-          ))
+          txns.map((row, index) => {
+            const income = row.kind === "income";
+            return (
+              <View key={row.id}>
+                {index > 0 ? <View style={[styles.divider, { backgroundColor: t.line }]} /> : null}
+                <ListRow
+                  leading={
+                    <TonalTile bg={income ? t.okBg : t.badBg}>
+                      <Icon name="check" size={19} tint={income ? t.ok : t.bad} />
+                    </TonalTile>
+                  }
+                  title={row.title}
+                  subtitle={`${income ? "" : "− "}${formatMoney(row.amount)} · ${row.subtitle}`}
+                  trailing={<DSText variant="caption">{row.dateLabel}</DSText>}
+                />
+              </View>
+            );
+          })
         )}
-        {payments.length > 0 ? (
+        {txns.length > 0 ? (
           <PressableScale
             accessibilityLabel="View all receipts"
             onPress={() => router.push("/admin/fees" as never)}

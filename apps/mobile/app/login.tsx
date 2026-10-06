@@ -466,7 +466,7 @@ export default function Login() {
               <Text style={[styles.identityName, { color: th.text }]}>NARAYANAOS</Text>
               <Text style={[styles.identityTag, { color: th.sub }]}>Your School. One App.</Text>
               <Text style={[styles.identityScope, { color: th.faint }]}>
-                Attendance • Fees • Academics • Communication
+                Attendance • Finance • Academics • Communication
               </Text>
             </View>
 

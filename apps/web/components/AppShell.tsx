@@ -145,7 +145,7 @@ const primaryNav: NavItem[] = [
   { href: "/admin/attendance", label: "Attendance", module: "attendance", icon: ClipboardCheck, activePrefixes: ["/admin/attendance", "/admin/my-attendance"] },
   {
     href: "/admin/finance",
-    label: "Fees & Finance",
+    label: "Finance",
     module: "fees",
     icon: IndianRupee,
     activePrefixes: ["/admin/finance", "/admin/payments", "/admin/fee-structures", "/admin/fee-concessions", "/admin/fee-reminders", "/admin/fee-reports"]
@@ -171,7 +171,7 @@ const portalNav: NavItem[] = [
   { href: "/portal", label: "Dashboard", module: "portal", icon: LayoutDashboard },
   { href: "/portal/attendance", label: "Attendance", module: "portal", icon: Clock, activePrefixes: ["/portal/attendance"] },
   { href: "/portal/homework", label: "Homework", module: "portal", icon: BookOpenCheck, activePrefixes: ["/portal/homework"] },
-  { href: "/portal/fees", label: "Fees", module: "portal", icon: IndianRupee },
+  { href: "/portal/fees", label: "Finance", module: "portal", icon: IndianRupee },
   { href: "/portal/exams", label: "Exams", module: "portal", icon: GraduationCap },
   { href: "/portal/notices", label: "Notices", module: "portal", icon: Megaphone },
   { href: "/portal/calendar", label: "Calendar", module: "portal", icon: CalendarDays },
@@ -219,7 +219,7 @@ const desktopNavSections: Array<{ label: string; hrefs: string[] }> = [
 
 const contextSubnavs: ContextSubnav[] = [
   {
-    title: "Fees & Finance",
+    title: "Finance",
     eyebrow: "Accounts",
     matchPrefixes: ["/admin/finance", "/admin/payments", "/admin/fee-structures", "/admin/fee-concessions", "/admin/fee-reminders", "/admin/fee-reports"],
     items: [
@@ -307,7 +307,7 @@ const mobileNav: MobileNavItem[] = [
   { href: "/portal", label: "Dashboard", short: "Home", icon: LayoutDashboard, module: "portal" },
   { href: "/portal/attendance", label: "Attendance", short: "Attendance", icon: Clock, module: "portal" },
   { href: "/portal/homework", label: "Homework", short: "HW", icon: BookOpenCheck, module: "portal" },
-  { href: "/portal/fees", label: "Fees", short: "Fees", icon: IndianRupee, module: "portal" },
+  { href: "/portal/fees", label: "Finance", short: "Finance", icon: IndianRupee, module: "portal" },
   { href: "/portal/exams", label: "Exams", short: "Exams", icon: GraduationCap, module: "portal" },
   { href: "/portal/notices", label: "Notices", short: "Notices", icon: Megaphone, module: "portal" },
   { href: "/portal/calendar", label: "Calendar", short: "Calendar", icon: CalendarDays, module: "portal" },
