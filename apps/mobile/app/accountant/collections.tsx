@@ -5,7 +5,7 @@
 import React, { useMemo, useState } from "react";
 import { RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import {
-  Card, DSText, EmptyState, ErrorState, FilterChips, Icon, ListRow, LoadingState,
+  Card, DSText, EmptyState, ErrorState, FilterChips, Icon, ListRow, SkeletonPage,
   PageTitle, PillButton, SectionCard, TonalTile, useToast
 } from "@/design-system/components";
 import { radius, space } from "@/design-system/tokens";
@@ -39,7 +39,7 @@ function AccountantCollections() {
     [visible]
   );
 
-  if (loading && payments.length === 0) return <LoadingState label="Loading receipts…" />;
+  if (loading && payments.length === 0) return <SkeletonPage />;
   if (error && payments.length === 0) return <ErrorState message={error} onRetry={refresh} />;
 
   return (

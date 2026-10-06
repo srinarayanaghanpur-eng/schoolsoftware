@@ -6,7 +6,7 @@
 import React, { useMemo } from "react";
 import { ScrollView, StyleSheet } from "react-native";
 import {
-  Avatar, DSText, EmptyState, ErrorState, Icon, ListRow, LoadingState, PageTitle,
+  Avatar, DSText, EmptyState, ErrorState, Icon, ListRow, SkeletonPage, PageTitle,
   SectionCard, TonalTile
 } from "@/design-system/components";
 import { space } from "@/design-system/tokens";
@@ -42,7 +42,7 @@ function TeacherInbox() {
       .slice(0, 5);
   }, [holidays]);
 
-  if (loading && holidays.length === 0) return <LoadingState label="Loading your inbox…" />;
+  if (loading && holidays.length === 0) return <SkeletonPage />;
   if (error && holidays.length === 0) return <ErrorState message={error} />;
 
   return (

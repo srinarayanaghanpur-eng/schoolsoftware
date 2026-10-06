@@ -6,11 +6,11 @@
  * here means one implementation instead of two drifting copies.
  */
 import React, { useMemo, useState } from "react";
-import { Alert, FlatList, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
+import { FlatList, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
 import {
-  Avatar, Badge, Card, DSText, EmptyState, ErrorState, FilterChips, Icon, ListRow,
-  LoadingState, PageTitle, PillButton, PressableScale, ProgressRow, SectionCard, TonalTile, useToast,
+  Avatar, Badge, BottomSheet, Card, DSText, EmptyState, ErrorState, FilterChips, Icon, ListRow,
+  SkeletonPage, PageTitle, PillButton, PressableScale, ProgressRow, SectionCard, TonalTile, useToast,
   type IconName
 } from "@/design-system/components";
 import { radius, space } from "@/design-system/tokens";
@@ -41,7 +41,7 @@ export function StaffScreen() {
     return staff.filter((member) => (member.status ?? "active").toLowerCase() === wanted);
   }, [staff, filter]);
 
-  if (loading && staff.length === 0) return <LoadingState label="Loading staff…" />;
+  if (loading && staff.length === 0) return <SkeletonPage />;
   if (error && staff.length === 0) return <ErrorState message={error} onRetry={refresh} />;
 
   const attendanceRate = attendance.total > 0 ? (attendance.present / attendance.total) * 100 : 0;
@@ -166,7 +166,7 @@ export function ApprovalsScreen() {
     }
   }
 
-  if (loading && requests.length === 0) return <LoadingState label="Loading approvals…" />;
+  if (loading && requests.length === 0) return <SkeletonPage />;
   if (error && requests.length === 0) return <ErrorState message={error} onRetry={refresh} />;
 
   return (
@@ -292,12 +292,8 @@ export function ManagementProfileScreen() {
     }
   };
 
-  const confirmLogout = () => {
-    Alert.alert("Log out?", "You are getting logged out from this device.", [
-      { text: "Stay", style: "cancel" },
-      { text: "Log out", style: "destructive", onPress: () => { void logout(); } }
-    ]);
-  };
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const confirmLogout = () => setConfirmOpen(true);
 
   return (
     <ScrollView
@@ -407,6 +403,28 @@ export function ManagementProfileScreen() {
       </View>
 
       <PillButton label="Logout from this device" block bg={t.bad} fg="#FFFFFF" icon="logout" onPress={confirmLogout} />
+
+      <BottomSheet
+        visible={confirmOpen}
+        title="Log out?"
+        onClose={() => setConfirmOpen(false)}
+      >
+        <DSText variant="label">You are getting logged out from this device.</DSText>
+        <View style={{ flexDirection: "row", gap: 10, marginTop: 16 }}>
+          <View style={{ flex: 1 }}>
+            <PillButton label="Stay" block onPress={() => setConfirmOpen(false)} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <PillButton
+              label="Log out"
+              block
+              bg={t.bad}
+              fg="#FFFFFF"
+              onPress={() => { setConfirmOpen(false); void logout(); }}
+            />
+          </View>
+        </View>
+      </BottomSheet>
     </ScrollView>
   );
 }

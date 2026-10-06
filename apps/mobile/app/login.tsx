@@ -13,6 +13,7 @@ import {
   ActivityIndicator,
   Animated,
   Easing,
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -27,14 +28,6 @@ import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { MaterialIcons } from "@expo/vector-icons";
-import Svg, {
-  Circle,
-  Defs,
-  LinearGradient as SvgGradient,
-  Path,
-  Rect,
-  Stop
-} from "react-native-svg";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { signInWithEmailAndPassword, signOut } from "firebase/auth";
 import { employeeIdToInternalEmail } from "@sri-narayana/shared";
@@ -48,7 +41,6 @@ import { dashboardPathForRole } from "@/lib/roleRouting";
 /* ------------------------------ school knobs ----------------------------- */
 
 const SCHOOL_MOTTO = "LEARN • GROW • ACHIEVE";
-const SHOW_SOCIAL = { google: true, discord: false, facebook: false };
 
 /* --------------------------------- themes -------------------------------- */
 
@@ -109,89 +101,6 @@ type IconGlyph = React.ComponentProps<typeof MaterialIcons>["name"];
 
 function MaterialIcon({ name, size = 20, color = "#FFFFFF" }: { name: IconGlyph; size?: number; color?: string }) {
   return <MaterialIcons name={name} size={size} color={color} />;
-}
-
-/** School emblem slot: 3 layered ribbons. Replace with the school logo asset. */
-function Emblem() {
-  return (
-    <Svg width={72} height={72} viewBox="0 0 96 96">
-      <Defs>
-        <SvgGradient id="rib1" x1="0" y1="0" x2="1" y2="1">
-          <Stop offset="0" stopColor="#1D3FD6" />
-          <Stop offset="1" stopColor="#2F5BEA" />
-        </SvgGradient>
-        <SvgGradient id="rib2" x1="0" y1="0" x2="1" y2="1">
-          <Stop offset="0" stopColor="#2F5BEA" />
-          <Stop offset="1" stopColor="#4A8CFF" />
-        </SvgGradient>
-      </Defs>
-      <Path
-        d="M20 68 C 20 44, 40 30, 60 34 C 74 37, 78 50, 72 60 C 64 74, 34 82, 20 68 Z"
-        fill="url(#rib1)"
-      />
-      <Path
-        d="M30 60 C 34 46, 50 38, 62 42 C 70 45, 70 54, 64 60 C 56 68, 36 70, 30 60 Z"
-        fill="url(#rib2)"
-      />
-      <Path
-        d="M58 28 C 66 28, 72 34, 70 42 C 64 38, 58 34, 54 30 Z"
-        fill="#FFFFFF"
-        opacity={0.85}
-      />
-    </Svg>
-  );
-}
-
-function GoogleMark() {
-  return (
-    <Svg width={22} height={22} viewBox="0 0 24 24">
-      <Path
-        d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-        fill="#4285F4"
-      />
-      <Path
-        d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-        fill="#34A853"
-      />
-      <Path
-        d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.44 8.55 1 10.22 1 12s.44 3.45 1.18 4.93l3.66-2.84z"
-        fill="#FBBC05"
-      />
-      <Path
-        d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-        fill="#EA4335"
-      />
-    </Svg>
-  );
-}
-
-function DiscordMark() {
-  return (
-    <Svg width={24} height={24} viewBox="0 0 24 24">
-      <Rect x={1} y={1} width={22} height={22} rx={6} fill="#5865F2" />
-      <Circle cx={9} cy={10.5} r={1.4} fill="#FFFFFF" />
-      <Circle cx={15} cy={10.5} r={1.4} fill="#FFFFFF" />
-      <Path
-        d="M8.5 15 Q12 17.5 15.5 15"
-        stroke="#FFFFFF"
-        strokeWidth={1.6}
-        strokeLinecap="round"
-        fill="none"
-      />
-    </Svg>
-  );
-}
-
-function FacebookMark() {
-  return (
-    <Svg width={24} height={24} viewBox="0 0 24 24">
-      <Circle cx={12} cy={12} r={11} fill="#1877F2" />
-      <Path
-        d="M13.5 21v-7h2.4l.6-3h-3V9.1c0-.9.3-1.6 1.7-1.6h1.9V4.8c-.3 0-1.4-.1-2.6-.1-2.6 0-4.4 1.6-4.4 4.5V11H8v3h2.1v7z"
-        fill="#FFFFFF"
-      />
-    </Svg>
-  );
 }
 
 /** Friendly Firebase codes for parents. */
@@ -426,7 +335,12 @@ export default function Login() {
                 }
               ]}
             >
-              <Emblem />
+              <Image
+                source={require("../assets/LOGO.png")}
+                style={{ width: 64, height: 64, borderRadius: 16 }}
+                resizeMode="contain"
+                accessibilityLabel="NarayanaOS school logo"
+              />
             </View>
           </Animated.View>
 
@@ -547,67 +461,13 @@ export default function Login() {
               </LinearGradient>
             </Pressable>
 
-            {/* divider */}
-            <View style={styles.dividerRow}>
-              <LinearGradient
-                colors={["transparent", th.divider]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.dividerLine}
-              />
-              <Text style={[styles.dividerText, { color: th.faint }]}>OR CONTINUE WITH</Text>
-              <LinearGradient
-                colors={[th.divider, "transparent"]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.dividerLine}
-              />
-            </View>
-
-            {/* social row (flag-gated; schools show Google only) */}
-            <View style={styles.socialRow}>
-              {SHOW_SOCIAL.google ? (
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Continue with Google"
-                  onPress={() => toast.show("Google sign-in arrives with the school release.")}
-                  style={({ pressed }) => [
-                    styles.socialTile,
-                    { backgroundColor: th.tile, borderColor: th.tileBorder },
-                    pressed && { transform: [{ scale: 0.95 }] }
-                  ]}
-                >
-                  <GoogleMark />
-                </Pressable>
-              ) : null}
-              {SHOW_SOCIAL.discord ? (
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Continue with Discord"
-                  onPress={() => toast.show("Discord sign-in is disabled for schools.")}
-                  style={({ pressed }) => [
-                    styles.socialTile,
-                    { backgroundColor: th.tile, borderColor: th.tileBorder },
-                    pressed && { transform: [{ scale: 0.95 }] }
-                  ]}
-                >
-                  <DiscordMark />
-                </Pressable>
-              ) : null}
-              {SHOW_SOCIAL.facebook ? (
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Continue with Facebook"
-                  onPress={() => toast.show("Facebook sign-in is disabled for schools.")}
-                  style={({ pressed }) => [
-                    styles.socialTile,
-                    { backgroundColor: th.tile, borderColor: th.tileBorder },
-                    pressed && { transform: [{ scale: 0.95 }] }
-                  ]}
-                >
-                  <FacebookMark />
-                </Pressable>
-              ) : null}
+            {/* school identity */}
+            <View style={styles.identity}>
+              <Text style={[styles.identityName, { color: th.text }]}>NARAYANAOS</Text>
+              <Text style={[styles.identityTag, { color: th.sub }]}>Your School. One App.</Text>
+              <Text style={[styles.identityScope, { color: th.faint }]}>
+                Attendance • Fees • Academics • Communication
+              </Text>
             </View>
 
             <Text style={[styles.motto, { color: th.faint }]}>{SCHOOL_MOTTO}</Text>
@@ -753,19 +613,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center"
   },
-  dividerRow: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 4 },
-  dividerLine: { flex: 1, height: 1 },
-  dividerText: { fontSize: 8, letterSpacing: 2, textTransform: "uppercase" },
-  socialRow: { flexDirection: "row", justifyContent: "center", gap: 16 },
-  socialTile: {
-    width: 46,
-    height: 46,
-    borderRadius: 16,
-    borderWidth: 1,
-    alignItems: "center",
-    justifyContent: "center"
-  },
   motto: { fontSize: 8, letterSpacing: 2, textTransform: "uppercase", textAlign: "center" },
+  identity: { alignItems: "center", gap: 2, marginTop: 6 },
+  identityName: { fontSize: 15, fontWeight: "800", letterSpacing: 3 },
+  identityTag: { fontSize: 12, fontWeight: "600" },
+  identityScope: { fontSize: 10, letterSpacing: 1 },
   eye: { padding: 6 },
   field: {
     flexDirection: "row",

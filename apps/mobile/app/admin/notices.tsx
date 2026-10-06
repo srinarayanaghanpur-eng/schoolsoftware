@@ -4,7 +4,7 @@
 import React from "react";
 import { RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import {
-  DSText, EmptyState, ErrorState, Icon, ListRow, LoadingState, PageTitle,
+  DSText, EmptyState, ErrorState, Icon, ListRow, SkeletonPage, PageTitle,
   SectionCard, TonalTile
 } from "@/design-system/components";
 import { space } from "@/design-system/tokens";
@@ -31,7 +31,7 @@ function AdminNotices() {
     { bg: t.okBg, tint: t.ok }
   ];
 
-  if (loading && notices.length === 0) return <LoadingState label="Loading notices…" />;
+  if (loading && notices.length === 0) return <SkeletonPage />;
   if (error && notices.length === 0) return <ErrorState message={error} onRetry={refresh} />;
 
   return (

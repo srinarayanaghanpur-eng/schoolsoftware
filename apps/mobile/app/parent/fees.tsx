@@ -7,8 +7,8 @@ import React, { useCallback, useMemo, useState } from "react";
 import { FlatList, RefreshControl, Share, StyleSheet, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import {
-  Avatar, DSText, EmptyState, ErrorState, FilterChips, ListRow, LoadingState,
-  PageTitle, PillButton, useToast
+  Avatar, DSText, EmptyState, ErrorState, FilterChips, ListRow,
+  PageTitle, PillButton, SkeletonRows, useToast
 } from "@/design-system/components";
 import { radius, space } from "@/design-system/tokens";
 import { useTheme } from "@/lib/Theme";
@@ -87,7 +87,7 @@ function ParentFeesScreen() {
     }
   }, [toast]);
 
-  if (loading && !summary) return <LoadingState label="Loading fee details…" />;
+  if (loading && !summary) return <SkeletonRows count={3} />;
   if ((summaryError && !summary) || (!loading && !summary)) {
     return <ErrorState message={summaryError || "No student is linked to this account yet."} onRetry={refresh} />;
   }

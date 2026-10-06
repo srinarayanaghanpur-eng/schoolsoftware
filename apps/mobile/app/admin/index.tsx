@@ -7,7 +7,7 @@ import { RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import {
-  Avatar, Badge, Card, DSText, ErrorState, Icon, ListRow, LoadingState,
+  Avatar, Badge, Card, DSText, ErrorState, Icon, ListRow, SkeletonPage,
   PillButton, PressableScale, ProgressRow, ScreenHeader, SectionCard, TonalTile
 } from "@/design-system/components";
 import { BarChart } from "@/design-system/widgets";
@@ -75,7 +75,7 @@ function AdminHome() {
     }));
   }, [payments]);
 
-  if (loading && !stats) return <LoadingState label="Loading today’s snapshot…" />;
+  if (loading && !stats) return <SkeletonPage />;
   if (error && !stats) return <ErrorState message={error} onRetry={refresh} />;
 
   const name = profile?.displayName ?? "Administrator";

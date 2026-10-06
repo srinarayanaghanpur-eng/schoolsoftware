@@ -6,8 +6,8 @@
 import React, { useCallback, useState } from "react";
 import { Pressable, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import {
-  Avatar, Badge, DSText, ErrorState, Icon, ListRow, LoadingState,
-  PageTitle, SectionCard, TonalTile
+  Avatar, Badge, DSText, ErrorState, Icon, ListRow,
+  PageTitle, SectionCard, SkeletonRows, TonalTile
 } from "@/design-system/components";
 import { radius, space } from "@/design-system/tokens";
 import { useTheme } from "@/lib/Theme";
@@ -52,7 +52,7 @@ function ParentAttendanceScreen() {
   const currentMonth = new Date().toISOString().slice(0, 7);
   const canGoNext = month < currentMonth;
 
-  if (loading && !record && !summary) return <LoadingState label="Loading attendance…" />;
+  if (loading && !record && !summary) return <SkeletonRows count={3} />;
   if ((summaryError && !summary) || (!loading && !summary)) {
     return <ErrorState message={summaryError || "No student is linked to this account yet."} onRetry={refresh} />;
   }

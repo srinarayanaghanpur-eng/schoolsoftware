@@ -14,8 +14,8 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
-  Avatar, Badge, Card, DSText, EmptyState, ErrorState, Icon, LoadingState,
-  PageTitle, PressableScale, TextField, TonalTile, useToast
+  Avatar, Badge, Card, DSText, EmptyState, ErrorState, Icon,
+  PageTitle, PressableScale, SkeletonRows, TextField, TonalTile, useToast
 } from "@/design-system/components";
 import { motion, radius, space } from "@/design-system/tokens";
 import { useTheme } from "@/lib/Theme";
@@ -89,7 +89,7 @@ function ParentMessagesScreen() {
         <PageTitle>Messages</PageTitle>
         <ChildSwitcher children={linkedStudents} selectedId={activeId} onSelect={select} />
 
-        {loading && !summary ? <LoadingState /> : null}
+        {loading && !summary ? <SkeletonRows count={3} /> : null}
         {error && !summary ? <ErrorState message={error} onRetry={refresh} /> : null}
         {!loading && notices.length === 0 && summary ? (
           <EmptyState icon="chat-bubble-outline" label="No school messages yet." />

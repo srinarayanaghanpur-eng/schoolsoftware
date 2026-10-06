@@ -1,12 +1,12 @@
 /**
  * Teacher Profile — identity, attendance summary, menu, logout.
  */
-import React from "react";
-import { Alert, ScrollView, StyleSheet, View } from "react-native";
+import React, { useState } from "react";
+import { ScrollView, StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import {
-  Avatar, DSText, Icon, ListRow, PillButton, ProgressRow, SectionCard, StatTile, TonalTile, useToast
+  Avatar, BottomSheet, DSText, Icon, ListRow, PillButton, ProgressRow, SectionCard, StatTile, TonalTile, useToast
 } from "@/design-system/components";
 import { radius, space } from "@/design-system/tokens";
 import { useTheme } from "@/lib/Theme";
@@ -44,12 +44,8 @@ function TeacherProfile() {
     }
   };
 
-  const confirmLogout = () => {
-    Alert.alert("Log out?", "You are getting logged out from this device.", [
-      { text: "Stay", style: "cancel" },
-      { text: "Log out", style: "destructive", onPress: () => { void logout(); } }
-    ]);
-  };
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const confirmLogout = () => setConfirmOpen(true);
 
   return (
     <ScrollView
@@ -134,6 +130,28 @@ function TeacherProfile() {
       </DSText>
 
       <PillButton label="Logout from this device" block bg={t.bad} icon="logout" onPress={confirmLogout} />
+
+      <BottomSheet
+        visible={confirmOpen}
+        title="Log out?"
+        onClose={() => setConfirmOpen(false)}
+      >
+        <DSText variant="label">You are getting logged out from this device.</DSText>
+        <View style={{ flexDirection: "row", gap: 10, marginTop: 16 }}>
+          <View style={{ flex: 1 }}>
+            <PillButton label="Stay" block onPress={() => setConfirmOpen(false)} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <PillButton
+              label="Log out"
+              block
+              bg={t.bad}
+              fg="#FFFFFF"
+              onPress={() => { setConfirmOpen(false); void logout(); }}
+            />
+          </View>
+        </View>
+      </BottomSheet>
     </ScrollView>
   );
 }

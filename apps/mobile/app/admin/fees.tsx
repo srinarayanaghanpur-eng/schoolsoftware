@@ -4,7 +4,7 @@
 import React, { useMemo, useState } from "react";
 import { RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import {
-  Card, DSText, EmptyState, ErrorState, FilterChips, Icon, ListRow, LoadingState,
+  Card, DSText, EmptyState, ErrorState, FilterChips, Icon, ListRow, SkeletonPage,
   PageTitle, PillButton, ProgressRow, SectionCard, TonalTile, useToast
 } from "@/design-system/components";
 import { radius, space } from "@/design-system/tokens";
@@ -40,7 +40,7 @@ function AdminFees() {
     );
   }, [payments, filter]);
 
-  if (loading && !stats) return <LoadingState label="Loading fee collection…" />;
+  if (loading && !stats) return <SkeletonPage />;
   if (error && !stats) return <ErrorState message={error} onRetry={refresh} />;
 
   const collectionRate = stats && stats.totalFeeAmount > 0

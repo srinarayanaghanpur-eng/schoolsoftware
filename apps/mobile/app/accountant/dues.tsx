@@ -4,7 +4,7 @@
 import React from "react";
 import { RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import {
-  Card, DSText, ErrorState, Icon, ListRow, LoadingState, PageTitle,
+  Card, DSText, ErrorState, Icon, ListRow, SkeletonPage, PageTitle,
   PillButton, ProgressRow, SectionCard, TonalTile, useToast
 } from "@/design-system/components";
 import { radius, space } from "@/design-system/tokens";
@@ -25,7 +25,7 @@ function AccountantDues() {
   const toast = useToast();
   const { stats, loading, error, refresh } = useDashboardStats();
 
-  if (loading && !stats) return <LoadingState label="Loading dues…" />;
+  if (loading && !stats) return <SkeletonPage />;
   if (error && !stats) return <ErrorState message={error} onRetry={refresh} />;
 
   const total = stats?.totalFeeAmount ?? 0;

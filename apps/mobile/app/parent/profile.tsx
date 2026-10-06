@@ -6,8 +6,8 @@ import React, { useCallback, useEffect, useState } from "react";
 import { RefreshControl, ScrollView, StyleSheet, Switch, View } from "react-native";
 import { useRouter } from "expo-router";
 import {
-  Avatar, Badge, BottomSheet, DSText, EmptyState, ErrorState, Icon, ListRow, LoadingState,
-  PageTitle, PillButton, SectionCard, TonalTile, useToast
+  Avatar, Badge, BottomSheet, DSText, EmptyState, ErrorState, Icon, ListRow,
+  PageTitle, PillButton, SectionCard, SkeletonRows, TonalTile, useToast
 } from "@/design-system/components";
 import { radius, space } from "@/design-system/tokens";
 import { useTheme } from "@/lib/Theme";
@@ -132,7 +132,7 @@ function ParentProfileScreen() {
         </View>
       </View>
 
-      {loading && !summary ? <LoadingState /> : null}
+      {loading && !summary ? <SkeletonRows count={3} /> : null}
       {error && !summary ? <ErrorState message={error} onRetry={refresh} /> : null}
 
       <ChildSwitcher children={linkedStudents} selectedId={activeId} onSelect={select} />

@@ -14,7 +14,7 @@ import { ScrollView, StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import {
-  Avatar, DSText, EmptyState, ErrorState, Hero, Icon, ListRow, LoadingState,
+  Avatar, DSText, EmptyState, ErrorState, Hero, Icon, ListRow, SkeletonPage,
   PillButton, PressableScale, ScreenHeader, SectionCard, StatTile, TonalTile, useToast
 } from "@/design-system/components";
 import { radius, space } from "@/design-system/tokens";
@@ -56,7 +56,7 @@ function TeacherHome() {
   const { teacher, records, holidays, loading, error } = useTeacherAttendanceData();
   const summary = useAttendanceSummary(records);
 
-  if (loading && !teacher) return <LoadingState label="Opening your workspace…" />;
+  if (loading && !teacher) return <SkeletonPage />;
   if (error && !teacher) return <ErrorState message={error} />;
 
   const name = teacher?.fullName ?? profile?.displayName ?? "Teacher";

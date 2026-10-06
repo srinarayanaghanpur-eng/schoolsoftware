@@ -9,7 +9,7 @@
 import React, { useMemo } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import {
-  Card, DSText, EmptyState, ErrorState, Icon, ListRow, LoadingState, PageTitle,
+  Card, DSText, EmptyState, ErrorState, Icon, ListRow, SkeletonPage, PageTitle,
   ProgressRow, SectionCard, TonalTile, type IconName
 } from "@/design-system/components";
 import { space } from "@/design-system/tokens";
@@ -47,7 +47,7 @@ function TeacherAcademics() {
       .slice(0, 6);
   }, [holidays]);
 
-  if (loading && !teacher) return <LoadingState label="Loading academics…" />;
+  if (loading && !teacher) return <SkeletonPage />;
   if (error && !teacher) return <ErrorState message={error} />;
 
   const workingDays = records.length;

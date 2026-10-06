@@ -3,7 +3,7 @@
  */
 import React from "react";
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
-import { Avatar, Badge, Card, DSText, EmptyState, ErrorState, ListRow, LoadingState, PageTitle, TonalTile } from "@/design-system/components";
+import { Avatar, Badge, Card, DSText, EmptyState, ErrorState, ListRow, PageTitle, SkeletonRows, TonalTile } from "@/design-system/components";
 import { radius, space } from "@/design-system/tokens";
 import { useTheme } from "@/lib/Theme";
 import type { Palette } from "@/lib/Theme";
@@ -60,7 +60,7 @@ function ParentHomeworkScreen() {
         </Card>
       ) : null}
 
-      {busy && homework.length === 0 ? <LoadingState /> : null}
+      {busy && homework.length === 0 ? <SkeletonRows count={3} /> : null}
       {(error || summaryError) && homework.length === 0 && !busy ? (
         <ErrorState message={error ?? summaryError ?? "Unable to load homework."} onRetry={() => { refreshSummary(); refresh(); }} />
       ) : null}

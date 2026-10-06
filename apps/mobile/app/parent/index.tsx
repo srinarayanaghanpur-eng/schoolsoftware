@@ -7,8 +7,8 @@ import { RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native
 import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import {
-  Avatar, Badge, Card, DSText, ErrorState, Icon, ListRow, LoadingState,
-  PillButton, PressableScale, ScreenHeader, SectionCard, TonalTile, useToast
+  Avatar, Badge, Card, DSText, ErrorState, Icon, ListRow,
+  PillButton, PressableScale, ScreenHeader, SectionCard, SkeletonRows, TonalTile, useToast
 } from "@/design-system/components";
 import { radius, space } from "@/design-system/tokens";
 import { useTheme } from "@/lib/Theme";
@@ -46,7 +46,7 @@ function ParentHome() {
   const select = useSelectChild();
   const { homework } = useParentHomework(activeId);
 
-  if (loading && !summary) return <LoadingState label="Opening your family portal…" />;
+  if (loading && !summary) return <SkeletonRows count={3} />;
   if (error && !summary) return <ErrorState message={error} onRetry={refresh} />;
   if (!summary) return <ErrorState message="No student is linked to this account yet. Please contact the school office." />;
 

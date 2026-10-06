@@ -8,7 +8,7 @@ import { RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import {
-  Avatar, Badge, Card, DSText, ErrorState, Icon, ListRow, LoadingState,
+  Avatar, Badge, Card, DSText, ErrorState, Icon, ListRow, SkeletonPage,
   PillButton, PressableScale, ProgressRow, ScreenHeader, SectionCard, TonalTile, useToast
 } from "@/design-system/components";
 import { radius, space } from "@/design-system/tokens";
@@ -48,7 +48,7 @@ function PrincipalHome() {
   const { stats, loading, error, refresh } = useDashboardStats();
 
   if (attendance.loading && attendance.total === 0 && !stats) {
-    return <LoadingState label="Loading today’s snapshot…" />;
+    return <SkeletonPage />;
   }
   if (error && !stats) return <ErrorState message={error} onRetry={refresh} />;
 

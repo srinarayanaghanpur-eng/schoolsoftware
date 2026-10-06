@@ -657,8 +657,7 @@ export function Skeleton({
 }
 
 /** Three list-row skeletons (avatar dot + two text lines each). */
-export function SkeletonRows({ count = 3 }: { count?: number }) {
-  return (
+export function SkeletonRows({ count = 3 }: { count?: number }) {  return (
     <View style={{ gap: space.md }}>
       {Array.from({ length: count }, (_, i) => (
         <View key={i} style={{ flexDirection: "row", alignItems: "center", gap: space.md }}>
@@ -669,6 +668,20 @@ export function SkeletonRows({ count = 3 }: { count?: number }) {
           </View>
         </View>
       ))}
+    </View>
+  );
+}
+
+/**
+ * Full-screen loading placeholder: title shimmer + hero card shimmer +
+ * list rows. Replaces every "Opening workspace…" style spinner return.
+ */
+export function SkeletonPage() {
+  return (
+    <View style={{ gap: space.md, paddingHorizontal: space.xl, paddingTop: space.xl }}>
+      <Skeleton width="55%" height={22} radius={8} />
+      <Skeleton width="100%" height={120} radius={radius.xl} />
+      <SkeletonRows count={4} />
     </View>
   );
 }

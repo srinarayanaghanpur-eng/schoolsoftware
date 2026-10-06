@@ -4,7 +4,7 @@
 import React, { useMemo, useState } from "react";
 import { FlatList, StyleSheet, View } from "react-native";
 import {
-  Badge, DSText, EmptyState, ErrorState, FilterChips, Icon, ListRow, LoadingState,
+  Badge, DSText, EmptyState, ErrorState, FilterChips, Icon, ListRow, SkeletonPage,
   PageTitle, StatTile, TonalTile
 } from "@/design-system/components";
 import { space } from "@/design-system/tokens";
@@ -43,7 +43,7 @@ function TeacherHistory() {
     return sorted.filter((r) => r.status === wanted);
   }, [records, filter]);
 
-  if (loading && records.length === 0) return <LoadingState label="Loading your history…" />;
+  if (loading && records.length === 0) return <SkeletonPage />;
   if (error && records.length === 0) return <ErrorState message={error} />;
 
   // Virtualized: history holds up to 180 records, far too many to mount at once.
