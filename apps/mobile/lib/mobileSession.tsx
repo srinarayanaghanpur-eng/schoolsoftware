@@ -57,8 +57,11 @@ async function resolveTeacherId(user: User, userData: Record<string, unknown>, c
 }
 
 export async function resolveMobileSession(user: User): Promise<MobileUserProfile> {
-  const token = await user.getIdTokenResult();
-  const userSnapshot = await getDoc(doc(db, "users", user.uid));
+  // Token + user doc are independent — fetch together, not one after the other.
+  const [token, userSnapshot] = await Promise.all([
+    user.getIdTokenResult(),
+    getDoc(doc(db, "users", user.uid))
+  ]);
   const userData = userSnapshot.exists() ? asRecord(userSnapshot.data()) : {};
   const claimRole = token.claims.role;
   const docRole = userData.role;

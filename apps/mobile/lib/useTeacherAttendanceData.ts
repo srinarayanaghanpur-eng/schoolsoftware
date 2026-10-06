@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import type { User } from "firebase/auth";
-import { onAuthStateChanged } from "firebase/auth";
 import {
   collection,
   doc,
@@ -14,7 +13,8 @@ import {
 } from "firebase/firestore";
 import type { QueryDocumentSnapshot } from "firebase/firestore";
 import type { AttendanceRecord, AttendanceSource, AttendanceStatus, Holiday, Teacher } from "@sri-narayana/shared";
-import { auth, db } from "@/lib/firebase";
+import { db } from "@/lib/firebase";
+import { useMobileSession } from "@/lib/mobileSession";
 
 type TeacherAttendanceState = {
   teacher: Teacher | null;
@@ -125,6 +125,10 @@ async function resolveTeacherId(user: User): Promise<string | null> {
 }
 
 export function useTeacherAttendanceData(): TeacherAttendanceState {
+  const session = useMobileSession();
+  const liveStatus = session.status;
+  const liveUser = session.user;
+  const liveTeacherId = session.profile?.teacherId;
   const [teacher, setTeacher] = useState<Teacher | null>(null);
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
   const [holidays, setHolidays] = useState<Holiday[]>([]);
@@ -141,7 +145,7 @@ export function useTeacherAttendanceData(): TeacherAttendanceState {
       dataUnsubscribers = [];
     };
 
-    const connect = async (user: User, currentRunId: number) => {
+    const connect = async (user: User, currentRunId: number, knownTeacherId?: string) => {
       const ready: Record<ReadyKey, boolean> = {
         teacher: false,
         records: false,
@@ -156,7 +160,9 @@ export function useTeacherAttendanceData(): TeacherAttendanceState {
       };
 
       try {
-        const teacherId = await resolveTeacherId(user);
+        // Prefer the id the session already resolved — repeating the token +
+        // user-doc reads here used to double the cost of every screen mount.
+        const teacherId = knownTeacherId ?? (await resolveTeacherId(user));
         if (!teacherId) {
           throw new Error("Teacher profile not found.");
         }
@@ -221,30 +227,36 @@ export function useTeacherAttendanceData(): TeacherAttendanceState {
       }
     };
 
-    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
-      runId += 1;
-      clearDataSubscriptions();
-      setTeacher(null);
-      setRecords([]);
-      setHolidays([]);
-      setError(null);
-
-      if (!user) {
-        setLoading(false);
-        setError("Please sign in to continue.");
-        return;
-      }
-
+    // Driven by the shared session — no second onAuthStateChanged here (it
+    // used to reset every screen to a skeleton on each auth event).
+    runId += 1;
+    const currentRunId = runId;
+    if (liveStatus === "checking") {
       setLoading(true);
-      void connect(user, runId);
-    });
+      return () => {
+        disposed = true;
+      };
+    }
+    clearDataSubscriptions();
+    setTeacher(null);
+    setRecords([]);
+    setHolidays([]);
+    setError(null);
+    if (!liveUser) {
+      setLoading(false);
+      setError("Please sign in to continue.");
+      return () => {
+        disposed = true;
+      };
+    }
+    setLoading(true);
+    void connect(liveUser, currentRunId, liveTeacherId);
 
     return () => {
       disposed = true;
-      unsubscribeAuth();
       clearDataSubscriptions();
     };
-  }, []);
+  }, [liveStatus, liveUser, liveTeacherId]);
 
   return useMemo(
     () => ({ teacher, records, holidays, loading, error }),

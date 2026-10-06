@@ -33,7 +33,7 @@ import { signInWithEmailAndPassword, signOut } from "firebase/auth";
 import { employeeIdToInternalEmail } from "@sri-narayana/shared";
 import { auth } from "@/lib/firebase";
 import { clearMobileAuthStorage, REMEMBER_CHOICE_KEY } from "@/lib/authStorage";
-import { resolveMobileSession, useMobileSession } from "@/lib/mobileSession";
+import { useMobileSession } from "@/lib/mobileSession";
 import { useToast } from "@/design-system/components";
 import { useTheme } from "@/lib/Theme";
 import { dashboardPathForRole } from "@/lib/roleRouting";
@@ -228,9 +228,22 @@ export default function Login() {
   };
 
   useEffect(() => {
+    if (session.status === "error") {
+      // Session resolve failed after sign-in (message shows via session.error).
+      setLoading(false);
+      return;
+    }
     if (redirectedRef.current || session.status !== "authenticated" || !session.profile) return;
     const path = dashboardPathForRole(session.profile.role);
-    if (path === "/login") return;
+    if (path === "/login") {
+      // Desktop-only workspace: bounce the sign-in the session just resolved.
+      redirectedRef.current = true;
+      setErrorMessage("This workspace is not available in the mobile app yet. Please use the web portal.");
+      setLoading(false);
+      void signOut(auth).catch(() => undefined);
+      void clearMobileAuthStorage().catch(() => undefined);
+      return;
+    }
     redirectedRef.current = true;
     router.replace(path as never);
   }, [router, session.profile, session.status]);
@@ -246,25 +259,17 @@ export default function Login() {
     try {
       const loginId = employeeId.trim();
       const loginEmail = loginId.includes("@") ? loginId : employeeIdToInternalEmail(loginId);
-      const credential = await signInWithEmailAndPassword(auth, loginEmail, password);
+      await signInWithEmailAndPassword(auth, loginEmail, password);
       await AsyncStorage.setItem(REMEMBER_CHOICE_KEY, remember ? "1" : "0").catch(() => undefined);
-      const profile = await resolveMobileSession(credential.user);
-      const path = dashboardPathForRole(profile.role);
-      if (path === "/login") {
-        setErrorMessage("This workspace is not available in the mobile app yet. Please use the web portal.");
-        await signOut(auth).catch(() => undefined);
-        await clearMobileAuthStorage().catch(() => undefined);
-        return;
-      }
-      redirectedRef.current = true;
-      router.replace(path as never);
+      // The session provider resolves the profile and this screen's redirect
+      // effect navigates. (Resolving here too used to double every login read.)
+      // Loading stays true until the redirect unmounts this screen.
     } catch (error) {
       setErrorMessage(friendlyAuthMessage(error));
       shake();
+      setLoading(false);
       await signOut(auth).catch(() => undefined);
       await clearMobileAuthStorage().catch(() => undefined);
-    } finally {
-      setLoading(false);
     }
   };
 
