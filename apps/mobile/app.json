@@ -6,6 +6,11 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/LOGO.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#f4f3f8"
+    },
     "runtimeVersion": "1.0.0",
     "plugins": [
       [
@@ -19,7 +24,8 @@
         {
           "color": "#3033a1"
         }
-      ]
+      ],
+      "expo-splash-screen"
     ],
     "ios": {
       "supportsTablet": false,

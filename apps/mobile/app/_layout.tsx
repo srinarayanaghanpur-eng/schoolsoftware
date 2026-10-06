@@ -9,6 +9,7 @@ import { Stack } from "expo-router";
 import { Platform, StatusBar, StyleSheet, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { useFonts } from "expo-font";
+import * as SplashScreen from "expo-splash-screen";
 import {
   PlusJakartaSans_400Regular,
   PlusJakartaSans_500Medium,
@@ -27,6 +28,10 @@ function PushBootstrap({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+// Keep the native splash up until fonts are ready — the tree renders
+// nothing before that, so without this the launch shows a white flash.
+void SplashScreen.preventAutoHideAsync().catch(() => undefined);
+
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
     PlusJakartaSans_400Regular,
@@ -35,6 +40,13 @@ export default function RootLayout() {
     PlusJakartaSans_700Bold,
     PlusJakartaSans_800ExtraBold
   });
+
+  useEffect(() => {
+    if (fontsLoaded) {
+      void SplashScreen.hideAsync().catch(() => undefined);
+    }
+  }, [fontsLoaded]);
+
   if (!fontsLoaded) return null;
   return (
     <SafeAreaProvider>
