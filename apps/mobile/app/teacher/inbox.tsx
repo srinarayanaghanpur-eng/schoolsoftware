@@ -4,7 +4,7 @@
  * DATA HONESTY: notices are read live from the school calendar.
  */
 import React, { useMemo } from "react";
-import { FlatList, StyleSheet, View } from "react-native";
+import { FlatList, RefreshControl, StyleSheet, View } from "react-native";
 import {
   Avatar, DSText, EmptyState, ErrorState, Icon, ListRow, SkeletonPage, PageTitle,
   SectionCard, TonalTile
@@ -24,7 +24,7 @@ export default function TeacherInboxRoute() {
 
 function TeacherInbox() {
   const { t } = useTheme();
-  const { holidays, loading, error } = useTeacherAttendanceData();
+  const { holidays, loading, error, refresh } = useTeacherAttendanceData();
 
   /** Management-declared holidays are the school's announcements to staff. */
   const announcements = useMemo(() => {
@@ -100,6 +100,7 @@ function TeacherInbox() {
       maxToRenderPerBatch={12}
       windowSize={7}
       removeClippedSubviews={true}
+      refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor={t.blue} />}
     />
   );
 }

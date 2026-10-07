@@ -10,7 +10,7 @@
  * fetch when the endpoint lands; the section structure already handles data.
  */
 import React from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import {
@@ -53,7 +53,7 @@ function TeacherHome() {
   const router = useRouter();
   const toast = useToast();
   const { profile } = useMobileSession();
-  const { teacher, records, holidays, loading, error } = useTeacherAttendanceData();
+  const { teacher, records, holidays, loading, error, refresh } = useTeacherAttendanceData();
   const summary = useAttendanceSummary(records);
 
   if (loading && !teacher) return <SkeletonPage />;
@@ -69,6 +69,7 @@ function TeacherHome() {
     <ScrollView
       contentContainerStyle={styles.page}
       showsVerticalScrollIndicator={false}
+      refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor={t.blue} />}
     >
       <ScreenHeader
         eyebrow={`${greeting()} · ${dateLabel()}`}

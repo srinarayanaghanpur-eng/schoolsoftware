@@ -4,7 +4,7 @@
  * is presentation only.
  */
 import React, { useMemo } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import {
   Card, DSText, Hero, Icon, PillButton, ProgressBar,
   ScreenHeader, SectionCard, StatTile, TonalTile, useToast
@@ -32,7 +32,7 @@ function TeacherAttendance() {
   const { t } = useTheme();
   const toast = useToast();
   const { profile } = useMobileSession();
-  const { teacher, records } = useTeacherAttendanceData();
+  const { teacher, records, loading, refresh } = useTeacherAttendanceData();
   const summary = useAttendanceSummary(records);
   const teacherId = teacher?.id ?? profile?.teacherId;
   const marking = useAttendanceMarking(teacherId);
@@ -78,6 +78,7 @@ function TeacherAttendance() {
     <ScrollView
       contentContainerStyle={styles.page}
       showsVerticalScrollIndicator={false}
+      refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor={t.blue} />}
     >
       <ScreenHeader
         eyebrow={`${greeting()} · ${dateLabel()}`}

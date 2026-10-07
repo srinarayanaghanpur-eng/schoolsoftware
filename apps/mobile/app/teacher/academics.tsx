@@ -7,7 +7,7 @@
  * yet (Phase 2 backlog), so those three sections render an honest EmptyState.
  */
 import React, { useMemo } from "react";
-import { FlatList, StyleSheet, View } from "react-native";
+import { FlatList, RefreshControl, StyleSheet, View } from "react-native";
 import {
   Card, DSText, EmptyState, ErrorState, Icon, ListRow, SkeletonPage, PageTitle,
   ProgressRow, SectionCard, TonalTile, type IconName
@@ -28,7 +28,7 @@ export default function TeacherAcademicsRoute() {
 
 function TeacherAcademics() {
   const { t } = useTheme();
-  const { teacher, records, holidays, loading, error } = useTeacherAttendanceData();
+  const { teacher, records, holidays, loading, error, refresh } = useTeacherAttendanceData();
   const summary = useAttendanceSummary(records);
 
   const HOLIDAY_TONE: Record<string, { bg: string; fg: string; icon: IconName }> = {
@@ -134,6 +134,7 @@ function TeacherAcademics() {
       maxToRenderPerBatch={12}
       windowSize={7}
       removeClippedSubviews={true}
+      refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor={t.blue} />}
     />
   );
 }

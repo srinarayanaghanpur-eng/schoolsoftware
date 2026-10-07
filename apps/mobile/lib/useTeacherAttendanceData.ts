@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { User } from "firebase/auth";
 import {
   collection,
@@ -22,6 +22,7 @@ type TeacherAttendanceState = {
   holidays: Holiday[];
   loading: boolean;
   error: string | null;
+  refresh: () => void;
 };
 
 type ReadyKey = "teacher" | "records" | "holidays";
@@ -134,6 +135,9 @@ export function useTeacherAttendanceData(): TeacherAttendanceState {
   const [holidays, setHolidays] = useState<Holiday[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Bump to re-resolve + resubscribe (pull-to-refresh on live data).
+  const [generation, setGeneration] = useState(0);
+  const refresh = useCallback(() => setGeneration((g) => g + 1), []);
 
   useEffect(() => {
     let disposed = false;
@@ -256,10 +260,10 @@ export function useTeacherAttendanceData(): TeacherAttendanceState {
       disposed = true;
       clearDataSubscriptions();
     };
-  }, [liveStatus, liveUser, liveTeacherId]);
+  }, [liveStatus, liveUser, liveTeacherId, generation]);
 
   return useMemo(
-    () => ({ teacher, records, holidays, loading, error }),
-    [teacher, records, holidays, loading, error]
+    () => ({ teacher, records, holidays, loading, error, refresh }),
+    [teacher, records, holidays, loading, error, refresh]
   );
 }

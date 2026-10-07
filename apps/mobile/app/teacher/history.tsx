@@ -2,7 +2,7 @@
  * Teacher Attendance History — month-to-date record list with filter chips.
  */
 import React, { useMemo, useState } from "react";
-import { FlatList, StyleSheet, View } from "react-native";
+import { FlatList, RefreshControl, StyleSheet, View } from "react-native";
 import {
   Badge, DSText, EmptyState, ErrorState, FilterChips, Icon, ListRow, SkeletonPage,
   PageTitle, StatTile, TonalTile
@@ -26,7 +26,7 @@ export default function TeacherHistoryRoute() {
 function TeacherHistory() {
   const { t } = useTheme();
   const [filter, setFilter] = useState("All");
-  const { records, loading, error } = useTeacherAttendanceData();
+  const { records, loading, error, refresh } = useTeacherAttendanceData();
   const summary = useAttendanceSummary(records);
 
   const TONE_STYLE = {
@@ -106,6 +106,7 @@ function TeacherHistory() {
       maxToRenderPerBatch={20}
       windowSize={7}
       removeClippedSubviews={true}
+      refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor={t.blue} />}
     />
   );
 }
