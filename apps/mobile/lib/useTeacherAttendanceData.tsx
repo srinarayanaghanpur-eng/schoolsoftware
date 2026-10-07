@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { User } from "firebase/auth";
 import {
   collection,
@@ -125,7 +125,14 @@ async function resolveTeacherId(user: User): Promise<string | null> {
   return teacherSnapshot.empty ? null : teacherSnapshot.docs[0].id;
 }
 
-export function useTeacherAttendanceData(): TeacherAttendanceState {
+const TeacherDataContext = createContext<TeacherAttendanceState | null>(null);
+
+/**
+ * Mounted once in the teacher layout: ONE teacher-doc + attendance +
+ * holidays listener triple shared by every teacher screen, instead of
+ * re-creating all three on each tab visit.
+ */
+export function TeacherDataProvider({ children }: { children: React.ReactNode }) {
   const session = useMobileSession();
   const liveStatus = session.status;
   const liveUser = session.user;
@@ -197,7 +204,7 @@ export function useTeacherAttendanceData(): TeacherAttendanceState {
               collection(db, "attendance"),
               where("teacherId", "==", teacherId),
               orderBy("date", "desc"),
-              limit(180)
+              limit(60)
             ),
             (snapshot) => {
               setRecords(snapshot.docs.map((item: QueryDocumentSnapshot) => normalizeAttendanceRecord(asRecord(item.data()))));
@@ -262,8 +269,22 @@ export function useTeacherAttendanceData(): TeacherAttendanceState {
     };
   }, [liveStatus, liveUser, liveTeacherId, generation]);
 
-  return useMemo(
+  const value = useMemo(
     () => ({ teacher, records, holidays, loading, error, refresh }),
     [teacher, records, holidays, loading, error, refresh]
   );
+
+  return (
+    <TeacherDataContext.Provider value={value}>
+      {children}
+    </TeacherDataContext.Provider>
+  );
+}
+
+export function useTeacherAttendanceData(): TeacherAttendanceState {
+  const context = useContext(TeacherDataContext);
+  if (!context) {
+    throw new Error("useTeacherAttendanceData must be used inside TeacherDataProvider");
+  }
+  return context;
 }
