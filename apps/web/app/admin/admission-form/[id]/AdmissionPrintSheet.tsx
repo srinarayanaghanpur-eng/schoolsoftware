@@ -259,6 +259,9 @@ export function AdmissionPrintSheet({
               <span className="af-section-number">09</span>
               <span>OFFICE USE ONLY</span>
             </div>
+            <p className="af-office-note">
+              For school administrative use — not to be filled by parent/guardian.
+            </p>
             <div className="af-grid af-grid-3">
               <FieldBox label="Admission Status" value={r.admissionStatus} />
               <FieldBox label="Verified By" value={r.verifiedByName} />

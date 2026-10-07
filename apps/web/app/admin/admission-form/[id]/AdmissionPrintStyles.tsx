@@ -387,6 +387,13 @@ export default function AdmissionPrintStyles() {
         }
 
         /* ---------- Declaration ---------- */
+        .af-office-note {
+          font-size: 10px;
+          font-style: italic;
+          font-weight: 600;
+          color: #64748b;
+          margin: 0 0 8px 0;
+        }
         .af-declaration-box {
           padding: 10px 12px;
         }
