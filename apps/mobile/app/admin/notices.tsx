@@ -2,10 +2,10 @@
  * Admin Notices — school circulars, newest first.
  */
 import React from "react";
-import { RefreshControl, ScrollView, StyleSheet, View } from "react-native";
+import { FlatList, RefreshControl, StyleSheet, View } from "react-native";
 import {
   DSText, EmptyState, ErrorState, Icon, ListRow, SkeletonPage, PageTitle,
-  SectionCard, TonalTile
+  TonalTile
 } from "@/design-system/components";
 import { space } from "@/design-system/tokens";
 import { useTheme } from "@/lib/Theme";
@@ -35,43 +35,48 @@ export function NoticesScreen() {
   if (loading && notices.length === 0) return <SkeletonPage />;
   if (error && notices.length === 0) return <ErrorState message={error} onRetry={refresh} />;
 
+  // Virtualized: circulars accumulate over terms and must not all mount.
   return (
-    <ScrollView
+    <FlatList
+      data={notices}
+      keyExtractor={(notice) => notice.id}
+      renderItem={({ item: notice, index }) => {
+        const tile = tiles[index % tiles.length];
+        return (
+          <ListRow
+            leading={
+              <TonalTile bg={tile.bg}>
+                <Icon name="campaign" size={19} tint={tile.tint} />
+              </TonalTile>
+            }
+            title={notice.title ?? "Untitled notice"}
+            subtitle={`${notice.audience ?? "All"} · ${formatDate(notice.createdAt)}`}
+          />
+        );
+      }}
+      ItemSeparatorComponent={() => <View style={[styles.divider, { backgroundColor: t.line }]} />}
       contentContainerStyle={styles.page}
       showsVerticalScrollIndicator={false}
       refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor={t.blue} />}
-    >
-      <PageTitle>Notices</PageTitle>
-
-      <SectionCard heading={`${notices.length} PUBLISHED`}>
-        {notices.length === 0 ? (
-          <EmptyState icon="campaign" label="No notices published yet." />
-        ) : (
-          notices.map((notice, index) => {
-            const tile = tiles[index % tiles.length];
-            return (
-              <View key={notice.id}>
-                {index > 0 ? <View style={[styles.divider, { backgroundColor: t.line }]} /> : null}
-                <ListRow
-                  leading={
-                    <TonalTile bg={tile.bg}>
-                      <Icon name="campaign" size={19} tint={tile.tint} />
-                    </TonalTile>
-                  }
-                  title={notice.title ?? "Untitled notice"}
-                  subtitle={`${notice.audience ?? "All"} · ${formatDate(notice.createdAt)}`}
-                />
-              </View>
-            );
-          })
-        )}
-      </SectionCard>
-
-    </ScrollView>
+      ListHeaderComponent={
+        <View style={styles.header}>
+          <PageTitle>Notices</PageTitle>
+          <DSText variant="overline">{`${notices.length} PUBLISHED`}</DSText>
+        </View>
+      }
+      ListEmptyComponent={
+        <EmptyState icon="campaign" label="No notices published yet." />
+      }
+      initialNumToRender={12}
+      maxToRenderPerBatch={12}
+      windowSize={7}
+      removeClippedSubviews={true}
+    />
   );
 }
 
 const styles = StyleSheet.create({
   page: { paddingHorizontal: space.xl, paddingBottom: space.xl, paddingTop: space.md, gap: 14 },
+  header: { gap: 14 },
   divider: { height: StyleSheet.hairlineWidth }
 });

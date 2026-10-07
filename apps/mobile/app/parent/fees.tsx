@@ -123,6 +123,10 @@ function ParentFeesScreen() {
       contentContainerStyle={styles.page}
       showsVerticalScrollIndicator={false}
       refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor={t.blue} />}
+      initialNumToRender={15}
+      maxToRenderPerBatch={15}
+      windowSize={7}
+      removeClippedSubviews={true}
       ListHeaderComponent={
         <View style={styles.header}>
           <PageTitle>Finance</PageTitle>

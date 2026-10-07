@@ -4,7 +4,7 @@
  * counts plus percentage.
  */
 import React, { useCallback, useState } from "react";
-import { Pressable, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
+import { FlatList, Pressable, RefreshControl, StyleSheet, View } from "react-native";
 import {
   Avatar, Badge, DSText, ErrorState, Icon, ListRow,
   PageTitle, SectionCard, SkeletonRows, TonalTile
@@ -16,6 +16,7 @@ import { ParentShell } from "@/features/parent/shell";
 import { ChildSwitcher } from "@/features/parent/ChildSwitcher";
 import { useSelectChild, useSelectedChildId, useSelectedChildRaw } from "@/features/parent/SelectedChild";
 import { initials, monthLabel, shiftMonth, useParentAttendance, useParentSummary } from "@/features/parent/hooks";
+import type { PortalAttendanceDay } from "@/features/parent/api";
 
 function tileFor(status: string, t: Palette): { bg: string; fg: string; icon: "check" | "close" | "schedule" } {
   if (status === "present") return { bg: t.okBg, fg: t.ok, icon: "check" };
@@ -59,13 +60,33 @@ function ParentAttendanceScreen() {
 
   const totals = record?.summary;
 
+  const renderDay = ({ item: day }: { item: PortalAttendanceDay }) => {
+    const tile = tileFor(String(day.status), t);
+    return (
+      <ListRow
+        leading={
+          <TonalTile bg={tile.bg} size={36}>
+            <Icon name={tile.icon} size={18} tint={tile.fg} />
+          </TonalTile>
+        }
+        title={String(day.date)}
+        subtitle={[day.checkIn ? `In ${day.checkIn}` : "", day.checkOut ? `Out ${day.checkOut}` : ""].filter(Boolean).join(" · ") || String(day.status)}
+      />
+    );
+  };
+
   return (
-    <ScrollView
+    <FlatList
+      data={record?.attendance ?? []}
+      keyExtractor={(day) => day.id}
+      renderItem={renderDay}
+      ItemSeparatorComponent={() => <View style={[styles.divider, { backgroundColor: t.line }]} />}
       contentContainerStyle={styles.page}
       showsVerticalScrollIndicator={false}
       refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor={t.blue} />}
-    >
-      <PageTitle>Attendance</PageTitle>
+      ListHeaderComponent={
+        <View style={styles.header}>
+          <PageTitle>Attendance</PageTitle>
       <ChildSwitcher children={linkedStudents} selectedId={activeId} onSelect={select} />
 
       {summary ? (
@@ -143,32 +164,22 @@ function ParentAttendanceScreen() {
       )}
 
       {record && record.attendance.length > 0 ? (
-        <SectionCard heading="DAY BY DAY">
-          {record.attendance.map((day, index) => {
-            const tile = tileFor(String(day.status), t);
-            return (
-              <View key={day.id}>
-                {index > 0 ? <View style={[styles.divider, { backgroundColor: t.line }]} /> : null}
-                <ListRow
-                  leading={
-                    <TonalTile bg={tile.bg} size={36}>
-                      <Icon name={tile.icon} size={18} tint={tile.fg} />
-                    </TonalTile>
-                  }
-                  title={String(day.date)}
-                  subtitle={[day.checkIn ? `In ${day.checkIn}` : "", day.checkOut ? `Out ${day.checkOut}` : ""].filter(Boolean).join(" · ") || String(day.status)}
-                />
-              </View>
-            );
-          })}
-        </SectionCard>
+        <DSText variant="overline">DAY BY DAY</DSText>
       ) : null}
-    </ScrollView>
+        </View>
+      }
+      ListEmptyComponent={null}
+      initialNumToRender={31}
+      maxToRenderPerBatch={31}
+      windowSize={5}
+      removeClippedSubviews={true}
+    />
   );
 }
 
 const styles = StyleSheet.create({
   page: { paddingHorizontal: space.xl, paddingBottom: space.xl, paddingTop: space.md, gap: 14 },
+  header: { gap: 14 },
   identityRow: {
     flexDirection: "row",
     alignItems: "center",

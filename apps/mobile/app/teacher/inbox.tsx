@@ -4,7 +4,7 @@
  * DATA HONESTY: notices are read live from the school calendar.
  */
 import React, { useMemo } from "react";
-import { ScrollView, StyleSheet } from "react-native";
+import { FlatList, StyleSheet, View } from "react-native";
 import {
   Avatar, DSText, EmptyState, ErrorState, Icon, ListRow, SkeletonPage, PageTitle,
   SectionCard, TonalTile
@@ -45,57 +45,66 @@ function TeacherInbox() {
   if (loading && holidays.length === 0) return <SkeletonPage />;
   if (error && holidays.length === 0) return <ErrorState message={error} />;
 
+  // Virtualized: announcements grow over the year and must not all mount.
+  // The short NOTICES & EVENTS strip (max 5) stays as-is in the footer.
   return (
-    <ScrollView
+    <FlatList
+      data={announcements}
+      keyExtractor={(item) => item.id ?? `${item.date}-${item.title}`}
+      renderItem={({ item }) => (
+        <ListRow
+          leading={<Avatar label="SO" size={44} bg={t.tint} fg={t.blue} />}
+          title={item.title}
+          subtitle={`School office · ${new Date(item.date).toLocaleDateString("en-IN", {
+            day: "numeric",
+            month: "short"
+          })}`}
+        />
+      )}
       contentContainerStyle={styles.page}
       showsVerticalScrollIndicator={false}
-    >
-      <PageTitle>Messages</PageTitle>
-
-      <SectionCard heading="FROM THE OFFICE">
-        {announcements.length === 0 ? (
-          <EmptyState icon="mark-email-read" label="No new announcements. You’re all caught up." />
-        ) : (
-          announcements.map((item) => (
-            <ListRow
-              key={`${item.date}-${item.title}`}
-              leading={<Avatar label="SO" size={44} bg={t.tint} fg={t.blue} />}
-              title={item.title}
-              subtitle={`School office · ${new Date(item.date).toLocaleDateString("en-IN", {
-                day: "numeric",
-                month: "short"
-              })}`}
-            />
-          ))
-        )}
-      </SectionCard>
-
-      <SectionCard heading="NOTICES & EVENTS">
-        {upcoming.length === 0 ? (
-          <DSText variant="label">Nothing scheduled right now.</DSText>
-        ) : (
-          upcoming.map((item) => (
-            <ListRow
-              key={`${item.date}-${item.title}`}
-              leading={
-                <TonalTile bg={t.tint}>
-                  <Icon name="campaign" size={19} tint={t.blue} />
-                </TonalTile>
-              }
-              title={item.title}
-              subtitle={new Date(item.date).toLocaleDateString("en-IN", {
-                weekday: "long",
-                day: "numeric",
-                month: "long"
-              })}
-            />
-          ))
-        )}
-      </SectionCard>
-    </ScrollView>
+      ListHeaderComponent={
+        <View style={styles.header}>
+          <PageTitle>Messages</PageTitle>
+          <DSText variant="overline">FROM THE OFFICE</DSText>
+        </View>
+      }
+      ListEmptyComponent={
+        <EmptyState icon="mark-email-read" label="No new announcements. You’re all caught up." />
+      }
+      ListFooterComponent={
+        <SectionCard heading="NOTICES & EVENTS">
+          {upcoming.length === 0 ? (
+            <DSText variant="label">Nothing scheduled right now.</DSText>
+          ) : (
+            upcoming.map((item) => (
+              <ListRow
+                key={`${item.date}-${item.title}`}
+                leading={
+                  <TonalTile bg={t.tint}>
+                    <Icon name="campaign" size={19} tint={t.blue} />
+                  </TonalTile>
+                }
+                title={item.title}
+                subtitle={new Date(item.date).toLocaleDateString("en-IN", {
+                  weekday: "long",
+                  day: "numeric",
+                  month: "long"
+                })}
+              />
+            ))
+          )}
+        </SectionCard>
+      }
+      initialNumToRender={12}
+      maxToRenderPerBatch={12}
+      windowSize={7}
+      removeClippedSubviews={true}
+    />
   );
 }
 
 const styles = StyleSheet.create({
-  page: { paddingHorizontal: space.xl, paddingBottom: space.xl, gap: 14 }
+  page: { paddingHorizontal: space.xl, paddingBottom: space.xl, gap: 14 },
+  header: { gap: 14 }
 });

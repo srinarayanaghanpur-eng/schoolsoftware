@@ -50,7 +50,7 @@ function TeacherHistory() {
   return (
     <FlatList
       data={visible}
-      keyExtractor={(record) => record.date}
+      keyExtractor={(record, index) => `${record.date}-${index}`}
       renderItem={({ item: record }) => {
         const tone = statusTone(record.status);
         const style = TONE_STYLE[tone.tone];
@@ -102,6 +102,10 @@ function TeacherHistory() {
           Corrections are handled by the school office.
         </DSText>
       }
+      initialNumToRender={20}
+      maxToRenderPerBatch={20}
+      windowSize={7}
+      removeClippedSubviews={true}
     />
   );
 }

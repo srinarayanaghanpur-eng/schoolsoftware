@@ -9,8 +9,8 @@
  */
 import React, { useState } from "react";
 import {
-  Animated, Easing, KeyboardAvoidingView, Platform, RefreshControl,
-  ScrollView, StyleSheet, View
+  Animated, Easing, FlatList, KeyboardAvoidingView, Platform, RefreshControl,
+  StyleSheet, View
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
@@ -81,26 +81,11 @@ function ParentMessagesScreen() {
 
   return (
     <View style={{ flex: 1 }}>
-      <ScrollView
-        contentContainerStyle={styles.page}
-        showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor={t.blue} />}
-      >
-        <PageTitle>Messages</PageTitle>
-        <ChildSwitcher children={linkedStudents} selectedId={activeId} onSelect={select} />
-
-        {loading && !summary ? <SkeletonRows count={3} /> : null}
-        {error && !summary ? <ErrorState message={error} onRetry={refresh} /> : null}
-        {!loading && notices.length === 0 && summary ? (
-          <EmptyState icon="chat-bubble-outline" label="No school messages yet." />
-        ) : null}
-
-        {summary && notices.length > 0 ? (
-          <DSText variant="overline" style={styles.inboxLabel}>SCHOOL INBOX</DSText>
-        ) : null}
-
-        {notices.map((notice, index) => (
-          <Card key={index} style={styles.noticeCard}>
+      <FlatList
+        data={notices}
+        keyExtractor={(notice, index) => `${notice.title}-${notice.createdAt ?? index}`}
+        renderItem={({ item: notice }) => (
+          <Card style={styles.noticeCard}>
             <View style={styles.noticeTop}>
               <Avatar label="SA" size={40} bg={t.tint} fg={t.blue} />
               <View style={{ flex: 1, minWidth: 0 }}>
@@ -114,8 +99,33 @@ function ParentMessagesScreen() {
             </View>
             <DSText variant="label" style={styles.noticeBody}>{notice.body}</DSText>
           </Card>
-        ))}
-      </ScrollView>
+        )}
+        contentContainerStyle={styles.page}
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor={t.blue} />}
+        ListHeaderComponent={
+          <View style={styles.header}>
+            <PageTitle>Messages</PageTitle>
+            <ChildSwitcher children={linkedStudents} selectedId={activeId} onSelect={select} />
+
+            {loading && !summary ? <SkeletonRows count={3} /> : null}
+            {error && !summary ? <ErrorState message={error} onRetry={refresh} /> : null}
+
+            {summary && notices.length > 0 ? (
+              <DSText variant="overline" style={styles.inboxLabel}>SCHOOL INBOX</DSText>
+            ) : null}
+          </View>
+        }
+        ListEmptyComponent={
+          loading || !summary ? null : (
+            <EmptyState icon="chat-bubble-outline" label="No school messages yet." />
+          )
+        }
+        initialNumToRender={12}
+        maxToRenderPerBatch={12}
+        windowSize={7}
+        removeClippedSubviews={true}
+      />
 
       {/* compose FAB */}
       <PressableScale accessibilityLabel="Message the school" onPress={openCompose} style={[styles.fab, { backgroundColor: t.blue, bottom: 20 + insets.bottom }]}>
@@ -175,6 +185,7 @@ function ParentMessagesScreen() {
 
 const styles = StyleSheet.create({
   page: { paddingHorizontal: space.xl, paddingBottom: 100, paddingTop: space.md, gap: 10 },
+  header: { gap: 10 },
   inboxLabel: { marginTop: space.sm },
   noticeCard: { borderRadius: 18, gap: space.sm },
   noticeTop: { flexDirection: "row", gap: space.md, alignItems: "flex-start" },

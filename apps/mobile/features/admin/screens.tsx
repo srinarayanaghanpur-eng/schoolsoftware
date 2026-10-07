@@ -134,6 +134,10 @@ export function StaffScreen() {
       ListEmptyComponent={
         <EmptyState icon="groups" label={`No ${filter.toLowerCase()} staff to show.`} />
       }
+      initialNumToRender={15}
+      maxToRenderPerBatch={15}
+      windowSize={7}
+      removeClippedSubviews={true}
     />
   );
 }
@@ -171,16 +175,59 @@ export function ApprovalsScreen() {
   if (error && requests.length === 0) return <ErrorState message={error} onRetry={refresh} />;
 
   return (
-    <ScrollView
+    <FlatList
+      data={visible}
+      keyExtractor={(request) => request.id}
+      renderItem={({ item: request }) => (
+        <SectionCard
+          heading={(request.leaveType ?? "LEAVE").toUpperCase()}
+          trailing={<DSText variant="caption">{formatDate(request.requestedAt)}</DSText>}
+        >
+          <ListRow
+            leading={<Avatar label={initials(request.teacherName ?? "?")} size={40} />}
+            title={request.teacherName ?? "Staff member"}
+            subtitle={`${formatDate(request.fromDate)} – ${formatDate(request.toDate)}`}
+          />
+          {request.reason ? (
+            <DSText variant="body" style={{ marginTop: space.xs }}>{request.reason}</DSText>
+          ) : null}
+
+          {filter === "Pending" ? (
+            <View style={styles.decisionRow}>
+              <View style={{ flex: 1 }}>
+                <PillButton
+                  label={busyId === request.id ? "Saving…" : "Approve"}
+                  block
+                  icon="check"
+                  bg={t.blue}
+                  fg="#FFFFFF"
+                  onPress={() => { if (!busyId) void decide(request.id, "approved"); }}
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <PillButton
+                  label="Reject"
+                  block
+                  icon="close"
+                  bg={t.badBg}
+                  fg={t.bad}
+                  onPress={() => { if (!busyId) void decide(request.id, "rejected"); }}
+                />
+              </View>
+            </View>
+          ) : null}
+        </SectionCard>
+      )}
       contentContainerStyle={styles.page}
       showsVerticalScrollIndicator={false}
       refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor={t.blue} />}
-    >
-      <PageTitle>Approvals</PageTitle>
-
-      <FilterChips options={APPROVAL_FILTERS} value={filter} onChange={setFilter} />
-
-      {visible.length === 0 ? (
+      ListHeaderComponent={
+        <View style={styles.header}>
+          <PageTitle>Approvals</PageTitle>
+          <FilterChips options={APPROVAL_FILTERS} value={filter} onChange={setFilter} />
+        </View>
+      }
+      ListEmptyComponent={
         <SectionCard heading={filter.toUpperCase()}>
           <EmptyState
             icon="fact-check"
@@ -191,50 +238,12 @@ export function ApprovalsScreen() {
             }
           />
         </SectionCard>
-      ) : (
-        visible.map((request) => (
-          <SectionCard
-            key={request.id}
-            heading={(request.leaveType ?? "LEAVE").toUpperCase()}
-            trailing={<DSText variant="caption">{formatDate(request.requestedAt)}</DSText>}
-          >
-            <ListRow
-              leading={<Avatar label={initials(request.teacherName ?? "?")} size={40} />}
-              title={request.teacherName ?? "Staff member"}
-              subtitle={`${formatDate(request.fromDate)} – ${formatDate(request.toDate)}`}
-            />
-            {request.reason ? (
-              <DSText variant="body" style={{ marginTop: space.xs }}>{request.reason}</DSText>
-            ) : null}
-
-            {filter === "Pending" ? (
-              <View style={styles.decisionRow}>
-                <View style={{ flex: 1 }}>
-                  <PillButton
-                    label={busyId === request.id ? "Saving…" : "Approve"}
-                    block
-                    icon="check"
-                    bg={t.blue}
-                    fg="#FFFFFF"
-                    onPress={() => { if (!busyId) void decide(request.id, "approved"); }}
-                  />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <PillButton
-                    label="Reject"
-                    block
-                    icon="close"
-                    bg={t.badBg}
-                    fg={t.bad}
-                    onPress={() => { if (!busyId) void decide(request.id, "rejected"); }}
-                  />
-                </View>
-              </View>
-            ) : null}
-          </SectionCard>
-        ))
-      )}
-    </ScrollView>
+      }
+      initialNumToRender={10}
+      maxToRenderPerBatch={10}
+      windowSize={7}
+      removeClippedSubviews={true}
+    />
   );
 }
 

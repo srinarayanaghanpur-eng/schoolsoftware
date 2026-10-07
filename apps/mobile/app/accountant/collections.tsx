@@ -3,15 +3,15 @@
  * Read-only: recording payments stays in the web dashboard (see index.tsx).
  */
 import React, { useMemo, useState } from "react";
-import { RefreshControl, ScrollView, StyleSheet, View } from "react-native";
+import { FlatList, RefreshControl, StyleSheet, View } from "react-native";
 import {
   Card, DSText, EmptyState, ErrorState, FilterChips, Icon, ListRow, SkeletonPage,
-  PageTitle, SectionCard, TonalTile
+  PageTitle, TonalTile
 } from "@/design-system/components";
 import { radius, space } from "@/design-system/tokens";
 import { useTheme } from "@/lib/Theme";
 import { AccountantShell } from "@/features/admin/shell";
-import { formatMoney, formatMoneyShort, useExpenses, useRecentPayments, buildTransactions } from "@/features/admin/hooks";
+import { formatMoney, formatMoneyShort, useExpenses, useRecentPayments, buildTransactions, type TxnRow } from "@/features/admin/hooks";
 
 const FILTERS = ["All", "Cash", "Online"];
 
@@ -39,11 +39,42 @@ function AccountantCollections() {
     [visible]
   );
 
+  const renderTxn = ({ item: row }: { item: TxnRow }) => {
+    const income = row.kind === "income";
+    return (
+      <ListRow
+        leading={
+          <TonalTile bg={income ? t.okBg : t.badBg}>
+            <Icon name="receipt" size={19} tint={income ? t.ok : t.bad} />
+          </TonalTile>
+        }
+        title={row.title}
+        subtitle={row.subtitle}
+        trailing={
+          <View style={{ alignItems: "flex-end" }}>
+            <DSText
+              variant="bodyMedium"
+              tint={income ? t.ok : t.bad}
+              style={styles.receiptMoney}
+            >
+              {income ? formatMoney(row.amount) : `− ${formatMoney(row.amount)}`}
+            </DSText>
+            <DSText variant="caption">{row.dateLabel}</DSText>
+          </View>
+        }
+      />
+    );
+  };
+
   if (loading && payments.length === 0) return <SkeletonPage />;
   if (error && payments.length === 0) return <ErrorState message={error} onRetry={refresh} />;
 
   return (
-    <ScrollView
+    <FlatList
+      data={visible}
+      keyExtractor={(row) => row.id}
+      renderItem={renderTxn}
+      ItemSeparatorComponent={() => <View style={[styles.divider, { backgroundColor: t.line }]} />}
       contentContainerStyle={styles.page}
       showsVerticalScrollIndicator={false}
       refreshControl={
@@ -53,8 +84,9 @@ function AccountantCollections() {
           tintColor={t.blue}
         />
       }
-    >
-      <PageTitle>Collections</PageTitle>
+      ListHeaderComponent={
+        <View style={styles.header}>
+          <PageTitle>Collections</PageTitle>
 
       <View style={styles.statRow}>
         <Card style={styles.moneyCard}>
@@ -78,48 +110,23 @@ function AccountantCollections() {
       </View>
 
       <FilterChips options={FILTERS} value={filter} onChange={setFilter} />
-
-      <SectionCard heading={`${visible.length} TRANSACTION${visible.length === 1 ? "" : "S"}`}>
-        {visible.length === 0 ? (
-          <EmptyState icon="receipt-long" label={`No ${filter.toLowerCase()} transactions in this period.`} />
-        ) : (
-          visible.map((row, index) => {
-            const income = row.kind === "income";
-            return (
-              <View key={row.id}>
-                {index > 0 ? <View style={[styles.divider, { backgroundColor: t.line }]} /> : null}
-                <ListRow
-                  leading={
-                    <TonalTile bg={income ? t.okBg : t.badBg}>
-                      <Icon name="receipt" size={19} tint={income ? t.ok : t.bad} />
-                    </TonalTile>
-                  }
-                  title={row.title}
-                  subtitle={row.subtitle}
-                  trailing={
-                    <View style={{ alignItems: "flex-end" }}>
-                      <DSText
-                        variant="bodyMedium"
-                        tint={income ? t.ok : t.bad}
-                        style={styles.receiptMoney}
-                      >
-                        {income ? formatMoney(row.amount) : `− ${formatMoney(row.amount)}`}
-                      </DSText>
-                      <DSText variant="caption">{row.dateLabel}</DSText>
-                    </View>
-                  }
-                />
-              </View>
-            );
-          })
-        )}
-      </SectionCard>
-    </ScrollView>
+          <DSText variant="overline">{`${visible.length} TRANSACTION${visible.length === 1 ? "" : "S"}`}</DSText>
+        </View>
+      }
+      ListEmptyComponent={
+        <EmptyState icon="receipt-long" label={`No ${filter.toLowerCase()} transactions in this period.`} />
+      }
+      initialNumToRender={12}
+      maxToRenderPerBatch={12}
+      windowSize={7}
+      removeClippedSubviews={true}
+    />
   );
 }
 
 const styles = StyleSheet.create({
   page: { paddingHorizontal: space.xl, paddingBottom: space.xl, paddingTop: space.md, gap: 14 },
+  header: { gap: 14 },
   statRow: { flexDirection: "row", gap: 10 },
   moneyCard: {
     flex: 1,
