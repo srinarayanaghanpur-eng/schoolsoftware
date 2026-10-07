@@ -25,6 +25,23 @@ async function adminGet<T>(path: string): Promise<T> {
   return result as T;
 }
 
+async function adminPost<T>(path: string, body: unknown): Promise<T> {
+  const user = auth.currentUser;
+  if (!user) throw new Error("Please sign in again.");
+  if (!API_REQUESTS_AVAILABLE) throw new Error("API URL not configured. Please set EXPO_PUBLIC_WEB_API_URL.");
+  const token = await user.getIdToken();
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify(body)
+  });
+  const result = (await response.json()) as { ok?: boolean; error?: string } & Record<string, unknown>;
+  if (!response.ok || result.ok === false) {
+    throw new Error(result.error ?? "Request failed. Please try again.");
+  }
+  return result as T;
+}
+
 async function adminPatch<T>(path: string, body: unknown): Promise<T> {
   const user = auth.currentUser;
   if (!user) throw new Error("Please sign in again.");
@@ -75,6 +92,36 @@ export type Expense = {
   paymentMethod?: string;
   voucherNo?: number;
   createdAt?: unknown;
+};
+
+export type HomeworkPost = {
+  title: string;
+  description: string;
+  subject: string;
+  className: string;
+  section?: string;
+  assignedDate: string;
+  dueDate: string;
+  academicYearId: string;
+};
+
+export type HomeworkItem = {
+  id: string;
+  title?: string;
+  description?: string;
+  subject?: string;
+  className?: string;
+  section?: string;
+  assignedDate?: string;
+  dueDate?: string;
+  status?: string;
+  createdAt?: unknown;
+};
+
+export type AcademicYear = {
+  id: string;
+  name: string;
+  isActive: boolean;
 };
 
 export type LeaveRequest = {
@@ -159,6 +206,31 @@ export async function fetchFinanceSummary() {
 export async function fetchExpenses() {
   const result = await adminGet<{ expenses: Expense[] }>("/api/admin/finance/expenses");
   return result.expenses ?? [];
+}
+
+/** Academic years are public (year labels only) — no auth token needed. */
+export async function fetchAcademicYears() {
+  if (!API_REQUESTS_AVAILABLE) throw new Error("API URL not configured. Please set EXPO_PUBLIC_WEB_API_URL.");
+  const response = await fetch(`${API_BASE_URL}/api/academic-years/public`);
+  const result = (await response.json()) as { ok?: boolean; years?: AcademicYear[]; error?: string };
+  if (!response.ok || result.ok === false) {
+    throw new Error(result.error ?? "Unable to load academic years.");
+  }
+  return result.years ?? [];
+}
+
+export async function fetchPostedHomework(params: { subject?: string; academicYearId?: string } = {}) {
+  const query = new URLSearchParams({ pageSize: "20" });
+  if (params.subject) query.set("subject", params.subject);
+  if (params.academicYearId) query.set("academicYearId", params.academicYearId);
+  const result = await adminGet<{ homework: HomeworkItem[] }>(`/api/admin/homework?${query.toString()}`);
+  return result.homework ?? [];
+}
+
+/** Posts homework; the server validates and pushes parents of the class. */
+export async function postHomework(input: HomeworkPost) {
+  const result = await adminPost<{ id: string }>("/api/admin/homework", input);
+  return result.id;
 }
 
 /** Today's staff attendance snapshot. */
