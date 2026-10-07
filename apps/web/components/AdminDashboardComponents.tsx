@@ -6,34 +6,79 @@
 'use client';
 
 import React, { useEffect, useState, memo } from 'react';
-import {
-  BarChart,
-  Bar,
-  LineChart,
-  Line,
-  PieChart,
-  Pie,
-  Cell,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-} from 'recharts';
+import dynamic from 'next/dynamic';
 
-// Workaround for mismatched React types from recharts' typings
-const ResponsiveContainerAny = ResponsiveContainer as unknown as React.ComponentType<any>;
-const LineChartAny = LineChart as unknown as React.ComponentType<any>;
-const PieChartAny = PieChart as unknown as React.ComponentType<any>;
-const CartesianGridAny = CartesianGrid as unknown as React.ComponentType<any>;
-const XAxisAny = XAxis as unknown as React.ComponentType<any>;
-const YAxisAny = YAxis as unknown as React.ComponentType<any>;
-const TooltipAny = Tooltip as unknown as React.ComponentType<any>;
-const LegendAny = Legend as unknown as React.ComponentType<any>;
-const LineAny = Line as unknown as React.ComponentType<any>;
-const PieAny = Pie as unknown as React.ComponentType<any>;
-const CellAny = Cell as unknown as React.ComponentType<any>;
+// Recharts is client-only and heavy — load each primitive dynamically so the
+// initial admin bundle stays lean (follows app/portal/exams/page.tsx pattern).
+const ResponsiveContainerAny = dynamic(
+  () => import('recharts').then((mod) => mod.ResponsiveContainer),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="grid h-72 min-h-[280px] w-full place-items-center rounded-xl bg-muted text-sm text-muted-foreground">Loading chart...</div>
+    ),
+  }
+) as unknown as React.ComponentType<any>;
+const LineChartAny = dynamic(() => import('recharts').then((mod) => mod.LineChart), {
+  ssr: false,
+  loading: () => (
+    <div className="grid h-72 min-h-[280px] w-full place-items-center rounded-xl bg-muted text-sm text-muted-foreground">Loading chart...</div>
+  ),
+}) as unknown as React.ComponentType<any>;
+const PieChartAny = dynamic(() => import('recharts').then((mod) => mod.PieChart), {
+  ssr: false,
+  loading: () => (
+    <div className="grid h-72 min-h-[280px] w-full place-items-center rounded-xl bg-muted text-sm text-muted-foreground">Loading chart...</div>
+  ),
+}) as unknown as React.ComponentType<any>;
+const CartesianGridAny = dynamic(() => import('recharts').then((mod) => mod.CartesianGrid), {
+  ssr: false,
+  loading: () => (
+    <div className="grid h-72 min-h-[280px] w-full place-items-center rounded-xl bg-muted text-sm text-muted-foreground">Loading chart...</div>
+  ),
+}) as unknown as React.ComponentType<any>;
+const XAxisAny = dynamic(() => import('recharts').then((mod) => mod.XAxis), {
+  ssr: false,
+  loading: () => (
+    <div className="grid h-72 min-h-[280px] w-full place-items-center rounded-xl bg-muted text-sm text-muted-foreground">Loading chart...</div>
+  ),
+}) as unknown as React.ComponentType<any>;
+const YAxisAny = dynamic(() => import('recharts').then((mod) => mod.YAxis), {
+  ssr: false,
+  loading: () => (
+    <div className="grid h-72 min-h-[280px] w-full place-items-center rounded-xl bg-muted text-sm text-muted-foreground">Loading chart...</div>
+  ),
+}) as unknown as React.ComponentType<any>;
+const TooltipAny = dynamic(() => import('recharts').then((mod) => mod.Tooltip), {
+  ssr: false,
+  loading: () => (
+    <div className="grid h-72 min-h-[280px] w-full place-items-center rounded-xl bg-muted text-sm text-muted-foreground">Loading chart...</div>
+  ),
+}) as unknown as React.ComponentType<any>;
+const LegendAny = dynamic(() => import('recharts').then((mod) => mod.Legend), {
+  ssr: false,
+  loading: () => (
+    <div className="grid h-72 min-h-[280px] w-full place-items-center rounded-xl bg-muted text-sm text-muted-foreground">Loading chart...</div>
+  ),
+}) as unknown as React.ComponentType<any>;
+const LineAny = dynamic(() => import('recharts').then((mod) => mod.Line), {
+  ssr: false,
+  loading: () => (
+    <div className="grid h-72 min-h-[280px] w-full place-items-center rounded-xl bg-muted text-sm text-muted-foreground">Loading chart...</div>
+  ),
+}) as unknown as React.ComponentType<any>;
+const PieAny = dynamic(() => import('recharts').then((mod) => mod.Pie), {
+  ssr: false,
+  loading: () => (
+    <div className="grid h-72 min-h-[280px] w-full place-items-center rounded-xl bg-muted text-sm text-muted-foreground">Loading chart...</div>
+  ),
+}) as unknown as React.ComponentType<any>;
+const CellAny = dynamic(() => import('recharts').then((mod) => mod.Cell), {
+  ssr: false,
+  loading: () => (
+    <div className="grid h-72 min-h-[280px] w-full place-items-center rounded-xl bg-muted text-sm text-muted-foreground">Loading chart...</div>
+  ),
+}) as unknown as React.ComponentType<any>;
 
 const chartLabelColor = 'hsl(var(--chart-label))';
 const chartGridColor = 'hsl(var(--chart-grid))';

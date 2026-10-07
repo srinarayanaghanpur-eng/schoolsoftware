@@ -26,7 +26,8 @@ const nextConfig = {
   swcMinify: true,
   productionBrowserSourceMaps: false,
   images: {
-    minimumCacheTTL: 31536000
+    minimumCacheTTL: 31536000,
+    formats: ["image/avif", "image/webp"]
   },
   poweredByHeader: false,
   headers: async () => {

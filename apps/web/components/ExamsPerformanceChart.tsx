@@ -1,6 +1,56 @@
 "use client";
 
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import dynamic from "next/dynamic";
+import type { ComponentType } from "react";
+
+const BarChart = dynamic(() => import("recharts").then((mod) => mod.BarChart), {
+  ssr: false,
+  loading: () => (
+    <div className="grid h-72 min-h-[280px] w-full place-items-center rounded-xl bg-muted text-sm text-muted-foreground">Loading chart...</div>
+  ),
+}) as unknown as ComponentType<any>;
+
+const Bar = dynamic(() => import("recharts").then((mod) => mod.Bar), {
+  ssr: false,
+  loading: () => (
+    <div className="grid h-72 min-h-[280px] w-full place-items-center rounded-xl bg-muted text-sm text-muted-foreground">Loading chart...</div>
+  ),
+}) as unknown as ComponentType<any>;
+
+const XAxis = dynamic(() => import("recharts").then((mod) => mod.XAxis), {
+  ssr: false,
+  loading: () => (
+    <div className="grid h-72 min-h-[280px] w-full place-items-center rounded-xl bg-muted text-sm text-muted-foreground">Loading chart...</div>
+  ),
+}) as unknown as ComponentType<any>;
+
+const YAxis = dynamic(() => import("recharts").then((mod) => mod.YAxis), {
+  ssr: false,
+  loading: () => (
+    <div className="grid h-72 min-h-[280px] w-full place-items-center rounded-xl bg-muted text-sm text-muted-foreground">Loading chart...</div>
+  ),
+}) as unknown as ComponentType<any>;
+
+const CartesianGrid = dynamic(() => import("recharts").then((mod) => mod.CartesianGrid), {
+  ssr: false,
+  loading: () => (
+    <div className="grid h-72 min-h-[280px] w-full place-items-center rounded-xl bg-muted text-sm text-muted-foreground">Loading chart...</div>
+  ),
+}) as unknown as ComponentType<any>;
+
+const Tooltip = dynamic(() => import("recharts").then((mod) => mod.Tooltip), {
+  ssr: false,
+  loading: () => (
+    <div className="grid h-72 min-h-[280px] w-full place-items-center rounded-xl bg-muted text-sm text-muted-foreground">Loading chart...</div>
+  ),
+}) as unknown as ComponentType<any>;
+
+const ResponsiveContainer = dynamic(() => import("recharts").then((mod) => mod.ResponsiveContainer), {
+  ssr: false,
+  loading: () => (
+    <div className="grid h-72 min-h-[280px] w-full place-items-center rounded-xl bg-muted text-sm text-muted-foreground">Loading chart...</div>
+  ),
+}) as unknown as ComponentType<any>;
 
 type PerformanceRow = { subject: string; percentage: number };
 

@@ -61,5 +61,9 @@ export async function GET(req: Request) {
     student: { id: studentId, name: studentName, className, section },
     summary: { present, absent, late, total, percentage },
     attendance,
+  }, {
+    headers: {
+      "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
+    },
   });
 }

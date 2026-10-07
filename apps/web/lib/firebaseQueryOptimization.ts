@@ -9,10 +9,18 @@ import {
   where,
   limit,
   getDocs,
+  getCountFromServer,
   QueryConstraint,
   Timestamp
 } from 'firebase/firestore';
 import { db } from '@sri-narayana/shared/firebase/client';
+
+// The web type shim for "firebase/firestore" predates aggregation helpers.
+// Augment it locally (runtime re-exports @firebase/firestore, which ships
+// getCountFromServer) so the count below typechecks without touching shims.
+declare module "firebase/firestore" {
+  export function getCountFromServer(query: unknown): Promise<{ data(): { count: number } }>;
+}
 
 /**
  * Cached query results with automatic invalidation
@@ -234,7 +242,7 @@ export async function getBatchOptimized<T>(
 }
 
 /**
- * Count documents efficiently
+ * Count documents efficiently via a server-side aggregation (no doc download).
  */
 export async function countDocumentsOptimized(
   collection_name: string,
@@ -249,7 +257,7 @@ export async function countDocumentsOptimized(
   }
 
   const q = query(collection(db, collection_name), ...constraints);
-  const snapshot = await getDocs(q);
+  const snapshot = await getCountFromServer(q);
 
-  return snapshot.size;
+  return snapshot.data().count;
 }

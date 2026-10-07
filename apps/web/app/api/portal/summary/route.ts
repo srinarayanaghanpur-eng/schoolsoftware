@@ -40,7 +40,14 @@ export async function GET(req: Request) {
   if (!studentSnap.exists) return NextResponse.json({ ok: false, error: "Student not found" }, { status: 404 });
   const s = studentSnap.data() as Record<string, unknown>;
 
-  const marksSnap = await db.collection("exam_marks").where("studentId", "==", studentId).limit(500).get();
+  // Independent reads run together — serial awaits used to ~4x this route's latency.
+  const todayKey = new Date().toISOString().slice(0, 10);
+  const [marksSnap, noticeSnap, paymentsSnap, holidaySnap] = await Promise.all([
+    db.collection("exam_marks").where("studentId", "==", studentId).limit(500).get(),
+    db.collection("notices").orderBy("createdAt", "desc").limit(20).get(),
+    db.collection("payments").where("studentId", "==", studentId).orderBy("createdAt", "desc").limit(5).get(),
+    db.collection("holidays").where("date", ">=", todayKey).orderBy("date", "asc").limit(5).get()
+  ]);
   // Bounded fan-out: one student's distinct exams, capped before the parallel fetch.
   const examIds = [...new Set(marksSnap.docs.map((d) => d.data().examId as string))].slice(0, 50);
   const publishedExamNames = new Map<string, string>();
@@ -57,7 +64,6 @@ export async function GET(req: Request) {
       return { examName: publishedExamNames.get(m.examId) || "", subject: m.subject, marksObtained: m.marksObtained, maxMarks: m.maxMarks, grade: m.grade || "" };
     });
 
-  const noticeSnap = await db.collection("notices").orderBy("createdAt", "desc").limit(20).get();
   const notices = noticeSnap.docs
     .map((d) => d.data())
     .filter((n) => {
@@ -72,12 +78,6 @@ export async function GET(req: Request) {
 
   const due = Math.max(0, ((s.totalFeesDue as number) || 0) - ((s.totalFeesPaid as number) || 0));
 
-  const paymentsSnap = await db
-    .collection("payments")
-    .where("studentId", "==", studentId)
-    .orderBy("createdAt", "desc")
-    .limit(5)
-    .get();
   const recentPayments = paymentsSnap.docs.map((doc) => {
     const p = doc.data();
     const created = p.createdAt;
@@ -95,7 +95,6 @@ export async function GET(req: Request) {
     };
   });
 
-  const holidaySnap = await db.collection("holidays").where("date", ">=", new Date().toISOString().slice(0, 10)).orderBy("date", "asc").limit(5).get();
   const upcomingHolidays = holidaySnap.docs.map((doc) => {
     const h = doc.data();
     return { title: h.title || h.name || "Holiday", date: h.date || "", type: h.type || "holiday" };
@@ -115,5 +114,9 @@ export async function GET(req: Request) {
       upcomingHolidays,
     },
     linkedStudents
+  }, {
+    headers: {
+      "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
+    },
   });
 }

@@ -67,5 +67,9 @@ export async function GET(req: Request) {
     notices = notices.filter((n) => n.category === category);
   }
 
-  return NextResponse.json({ ok: true, notices });
+  return NextResponse.json({ ok: true, notices }, {
+    headers: {
+      "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
+    },
+  });
 }

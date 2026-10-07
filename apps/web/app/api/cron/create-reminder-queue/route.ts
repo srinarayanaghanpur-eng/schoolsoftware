@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { FieldValue } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { requireAdmin, errorMessage } from "@/lib/apiUtils";
+import { logFirestoreRead } from "@/lib/firestoreReadLogger";
 import { isValidMobile, buildFeeReminderMessage } from "@/lib/reminder/messageBuilder";
 
 /**
@@ -55,12 +56,35 @@ export async function PUT(req: Request) {
         .where("totalFeesDue", ">", 0);
       if (academicYearId) studentQuery = studentQuery.where("academicYearId", "==", academicYearId);
 
-      const studentSnap = await studentQuery.limit(500).get();
+      // Bounded cursor pagination: the old limit(500).get() silently dropped
+      // every due student past 500. Page with startAfter (no new index) up
+      // to a safe total cap of 1500; each page read stays bounded.
+      const MAX_STUDENTS_PER_SETTING = 1500;
+      const STUDENT_PAGE_SIZE = 500;
+      const studentDocs: FirebaseFirestore.QueryDocumentSnapshot[] = [];
+      let lastDoc: FirebaseFirestore.QueryDocumentSnapshot | undefined;
+      for (;;) {
+        const remaining = MAX_STUDENTS_PER_SETTING - studentDocs.length;
+        if (remaining <= 0) break;
+        let pageQuery = studentQuery.limit(Math.min(STUDENT_PAGE_SIZE, remaining));
+        if (lastDoc) pageQuery = pageQuery.startAfter(lastDoc);
+        const pageSnap = await pageQuery.get();
+        logFirestoreRead("CreateReminderQueue", "students", pageSnap, { academicYearId, scanned: studentDocs.length });
+        if (pageSnap.empty) break;
+        for (const doc of pageSnap.docs) {
+          studentDocs.push(doc);
+          if (studentDocs.length >= MAX_STUDENTS_PER_SETTING) break;
+        }
+        if (studentDocs.length >= MAX_STUDENTS_PER_SETTING) break;
+        if (pageSnap.size < Math.min(STUDENT_PAGE_SIZE, remaining)) break;
+        lastDoc = pageSnap.docs[pageSnap.docs.length - 1];
+        if (!lastDoc) break;
+      }
 
       // Pass 1: pure in-memory eligibility (no I/O).
       type Candidate = { id: string; student: Record<string, unknown>; parentMobile: string; dueAmount: number };
       const candidates: Candidate[] = [];
-      for (const studentDoc of studentSnap.docs) {
+      for (const studentDoc of studentDocs) {
         const student = studentDoc.data() as Record<string, unknown>;
 
         if (String(student.feeStatus || "") === "paid") {
