@@ -1,9 +1,22 @@
+import { createHash, timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
-import { createAttendanceDocumentId, managementHolidayMessage, processBiometricLog, toDateKey, validateBiometricSecret } from "@sri-narayana/shared";
+import { createAttendanceDocumentId, managementHolidayMessage, processBiometricLog, toDateKey } from "@sri-narayana/shared";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { removeUndefinedFields } from "@/lib/firestoreSanitize";
 import { getAttendanceRecord, getHolidayByDate, getSchoolSettings, getTeacherByBiometricUserId } from "@/lib/firestoreServer";
 import { checkRateLimit } from "@/lib/quota/rateLimiter";
+
+/**
+ * Timing-safe device-secret check. Lives here (server-only) rather than in
+ * the shared package because node:crypto cannot be bundled into the mobile
+ * app. Secrets are hashed first so timingSafeEqual always sees equal lengths.
+ */
+function validateBiometricSecret(requestSecret: string | null, configuredSecret?: string): boolean {
+  if (!configuredSecret || !requestSecret) return false;
+  const requestHash = createHash("sha256").update(requestSecret).digest();
+  const configuredHash = createHash("sha256").update(configuredSecret).digest();
+  return timingSafeEqual(requestHash, configuredHash);
+}
 
 export async function POST(req: Request) {
   try {

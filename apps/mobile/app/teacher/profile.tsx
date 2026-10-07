@@ -1,19 +1,22 @@
 /**
  * Teacher Profile — identity, attendance summary, menu, logout.
  */
-import React from "react";
+import React, { useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
+import { LinearGradient } from "expo-linear-gradient";
 import {
-  Avatar, DSText, Icon, ListRow, PillButton, ProgressRow, SectionCard, StatTile, useToast
+  Avatar, BottomSheet, DSText, Icon, ListRow, PillButton, ProgressRow, SectionCard, StatTile, TonalTile, useToast
 } from "@/design-system/components";
-import { color, space } from "@/design-system/tokens";
+import { radius, space } from "@/design-system/tokens";
+import { useTheme } from "@/lib/Theme";
 import { useMobileSession } from "@/lib/mobileSession";
 import { useTeacherAttendanceData } from "@/lib/useTeacherAttendanceData";
 import { workspaceLabel } from "@/lib/roleRouting";
 import { TeacherShell } from "@/features/teacher/shell";
 import { initials, useAttendanceSummary } from "@/features/teacher/hooks";
+import { displayLoginContact } from "@/lib/text";
+import { openWebsite } from "@/lib/openWebsite";
 
 export default function TeacherProfileRoute() {
   return (
@@ -24,7 +27,7 @@ export default function TeacherProfileRoute() {
 }
 
 function TeacherProfile() {
-  const insets = useSafeAreaInsets();
+  const { t } = useTheme();
   const router = useRouter();
   const toast = useToast();
   const session = useMobileSession();
@@ -42,52 +45,60 @@ function TeacherProfile() {
     }
   };
 
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const confirmLogout = () => setConfirmOpen(true);
+
   return (
     <ScrollView
-      contentContainerStyle={[styles.page, { paddingTop: insets.top + space.sm }]}
+      contentContainerStyle={styles.page}
       showsVerticalScrollIndicator={false}
     >
-      <View style={styles.identityRow}>
-        <Avatar label={initials(name)} size={64} />
+      <LinearGradient
+        colors={[t.heroFrom, t.heroMid, t.heroTo]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.identityCard}
+      >
+        <Avatar label={initials(name)} size={64} bg="rgba(255,255,255,0.22)" fg="#FFFFFF" />
         <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
-          <DSText variant="title" style={{ fontSize: 19 }} numberOfLines={1}>{name}</DSText>
-          <DSText variant="label">
+          <DSText variant="title" tint="#FFFFFF" style={{ fontSize: 19 }} numberOfLines={1}>{name}</DSText>
+          <DSText variant="label" tint="rgba(255,255,255,0.85)">
             {workspaceLabel(session.profile?.role)}
             {teacher?.subject ? ` · ${teacher.subject}` : ""}
           </DSText>
-          <DSText variant="label">
-            {teacher?.employeeId ?? session.profile?.employeeId ?? session.profile?.email ?? ""}
+          <DSText variant="label" tint="rgba(255,255,255,0.85)">
+            {teacher?.employeeId ?? displayLoginContact(session.profile)}
           </DSText>
         </View>
-      </View>
+      </LinearGradient>
 
       <View style={styles.statRow}>
-        <StatTile value={`${summary.percentage}%`} label="Attendance" tint={color.primary} />
-        <StatTile value={summary.present} label="Present" tint={color.success} />
-        <StatTile value={summary.late} label="Late" tint={color.warning} />
+        <StatTile value={`${summary.percentage}%`} label="Attendance" tint={t.blue} />
+        <StatTile value={summary.present} label="Present" tint={t.ok} />
+        <StatTile value={summary.late} label="Late" tint={t.warn} />
       </View>
 
       <SectionCard heading="THIS MONTH">
         <ProgressRow
           label="Attendance rate"
           percent={summary.percentage}
-          tint={summary.percentage >= 90 ? color.success : color.warning}
+          tint={summary.percentage >= 90 ? t.ok : t.warn}
         />
       </SectionCard>
 
       <SectionCard heading="MY DETAILS">
         <ListRow
-          leading={<Icon name="badge" size={21} tint={color.primary} />}
+          leading={<TonalTile bg={t.tint}><Icon name="badge" size={19} tint={t.blue} /></TonalTile>}
           title="Employee ID"
           subtitle={teacher?.employeeId ?? "Not set"}
         />
         <ListRow
-          leading={<Icon name="phone" size={21} tint={color.primary} />}
+          leading={<TonalTile bg={t.warnBg}><Icon name="phone" size={19} tint={t.warn} /></TonalTile>}
           title="Phone"
           subtitle={teacher?.phone ?? "Not set"}
         />
         <ListRow
-          leading={<Icon name="fingerprint" size={21} tint={color.primary} />}
+          leading={<TonalTile bg={t.okBg}><Icon name="fingerprint" size={19} tint={t.ok} /></TonalTile>}
           title="Biometric ID"
           subtitle={teacher?.biometricUserId ?? "Not enrolled"}
         />
@@ -95,23 +106,23 @@ function TeacherProfile() {
 
       <SectionCard heading="MORE">
         <ListRow
-          leading={<Icon name="history" size={21} tint={color.primary} />}
+          leading={<TonalTile bg={t.tint}><Icon name="history" size={19} tint={t.blue} /></TonalTile>}
           title="Attendance history"
           chevron
           onPress={() => router.push("/teacher/history" as never)}
         />
         <ListRow
-          leading={<Icon name="description" size={21} tint={color.primary} />}
+          leading={<TonalTile bg={t.warnBg}><Icon name="description" size={19} tint={t.warn} /></TonalTile>}
           title="Documents & payslips"
-          subtitle="Available in the web portal"
+          subtitle="Opens the website in your browser"
           chevron
-          onPress={() => toast.show("Open the web portal for downloads.")}
+          onPress={() => openWebsite("/teacher/salary", "Documents & payslips")}
         />
         <ListRow
-          leading={<Icon name="help-outline" size={21} tint={color.primary} />}
+          leading={<TonalTile bg={t.badBg}><Icon name="help-outline" size={19} tint={t.bad} /></TonalTile>}
           title="Help & support"
           chevron
-          onPress={() => toast.show("Contact the school office for help.")}
+          onPress={() => router.push("/support" as never)}
         />
       </SectionCard>
 
@@ -119,13 +130,41 @@ function TeacherProfile() {
         Your details are managed by the school office.
       </DSText>
 
-      <PillButton label="Logout from this device" block bg={color.error} icon="logout" onPress={logout} />
+      <PillButton label="Logout from this device" block bg={t.bad} icon="logout" onPress={confirmLogout} />
+
+      <BottomSheet
+        visible={confirmOpen}
+        title="Log out?"
+        onClose={() => setConfirmOpen(false)}
+      >
+        <DSText variant="label">You are getting logged out from this device.</DSText>
+        <View style={{ flexDirection: "row", gap: 10, marginTop: 16 }}>
+          <View style={{ flex: 1 }}>
+            <PillButton label="Stay" block onPress={() => setConfirmOpen(false)} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <PillButton
+              label="Log out"
+              block
+              bg={t.bad}
+              fg="#FFFFFF"
+              onPress={() => { setConfirmOpen(false); void logout(); }}
+            />
+          </View>
+        </View>
+      </BottomSheet>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   page: { paddingHorizontal: space.xl, paddingBottom: space.xl, gap: 14 },
-  identityRow: { flexDirection: "row", alignItems: "center", gap: 14, paddingTop: 10 },
+  identityCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    borderRadius: radius.xl,
+    padding: space.lg
+  },
   statRow: { flexDirection: "row", gap: 10 }
 });

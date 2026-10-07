@@ -1,21 +1,21 @@
 /**
- * Admin Fees — collection summary, recent receipts and finance position.
+ * Admin Finance — collection summary, recent receipts and finance position.
  */
 import React, { useMemo, useState } from "react";
-import { RefreshControl, ScrollView, StyleSheet, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { FlatList, RefreshControl, StyleSheet, View } from "react-native";
 import {
-  Card, DSText, EmptyState, ErrorState, FilterChips, Icon, ListRow, LoadingState,
-  PageTitle, ProgressRow, SectionCard, StatTile, TonalTile
+  Card, DSText, EmptyState, ErrorState, FilterChips, Icon, ListRow, SkeletonPage,
+  PageTitle, ProgressRow, SectionCard, TonalTile
 } from "@/design-system/components";
-import { color, space } from "@/design-system/tokens";
+import { radius, space } from "@/design-system/tokens";
+import { useTheme } from "@/lib/Theme";
 import { AdminShell } from "@/features/admin/shell";
 import {
-  formatDate, formatMoney, formatMoneyShort, useDashboardStats, useFinanceSummary,
-  useRecentPayments
+  formatMoney, formatMoneyShort, useDashboardStats, useExpenses, useFinanceSummary,
+  useRecentPayments, buildTransactions, type TxnRow
 } from "@/features/admin/hooks";
 
-const FILTERS = ["All", "Cash", "Online", "Cheque"];
+const FILTERS = ["All", "Cash", "Online"];
 
 export default function AdminFeesRoute() {
   return (
@@ -26,44 +26,99 @@ export default function AdminFeesRoute() {
 }
 
 function AdminFees() {
-  const insets = useSafeAreaInsets();
+  const { t } = useTheme();
   const [filter, setFilter] = useState("All");
   const { stats, loading, error, refresh } = useDashboardStats();
   const { payments, refresh: refreshPayments } = useRecentPayments();
+  const { expenses, refresh: refreshExpenses } = useExpenses();
   const { summary } = useFinanceSummary();
 
-  const visible = useMemo(() => {
-    if (filter === "All") return payments;
-    return payments.filter(
-      (p) => (p.paymentMethod ?? "").toLowerCase() === filter.toLowerCase()
-    );
-  }, [payments, filter]);
+  const visible = useMemo(
+    () => buildTransactions(payments, expenses, filter),
+    [payments, expenses, filter]
+  );
 
-  if (loading && !stats) return <LoadingState label="Loading fee collection…" />;
+  if (loading && !stats) return <SkeletonPage />;
   if (error && !stats) return <ErrorState message={error} onRetry={refresh} />;
 
   const collectionRate = stats && stats.totalFeeAmount > 0
     ? (stats.totalFeeCollected / stats.totalFeeAmount) * 100
     : 0;
 
+  const renderTxn = ({ item: row }: { item: TxnRow }) => {
+    const income = row.kind === "income";
+    return (
+      <ListRow
+        leading={
+          <TonalTile bg={income ? t.okBg : t.badBg}>
+            <Icon name="receipt" size={19} tint={income ? t.ok : t.bad} />
+          </TonalTile>
+        }
+        title={row.title}
+        subtitle={row.subtitle}
+        trailing={
+          <View style={{ alignItems: "flex-end" }}>
+            <DSText
+              variant="bodyMedium"
+              tint={income ? t.ok : t.bad}
+              style={styles.receiptMoney}
+            >
+              {income ? formatMoney(row.amount) : `− ${formatMoney(row.amount)}`}
+            </DSText>
+            <DSText variant="caption">{row.dateLabel}</DSText>
+          </View>
+        }
+      />
+    );
+  };
+
   return (
-    <ScrollView
-      contentContainerStyle={[styles.page, { paddingTop: insets.top + space.xs }]}
+    <FlatList
+      data={visible}
+      keyExtractor={(row) => row.id}
+      renderItem={renderTxn}
+      ItemSeparatorComponent={() => <View style={[styles.divider, { backgroundColor: t.line }]} />}
+      contentContainerStyle={styles.page}
       showsVerticalScrollIndicator={false}
       refreshControl={
         <RefreshControl
           refreshing={loading}
-          onRefresh={() => { refresh(); refreshPayments(); }}
-          tintColor={color.primary}
+          onRefresh={() => { refresh(); refreshPayments(); refreshExpenses(); }}
+          tintColor={t.blue}
         />
       }
-    >
-      <PageTitle>Fees</PageTitle>
+      ListHeaderComponent={
+        <View style={styles.header}>
+          <PageTitle>Finance</PageTitle>
 
       <View style={styles.statRow}>
-        <StatTile value={formatMoneyShort(stats?.totalFeeCollected)} label="Collected" tint={color.success} />
-        <StatTile value={formatMoneyShort(stats?.totalFeeOutstanding)} label="Outstanding" tint={color.error} />
-        <StatTile value={formatMoneyShort(stats?.monthlyCollection)} label="This month" tint={color.primary} />
+        <Card style={styles.moneyCard}>
+          <TonalTile bg={t.okBg} size={36}>
+            <Icon name="trending-up" size={19} tint={t.ok} />
+          </TonalTile>
+          <DSText variant="display" style={styles.moneyValue} numberOfLines={1}>
+            {formatMoneyShort(stats?.totalFeeCollected)}
+          </DSText>
+          <DSText variant="overline" style={styles.moneyLabel} numberOfLines={1}>COLLECTED</DSText>
+        </Card>
+        <Card style={styles.moneyCard}>
+          <TonalTile bg={t.badBg} size={36}>
+            <Icon name="error-outline" size={19} tint={t.bad} />
+          </TonalTile>
+          <DSText variant="display" style={styles.moneyValue} numberOfLines={1}>
+            {formatMoneyShort(stats?.totalFeeOutstanding)}
+          </DSText>
+          <DSText variant="overline" style={styles.moneyLabel} numberOfLines={1}>DUE</DSText>
+        </Card>
+        <Card style={styles.moneyCard}>
+          <TonalTile bg={t.tint} size={36}>
+            <Icon name="calendar-month" size={19} tint={t.blue} />
+          </TonalTile>
+          <DSText variant="display" style={styles.moneyValue} numberOfLines={1}>
+            {formatMoneyShort(stats?.monthlyCollection)}
+          </DSText>
+          <DSText variant="overline" style={styles.moneyLabel} numberOfLines={1}>THIS MONTH</DSText>
+        </Card>
       </View>
 
       <Card style={{ gap: space.md }}>
@@ -72,7 +127,7 @@ function AdminFees() {
           label="Against total demand"
           percent={collectionRate}
           valueLabel={`${Math.round(collectionRate)}%`}
-          tint={collectionRate >= 75 ? color.success : color.warning}
+          tint={collectionRate >= 75 ? t.ok : t.warn}
         />
         <DSText variant="label">
           {formatMoney(stats?.totalFeeCollected)} of {formatMoney(stats?.totalFeeAmount)} ·{" "}
@@ -83,19 +138,21 @@ function AdminFees() {
       {summary ? (
         <SectionCard heading="FINANCE POSITION">
           <ListRow
-            leading={<TonalTile bg={color.successContainer}><Icon name="arrow-downward" size={19} tint={color.success} /></TonalTile>}
+            leading={<TonalTile bg={t.okBg}><Icon name="arrow-downward" size={19} tint={t.ok} /></TonalTile>}
             title={formatMoney(summary.income.total)}
             subtitle="Total income"
           />
+          <View style={[styles.divider, { backgroundColor: t.line }]} />
           <ListRow
-            leading={<TonalTile bg={color.errorContainer}><Icon name="arrow-upward" size={19} tint={color.error} /></TonalTile>}
+            leading={<TonalTile bg={t.badBg}><Icon name="arrow-upward" size={19} tint={t.bad} /></TonalTile>}
             title={formatMoney(summary.expense.total)}
             subtitle={`Salary ${formatMoneyShort(summary.expense.salary)} · General ${formatMoneyShort(summary.expense.general)}`}
           />
+          <View style={[styles.divider, { backgroundColor: t.line }]} />
           <ListRow
             leading={
-              <TonalTile bg={summary.net >= 0 ? color.successContainer : color.errorContainer}>
-                <Icon name="account-balance" size={19} tint={summary.net >= 0 ? color.success : color.error} />
+              <TonalTile bg={summary.net >= 0 ? t.tint : t.badBg}>
+                <Icon name="account-balance" size={19} tint={summary.net >= 0 ? t.blue : t.bad} />
               </TonalTile>
             }
             title={formatMoney(summary.net)}
@@ -105,36 +162,34 @@ function AdminFees() {
       ) : null}
 
       <FilterChips options={FILTERS} value={filter} onChange={setFilter} />
-
-      <SectionCard heading="RECENT RECEIPTS">
-        {visible.length === 0 ? (
-          <EmptyState icon="receipt-long" label={`No ${filter.toLowerCase()} payments in this period.`} />
-        ) : (
-          visible.map((payment) => (
-            <ListRow
-              key={payment.id}
-              leading={<TonalTile bg={color.successContainer}><Icon name="receipt" size={19} tint={color.success} /></TonalTile>}
-              title={payment.studentName ?? "Payment"}
-              subtitle={`${payment.paymentMethod || "—"}${payment.receiptNumber ? ` · Receipt ${payment.receiptNumber}` : ""}`}
-              trailing={
-                <View style={{ alignItems: "flex-end" }}>
-                  <DSText variant="bodyMedium" tint={color.success}>{formatMoney(payment.amountPaid)}</DSText>
-                  <DSText variant="caption">{formatDate(payment.createdAt)}</DSText>
-                </View>
-              }
-            />
-          ))
-        )}
-      </SectionCard>
-
-      <DSText variant="caption" style={{ textAlign: "center" }}>
-        Recording payments and issuing receipts is done in the web dashboard.
-      </DSText>
-    </ScrollView>
+          <DSText variant="overline">RECENT RECEIPTS</DSText>
+        </View>
+      }
+      ListEmptyComponent={
+        <EmptyState icon="receipt-long" label={`No ${filter.toLowerCase()} transactions in this period.`} />
+      }
+      initialNumToRender={12}
+      maxToRenderPerBatch={12}
+      windowSize={7}
+      removeClippedSubviews={true}
+    />
   );
 }
 
 const styles = StyleSheet.create({
-  page: { paddingHorizontal: space.xl, paddingBottom: space.xl, gap: 14 },
-  statRow: { flexDirection: "row", gap: 10 }
+  page: { paddingHorizontal: space.xl, paddingBottom: space.xl, paddingTop: space.md, gap: 14 },
+  header: { gap: 14 },
+  statRow: { flexDirection: "row", gap: 10 },
+  moneyCard: {
+    flex: 1,
+    padding: space.md,
+    paddingHorizontal: space.sm,
+    alignItems: "flex-start",
+    gap: 6,
+    borderRadius: radius.lg
+  },
+  moneyValue: { fontSize: 17, fontWeight: "800" },
+  moneyLabel: { fontSize: 10 },
+  receiptMoney: { fontWeight: "800" },
+  divider: { height: StyleSheet.hairlineWidth }
 });

@@ -1,6 +1,48 @@
-import { adminDb } from "@/lib/firebaseAdmin";
+import { adminDb, verifyBearerToken } from "@/lib/firebaseAdmin";
+import { resolveRole } from "@/lib/apiUtils";
 import { getStudentsForParent } from "@/lib/parentStudentLink";
+import { hasPermission, type Role } from "@sri-narayana/shared";
 import type { DecodedIdToken } from "firebase-admin/auth";
+
+export type PortalAccess =
+  | { ok: true; token: DecodedIdToken; role: Role }
+  | { ok: false; status: 401 | 403 };
+
+/**
+ * Shared preamble for every /api/portal/* route: bearer auth, DB-resolved
+ * role (so demotions apply within ~60s), and the portal.view permission.
+ * Returns a status the route turns into its standard error envelope.
+ */
+export async function authorizePortalRequest(req: Request): Promise<PortalAccess> {
+  const token = await verifyBearerToken(req);
+  if (!token) return { ok: false, status: 401 };
+  const role = await resolveRole(token);
+  if (!role || !hasPermission(role, "portal.view")) return { ok: false, status: 403 };
+  return { ok: true, token, role };
+}
+
+/**
+ * Shared student picker: a requested id wins only when it belongs to the
+ * caller's linked set and is a plausible document id (no slashes, bounded
+ * length — it flows into a Firestore doc path). Otherwise the first linked
+ * student is used, preserving the long-standing default.
+ */
+export function resolveLinkedStudentId(
+  linked: Array<{ id: string }>,
+  requested: string | null
+): string | null {
+  if (linked.length === 0) return null;
+  if (
+    requested &&
+    requested.length > 0 &&
+    requested.length <= 100 &&
+    !requested.includes("/") &&
+    linked.some((s) => s.id === requested)
+  ) {
+    return requested;
+  }
+  return linked[0].id;
+}
 
 export async function getLinkedStudentIds(token: DecodedIdToken): Promise<string[]> {
   const links = await getStudentsForParent(token.uid);

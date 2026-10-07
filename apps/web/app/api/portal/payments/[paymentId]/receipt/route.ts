@@ -1,16 +1,27 @@
 import { NextResponse } from "next/server";
 import { DEFAULT_SETTINGS } from "@sri-narayana/shared";
-import { adminDb, verifyBearerToken } from "@/lib/firebaseAdmin";
-import { hasPermission, type Role } from "@sri-narayana/shared";
-import { resolveRole } from "@/lib/apiUtils";
-import { getLinkedStudentIds } from "@/lib/portalHelpers";
+import { adminDb } from "@/lib/firebaseAdmin";
+import { authorizePortalRequest, getLinkedStudentIds } from "@/lib/portalHelpers";
+import { checkRateLimit } from "@/lib/quota/rateLimiter";
 
 export async function GET(req: Request, { params }: { params: { paymentId: string } }) {
-  const token = await verifyBearerToken(req);
-  if (!token) return NextResponse.json({ ok: false, error: "Authentication required" }, { status: 401 });
-  const role = await resolveRole(token);
-  if (!hasPermission(role, "portal.view")) {
-    return NextResponse.json({ ok: false, error: "Portal access denied" }, { status: 403 });
+  const access = await authorizePortalRequest(req);
+  if (!access.ok) {
+    return NextResponse.json(
+      { ok: false, error: access.status === 401 ? "Authentication required" : "Portal access denied" },
+      { status: access.status }
+    );
+  }
+  const { token } = access;
+
+  // Receipts are sensitive documents — throttle per account.
+  const receiptLimit = await checkRateLimit({
+    key: `portal-receipt:${token.uid}`,
+    maxRequests: 60,
+    windowMinutes: 1
+  });
+  if (!receiptLimit.allowed) {
+    return NextResponse.json({ ok: false, error: "Too many requests" }, { status: 429 });
   }
 
   const db = adminDb();

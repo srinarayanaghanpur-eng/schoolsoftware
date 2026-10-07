@@ -173,6 +173,7 @@ export const ROLE_PERMISSIONS: Record<Role, readonly (Permission | typeof ALL)[]
     "fee_reminders.view", "fee_reminders.manage_settings", "fee_reminders.send_test", "fee_reminders.retry_failed", "fee_reminders.export_logs",
     "inventory.view", "inventory.create", "inventory.edit",
     "bus_finance.view", "bus_finance.create", "bus_finance.edit", "bus_finance.export",
+    "communication.view",
     "reports.view", "reports.export",
     "academic_years.view",
     "settings.view", "settings.bulk_upload",

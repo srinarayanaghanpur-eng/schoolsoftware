@@ -1,4 +1,4 @@
-import { FieldValue } from "firebase-admin/firestore";
+import { FieldPath, FieldValue } from "firebase-admin/firestore";
 import { examMarksBulkSchema } from "@sri-narayana/shared";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { requirePermission, serializeDoc, json } from "@/lib/apiUtils";
@@ -16,9 +16,32 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
   if (!token) return json({ ok: false, error: "Access denied" }, { status: 403 });
 
   try {
-    const snap = await adminDb().collection(MARKS).where("examId", "==", params.id).limit(5000).get();
-    const marks = snap.docs.map((doc) => serializeDoc(doc));
-    return json({ ok: true, marks });
+    const { searchParams } = new URL(req.url);
+    const pageSizeRaw = searchParams.get("pageSize") ?? searchParams.get("limit");
+    const cursor = searchParams.get("cursor") || "";
+    // Unpaginated default preserved for existing callers; pass pageSize/cursor
+    // for bounded pages on large exams (doc ids are deterministic, so the
+    // documentId order is a stable cursor).
+    if (!pageSizeRaw && !cursor) {
+      const snap = await adminDb().collection(MARKS).where("examId", "==", params.id).limit(5000).get();
+      const marks = snap.docs.map((doc) => serializeDoc(doc));
+      return json({ ok: true, marks });
+    }
+    const pageSize = Math.min(Math.max(Number(pageSizeRaw) || 200, 1), 1000);
+    let paged: FirebaseFirestore.Query = adminDb()
+      .collection(MARKS)
+      .where("examId", "==", params.id)
+      .orderBy(FieldPath.documentId());
+    if (cursor) paged = paged.startAfter(cursor);
+    const snap = await paged.limit(pageSize + 1).get();
+    const hasMore = snap.docs.length > pageSize;
+    const marks = snap.docs.slice(0, pageSize).map((doc) => serializeDoc(doc));
+    return json({
+      ok: true,
+      marks,
+      hasMore,
+      nextCursor: hasMore ? snap.docs[pageSize - 1].id : null
+    });
   } catch (error) {
     console.error("[ExamsAPI] marks GET failed:", error instanceof Error ? error.message : error);
     return json({ ok: false, error: "Unable to load marks" }, { status: 500 });

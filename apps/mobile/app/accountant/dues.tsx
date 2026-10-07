@@ -2,13 +2,13 @@
  * Accountant Dues — outstanding fee position.
  */
 import React from "react";
-import { RefreshControl, ScrollView, StyleSheet, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { FlatList, RefreshControl, StyleSheet, View } from "react-native";
 import {
-  Card, DSText, ErrorState, Icon, ListRow, LoadingState, PageTitle,
-  ProgressRow, SectionCard, StatTile, TonalTile
+  Card, DSText, ErrorState, Icon, ListRow, SkeletonPage, PageTitle,
+  PillButton, ProgressRow, SectionCard, TonalTile, useToast
 } from "@/design-system/components";
-import { color, space } from "@/design-system/tokens";
+import { radius, space } from "@/design-system/tokens";
+import { useTheme } from "@/lib/Theme";
 import { AccountantShell } from "@/features/admin/shell";
 import { formatMoney, formatMoneyShort, useDashboardStats } from "@/features/admin/hooks";
 
@@ -21,10 +21,11 @@ export default function AccountantDuesRoute() {
 }
 
 function AccountantDues() {
-  const insets = useSafeAreaInsets();
+  const { t } = useTheme();
+  const toast = useToast();
   const { stats, loading, error, refresh } = useDashboardStats();
 
-  if (loading && !stats) return <LoadingState label="Loading dues…" />;
+  if (loading && !stats) return <SkeletonPage />;
   if (error && !stats) return <ErrorState message={error} onRetry={refresh} />;
 
   const total = stats?.totalFeeAmount ?? 0;
@@ -37,59 +38,116 @@ function AccountantDues() {
       : 0;
 
   return (
-    <ScrollView
-      contentContainerStyle={[styles.page, { paddingTop: insets.top + space.xs }]}
+    <FlatList
+      data={[]}
+      keyExtractor={(_, index) => String(index)}
+      renderItem={() => null}
+      contentContainerStyle={styles.page}
       showsVerticalScrollIndicator={false}
-      refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor={color.primary} />}
-    >
-      <PageTitle>Dues</PageTitle>
+      refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor={t.blue} />}
+      ListHeaderComponent={
+        <View style={styles.header}>
+          <PageTitle>Dues</PageTitle>
 
-      <View style={styles.statRow}>
-        <StatTile value={formatMoneyShort(outstanding)} label="Outstanding" tint={color.error} />
-        <StatTile value={stats?.studentsWithOutstandingFees ?? 0} label="Students" tint={color.warning} />
-        <StatTile value={formatMoneyShort(averageDue)} label="Average due" tint={color.primary} />
-      </View>
+          <View style={styles.statRow}>
+            <Card style={styles.moneyCard}>
+              <TonalTile bg={t.badBg} size={36}>
+                <Icon name="schedule" size={19} tint={t.bad} />
+              </TonalTile>
+              <DSText variant="display" style={styles.moneyValue} numberOfLines={1}>
+                {formatMoneyShort(outstanding)}
+              </DSText>
+              <DSText variant="overline" style={styles.moneyLabel} numberOfLines={1}>DUE</DSText>
+            </Card>
+            <Card style={styles.moneyCard}>
+              <TonalTile bg={t.warnBg} size={36}>
+                <Icon name="group" size={19} tint={t.warn} />
+              </TonalTile>
+              <DSText variant="display" style={styles.moneyValue} numberOfLines={1}>
+                {stats?.studentsWithOutstandingFees ?? 0}
+              </DSText>
+              <DSText variant="overline" style={styles.moneyLabel} numberOfLines={1}>STUDENTS</DSText>
+            </Card>
+            <Card style={styles.moneyCard}>
+              <TonalTile bg={t.tint} size={36}>
+                <Icon name="functions" size={19} tint={t.blue} />
+              </TonalTile>
+              <DSText variant="display" style={styles.moneyValue} numberOfLines={1}>
+                {formatMoneyShort(averageDue)}
+              </DSText>
+              <DSText variant="overline" style={styles.moneyLabel} numberOfLines={1}>AVG DUE</DSText>
+            </Card>
+          </View>
 
-      <Card style={{ gap: space.md }}>
-        <DSText variant="overline">COLLECTION PROGRESS</DSText>
-        <ProgressRow
-          label="Against total demand"
-          percent={collectionRate}
-          valueLabel={`${Math.round(collectionRate)}%`}
-          tint={collectionRate >= 75 ? color.success : color.warning}
-        />
-        <DSText variant="label">
-          {formatMoney(collected)} collected of {formatMoney(total)}
-        </DSText>
-      </Card>
+          <PillButton
+            label="Send payment reminders"
+            block
+            bg={t.blue}
+            fg="#FFFFFF"
+            onPress={() => toast.show("Student-by-student defaulter lists and reminder campaigns are in the web dashboard.")}
+          />
 
-      <SectionCard heading="BREAKDOWN">
-        <ListRow
-          leading={<TonalTile bg={color.successContainer}><Icon name="check-circle" size={19} tint={color.success} /></TonalTile>}
-          title={formatMoney(collected)}
-          subtitle="Collected to date"
-        />
-        <ListRow
-          leading={<TonalTile bg={color.errorContainer}><Icon name="schedule" size={19} tint={color.error} /></TonalTile>}
-          title={formatMoney(outstanding)}
-          subtitle={`${stats?.studentsWithOutstandingFees ?? 0} students still owe`}
-        />
-        <ListRow
-          leading={<TonalTile bg={color.surfaceVariant}><Icon name="functions" size={19} tint={color.ink2} /></TonalTile>}
-          title={formatMoney(total)}
-          subtitle="Total demand this year"
-        />
-      </SectionCard>
+          <Card style={{ gap: space.md }}>
+            <DSText variant="overline">COLLECTION PROGRESS</DSText>
+            <ProgressRow
+              label="Against total demand"
+              percent={collectionRate}
+              valueLabel={`${Math.round(collectionRate)}%`}
+              tint={collectionRate >= 75 ? t.ok : t.warn}
+            />
+            <DSText variant="label">
+              {formatMoney(collected)} collected of {formatMoney(total)}
+            </DSText>
+          </Card>
 
-      <DSText variant="caption" style={{ textAlign: "center" }}>
-        Student-by-student defaulter lists and reminder campaigns are in the
-        web dashboard.
-      </DSText>
-    </ScrollView>
+          <SectionCard heading="BREAKDOWN">
+            <ListRow
+              leading={<TonalTile bg={t.okBg}><Icon name="check-circle" size={19} tint={t.ok} /></TonalTile>}
+              title={formatMoney(collected)}
+              subtitle="Collected to date"
+            />
+            <View style={[styles.divider, { backgroundColor: t.line }]} />
+            <ListRow
+              leading={<TonalTile bg={t.badBg}><Icon name="schedule" size={19} tint={t.bad} /></TonalTile>}
+              title={formatMoney(outstanding)}
+              subtitle={`${stats?.studentsWithOutstandingFees ?? 0} students still owe`}
+            />
+            <View style={[styles.divider, { backgroundColor: t.line }]} />
+            <ListRow
+              leading={<TonalTile bg={t.tint}><Icon name="functions" size={19} tint={t.blue} /></TonalTile>}
+              title={formatMoney(total)}
+              subtitle="Total demand this year"
+            />
+          </SectionCard>
+
+          <DSText variant="caption" style={{ textAlign: "center" }}>
+            Student-by-student defaulter lists and reminder campaigns are in the
+            web dashboard.
+          </DSText>
+        </View>
+      }
+      ListEmptyComponent={null}
+      initialNumToRender={12}
+      maxToRenderPerBatch={12}
+      windowSize={7}
+      removeClippedSubviews={true}
+    />
   );
 }
 
 const styles = StyleSheet.create({
-  page: { paddingHorizontal: space.xl, paddingBottom: space.xl, gap: 14 },
-  statRow: { flexDirection: "row", gap: 10 }
+  page: { paddingHorizontal: space.xl, paddingBottom: space.xl, paddingTop: space.md, gap: 14 },
+  header: { gap: 14 },
+  statRow: { flexDirection: "row", gap: 10 },
+  moneyCard: {
+    flex: 1,
+    padding: space.md,
+    paddingHorizontal: space.sm,
+    alignItems: "flex-start",
+    gap: 6,
+    borderRadius: radius.lg
+  },
+  moneyValue: { fontSize: 17, fontWeight: "800" },
+  moneyLabel: { fontSize: 10 },
+  divider: { height: StyleSheet.hairlineWidth }
 });

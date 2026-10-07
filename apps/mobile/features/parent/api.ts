@@ -5,6 +5,7 @@
  */
 import { auth } from "@/lib/firebase";
 import { API_BASE_URL, API_REQUESTS_AVAILABLE } from "@/lib/api";
+import { deduped } from "@/lib/fetchDedupe";
 
 export type PortalStudent = { id: string; name: string; className: string; section: string; admissionNo: string };
 export type PortalFees = { total: number; paid: number; due: number; status?: string; feeBalanceCarriedForward: number };
@@ -31,21 +32,103 @@ export type PortalHomework = {
   assignedDate?: string;
 };
 
-export type PortalAttendanceSummary = { percentage?: number } & Record<string, unknown>;
+export type PortalPaymentFull = {
+  id: string;
+  amountPaid: number;
+  paymentType: string;
+  paymentMethod: string;
+  transactionId: string;
+  status: string;
+  receiptNumber: string;
+  createdAt: string;
+};
+
+export type PortalReceiptStudent = {
+  id: string;
+  name: string;
+  admissionNo: string;
+  className: string;
+  section: string;
+  fatherName: string;
+} | null;
+
+export type PortalReceipt = {
+  receiptNo: string;
+  paymentId: string;
+  schoolName: string;
+  schoolAddress: string;
+  date: string;
+  student: PortalReceiptStudent;
+  amount: number;
+  paymentType: string;
+  paymentMethod: string;
+  transactionId: string;
+  status: string;
+};
+
+export type PortalAttendanceDay = {
+  id: string;
+  date: string;
+  status: string;
+  checkIn?: string;
+  checkOut?: string;
+};
+
+export type PortalAttendanceResponse = {
+  student: PortalStudent;
+  summary: { present: number; absent: number; late: number; total: number; percentage: number };
+  attendance: PortalAttendanceDay[];
+};
 
 async function portalGet<T>(path: string): Promise<T> {
   const user = auth.currentUser;
   if (!user) throw new Error("Please sign in again.");
   if (!API_REQUESTS_AVAILABLE) throw new Error("API URL not configured. Please set EXPO_PUBLIC_WEB_API_URL.");
+  // Screens mount together and ask for the same URLs — share one request.
+  return deduped(`GET ${path}`, async () => {
+    const token = await user.getIdToken();
+    const response = await fetch(`${API_BASE_URL}${path}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    const result = (await response.json()) as { ok?: boolean; error?: string } & Record<string, unknown>;
+    if (!response.ok || result.ok === false) {
+      throw new Error(result.error ?? "Request failed. Please try again.");
+    }
+    return result as T;
+  });
+}
+
+async function portalPut<T>(path: string, body: Record<string, unknown>): Promise<T> {
+  const user = auth.currentUser;
+  if (!user) throw new Error("Please sign in again.");
+  if (!API_REQUESTS_AVAILABLE) throw new Error("API URL not configured. Please set EXPO_PUBLIC_WEB_API_URL.");
   const token = await user.getIdToken();
   const response = await fetch(`${API_BASE_URL}${path}`, {
-    headers: { Authorization: `Bearer ${token}` }
+    method: "PUT",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify(body)
   });
   const result = (await response.json()) as { ok?: boolean; error?: string } & Record<string, unknown>;
   if (!response.ok || result.ok === false) {
     throw new Error(result.error ?? "Request failed. Please try again.");
   }
   return result as T;
+}
+
+export type PushPrefs = {
+  fees: boolean;
+  attendance: boolean;
+  homework: boolean;
+  notices: boolean;
+  exams: boolean;
+};
+
+export async function fetchPushPreferences() {
+  return portalGet<{ prefs: PushPrefs }>(`/api/push/preferences`);
+}
+
+export async function updatePushPreferences(prefs: Partial<PushPrefs>) {
+  return portalPut<{ prefs: PushPrefs }>(`/api/push/preferences`, { prefs });
 }
 
 export async function fetchSummary(studentId?: string) {
@@ -57,8 +140,24 @@ export async function fetchHomework(studentId: string) {
   return portalGet<{ homework: PortalHomework[] }>(`/api/portal/homework?studentId=${encodeURIComponent(studentId)}`);
 }
 
-export async function fetchAttendance(studentId: string) {
-  return portalGet<PortalAttendanceSummary>(`/api/portal/attendance?studentId=${encodeURIComponent(studentId)}`);
+export async function fetchAttendance(studentId: string, month?: string) {
+  const qs = month ? `&month=${encodeURIComponent(month)}` : "";
+  return portalGet<PortalAttendanceResponse>(
+    `/api/portal/attendance?studentId=${encodeURIComponent(studentId)}${qs}`
+  );
+}
+
+export async function fetchPayments(studentId?: string) {
+  const qs = studentId ? `?studentId=${encodeURIComponent(studentId)}` : "";
+  return portalGet<{ payments: PortalPaymentFull[]; linkedStudents: PortalStudent[] }>(
+    `/api/portal/payments${qs}`
+  );
+}
+
+export async function fetchReceipt(paymentId: string) {
+  return portalGet<{ receipt: PortalReceipt }>(
+    `/api/portal/payments/${encodeURIComponent(paymentId)}/receipt`
+  );
 }
 
 /**

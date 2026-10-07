@@ -1,5 +1,4 @@
 import { FieldValue } from "firebase-admin/firestore";
-import * as XLSX from "xlsx";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { requirePermission, enforceBodyLimit, json } from "@/lib/apiUtils";
 import { markSummaryDirty } from "@/lib/markSummaryDirty";
@@ -31,7 +30,7 @@ function num(value: unknown): number {
   return Number.isFinite(n) ? n : NaN;
 }
 
-function rowsFromWorkbook(buffer: ArrayBuffer): Record<string, unknown>[] {
+function rowsFromWorkbook(buffer: ArrayBuffer, XLSX: typeof import("xlsx")): Record<string, unknown>[] {
   const wb = XLSX.read(buffer, { type: "buffer" });
   const first = wb.SheetNames[0];
   if (!first) throw new Error("Workbook has no sheets");
@@ -81,7 +80,8 @@ export async function POST(req: Request) {
     }
 
     const buffer = await file.arrayBuffer();
-    const rows = rowsFromWorkbook(buffer);
+    const XLSX = await import("xlsx");
+    const rows = rowsFromWorkbook(buffer, XLSX);
     if (rows.length === 0) return json({ ok: false, error: "File has no data rows" }, { status: 400 });
     if (rows.length > 2000) return json({ ok: false, error: "Too many rows (max 2000 per upload)" }, { status: 400 });
 

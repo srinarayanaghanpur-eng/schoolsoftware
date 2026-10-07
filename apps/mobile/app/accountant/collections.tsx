@@ -3,17 +3,17 @@
  * Read-only: recording payments stays in the web dashboard (see index.tsx).
  */
 import React, { useMemo, useState } from "react";
-import { RefreshControl, ScrollView, StyleSheet, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { FlatList, RefreshControl, StyleSheet, View } from "react-native";
 import {
-  DSText, EmptyState, ErrorState, FilterChips, Icon, ListRow, LoadingState,
-  PageTitle, SectionCard, StatTile, TonalTile
+  Card, DSText, EmptyState, ErrorState, FilterChips, Icon, ListRow, SkeletonPage,
+  PageTitle, TonalTile
 } from "@/design-system/components";
-import { color, space } from "@/design-system/tokens";
+import { radius, space } from "@/design-system/tokens";
+import { useTheme } from "@/lib/Theme";
 import { AccountantShell } from "@/features/admin/shell";
-import { formatDate, formatMoney, formatMoneyShort, useRecentPayments } from "@/features/admin/hooks";
+import { formatMoney, formatMoneyShort, useExpenses, useRecentPayments, buildTransactions, type TxnRow } from "@/features/admin/hooks";
 
-const FILTERS = ["All", "Cash", "Online", "Cheque"];
+const FILTERS = ["All", "Cash", "Online"];
 
 export default function AccountantCollectionsRoute() {
   return (
@@ -24,67 +24,120 @@ export default function AccountantCollectionsRoute() {
 }
 
 function AccountantCollections() {
-  const insets = useSafeAreaInsets();
+  const { t } = useTheme();
   const [filter, setFilter] = useState("All");
   const { payments, loading, error, refresh } = useRecentPayments();
+  const { expenses, refresh: refreshExpenses } = useExpenses();
 
-  const visible = useMemo(() => {
-    if (filter === "All") return payments;
-    return payments.filter((p) => (p.paymentMethod ?? "").toLowerCase() === filter.toLowerCase());
-  }, [payments, filter]);
+  const visible = useMemo(
+    () => buildTransactions(payments, expenses, filter),
+    [payments, expenses, filter]
+  );
 
   const total = useMemo(
-    () => visible.reduce((sum, p) => sum + Number(p.amountPaid ?? 0), 0),
+    () => visible.reduce((sum, row) => sum + (row.kind === "income" ? row.amount : 0), 0),
     [visible]
   );
 
-  if (loading && payments.length === 0) return <LoadingState label="Loading receipts…" />;
+  const renderTxn = ({ item: row }: { item: TxnRow }) => {
+    const income = row.kind === "income";
+    return (
+      <ListRow
+        leading={
+          <TonalTile bg={income ? t.okBg : t.badBg}>
+            <Icon name="receipt" size={19} tint={income ? t.ok : t.bad} />
+          </TonalTile>
+        }
+        title={row.title}
+        subtitle={row.subtitle}
+        trailing={
+          <View style={{ alignItems: "flex-end" }}>
+            <DSText
+              variant="bodyMedium"
+              tint={income ? t.ok : t.bad}
+              style={styles.receiptMoney}
+            >
+              {income ? formatMoney(row.amount) : `− ${formatMoney(row.amount)}`}
+            </DSText>
+            <DSText variant="caption">{row.dateLabel}</DSText>
+          </View>
+        }
+      />
+    );
+  };
+
+  if (loading && payments.length === 0) return <SkeletonPage />;
   if (error && payments.length === 0) return <ErrorState message={error} onRetry={refresh} />;
 
   return (
-    <ScrollView
-      contentContainerStyle={[styles.page, { paddingTop: insets.top + space.xs }]}
+    <FlatList
+      data={visible}
+      keyExtractor={(row) => row.id}
+      renderItem={renderTxn}
+      ItemSeparatorComponent={() => <View style={[styles.divider, { backgroundColor: t.line }]} />}
+      contentContainerStyle={styles.page}
       showsVerticalScrollIndicator={false}
-      refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor={color.primary} />}
-    >
-      <PageTitle>Collections</PageTitle>
+      refreshControl={
+        <RefreshControl
+          refreshing={loading}
+          onRefresh={() => { refresh(); refreshExpenses(); }}
+          tintColor={t.blue}
+        />
+      }
+      ListHeaderComponent={
+        <View style={styles.header}>
+          <PageTitle>Collections</PageTitle>
 
       <View style={styles.statRow}>
-        <StatTile value={visible.length} label="Receipts" tint={color.primary} />
-        <StatTile value={formatMoneyShort(total)} label={`${filter} total`} tint={color.success} />
+        <Card style={styles.moneyCard}>
+          <TonalTile bg={t.tint} size={36}>
+            <Icon name="receipt-long" size={19} tint={t.blue} />
+          </TonalTile>
+          <DSText variant="display" style={styles.moneyValue} numberOfLines={1}>
+            {visible.length}
+          </DSText>
+          <DSText variant="overline" style={styles.moneyLabel} numberOfLines={1}>RECEIPTS</DSText>
+        </Card>
+        <Card style={styles.moneyCard}>
+          <TonalTile bg={t.okBg} size={36}>
+            <Icon name="payments" size={19} tint={t.ok} />
+          </TonalTile>
+          <DSText variant="display" style={styles.moneyValue} numberOfLines={1}>
+            {formatMoneyShort(total)}
+          </DSText>
+          <DSText variant="overline" style={styles.moneyLabel} numberOfLines={1}>{`${filter.toUpperCase()} TOTAL`}</DSText>
+        </Card>
       </View>
 
       <FilterChips options={FILTERS} value={filter} onChange={setFilter} />
-
-      <SectionCard heading={`${visible.length} RECEIPT${visible.length === 1 ? "" : "S"}`}>
-        {visible.length === 0 ? (
-          <EmptyState icon="receipt-long" label={`No ${filter.toLowerCase()} payments in this period.`} />
-        ) : (
-          visible.map((payment) => (
-            <ListRow
-              key={payment.id}
-              leading={
-                <TonalTile bg={color.successContainer}>
-                  <Icon name="receipt" size={19} tint={color.success} />
-                </TonalTile>
-              }
-              title={payment.studentName ?? "Payment"}
-              subtitle={`${payment.paymentMethod || "—"}${payment.receiptNumber ? ` · Receipt ${payment.receiptNumber}` : ""}`}
-              trailing={
-                <View style={{ alignItems: "flex-end" }}>
-                  <DSText variant="bodyMedium" tint={color.success}>{formatMoney(payment.amountPaid)}</DSText>
-                  <DSText variant="caption">{formatDate(payment.createdAt)}</DSText>
-                </View>
-              }
-            />
-          ))
-        )}
-      </SectionCard>
-    </ScrollView>
+          <DSText variant="overline">{`${visible.length} TRANSACTION${visible.length === 1 ? "" : "S"}`}</DSText>
+        </View>
+      }
+      ListEmptyComponent={
+        <EmptyState icon="receipt-long" label={`No ${filter.toLowerCase()} transactions in this period.`} />
+      }
+      initialNumToRender={12}
+      maxToRenderPerBatch={12}
+      windowSize={7}
+      removeClippedSubviews={true}
+    />
   );
 }
 
 const styles = StyleSheet.create({
-  page: { paddingHorizontal: space.xl, paddingBottom: space.xl, gap: 14 },
-  statRow: { flexDirection: "row", gap: 10 }
+  page: { paddingHorizontal: space.xl, paddingBottom: space.xl, paddingTop: space.md, gap: 14 },
+  header: { gap: 14 },
+  statRow: { flexDirection: "row", gap: 10 },
+  moneyCard: {
+    flex: 1,
+    padding: space.md,
+    paddingHorizontal: space.sm,
+    alignItems: "flex-start",
+    gap: 6,
+    borderRadius: radius.lg
+  },
+  moneyValue: { fontSize: 17, fontWeight: "800" },
+  moneyLabel: { fontSize: 10 },
+  receiptMoney: { fontWeight: "800" },
+  divider: { height: StyleSheet.hairlineWidth }
 });

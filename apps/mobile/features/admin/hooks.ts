@@ -4,10 +4,11 @@
  */
 import { useCallback, useEffect, useState } from "react";
 import { mobileCache } from "@/lib/cache/mobileCache";
+import { asDateString, asText } from "@/lib/text";
 import {
-  fetchDashboardStats, fetchFinanceSummary, fetchLeaveRequests, fetchNotices,
+  fetchDashboardStats, fetchExpenses, fetchFinanceSummary, fetchLeaveRequests, fetchNotices,
   fetchRecentPayments, fetchTeachers, fetchTodayAttendance,
-  type AdminPayment, type AdminTeacher, type DashboardStats, type FinanceSummary,
+  type AdminPayment, type AdminTeacher, type DashboardStats, type Expense, type FinanceSummary,
   type LeaveRequest, type Notice
 } from "./api";
 
@@ -103,6 +104,15 @@ export function useFinanceSummary() {
   return { summary: data, loading, error, refresh };
 }
 
+export function useExpenses() {
+  const { data, loading, error, refresh } = useCachedFetch<Expense[]>(
+    "admin-expenses",
+    fetchExpenses,
+    5
+  );
+  return { expenses: data ?? [], loading, error, refresh };
+}
+
 export function useTodayAttendance() {
   const { data, loading, error, refresh } = useCachedFetch(
     "admin-today-attendance",
@@ -139,9 +149,89 @@ export function formatMoneyShort(value?: number) {
   return `₹${amount}`;
 }
 
-export function formatDate(value?: string) {
-  if (!value) return "—";
+export function formatDate(value?: unknown) {
+  if (value === null || value === undefined || value === "") return "—";
+  // Firestore Timestamps (live instances or {_seconds} JSON) must become
+  // text here — returning the raw value crashes the render (error #31).
+  if (typeof value !== "string") {
+    const converted = asDateString(value, "");
+    return converted || "—";
+  }
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
+  if (Number.isNaN(date.getTime())) return "—";
   return date.toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+}
+
+/** Non-string display values become safe text (never an object child). */
+export function formatText(value: unknown, fallback = "—"): string {
+  const text = asText(value);
+  return text || fallback;
+}
+
+/** "karthik · 10 A" — student name with class beside it for payment rows. */
+export function paymentStudentLine(payment: {
+  studentName?: string;
+  class?: string;
+  section?: string;
+}): string {
+  const name = formatText(payment.studentName, "Payment");
+  const cls = [asText(payment.class), asText(payment.section)].filter(Boolean).join(" ");
+  return cls ? `${name} · ${cls}` : name;
+}
+
+/** One row in the all-transactions timeline: fee income (green) or expense (red). */
+export type TxnRow = {
+  id: string;
+  kind: "income" | "expense";
+  title: string;
+  subtitle: string;
+  amount: number;
+  dateValue: number;
+  dateLabel: string;
+};
+
+function txnDateValue(value: unknown): number {
+  const text = asDateString(value, "");
+  const parsed = new Date(text || String(value ?? "")).getTime();
+  return Number.isNaN(parsed) ? 0 : parsed;
+}
+
+/**
+ * Merge fee payments + expenses into one newest-first timeline.
+ * `filter` matches the Cash/Online chips against each row's method.
+ */
+export function buildTransactions(
+  payments: AdminPayment[],
+  expenses: Expense[],
+  filter = "All"
+): TxnRow[] {
+  const match = (method?: string) =>
+    filter === "All" || (method ?? "").toLowerCase() === filter.toLowerCase();
+  const rows: TxnRow[] = [];
+  for (const p of payments) {
+    if (!match(p.paymentMethod)) continue;
+    rows.push({
+      id: `income-${p.id}`,
+      kind: "income",
+      title: paymentStudentLine(p),
+      subtitle: asText(p.paymentMethod) || "—",
+      amount: Number(p.amountPaid ?? 0),
+      dateValue: txnDateValue(p.createdAt),
+      dateLabel: formatDate(p.createdAt)
+    });
+  }
+  for (const e of expenses) {
+    if (!match(e.paymentMethod)) continue;
+    rows.push({
+      id: `expense-${e.id}`,
+      kind: "expense",
+      title: formatText(e.vendor || e.description, "Expense"),
+      subtitle: formatText(e.category, "Expense"),
+      amount: Number(e.amount ?? 0),
+      dateValue: txnDateValue(e.date ?? e.createdAt),
+      dateLabel: formatDate(e.date ?? e.createdAt)
+    });
+  }
+  rows.sort((a, b) => b.dateValue - a.dateValue);
+  return rows;
 }

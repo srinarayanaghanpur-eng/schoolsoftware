@@ -3,19 +3,22 @@
  * All business logic lives in features/teacher/useAttendanceMarking; this file
  * is presentation only.
  */
-import React from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import React, { useMemo } from "react";
+import { RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import {
-  Card, DSText, Hero, Icon, ListRow, PageTitle, PillButton, ProgressBar,
-  SectionCard, TonalTile, useToast
+  Card, DSText, Hero, Icon, PillButton, ProgressBar,
+  ScreenHeader, SectionCard, StatTile, TonalTile, useToast
 } from "@/design-system/components";
-import { color, radius, space } from "@/design-system/tokens";
+import { space } from "@/design-system/tokens";
+import { useTheme } from "@/lib/Theme";
+import { MonthCalendar, ProgressRing, type DayMark } from "@/design-system/widgets";
 import { useMobileSession } from "@/lib/mobileSession";
 import { useTeacherAttendanceData } from "@/lib/useTeacherAttendanceData";
 import { TeacherShell } from "@/features/teacher/shell";
 import { useAttendanceMarking } from "@/features/teacher/useAttendanceMarking";
-import { formatTime, useAttendanceSummary } from "@/features/teacher/hooks";
+import {
+  dateLabel, formatTime, greeting, statusTone, useAttendanceSummary
+} from "@/features/teacher/hooks";
 
 export default function TeacherAttendanceRoute() {
   return (
@@ -26,10 +29,10 @@ export default function TeacherAttendanceRoute() {
 }
 
 function TeacherAttendance() {
-  const insets = useSafeAreaInsets();
+  const { t } = useTheme();
   const toast = useToast();
   const { profile } = useMobileSession();
-  const { teacher, records } = useTeacherAttendanceData();
+  const { teacher, records, loading, refresh } = useTeacherAttendanceData();
   const summary = useAttendanceSummary(records);
   const teacherId = teacher?.id ?? profile?.teacherId;
   const marking = useAttendanceMarking(teacherId);
@@ -38,6 +41,34 @@ function TeacherAttendance() {
     ? 0
     : Math.max(0, 100 - (marking.distance / marking.allowedRadius) * 100);
 
+  const name = teacher?.fullName ?? profile?.displayName ?? "Teacher";
+  const todayTone = statusTone(summary.today?.status);
+
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth() + 1;
+
+  const leaveCount = useMemo(
+    () => records.filter((record) => record.status === "cl").length,
+    [records]
+  );
+
+  const marks = useMemo(() => {
+    const result: Record<number, DayMark> = {};
+    for (const record of records) {
+      const parts = record.date.split("-");
+      const y = Number(parts[0]);
+      const m = Number(parts[1]);
+      const d = Number(parts[2]);
+      if (!Number.isInteger(y) || !Number.isInteger(m) || !Number.isInteger(d)) continue;
+      if (y !== year || m !== month) continue;
+      if (record.status === "present") result[d] = "P";
+      else if (record.status === "absent") result[d] = "A";
+      else if (record.status === "late" || record.status === "half_day") result[d] = "L";
+    }
+    return result;
+  }, [records, year, month]);
+
   async function handle(event: "checkin" | "checkout") {
     const result = await marking.mark(event);
     toast.show(result.message);
@@ -45,28 +76,57 @@ function TeacherAttendance() {
 
   return (
     <ScrollView
-      contentContainerStyle={[styles.page, { paddingTop: insets.top + space.xs }]}
+      contentContainerStyle={styles.page}
       showsVerticalScrollIndicator={false}
+      refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor={t.blue} />}
     >
-      <PageTitle>Attendance</PageTitle>
+      <ScreenHeader
+        eyebrow={`${greeting()} · ${dateLabel()}`}
+        title={name}
+      />
 
-      {/* geofence status */}
+      {/* today's status ring — center label is the live check-in time */}
+      <Card style={styles.ringCard}>
+        <ProgressRing progress={summary.percentage / 100}>
+          <View style={styles.ringCenter}>
+            <DSText variant="title" style={styles.ringTime}>
+              {formatTime(summary.today?.checkInTime)}
+            </DSText>
+            <DSText variant="label">
+              {summary.checkedIn ? "Checked in" : todayTone.label}
+            </DSText>
+          </View>
+        </ProgressRing>
+        <View style={styles.ringMeta}>
+          <View style={styles.ringMetaItem}>
+            <DSText variant="label">Check in</DSText>
+            <DSText variant="bodyMedium">{formatTime(summary.today?.checkInTime)}</DSText>
+          </View>
+          <View style={styles.ringMetaItem}>
+            <DSText variant="label">Check out</DSText>
+            <DSText variant="bodyMedium">{formatTime(summary.today?.checkOutTime)}</DSText>
+          </View>
+          <View style={styles.ringMetaItem}>
+            <DSText variant="label">Month</DSText>
+            <DSText variant="bodyMedium">{`${summary.percentage}%`}</DSText>
+          </View>
+        </View>
+      </Card>
+
+      {/* geofence status — GPS flow unchanged, restyled only */}
       <Hero tone={marking.insideCampus ? "success" : "warning"}>
         <TonalTile
-          bg={marking.insideCampus ? color.success : color.warningContainer}
+          bg={marking.insideCampus ? t.okBg : t.warnBg}
           size={40}
         >
           <Icon
             name={marking.insideCampus ? "location-on" : "location-searching"}
             size={22}
-            tint={marking.insideCampus ? color.onPrimary : color.warning}
+            tint={marking.insideCampus ? t.ok : t.warn}
           />
         </TonalTile>
         <View style={{ flex: 1, minWidth: 0 }}>
-          <DSText
-            variant="bodyMedium"
-            tint={marking.insideCampus ? color.onSuccessContainer : color.onWarningDeep}
-          >
+          <DSText variant="bodyMedium">
             {marking.locating
               ? "Finding your location…"
               : marking.insideCampus
@@ -75,7 +135,7 @@ function TeacherAttendance() {
           </DSText>
           <DSText
             variant="label"
-            tint={marking.insideCampus ? color.success : color.warning}
+            tint={marking.insideCampus ? t.ok : t.warn}
           >
             {marking.distance === null
               ? `Allowed radius ${marking.allowedRadius} m`
@@ -88,7 +148,7 @@ function TeacherAttendance() {
         <DSText variant="overline">PROXIMITY</DSText>
         <ProgressBar
           percent={proximity}
-          tint={marking.insideCampus ? color.success : color.warning}
+          tint={marking.insideCampus ? t.ok : t.warn}
         />
         <DSText variant="label">
           {marking.accuracy
@@ -98,59 +158,78 @@ function TeacherAttendance() {
       </Card>
 
       {marking.error ? (
-        <Card style={styles.errorCard}>
-          <Icon name="error-outline" size={20} tint={color.error} />
-          <DSText variant="bodyMedium" tint={color.error} style={{ flex: 1 }}>
+        <Card style={[styles.rowCard, { backgroundColor: t.badBg, borderColor: t.badBg }]}>
+          <TonalTile bg={t.card} size={36}>
+            <Icon name="error-outline" size={20} tint={t.bad} />
+          </TonalTile>
+          <DSText variant="bodyMedium" tint={t.bad} style={{ flex: 1 }}>
             {marking.error}
           </DSText>
         </Card>
       ) : null}
 
-      {/* actions */}
+      {/* offline backlog */}
+      {marking.pendingCount > 0 ? (
+        <Card style={[styles.rowCard, { backgroundColor: t.warnBg, borderColor: t.warnBg }]}>
+          <TonalTile bg={t.card} size={36}>
+            <Icon name="cloud-upload" size={20} tint={t.warn} />
+          </TonalTile>
+          <DSText variant="bodyMedium" style={{ flex: 1 }}>
+            {marking.pendingCount} {marking.pendingCount === 1 ? "attempt" : "attempts"} pending sync
+          </DSText>
+          <PillButton
+            label={marking.syncing ? "Syncing…" : "Retry now"}
+            icon="refresh"
+            bg={t.card}
+            fg={t.warn}
+            onPress={() => {
+              if (!marking.syncing) {
+                void marking.retryPending().then((result) => toast.show(result.message));
+              }
+            }}
+          />
+        </Card>
+      ) : null}
+
+      {/* actions — full-width check in / out */}
       <View style={styles.actions}>
-        <View style={{ flex: 1 }}>
-          <PillButton
-            label={marking.submitting ? "Saving…" : "Check in"}
-            block
-            icon="fingerprint"
-            bg={marking.insideCampus ? color.primary : color.outlineStrong}
-            fg={marking.insideCampus ? color.onPrimary : color.muted}
-            onPress={() => { if (!marking.submitting) void handle("checkin"); }}
-          />
-        </View>
-        <View style={{ flex: 1 }}>
-          <PillButton
-            label="Check out"
-            block
-            icon="logout"
-            bg={color.surface}
-            fg={color.primary}
-            onPress={() => { if (!marking.submitting) void handle("checkout"); }}
-          />
-        </View>
+        <PillButton
+          label={marking.submitting ? "Saving…" : "Check in"}
+          block
+          icon="fingerprint"
+          bg={marking.insideCampus ? t.blue : t.line}
+          fg={marking.insideCampus ? "#FFFFFF" : t.mute}
+          onPress={() => { if (!marking.submitting) void handle("checkin"); }}
+        />
+        <PillButton
+          label="Check out"
+          block
+          icon="logout"
+          bg={t.card}
+          fg={t.blue}
+          onPress={() => { if (!marking.submitting) void handle("checkout"); }}
+        />
       </View>
 
       <PillButton
         label={marking.locating ? "Locating…" : "Refresh location"}
         block
         icon="my-location"
-        bg={color.surfaceVariant}
-        fg={color.ink2}
+        bg={t.card}
+        fg={t.mute}
         onPress={() => { void marking.refreshLocation(); }}
       />
 
-      {/* today's record */}
-      <SectionCard heading="TODAY’S RECORD">
-        <ListRow
-          leading={<TonalTile bg={color.primaryContainer}><Icon name="login" size={19} tint={color.primary} /></TonalTile>}
-          title="Checked in"
-          subtitle={formatTime(summary.today?.checkInTime)}
-        />
-        <ListRow
-          leading={<TonalTile bg={color.surfaceVariant}><Icon name="logout" size={19} tint={color.ink2} /></TonalTile>}
-          title="Checked out"
-          subtitle={formatTime(summary.today?.checkOutTime)}
-        />
+      {/* month KPIs (live) */}
+      <View style={styles.statRow}>
+        <StatTile value={summary.present} label="Present" tint={t.ok} />
+        <StatTile value={summary.absent} label="Absent" tint={t.bad} />
+        <StatTile value={leaveCount} label="Leave" tint={t.warn} />
+      </View>
+
+      {/* month calendar (live records) */}
+      <SectionCard heading="THIS MONTH">
+        <MonthCalendar year={year} month={month} marks={marks} today={now.getDate()} />
       </SectionCard>
 
       <DSText variant="caption" style={{ textAlign: "center" }}>
@@ -163,13 +242,12 @@ function TeacherAttendance() {
 
 const styles = StyleSheet.create({
   page: { paddingHorizontal: space.xl, paddingBottom: space.xl, gap: 14 },
-  errorCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: space.md,
-    backgroundColor: color.errorContainer,
-    borderColor: color.errorContainer,
-    borderRadius: radius.md
-  },
-  actions: { flexDirection: "row", gap: space.md }
+  ringCard: { gap: space.md, alignItems: "center" },
+  ringCenter: { alignItems: "center", gap: 2 },
+  ringTime: { fontSize: 22, fontWeight: "700" },
+  ringMeta: { flexDirection: "row", gap: space.md, alignSelf: "stretch" },
+  ringMetaItem: { flex: 1, alignItems: "center", gap: 2 },
+  rowCard: { flexDirection: "row", alignItems: "center", gap: space.md },
+  actions: { gap: space.md },
+  statRow: { flexDirection: "row", gap: 10 }
 });
