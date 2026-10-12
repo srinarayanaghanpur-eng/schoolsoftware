@@ -234,6 +234,16 @@ function PrincipalHome() {
             </View>
           ))
         )}
+        {notices.length > 3 ? (
+          <PressableScale
+            accessibilityLabel="View all notices"
+            onPress={() => router.push("/principal/notices" as never)}
+            style={styles.viewAll}
+          >
+            <DSText variant="bodyMedium" tint={t.blue}>View all</DSText>
+            <Icon name="chevron-right" size={18} tint={t.blue} />
+          </PressableScale>
+        ) : null}
       </SectionCard>
 
       {/* broadcast (staff announcements — Phase 2) */}
@@ -260,6 +270,14 @@ function PrincipalHome() {
           leading={<TonalTile bg={t.badBg}><Icon name="error-outline" size={19} tint={t.bad} /></TonalTile>}
           title={formatMoneyShort(stats?.totalFeeOutstanding)}
           subtitle={`${stats?.studentsWithOutstandingFees ?? 0} students with dues`}
+        />
+        <View style={[styles.divider, { backgroundColor: t.line }]} />
+        <ListRow
+          leading={<TonalTile bg={t.warnBg}><Icon name="wallet" size={19} tint={t.warn} /></TonalTile>}
+          title="Expenses & cashflow"
+          subtitle="Spending, balance and receipts"
+          chevron
+          onPress={() => router.push("/principal/expenses" as never)}
         />
       </SectionCard>
     </ScrollView>
@@ -291,6 +309,13 @@ const styles = StyleSheet.create({
   moneyValue: { fontSize: 17, fontWeight: "800" },
   moneyLabel: { fontSize: 10 },
   divider: { height: StyleSheet.hairlineWidth },
+  viewAll: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 2,
+    paddingVertical: space.sm
+  },
   promptTitle: { fontSize: 15, fontWeight: "700" },
   promptMeta: { marginTop: 2 },
   quickGrid: { flexDirection: "row", gap: 10 },

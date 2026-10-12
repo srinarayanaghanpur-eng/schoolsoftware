@@ -160,6 +160,42 @@ export async function fetchReceipt(paymentId: string) {
   );
 }
 
+export type PortalExam = {
+  id: string;
+  name?: string;
+  examType?: string;
+  className?: string;
+  startDate?: string;
+  endDate?: string;
+  timetable?: { subject?: string; date?: string; time?: string; maxMarks?: number }[];
+};
+
+export type PortalHallTicket = {
+  examName?: string;
+  examType?: string;
+  startDate?: string;
+  endDate?: string;
+  studentName?: string;
+  className?: string;
+  section?: string;
+  admissionNo?: string;
+  studentPhoto?: string | null;
+  timetable?: PortalExam["timetable"];
+  generalInstructions?: string[];
+};
+
+export async function fetchExams(studentId: string) {
+  return portalGet<{ exams: PortalExam[] }>(
+    `/api/portal/exams?studentId=${encodeURIComponent(studentId)}`
+  );
+}
+
+export async function fetchHallTicket(examId: string, studentId: string) {
+  return portalGet<{ hallTicket: PortalHallTicket }>(
+    `/api/portal/hall-ticket?examId=${encodeURIComponent(examId)}&studentId=${encodeURIComponent(studentId)}`
+  );
+}
+
 /**
  * Send a parent → school message (POST /api/portal/messages).
  * NOTE: there is currently no GET endpoint for a parent inbox; the Messages tab

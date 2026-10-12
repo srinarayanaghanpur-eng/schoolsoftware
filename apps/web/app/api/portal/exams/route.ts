@@ -108,5 +108,21 @@ export async function GET(req: Request) {
       percentage: data.total > 0 ? Math.round((data.obtained / data.total) * 100) : 0,
       exams: data.count,
     })),
+    // Additive: published class exams with papers for the hall-ticket screen.
+    // Existing consumers (timetable/marks/subjectPerformance) are untouched.
+    exams: allExams.docs
+      .filter((doc) => (doc.data() as Record<string, unknown>).status === "published")
+      .map((doc) => {
+        const d = doc.data() as Record<string, unknown>;
+        return {
+          id: doc.id,
+          name: d.name || "",
+          examType: d.examType || "",
+          className: (d.className as string) || "",
+          startDate: d.startDate ? String(d.startDate) : "",
+          endDate: d.endDate ? String(d.endDate) : "",
+          timetable: (d.timetable as unknown[]) || []
+        };
+      })
   });
 }

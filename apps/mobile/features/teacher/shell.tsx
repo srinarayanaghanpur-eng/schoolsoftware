@@ -10,7 +10,6 @@ const TABS: ShellTab[] = [
   { href: "/teacher", match: ["/teacher", "/teacher/index"], icon: "home", label: "Home" },
   { href: "/teacher/attendance", match: ["/teacher/attendance"], icon: "how-to-reg", label: "Attend." },
   { href: "/teacher/academics", match: ["/teacher/academics"], icon: "school", label: "Academics" },
-  { href: "/teacher/tasks", match: ["/teacher/tasks"], icon: "task-alt", label: "Tasks" },
   { href: "/teacher/inbox", match: ["/teacher/inbox"], icon: "mail-outline", label: "Inbox" },
   { href: "/teacher/profile", match: ["/teacher/profile"], icon: "person", label: "Profile" }
 ];

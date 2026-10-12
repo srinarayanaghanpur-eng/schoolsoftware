@@ -1,7 +1,8 @@
 import { FieldValue } from "firebase-admin/firestore";
 import { feeStructureCreateSchema } from "@sri-narayana/shared";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { requirePermission, json } from "@/lib/apiUtils";
+import { requirePermission, resolveRole, json } from "@/lib/apiUtils";
+import { gateEdit } from "@/lib/changeApprovals";
 
 const COLLECTION = "fee_structures";
 
@@ -12,6 +13,16 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 
   try {
     const parsed = feeStructureCreateSchema.partial().parse(await req.json());
+    const gate = await gateEdit({
+      role: await resolveRole(token),
+      approvePermission: "fees.approve",
+      entity: "fee_structure",
+      entityId: params.id,
+      action: "edit",
+      patch: parsed,
+      requestedBy: token.uid
+    });
+    if (!gate.proceed) return json({ ok: true, pending: true, approvalId: gate.approvalId });
     const update: Record<string, unknown> = { ...parsed, updatedAt: FieldValue.serverTimestamp() };
     if (parsed.heads) update.total = parsed.heads.reduce((sum, h) => sum + h.amount, 0);
     const ref = adminDb().collection(COLLECTION).doc(params.id);
@@ -28,6 +39,16 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 export async function DELETE(req: Request, { params }: { params: { id: string } }) {
   const token = await requirePermission(req, "fees.edit");
   if (!token) return json({ ok: false, error: "Access denied" }, { status: 403 });
+
+  const gate = await gateEdit({
+    role: await resolveRole(token),
+    approvePermission: "fees.approve",
+    entity: "fee_structure",
+    entityId: params.id,
+    action: "delete",
+    requestedBy: token.uid
+  });
+  if (!gate.proceed) return json({ ok: true, pending: true, approvalId: gate.approvalId });
 
   await adminDb().collection(COLLECTION).doc(params.id).delete();
   return json({ ok: true });

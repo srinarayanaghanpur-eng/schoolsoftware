@@ -8,6 +8,7 @@
  */
 import React, { useMemo } from "react";
 import { FlatList, RefreshControl, StyleSheet, View } from "react-native";
+import { useRouter } from "expo-router";
 import {
   Card, DSText, EmptyState, ErrorState, Icon, ListRow, SkeletonPage, PageTitle,
   ProgressRow, SectionCard, TonalTile, type IconName
@@ -28,6 +29,7 @@ export default function TeacherAcademicsRoute() {
 
 function TeacherAcademics() {
   const { t } = useTheme();
+  const router = useRouter();
   const { teacher, records, holidays, loading, error, refresh } = useTeacherAttendanceData();
   const summary = useAttendanceSummary(records);
 
@@ -107,6 +109,28 @@ function TeacherAcademics() {
               valueLabel={`${summary.present} / ${workingDays}`}
             />
           </Card>
+
+          {/* homework — post on the Homework screen */}
+          <SectionCard heading="HOMEWORK">
+            <ListRow
+              leading={<TonalTile bg={t.tint}><Icon name="menu-book" size={19} tint={t.blue} /></TonalTile>}
+              title="Post homework"
+              subtitle="Parents are notified automatically"
+              chevron
+              onPress={() => router.push("/teacher/homework" as never)}
+            />
+          </SectionCard>
+
+          {/* exams — timetables live on the Exams screen */}
+          <SectionCard heading="EXAM TIMETABLES">
+            <ListRow
+              leading={<TonalTile bg={t.tint}><Icon name="school" size={19} tint={t.blue} /></TonalTile>}
+              title="View exam timetables"
+              subtitle="Schedules and hall tickets per exam"
+              chevron
+              onPress={() => router.push("/teacher/exams" as never)}
+            />
+          </SectionCard>
 
           {/* timetable — no endpoint yet */}
           <SectionCard heading="TODAY’S TIMETABLE">

@@ -11,7 +11,6 @@ const TABS: ShellTab[] = [
   { href: "/parent/fees", match: ["/parent/fees"], icon: "receipt-long", label: "Finance" },
   { href: "/parent/attendance", match: ["/parent/attendance"], icon: "event-available", label: "Attend." },
   { href: "/parent/homework", match: ["/parent/homework"], icon: "menu-book", label: "Homework" },
-  { href: "/parent/messages", match: ["/parent/messages"], icon: "chat-bubble", label: "Messages" },
   { href: "/parent/profile", match: ["/parent/profile"], icon: "person", label: "Profile" }
 ];
 

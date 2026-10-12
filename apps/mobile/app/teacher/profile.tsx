@@ -112,6 +112,13 @@ function TeacherProfile() {
           onPress={() => router.push("/teacher/history" as never)}
         />
         <ListRow
+          leading={<TonalTile bg={t.tint}><Icon name="task-alt" size={19} tint={t.blue} /></TonalTile>}
+          title="My tasks"
+          subtitle="Assigned by the principal"
+          chevron
+          onPress={() => router.push("/teacher/tasks" as never)}
+        />
+        <ListRow
           leading={<TonalTile bg={t.warnBg}><Icon name="description" size={19} tint={t.warn} /></TonalTile>}
           title="Documents & payslips"
           subtitle="Opens the website in your browser"

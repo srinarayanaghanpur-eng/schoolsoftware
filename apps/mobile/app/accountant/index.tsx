@@ -220,6 +220,14 @@ function AccountantHome() {
             title={formatMoney(summary.net)}
             subtitle="Net position"
           />
+          <View style={[styles.divider, { backgroundColor: t.line }]} />
+          <ListRow
+            leading={<TonalTile bg={t.warnBg}><Icon name="wallet" size={19} tint={t.warn} /></TonalTile>}
+            title="Expenses & cashflow"
+            subtitle="Spending, balance and receipts"
+            chevron
+            onPress={() => router.push("/accountant/expenses" as never)}
+          />
         </SectionCard>
       ) : null}
 

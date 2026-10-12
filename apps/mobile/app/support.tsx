@@ -1,9 +1,10 @@
 /**
- * Help & support — fully static page (NO Firebase, NO network).
- * Shows the school admin contact: tap the number to call 6300038389.
+ * Help & support — school admin contact with tap-to-call.
+ * The number loads from server settings (changeable without an app update)
+ * and falls back to the baked-in number offline.
  * Shared by every role: admin / principal / accountant / teacher / parent.
  */
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Linking, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -12,16 +13,50 @@ import {
 } from "@/design-system/components";
 import { space } from "@/design-system/tokens";
 import { useTheme } from "@/lib/Theme";
+import { auth } from "@/lib/firebase";
+import { API_BASE_URL, API_REQUESTS_AVAILABLE } from "@/lib/api";
+import { mobileCache } from "@/lib/cache/mobileCache";
 
-const ADMIN_PHONE = "6300038389";
+const FALLBACK_PHONE = "6300038389";
+const PHONE_CACHE_KEY = "support-contact";
+const PHONE_CACHE_TTL_MINUTES = 60;
 
 export default function SupportRoute() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { t } = useTheme();
+  const [adminPhone, setAdminPhone] = useState(FALLBACK_PHONE);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const cached = await mobileCache.get<string>(PHONE_CACHE_KEY);
+        if (cached && !cancelled) setAdminPhone(cached);
+        if (!API_REQUESTS_AVAILABLE) return;
+        const user = auth.currentUser;
+        if (!user) return;
+        const token = await user.getIdToken();
+        const response = await fetch(`${API_BASE_URL}/api/portal/support-contact`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const result = (await response.json()) as { ok?: boolean; adminPhone?: string };
+        const phone = typeof result.adminPhone === "string" ? result.adminPhone.trim() : "";
+        if (response.ok && result.ok && phone && !cancelled) {
+          setAdminPhone(phone);
+          await mobileCache.set(PHONE_CACHE_KEY, phone, PHONE_CACHE_TTL_MINUTES);
+        }
+      } catch {
+        // Offline or logged out: keep the cached/fallback number.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const callAdmin = () => {
-    void Linking.openURL(`tel:${ADMIN_PHONE}`);
+    void Linking.openURL(`tel:${adminPhone}`);
   };
 
   return (
@@ -56,11 +91,11 @@ export default function SupportRoute() {
           </TonalTile>
           <View style={styles.contactText}>
             <DSText variant="label" tint={t.mute}>SCHOOL ADMIN</DSText>
-            <DSText variant="title" style={styles.phone}>{ADMIN_PHONE}</DSText>
+            <DSText variant="title" style={styles.phone}>{adminPhone}</DSText>
             <DSText variant="label" tint={t.mute}>Tap below to call</DSText>
           </View>
         </Card>
-        <PillButton label={`Call ${ADMIN_PHONE}`} block bg={t.ok} icon="call" onPress={callAdmin} />
+        <PillButton label={`Call ${adminPhone}`} block bg={t.ok} icon="call" onPress={callAdmin} />
       </SectionCard>
 
       <DSText variant="caption" tint={t.mute} style={styles.note}>

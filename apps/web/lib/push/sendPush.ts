@@ -35,7 +35,7 @@ export const pushUnregisterSchema = z.object({
   token: z.string().min(1).max(500).refine(isValidExpoPushToken, "Invalid push token")
 });
 
-export const PUSH_CATEGORIES = ["fees", "attendance", "homework", "notices", "exams"] as const;
+export const PUSH_CATEGORIES = ["fees", "attendance", "homework", "notices", "exams", "approval", "tasks"] as const;
 export type PushCategory = (typeof PUSH_CATEGORIES)[number];
 
 export const pushCategorySchema = z.enum(PUSH_CATEGORIES);
@@ -45,7 +45,9 @@ export const pushPrefsSchema = z.object({
   attendance: z.boolean().optional(),
   homework: z.boolean().optional(),
   notices: z.boolean().optional(),
-  exams: z.boolean().optional()
+  exams: z.boolean().optional(),
+  approval: z.boolean().optional(),
+  tasks: z.boolean().optional()
 });
 export type PushPrefs = Partial<Record<PushCategory, boolean>>;
 
@@ -54,7 +56,9 @@ export const DEFAULT_PUSH_PREFS: Record<PushCategory, boolean> = {
   attendance: true,
   homework: true,
   notices: true,
-  exams: true
+  exams: true,
+  approval: true,
+  tasks: true
 };
 
 /**

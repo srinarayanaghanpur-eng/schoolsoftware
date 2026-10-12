@@ -222,6 +222,14 @@ service cloud.firestore {
     match /expenses/{id} {
       allow read, write: if isAdmin();
     }
+    // Change approvals: server-only (API enforces approver roles). No client access.
+    match /approvals/{approvalId} {
+      allow read, write: if false;
+    }
+    // Staff tasks: server-only (API enforces assigner/owner roles). No client access.
+    match /tasks/{taskId} {
+      allow read, write: if false;
+    }
     match /debitVouchers/{id} {
       allow read, create, update: if isFinanceRole();
       allow delete: if isSuperAdmin();

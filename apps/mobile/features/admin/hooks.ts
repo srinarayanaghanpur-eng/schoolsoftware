@@ -6,10 +6,10 @@ import { useCallback, useEffect, useState } from "react";
 import { mobileCache } from "@/lib/cache/mobileCache";
 import { asDateString, asText } from "@/lib/text";
 import {
-  fetchDashboardStats, fetchExpenses, fetchFinanceSummary, fetchLeaveRequests, fetchNotices,
-  fetchRecentPayments, fetchTeachers, fetchTodayAttendance,
-  type AdminPayment, type AdminTeacher, type DashboardStats, type Expense, type FinanceSummary,
-  type LeaveRequest, type Notice
+  fetchCashBook, fetchChangeRequests, fetchDashboardStats, fetchExams, fetchExpenses, fetchFinanceSummary, fetchLeaveRequests, fetchNotices,
+  fetchRecentPayments, fetchStaffDirectory, fetchTasks, fetchTeachers, fetchTodayAttendance,
+  type AdminPayment, type AdminTeacher, type CashBookEntry, type ChangeRequest, type DashboardStats, type Exam, type Expense, type FinanceSummary,
+  type LeaveRequest, type Notice, type StaffDirectory, type StaffTask
 } from "./api";
 
 type AsyncState<T> = { data: T | null; loading: boolean; error: string | null };
@@ -77,6 +77,24 @@ export function useLeaveRequests() {
   return { requests: data ?? [], loading, error, refresh };
 }
 
+export function useChangeRequests(status = "pending") {
+  const { data, loading, error, refresh } = useCachedFetch<ChangeRequest[]>(
+    `admin-change-requests-${status}`,
+    () => fetchChangeRequests(status),
+    2
+  );
+  return { changes: data ?? [], loading, error, refresh };
+}
+
+export function useTasks(teacherId = "") {
+  const { data, loading, error, refresh } = useCachedFetch<StaffTask[]>(
+    `admin-tasks-${teacherId || "all"}`,
+    () => fetchTasks(teacherId),
+    2
+  );
+  return { tasks: data ?? [], loading, error, refresh };
+}
+
 export function useNotices() {
   const { data, loading, error, refresh } = useCachedFetch<Notice[]>(
     "admin-notices",
@@ -95,6 +113,22 @@ export function useStaff() {
   return { staff: data ?? [], loading, error, refresh };
 }
 
+export function useStaffDirectory() {
+  const { data, loading, error, refresh } = useCachedFetch<StaffDirectory>(
+    "admin-staff-directory",
+    fetchStaffDirectory,
+    15
+  );
+  return {
+    teachers: data?.teachers ?? [],
+    drivers: data?.drivers ?? [],
+    office: data?.office ?? [],
+    loading,
+    error,
+    refresh
+  };
+}
+
 export function useFinanceSummary() {
   const { data, loading, error, refresh } = useCachedFetch<FinanceSummary>(
     "admin-finance-summary",
@@ -111,6 +145,24 @@ export function useExpenses() {
     5
   );
   return { expenses: data ?? [], loading, error, refresh };
+}
+
+export function useCashBook() {
+  const { data, loading, error, refresh } = useCachedFetch<{ entries: CashBookEntry[]; closingBalance: number }>(
+    "admin-cashbook",
+    fetchCashBook,
+    5
+  );
+  return { entries: data?.entries ?? [], closingBalance: data?.closingBalance ?? 0, loading, error, refresh };
+}
+
+export function useExams() {
+  const { data, loading, error, refresh } = useCachedFetch<Exam[]>(
+    "admin-exams",
+    () => fetchExams(),
+    10
+  );
+  return { exams: data ?? [], loading, error, refresh };
 }
 
 export function useTodayAttendance() {

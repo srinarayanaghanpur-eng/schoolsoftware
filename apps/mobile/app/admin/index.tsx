@@ -193,6 +193,14 @@ function AdminHome() {
           chevron
           onPress={() => router.push("/admin/fees" as never)}
         />
+        <View style={[styles.divider, { backgroundColor: t.line }]} />
+        <ListRow
+          leading={<TonalTile bg={t.warnBg}><Icon name="wallet" size={19} tint={t.warn} /></TonalTile>}
+          title="Expenses & cashflow"
+          subtitle="Spending, balance and receipts"
+          chevron
+          onPress={() => router.push("/admin/expenses" as never)}
+        />
       </SectionCard>
 
       {/* approvals */}

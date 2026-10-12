@@ -149,6 +149,16 @@ function ParentHome() {
             </TonalTile>
             <DSText variant="caption" tint={t.mute} style={styles.serviceLabel}>Message</DSText>
           </PressableScale>
+          <PressableScale
+            accessibilityLabel="Hall ticket"
+            onPress={() => router.push("/parent/hall-ticket" as never)}
+            style={[styles.serviceTile, { backgroundColor: t.card, borderColor: t.line }]}
+          >
+            <TonalTile bg={t.tint} size={38}>
+              <Icon name="badge" size={20} tint={t.blue} />
+            </TonalTile>
+            <DSText variant="caption" tint={t.mute} style={styles.serviceLabel}>Hall ticket</DSText>
+          </PressableScale>
         </View>
       </View>
 
@@ -165,7 +175,7 @@ function ParentHome() {
                   </TonalTile>
                 }
                 title={`${formatMoney(payment.amountPaid)} · ${payment.paymentMethod || "—"}`}
-                subtitle={`${(payment.createdAt || "").slice(0, 10)}${payment.receiptNumber ? ` · Receipt ${payment.receiptNumber}` : ""}`}
+                subtitle={(payment.createdAt || "").slice(0, 10)}
               />
             </View>
           ))}

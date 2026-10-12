@@ -4,18 +4,19 @@
  * is presentation only.
  */
 import React, { useMemo } from "react";
-import { RefreshControl, ScrollView, StyleSheet, View } from "react-native";
+import { Linking, Platform, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import {
   Card, DSText, Hero, Icon, PillButton, ProgressBar,
   ScreenHeader, SectionCard, StatTile, TonalTile, useToast
 } from "@/design-system/components";
-import { space } from "@/design-system/tokens";
+import { space, radius } from "@/design-system/tokens";
 import { useTheme } from "@/lib/Theme";
 import { MonthCalendar, ProgressRing, type DayMark } from "@/design-system/widgets";
 import { useMobileSession } from "@/lib/mobileSession";
 import { useTeacherAttendanceData } from "@/lib/useTeacherAttendanceData";
 import { TeacherShell } from "@/features/teacher/shell";
 import { useAttendanceMarking } from "@/features/teacher/useAttendanceMarking";
+import { proximityState } from "@/features/teacher/proximity";
 import {
   dateLabel, formatTime, greeting, statusTone, useAttendanceSummary
 } from "@/features/teacher/hooks";
@@ -37,9 +38,51 @@ function TeacherAttendance() {
   const teacherId = teacher?.id ?? profile?.teacherId;
   const marking = useAttendanceMarking(teacherId);
 
-  const proximity = marking.distance === null
-    ? 0
-    : Math.max(0, 100 - (marking.distance / marking.allowedRadius) * 100);
+  // Plain-language location state. Raw metres/accuracy stay in the request
+  // payload and server record — they are never rendered here.
+  const denied = marking.permission === "denied";
+  const firstFix = marking.locating && marking.distance === null && !marking.error && !denied;
+  const state =
+    denied || marking.distance === null
+      ? null
+      : Platform.OS === "web"
+        ? {
+            kind: "weak" as const,
+            text: "Check-in needs the mobile app — this browser preview can\u2019t verify your location."
+          }
+        : proximityState(
+            marking.distance,
+            marking.accuracy ?? Number.POSITIVE_INFINITY,
+            marking.allowedRadius
+          );
+
+  const canCheckIn =
+    !denied && !firstFix && !marking.submitting && state?.kind === "ok";
+  const showProximity =
+    state !== null &&
+    (state.kind === "ok" || state.kind === "near") &&
+    (marking.distance ?? Number.POSITIVE_INFINITY) < 500;
+  const closeness =
+    marking.distance === null
+      ? 0
+      : Math.max(0, Math.min(100, 100 - (marking.distance / marking.allowedRadius) * 100));
+
+  const heroLook =
+    firstFix || state === null
+      ? {
+          tone: "warning" as const,
+          tileBg: t.warnBg,
+          tint: t.warn,
+          icon: "location-searching" as const,
+          text: "Getting your location…"
+        }
+      : state.kind === "ok"
+        ? { tone: "success" as const, tileBg: t.okBg, tint: t.ok, icon: "location-on" as const, text: state.text }
+        : state.kind === "near"
+          ? { tone: "warning" as const, tileBg: t.warnBg, tint: t.warn, icon: "location-searching" as const, text: state.text }
+          : state.kind === "far"
+            ? { tone: "warning" as const, tileBg: t.badBg, tint: t.bad, icon: "location-off" as const, text: state.text }
+            : { tone: "warning" as const, tileBg: t.warnBg, tint: t.warn, icon: "location-searching" as const, text: state.text };
 
   const name = teacher?.fullName ?? profile?.displayName ?? "Teacher";
   const todayTone = statusTone(summary.today?.status);
@@ -113,51 +156,45 @@ function TeacherAttendance() {
         </View>
       </Card>
 
-      {/* geofence status — GPS flow unchanged, restyled only */}
-      <Hero tone={marking.insideCampus ? "success" : "warning"}>
-        <TonalTile
-          bg={marking.insideCampus ? t.okBg : t.warnBg}
-          size={40}
-        >
-          <Icon
-            name={marking.insideCampus ? "location-on" : "location-searching"}
-            size={22}
-            tint={marking.insideCampus ? t.ok : t.warn}
+      {/* location status — plain words, never raw metres */}
+      {denied ? (
+        <Card style={[styles.rowCard, { backgroundColor: t.badBg, borderColor: t.badBg }]}>
+          <TonalTile bg={t.card} size={36}>
+            <Icon name="location-off" size={20} tint={t.bad} />
+          </TonalTile>
+          <DSText variant="bodyMedium" tint={t.bad} style={{ flex: 1 }}>
+            Location permission is off, so attendance can’t be marked.
+          </DSText>
+          <PillButton
+            label="Open settings"
+            icon="settings"
+            bg={t.card}
+            fg={t.bad}
+            onPress={() => { void Linking.openSettings(); }}
           />
-        </TonalTile>
-        <View style={{ flex: 1, minWidth: 0 }}>
-          <DSText variant="bodyMedium">
-            {marking.locating
-              ? "Finding your location…"
-              : marking.insideCampus
-                ? "You’re on campus"
-                : "Outside campus"}
-          </DSText>
-          <DSText
-            variant="label"
-            tint={marking.insideCampus ? t.ok : t.warn}
-          >
-            {marking.distance === null
-              ? `Allowed radius ${marking.allowedRadius} m`
-              : `${marking.distance} m from campus · limit ${marking.allowedRadius} m`}
-          </DSText>
-        </View>
-      </Hero>
+        </Card>
+      ) : (
+        <Hero tone={heroLook.tone}>
+          <TonalTile bg={heroLook.tileBg} size={40}>
+            <Icon name={heroLook.icon} size={22} tint={heroLook.tint} />
+          </TonalTile>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <DSText variant="bodyMedium">{heroLook.text}</DSText>
+          </View>
+        </Hero>
+      )}
 
-      <Card style={{ gap: space.md }}>
-        <DSText variant="overline">PROXIMITY</DSText>
-        <ProgressBar
-          percent={proximity}
-          tint={marking.insideCampus ? t.ok : t.warn}
-        />
-        <DSText variant="label">
-          {marking.accuracy
-            ? `GPS accuracy ±${Math.round(marking.accuracy)} m`
-            : "Waiting for a GPS fix…"}
-        </DSText>
-      </Card>
+      {showProximity ? (
+        <Card style={{ gap: space.md }}>
+          <DSText variant="overline">PROXIMITY</DSText>
+          <ProgressBar
+            percent={closeness}
+            tint={state?.kind === "ok" ? t.ok : t.warn}
+          />
+        </Card>
+      ) : null}
 
-      {marking.error ? (
+      {!denied && marking.error ? (
         <Card style={[styles.rowCard, { backgroundColor: t.badBg, borderColor: t.badBg }]}>
           <TonalTile bg={t.card} size={36}>
             <Icon name="error-outline" size={20} tint={t.bad} />
@@ -191,16 +228,30 @@ function TeacherAttendance() {
         </Card>
       ) : null}
 
-      {/* actions — full-width check in / out */}
+      {/* actions — check in needs a fresh on-campus fix, check out unchanged */}
       <View style={styles.actions}>
-        <PillButton
-          label={marking.submitting ? "Saving…" : "Check in"}
-          block
-          icon="fingerprint"
-          bg={marking.insideCampus ? t.blue : t.line}
-          fg={marking.insideCampus ? "#FFFFFF" : t.mute}
-          onPress={() => { if (!marking.submitting) void handle("checkin"); }}
-        />
+        {canCheckIn ? (
+          <PillButton
+            label={marking.submitting ? "Saving…" : "Check in"}
+            block
+            icon="fingerprint"
+            bg={t.blue}
+            fg="#FFFFFF"
+            onPress={() => { if (!marking.submitting) void handle("checkin"); }}
+          />
+        ) : (
+          <View
+            accessibilityRole="button"
+            accessibilityLabel="Check in (unavailable)"
+            accessibilityState={{ disabled: true }}
+            style={[styles.disabledBtn, { backgroundColor: t.line }]}
+          >
+            <Icon name="fingerprint" size={17} tint={t.mute} />
+            <Text style={[styles.disabledBtnText, { color: t.mute }]}>
+              {marking.submitting ? "Saving…" : "Check in"}
+            </Text>
+          </View>
+        )}
         <PillButton
           label="Check out"
           block
@@ -249,5 +300,17 @@ const styles = StyleSheet.create({
   ringMetaItem: { flex: 1, alignItems: "center", gap: 2 },
   rowCard: { flexDirection: "row", alignItems: "center", gap: space.md },
   actions: { gap: space.md },
+  disabledBtn: {
+    borderRadius: radius.pill,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    alignSelf: "stretch",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: space.sm,
+    opacity: 0.55
+  },
+  disabledBtnText: { fontSize: 13, fontWeight: "600" },
   statRow: { flexDirection: "row", gap: 10 }
 });

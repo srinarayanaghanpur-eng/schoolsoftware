@@ -34,6 +34,7 @@ import { employeeIdToInternalEmail } from "@sri-narayana/shared";
 import { auth } from "@/lib/firebase";
 import { clearMobileAuthStorage, REMEMBER_CHOICE_KEY } from "@/lib/authStorage";
 import { useMobileSession } from "@/lib/mobileSession";
+import { LOGIN_RETURN_KEY } from "@/lib/WorkspaceGuard";
 import { useToast } from "@/design-system/components";
 import { useTheme } from "@/lib/Theme";
 import { dashboardPathForRole } from "@/lib/roleRouting";
@@ -233,19 +234,33 @@ export default function Login() {
       setLoading(false);
       return;
     }
-    if (redirectedRef.current || session.status !== "authenticated" || !session.profile) return;
-    const path = dashboardPathForRole(session.profile.role);
-    if (path === "/login") {
+    const profile = session.profile;
+    if (redirectedRef.current || session.status !== "authenticated" || !profile) return;
+    redirectedRef.current = true;
+    const fallback = dashboardPathForRole(profile.role);
+    if (fallback === "/login") {
       // Desktop-only workspace: bounce the sign-in the session just resolved.
-      redirectedRef.current = true;
       setErrorMessage("This workspace is not available in the mobile app yet. Please use the web portal.");
       setLoading(false);
       void signOut(auth).catch(() => undefined);
       void clearMobileAuthStorage().catch(() => undefined);
       return;
     }
-    redirectedRef.current = true;
-    router.replace(path as never);
+    // Deep link or push tap saved by a workspace guard while logged out:
+    // return there (the guard validates the role on arrival).
+    void (async () => {
+      try {
+        const saved = await AsyncStorage.getItem(LOGIN_RETURN_KEY).catch(() => null);
+        await AsyncStorage.removeItem(LOGIN_RETURN_KEY).catch(() => undefined);
+        if (typeof saved === "string" && saved.startsWith("/") && !saved.startsWith("/login")) {
+          router.replace(saved as never);
+          return;
+        }
+      } catch {
+        // Fall through to the dashboard.
+      }
+      router.replace(fallback as never);
+    })();
   }, [router, session.profile, session.status]);
 
   const login = async () => {

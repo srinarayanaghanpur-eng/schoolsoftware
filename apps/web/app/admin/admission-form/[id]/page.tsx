@@ -1,7 +1,9 @@
 "use client";
 
-import { ArrowLeft, Printer, Download, Pencil } from "lucide-react";
+import { ArrowLeft, Printer, Download, Pencil, FileDown } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
+import { useState } from "react";
+import { auth } from "@sri-narayana/shared/firebase/client";
 import { useAdmissionData } from "./useAdmissionData";
 import { AdmissionPrintSheet } from "./AdmissionPrintSheet";
 import AdmissionPrintStyles from "./AdmissionPrintStyles";
@@ -12,6 +14,36 @@ export default function AdmissionFormPage() {
   const router = useRouter();
 
   const { student, loading, error, lookupsLoaded, resolved, printedAt } = useAdmissionData();
+  const [downloading, setDownloading] = useState(false);
+
+  const handleDownloadDocx = async () => {
+    if (downloading) return;
+    setDownloading(true);
+    try {
+      const token = await auth.currentUser?.getIdToken();
+      if (!token) throw new Error("Please sign in again.");
+      const response = await fetch(`/api/admin/admission-form/${params.id}/docx`, {
+        headers: { authorization: `Bearer ${token}` }
+      });
+      if (!response.ok) {
+        const result = await response.json().catch(() => ({}));
+        throw new Error((result as { error?: string }).error ?? "Download failed");
+      }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `Admission-${resolveValue(student?.admissionNumber) || params.id}.docx`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Download failed");
+    } finally {
+      setDownloading(false);
+    }
+  };
 
 
   const handlePrint = () => {
@@ -91,6 +123,14 @@ export default function AdmissionFormPage() {
           >
             <Download size={16} />
             <span>Download PDF</span>
+          </button>
+          <button
+            onClick={handleDownloadDocx}
+            disabled={downloading}
+            className="af-action-btn af-action-download"
+          >
+            <FileDown size={16} />
+            <span>{downloading ? "Preparing…" : "Download DOCX"}</span>
           </button>
         </div>
       </div>

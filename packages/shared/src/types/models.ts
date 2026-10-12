@@ -242,6 +242,8 @@ export type SchoolSettings = {
   salaryRules: SalaryRules;
   biometricApiSecret?: string;
   timezone: string;
+  /** School office contact shown on the Help & support page (remote-configurable). */
+  supportPhone?: string;
 };
 
 export type Holiday = {

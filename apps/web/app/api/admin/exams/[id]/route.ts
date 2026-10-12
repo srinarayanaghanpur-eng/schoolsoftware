@@ -1,7 +1,8 @@
 import { FieldValue } from "firebase-admin/firestore";
 import { examCreateSchema } from "@sri-narayana/shared";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { requirePermission, serializeDoc, json } from "@/lib/apiUtils";
+import { requirePermission, resolveRole, serializeDoc, json } from "@/lib/apiUtils";
+import { gateEdit } from "@/lib/changeApprovals";
 
 const COLLECTION = "exams";
 
@@ -27,6 +28,16 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 
   try {
     const parsed = examCreateSchema.partial().parse(await req.json());
+    const gate = await gateEdit({
+      role: await resolveRole(token),
+      approvePermission: "exams.approve",
+      entity: "exam",
+      entityId: params.id,
+      action: "edit",
+      patch: parsed,
+      requestedBy: token.uid
+    });
+    if (!gate.proceed) return json({ ok: true, pending: true, approvalId: gate.approvalId });
     const ref = adminDb().collection(COLLECTION).doc(params.id);
     if (!(await ref.get()).exists) return json({ ok: false, error: "Exam not found" }, { status: 404 });
     await ref.update({ ...parsed, updatedAt: FieldValue.serverTimestamp() });

@@ -90,8 +90,31 @@ export type Expense = {
   date?: string;
   status?: string;
   paymentMethod?: string;
+  voucherId?: string;
   voucherNo?: number;
   createdAt?: unknown;
+};
+
+export type CashBookEntry = {
+  date?: string;
+  type?: "income" | "expense" | string;
+  category?: string;
+  description?: string;
+  amount?: number;
+  balance?: number;
+  source?: string;
+  refId?: string;
+};
+
+export type DebitVoucher = {
+  id: string;
+  voucherNo?: number;
+  amount?: number;
+  paidTo?: string;
+  date?: string;
+  expenseCategory?: string;
+  towards?: string;
+  description?: string;
 };
 
 export type HomeworkPost = {
@@ -122,6 +145,40 @@ export type AcademicYear = {
   id: string;
   name: string;
   isActive: boolean;
+};
+
+export type ExamTimetableEntry = {
+  subject?: string;
+  date?: string;
+  time?: string;
+  maxMarks?: number;
+};
+
+export type Exam = {
+  id: string;
+  name?: string;
+  examType?: string;
+  className?: string;
+  section?: string;
+  academicYearId?: string;
+  startDate?: string;
+  endDate?: string;
+  status?: string;
+  timetable?: ExamTimetableEntry[];
+};
+
+export type HallTicket = {
+  examName?: string;
+  examType?: string;
+  startDate?: string;
+  endDate?: string;
+  studentName?: string;
+  className?: string;
+  section?: string;
+  admissionNo?: string;
+  studentPhoto?: string | null;
+  timetable?: ExamTimetableEntry[];
+  generalInstructions?: string[];
 };
 
 export type LeaveRequest = {
@@ -198,6 +255,39 @@ export async function fetchTeachers(limitTo = 50) {
   return result.teachers ?? [];
 }
 
+export type StaffDriver = {
+  id: string;
+  name?: string;
+  phone?: string;
+  mobile?: string;
+  vehicleNo?: string;
+  vehicle?: string;
+  licenseNo?: string;
+};
+
+export type StaffOffice = {
+  id: string;
+  displayName?: string;
+  role?: string;
+  email?: string;
+  phone?: string;
+};
+
+export type StaffDirectory = {
+  teachers: AdminTeacher[];
+  drivers: StaffDriver[];
+  office: StaffOffice[];
+};
+
+export async function fetchStaffDirectory() {
+  const result = await adminGet<StaffDirectory>("/api/admin/staff/directory");
+  return {
+    teachers: result.teachers ?? [],
+    drivers: result.drivers ?? [],
+    office: result.office ?? []
+  };
+}
+
 export async function fetchFinanceSummary() {
   const result = await adminGet<{ summary: FinanceSummary }>("/api/admin/finance/summary");
   return result.summary;
@@ -206,6 +296,31 @@ export async function fetchFinanceSummary() {
 export async function fetchExpenses() {
   const result = await adminGet<{ expenses: Expense[] }>("/api/admin/finance/expenses");
   return result.expenses ?? [];
+}
+
+export async function fetchCashBook() {
+  const result = await adminGet<{ entries: CashBookEntry[]; closingBalance: number }>(
+    "/api/admin/finance/cash-book"
+  );
+  return { entries: result.entries ?? [], closingBalance: Number(result.closingBalance ?? 0) };
+}
+
+export async function fetchVouchersByIds(ids: string[]) {
+  const clean = ids.filter(Boolean).slice(0, 10);
+  if (clean.length === 0) return [];
+  const result = await adminGet<{ vouchers: DebitVoucher[] }>(
+    `/api/admin/finance/debit-vouchers?ids=${clean.map(encodeURIComponent).join(",")}`
+  );
+  return result.vouchers ?? [];
+}
+
+export async function fetchVouchersByCategory(category: string, limit = 3) {
+  if (!category) return [];
+  const query = new URLSearchParams({ category, limit: String(limit) });
+  const result = await adminGet<{ vouchers: DebitVoucher[] }>(
+    `/api/admin/finance/debit-vouchers?${query.toString()}`
+  );
+  return result.vouchers ?? [];
 }
 
 /** Academic years are public (year labels only) — no auth token needed. */
@@ -231,6 +346,67 @@ export async function fetchPostedHomework(params: { subject?: string; academicYe
 export async function postHomework(input: HomeworkPost) {
   const result = await adminPost<{ id: string }>("/api/admin/homework", input);
   return result.id;
+}
+
+export async function fetchExams(className = "") {
+  const query = new URLSearchParams({ pageSize: "30" });
+  if (className) query.set("className", className);
+  const result = await adminGet<{ exams: Exam[] }>(`/api/admin/exams?${query.toString()}`);
+  return result.exams ?? [];
+}
+
+export type ChangeRequest = {
+  id: string;
+  entity: string;
+  entityId: string;
+  action: "edit" | "delete";
+  patch?: Record<string, unknown>;
+  note?: string;
+  status: "pending" | "approved" | "rejected";
+  requestedBy?: string;
+  requestedByName?: string;
+  decidedBy?: string;
+  createdAt?: unknown;
+};
+
+export async function fetchChangeRequests(status = "pending") {
+  const result = await adminGet<{ requests: ChangeRequest[] }>(
+    `/api/admin/change-requests?status=${encodeURIComponent(status)}`
+  );
+  return result.requests ?? [];
+}
+
+export async function decideChangeRequest(id: string, decision: "approved" | "rejected") {
+  return adminPost<{ request: ChangeRequest }>(
+    `/api/admin/change-requests/${encodeURIComponent(id)}/decide`,
+    { decision }
+  );
+}
+
+export type StaffTask = {
+  id: string;
+  teacherId?: string;
+  teacherName?: string;
+  title?: string;
+  description?: string;
+  dueDate?: string;
+  status?: "assigned" | "done" | "cancelled" | string;
+  createdAt?: unknown;
+};
+
+export async function fetchTasks(teacherId = "") {
+  const query = teacherId ? `?teacherId=${encodeURIComponent(teacherId)}` : "";
+  const result = await adminGet<{ tasks: StaffTask[] }>(`/api/admin/tasks${query}`);
+  return result.tasks ?? [];
+}
+
+export async function assignTask(input: { teacherId: string; title: string; description?: string; dueDate?: string }) {
+  const result = await adminPost<{ id: string }>("/api/admin/tasks", input);
+  return result.id;
+}
+
+export async function updateTaskStatus(taskId: string, status: "done" | "cancelled" | "assigned") {
+  return adminPatch<{ ok: boolean }>("/api/admin/tasks", { taskId, status });
 }
 
 /** Today's staff attendance snapshot. */
