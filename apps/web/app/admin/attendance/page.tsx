@@ -456,6 +456,14 @@ export default function AttendancePage() {
                   ) : (
                     <span className="shrink-0"><StatusBadge status={record.status} /></span>
                   )}
+                  {record.syncedLate ? (
+                    <span
+                      className="shrink-0 rounded-full bg-[#fef3c7] px-2 py-0.5 text-[11px] font-bold text-[#a76e08]"
+                      title={`Offline sync — captured ${record.capturedAt ?? "unknown"} · synced ${record.syncedAt ?? "unknown"}`}
+                    >
+                      Synced late
+                    </span>
+                  ) : null}
                 </div>
                 <dl className="mt-3 grid grid-cols-3 gap-2 text-center">
                   <div className="rounded-lg bg-[#f7f8fd] p-2">
@@ -526,6 +534,14 @@ export default function AttendancePage() {
                       ) : (
                         <StatusBadge status={record.status} />
                       )}
+                      {record.syncedLate ? (
+                        <span
+                          className="mt-1 block text-[11px] font-semibold text-[#a76e08]"
+                          title={`Offline sync — captured ${record.capturedAt ?? "unknown"} · synced ${record.syncedAt ?? "unknown"}`}
+                        >
+                          Synced late
+                        </span>
+                      ) : null}
                     </td>
                     <td className="px-4 py-3">{record.checkInTime ? new Date(record.checkInTime).toLocaleTimeString() : "-"}</td>
                     <td className="px-4 py-3">{record.checkOutTime ? new Date(record.checkOutTime).toLocaleTimeString() : "-"}</td>

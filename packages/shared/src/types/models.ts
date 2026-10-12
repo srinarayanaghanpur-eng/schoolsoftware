@@ -116,6 +116,10 @@ export type AttendanceRecord = {
   editReason?: string;
   createdAt: FirestoreDate;
   updatedAt: FirestoreDate;
+  /** Offline-sync provenance (Phase 5): capture moment, sync moment, late-sync flag for admin review. */
+  capturedAt?: string;
+  syncedAt?: string;
+  syncedLate?: boolean;
 };
 
 export type AttendanceLog = {
@@ -238,6 +242,8 @@ export type SchoolSettings = {
   salaryRules: SalaryRules;
   biometricApiSecret?: string;
   timezone: string;
+  /** School office contact shown on the Help & support page (remote-configurable). */
+  supportPhone?: string;
 };
 
 export type Holiday = {

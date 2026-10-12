@@ -10,10 +10,6 @@ export type ProcessBiometricLogInput = {
   settings: SchoolSettings;
 };
 
-export function validateBiometricSecret(requestSecret: string | null, configuredSecret?: string) {
-  return Boolean(configuredSecret && requestSecret && requestSecret === configuredSecret);
-}
-
 export function processBiometricLog(input: ProcessBiometricLogInput) {
   const payload = biometricPayloadSchema.parse(input.payload);
   const teacher = input.teachers.find((item) => item.biometricUserId === payload.biometricUserId);

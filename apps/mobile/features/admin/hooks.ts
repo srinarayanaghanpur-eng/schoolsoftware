@@ -4,11 +4,12 @@
  */
 import { useCallback, useEffect, useState } from "react";
 import { mobileCache } from "@/lib/cache/mobileCache";
+import { asDateString, asText } from "@/lib/text";
 import {
-  fetchDashboardStats, fetchFinanceSummary, fetchLeaveRequests, fetchNotices,
-  fetchRecentPayments, fetchTeachers, fetchTodayAttendance,
-  type AdminPayment, type AdminTeacher, type DashboardStats, type FinanceSummary,
-  type LeaveRequest, type Notice
+  fetchCashBook, fetchChangeRequests, fetchDashboardStats, fetchExams, fetchExpenses, fetchFinanceSummary, fetchLeaveRequests, fetchNotices,
+  fetchRecentPayments, fetchStaffDirectory, fetchTasks, fetchTeachers, fetchTodayAttendance,
+  type AdminPayment, type AdminTeacher, type CashBookEntry, type ChangeRequest, type DashboardStats, type Exam, type Expense, type FinanceSummary,
+  type LeaveRequest, type Notice, type StaffDirectory, type StaffTask
 } from "./api";
 
 type AsyncState<T> = { data: T | null; loading: boolean; error: string | null };
@@ -76,6 +77,24 @@ export function useLeaveRequests() {
   return { requests: data ?? [], loading, error, refresh };
 }
 
+export function useChangeRequests(status = "pending") {
+  const { data, loading, error, refresh } = useCachedFetch<ChangeRequest[]>(
+    `admin-change-requests-${status}`,
+    () => fetchChangeRequests(status),
+    2
+  );
+  return { changes: data ?? [], loading, error, refresh };
+}
+
+export function useTasks(teacherId = "") {
+  const { data, loading, error, refresh } = useCachedFetch<StaffTask[]>(
+    `admin-tasks-${teacherId || "all"}`,
+    () => fetchTasks(teacherId),
+    2
+  );
+  return { tasks: data ?? [], loading, error, refresh };
+}
+
 export function useNotices() {
   const { data, loading, error, refresh } = useCachedFetch<Notice[]>(
     "admin-notices",
@@ -94,6 +113,22 @@ export function useStaff() {
   return { staff: data ?? [], loading, error, refresh };
 }
 
+export function useStaffDirectory() {
+  const { data, loading, error, refresh } = useCachedFetch<StaffDirectory>(
+    "admin-staff-directory",
+    fetchStaffDirectory,
+    15
+  );
+  return {
+    teachers: data?.teachers ?? [],
+    drivers: data?.drivers ?? [],
+    office: data?.office ?? [],
+    loading,
+    error,
+    refresh
+  };
+}
+
 export function useFinanceSummary() {
   const { data, loading, error, refresh } = useCachedFetch<FinanceSummary>(
     "admin-finance-summary",
@@ -101,6 +136,91 @@ export function useFinanceSummary() {
     5
   );
   return { summary: data, loading, error, refresh };
+}
+
+export function useExpenses() {
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [cursor, setCursor] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const refresh = useCallback(async () => {
+    setError(null);
+    setLoading(true);
+    try {
+      const page = await fetchExpenses(30);
+      await mobileCache.set("admin-expenses", page.expenses, 5);
+      setExpenses(page.expenses);
+      setCursor(page.nextCursor);
+      setHasMore(page.hasMore);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to load expenses.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const loadMore = useCallback(async () => {
+    if (loadingMore || loading || !hasMore) return;
+    setLoadingMore(true);
+    try {
+      const page = await fetchExpenses(30, cursor ?? "");
+      setExpenses((prev) => [
+        ...prev,
+        ...page.expenses.filter((item) => !prev.some((p) => p.id === item.id))
+      ]);
+      setCursor(page.nextCursor);
+      setHasMore(page.hasMore);
+    } catch {
+      // Keep the list; the user can retry via pull-to-refresh.
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [cursor, hasMore, loading, loadingMore]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const cached = await mobileCache.get<Expense[]>("admin-expenses");
+        if (cancelled) return;
+        if (cached && cached.length > 0) {
+          setExpenses(cached);
+          setHasMore(true);
+          setLoading(false);
+          return;
+        }
+      } catch {
+        // Fall through to network.
+      }
+      if (!cancelled) await refresh();
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [refresh]);
+
+  return { expenses, loading, loadingMore, hasMore, error, refresh, loadMore };
+}
+
+export function useCashBook() {
+  const { data, loading, error, refresh } = useCachedFetch<{ entries: CashBookEntry[]; closingBalance: number }>(
+    "admin-cashbook",
+    fetchCashBook,
+    5
+  );
+  return { entries: data?.entries ?? [], closingBalance: data?.closingBalance ?? 0, loading, error, refresh };
+}
+
+export function useExams() {
+  const { data, loading, error, refresh } = useCachedFetch<Exam[]>(
+    "admin-exams",
+    () => fetchExams(),
+    10
+  );
+  return { exams: data ?? [], loading, error, refresh };
 }
 
 export function useTodayAttendance() {
@@ -139,9 +259,89 @@ export function formatMoneyShort(value?: number) {
   return `₹${amount}`;
 }
 
-export function formatDate(value?: string) {
-  if (!value) return "—";
+export function formatDate(value?: unknown) {
+  if (value === null || value === undefined || value === "") return "—";
+  // Firestore Timestamps (live instances or {_seconds} JSON) must become
+  // text here — returning the raw value crashes the render (error #31).
+  if (typeof value !== "string") {
+    const converted = asDateString(value, "");
+    return converted || "—";
+  }
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
+  if (Number.isNaN(date.getTime())) return "—";
   return date.toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+}
+
+/** Non-string display values become safe text (never an object child). */
+export function formatText(value: unknown, fallback = "—"): string {
+  const text = asText(value);
+  return text || fallback;
+}
+
+/** "karthik · 10 A" — student name with class beside it for payment rows. */
+export function paymentStudentLine(payment: {
+  studentName?: string;
+  class?: string;
+  section?: string;
+}): string {
+  const name = formatText(payment.studentName, "Payment");
+  const cls = [asText(payment.class), asText(payment.section)].filter(Boolean).join(" ");
+  return cls ? `${name} · ${cls}` : name;
+}
+
+/** One row in the all-transactions timeline: fee income (green) or expense (red). */
+export type TxnRow = {
+  id: string;
+  kind: "income" | "expense";
+  title: string;
+  subtitle: string;
+  amount: number;
+  dateValue: number;
+  dateLabel: string;
+};
+
+function txnDateValue(value: unknown): number {
+  const text = asDateString(value, "");
+  const parsed = new Date(text || String(value ?? "")).getTime();
+  return Number.isNaN(parsed) ? 0 : parsed;
+}
+
+/**
+ * Merge fee payments + expenses into one newest-first timeline.
+ * `filter` matches the Cash/Online chips against each row's method.
+ */
+export function buildTransactions(
+  payments: AdminPayment[],
+  expenses: Expense[],
+  filter = "All"
+): TxnRow[] {
+  const match = (method?: string) =>
+    filter === "All" || (method ?? "").toLowerCase() === filter.toLowerCase();
+  const rows: TxnRow[] = [];
+  for (const p of payments) {
+    if (!match(p.paymentMethod)) continue;
+    rows.push({
+      id: `income-${p.id}`,
+      kind: "income",
+      title: paymentStudentLine(p),
+      subtitle: asText(p.paymentMethod) || "—",
+      amount: Number(p.amountPaid ?? 0),
+      dateValue: txnDateValue(p.createdAt),
+      dateLabel: formatDate(p.createdAt)
+    });
+  }
+  for (const e of expenses) {
+    if (!match(e.paymentMethod)) continue;
+    rows.push({
+      id: `expense-${e.id}`,
+      kind: "expense",
+      title: formatText(e.vendor || e.description, "Expense"),
+      subtitle: formatText(e.category, "Expense"),
+      amount: Number(e.amount ?? 0),
+      dateValue: txnDateValue(e.date ?? e.createdAt),
+      dateLabel: formatDate(e.date ?? e.createdAt)
+    });
+  }
+  rows.sort((a, b) => b.dateValue - a.dateValue);
+  return rows;
 }

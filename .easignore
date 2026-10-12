@@ -1,0 +1,8 @@
+# EAS upload exclusions (monorepo root) — phone builds never need these.
+node_modules/
+apps/web/.next/
+apps/web/public/__mobile/
+apps/desktop/dist/
+dist/
+coverage/
+*.log

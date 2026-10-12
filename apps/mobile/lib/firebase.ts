@@ -1,8 +1,9 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { initializeApp, getApps } from "firebase/app";
-import { initializeAuth, getReactNativePersistence, getAuth } from "firebase/auth";
+import { getReactNativePersistence, initializeAuth, getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
+import { Platform } from "react-native";
 
 const firebaseConfig = {
   apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
@@ -22,13 +23,19 @@ for (const [key, value] of Object.entries(firebaseConfig)) {
 export const firebaseApp = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
 
 let authInstance;
-try {
-  authInstance = initializeAuth(firebaseApp, {
-    persistence: getReactNativePersistence(AsyncStorage)
-  });
-} catch (e) {
-  console.warn('initializeAuth failed, falling back to getAuth:', e);
+// getReactNativePersistence exists only in native builds — on web the
+// persisted-login default of getAuth (browser local persistence) is used.
+if (Platform.OS === "web") {
   authInstance = getAuth(firebaseApp);
+} else {
+  try {
+    authInstance = initializeAuth(firebaseApp, {
+      persistence: getReactNativePersistence(AsyncStorage)
+    });
+  } catch (e) {
+    if (__DEV__) console.warn("initializeAuth failed, falling back to getAuth:", e);
+    authInstance = getAuth(firebaseApp);
+  }
 }
 
 export const auth = authInstance;

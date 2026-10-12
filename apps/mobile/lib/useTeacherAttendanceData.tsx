@@ -1,6 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { User } from "firebase/auth";
-import { onAuthStateChanged } from "firebase/auth";
 import {
   collection,
   doc,
@@ -14,7 +13,8 @@ import {
 } from "firebase/firestore";
 import type { QueryDocumentSnapshot } from "firebase/firestore";
 import type { AttendanceRecord, AttendanceSource, AttendanceStatus, Holiday, Teacher } from "@sri-narayana/shared";
-import { auth, db } from "@/lib/firebase";
+import { db } from "@/lib/firebase";
+import { useMobileSession } from "@/lib/mobileSession";
 
 type TeacherAttendanceState = {
   teacher: Teacher | null;
@@ -22,6 +22,7 @@ type TeacherAttendanceState = {
   holidays: Holiday[];
   loading: boolean;
   error: string | null;
+  refresh: () => void;
 };
 
 type ReadyKey = "teacher" | "records" | "holidays";
@@ -124,12 +125,26 @@ async function resolveTeacherId(user: User): Promise<string | null> {
   return teacherSnapshot.empty ? null : teacherSnapshot.docs[0].id;
 }
 
-export function useTeacherAttendanceData(): TeacherAttendanceState {
+const TeacherDataContext = createContext<TeacherAttendanceState | null>(null);
+
+/**
+ * Mounted once in the teacher layout: ONE teacher-doc + attendance +
+ * holidays listener triple shared by every teacher screen, instead of
+ * re-creating all three on each tab visit.
+ */
+export function TeacherDataProvider({ children }: { children: React.ReactNode }) {
+  const session = useMobileSession();
+  const liveStatus = session.status;
+  const liveUser = session.user;
+  const liveTeacherId = session.profile?.teacherId;
   const [teacher, setTeacher] = useState<Teacher | null>(null);
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
   const [holidays, setHolidays] = useState<Holiday[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Bump to re-resolve + resubscribe (pull-to-refresh on live data).
+  const [generation, setGeneration] = useState(0);
+  const refresh = useCallback(() => setGeneration((g) => g + 1), []);
 
   useEffect(() => {
     let disposed = false;
@@ -141,7 +156,7 @@ export function useTeacherAttendanceData(): TeacherAttendanceState {
       dataUnsubscribers = [];
     };
 
-    const connect = async (user: User, currentRunId: number) => {
+    const connect = async (user: User, currentRunId: number, knownTeacherId?: string) => {
       const ready: Record<ReadyKey, boolean> = {
         teacher: false,
         records: false,
@@ -156,7 +171,9 @@ export function useTeacherAttendanceData(): TeacherAttendanceState {
       };
 
       try {
-        const teacherId = await resolveTeacherId(user);
+        // Prefer the id the session already resolved — repeating the token +
+        // user-doc reads here used to double the cost of every screen mount.
+        const teacherId = knownTeacherId ?? (await resolveTeacherId(user));
         if (!teacherId) {
           throw new Error("Teacher profile not found.");
         }
@@ -187,7 +204,7 @@ export function useTeacherAttendanceData(): TeacherAttendanceState {
               collection(db, "attendance"),
               where("teacherId", "==", teacherId),
               orderBy("date", "desc"),
-              limit(180)
+              limit(60)
             ),
             (snapshot) => {
               setRecords(snapshot.docs.map((item: QueryDocumentSnapshot) => normalizeAttendanceRecord(asRecord(item.data()))));
@@ -221,33 +238,53 @@ export function useTeacherAttendanceData(): TeacherAttendanceState {
       }
     };
 
-    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
-      runId += 1;
-      clearDataSubscriptions();
-      setTeacher(null);
-      setRecords([]);
-      setHolidays([]);
-      setError(null);
-
-      if (!user) {
-        setLoading(false);
-        setError("Please sign in to continue.");
-        return;
-      }
-
+    // Driven by the shared session — no second onAuthStateChanged here (it
+    // used to reset every screen to a skeleton on each auth event).
+    runId += 1;
+    const currentRunId = runId;
+    if (liveStatus === "checking") {
       setLoading(true);
-      void connect(user, runId);
-    });
+      return () => {
+        disposed = true;
+      };
+    }
+    clearDataSubscriptions();
+    setTeacher(null);
+    setRecords([]);
+    setHolidays([]);
+    setError(null);
+    if (!liveUser) {
+      setLoading(false);
+      setError("Please sign in to continue.");
+      return () => {
+        disposed = true;
+      };
+    }
+    setLoading(true);
+    void connect(liveUser, currentRunId, liveTeacherId);
 
     return () => {
       disposed = true;
-      unsubscribeAuth();
       clearDataSubscriptions();
     };
-  }, []);
+  }, [liveStatus, liveUser, liveTeacherId, generation]);
 
-  return useMemo(
-    () => ({ teacher, records, holidays, loading, error }),
-    [teacher, records, holidays, loading, error]
+  const value = useMemo(
+    () => ({ teacher, records, holidays, loading, error, refresh }),
+    [teacher, records, holidays, loading, error, refresh]
   );
+
+  return (
+    <TeacherDataContext.Provider value={value}>
+      {children}
+    </TeacherDataContext.Provider>
+  );
+}
+
+export function useTeacherAttendanceData(): TeacherAttendanceState {
+  const context = useContext(TeacherDataContext);
+  if (!context) {
+    throw new Error("useTeacherAttendanceData must be used inside TeacherDataProvider");
+  }
+  return context;
 }

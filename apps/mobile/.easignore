@@ -1,0 +1,8 @@
+# EAS upload exclusions — keeps the 184 MB archive from breaking uploads.
+# EAS installs dependencies in the cloud, so local copies must not upload.
+node_modules/
+.expo/
+dist/
+build/
+coverage/
+*.log

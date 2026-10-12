@@ -1,42 +1,21 @@
 /**
- * Teacher Tasks — mirrors the Tasks tab of Teacher App.dc.html.
- *
- * PLACEHOLDER: there is no /api/tasks endpoint yet (Phase 2 backlog), so
- * `TASKS` below is representative sample content that demonstrates the layout.
- * Replace it with the fetch when the endpoint lands — the render loop is
- * already data-driven.
+ * Teacher Tasks — tasks assigned by the principal/admin.
+ * Tap "Mark done" to complete; the list refreshes from the server.
  */
-import React, { useMemo, useState } from "react";
-import { ScrollView, StyleSheet } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import React from "react";
+import { FlatList, RefreshControl, StyleSheet, View } from "react-native";
 import {
-  Badge, DSText, EmptyState, FilterChips, Icon, ListRow, PageTitle, SectionCard, TonalTile
+  DSText, EmptyState, ErrorState, Icon, ListRow, SkeletonPage,
+  PageTitle, PillButton, TonalTile, useToast
 } from "@/design-system/components";
-import { color, space } from "@/design-system/tokens";
+import { space } from "@/design-system/tokens";
+import { useTheme } from "@/lib/Theme";
+import { useMobileSession } from "@/lib/mobileSession";
+import { useTeacherAttendanceData } from "@/lib/useTeacherAttendanceData";
 import { TeacherShell } from "@/features/teacher/shell";
-
-const FILTERS = ["All", "Pending", "Done"];
-
-type TeacherTask = {
-  id: string;
-  title: string;
-  from: string;
-  due: string;
-  status: "pending" | "submitted" | "approved";
-};
-
-const BADGE = {
-  pending: { label: "Pending", bg: color.warningContainer, fg: color.onWarningDeep },
-  submitted: { label: "In review", bg: color.primaryContainer, fg: color.onPrimaryContainer },
-  approved: { label: "Approved", bg: color.successContainer, fg: color.onSuccessContainer }
-};
-
-const TASKS: TeacherTask[] = [
-  { id: "1", title: "Upload Unit 4 test marks — 8A & 8B", from: "Principal", due: "Today, 4:00 PM", status: "pending" },
-  { id: "2", title: "Submit lesson plan — Week 32", from: "Principal", due: "Today, 5:00 PM", status: "pending" },
-  { id: "3", title: "PTM feedback summary", from: "Vice Principal", due: "Tomorrow", status: "submitted" },
-  { id: "4", title: "Science fair duty roster", from: "Principal", due: "Jul 18", status: "approved" }
-];
+import { updateTaskStatus } from "@/features/admin/api";
+import { useTasks } from "@/features/admin/hooks";
+import { asText } from "@/lib/text";
 
 export default function TeacherTasksRoute() {
   return (
@@ -47,66 +26,93 @@ export default function TeacherTasksRoute() {
 }
 
 function TeacherTasks() {
-  const insets = useSafeAreaInsets();
-  const [filter, setFilter] = useState("All");
+  const { t } = useTheme();
+  const toast = useToast();
+  const { profile } = useMobileSession();
+  const { teacher } = useTeacherAttendanceData();
+  const teacherId = teacher?.id ?? profile?.teacherId ?? "";
+  const { tasks, loading, error, refresh } = useTasks(teacherId);
+  const [busyId, setBusyId] = React.useState<string | null>(null);
 
-  /** Replace with a fetch once /api/tasks exists. */
-  const tasks = TASKS;
+  const open = tasks.filter((task) => task.status === "assigned");
+  const done = tasks.filter((task) => task.status !== "assigned");
 
-  const visible = useMemo(() => {
-    if (filter === "Pending") return tasks.filter((t) => t.status === "pending");
-    if (filter === "Done") return tasks.filter((t) => t.status === "approved");
-    return tasks;
-  }, [tasks, filter]);
+  const markDone = async (taskId: string) => {
+    setBusyId(taskId);
+    try {
+      await updateTaskStatus(taskId, "done");
+      toast.show("Task completed ✓");
+      refresh();
+    } catch (err) {
+      toast.show(err instanceof Error ? err.message : "Couldn't update the task.");
+    } finally {
+      setBusyId(null);
+    }
+  };
 
-  const pending = tasks.filter((t) => t.status === "pending").length;
+  if (loading && tasks.length === 0) return <SkeletonPage />;
+  if (error && tasks.length === 0) return <ErrorState message={error} onRetry={refresh} />;
+
+  const renderTask = ({ item }: { item: (typeof tasks)[number] }) => {
+    const isDone = item.status !== "assigned";
+    return (
+      <ListRow
+        leading={
+          <TonalTile bg={isDone ? t.okBg : t.warnBg}>
+            <Icon name={isDone ? "check-circle" : "assignment"} size={19} tint={isDone ? t.ok : t.warn} />
+          </TonalTile>
+        }
+        title={asText(item.title) || "Task"}
+        subtitle={`${asText(item.description).slice(0, 80) || "No details"}${item.dueDate ? ` · Due ${asText(item.dueDate)}` : ""}`}
+        trailing={
+          !isDone ? (
+            <PillButton
+              label={busyId === item.id ? "Saving…" : "Mark done"}
+              icon="check"
+              bg={t.blue}
+              fg="#FFFFFF"
+              onPress={() => { if (!busyId) void markDone(item.id); }}
+            />
+          ) : (
+            <DSText variant="caption" tint={t.ok}>Done</DSText>
+          )
+        }
+      />
+    );
+  };
 
   return (
-    <ScrollView
-      contentContainerStyle={[styles.page, { paddingTop: insets.top + space.xs }]}
+    <FlatList
+      data={tasks}
+      keyExtractor={(item) => item.id}
+      renderItem={renderTask}
+      ItemSeparatorComponent={() => <View style={[styles.divider, { backgroundColor: t.line }]} />}
+      contentContainerStyle={styles.page}
       showsVerticalScrollIndicator={false}
-    >
-      <PageTitle>Tasks</PageTitle>
-
-      <FilterChips options={FILTERS} value={filter} onChange={setFilter} />
-
-      <SectionCard
-        heading="ASSIGNED TO ME"
-        trailing={pending > 0 ? <Badge label={`${pending} due`} /> : undefined}
-      >
-        {visible.length === 0 ? (
-          <EmptyState
-            icon="task-alt"
-            label="No tasks assigned to you. Tasks from the principal will appear here."
-          />
-        ) : (
-          visible.map((task) => {
-            const badge = BADGE[task.status];
-            return (
-              <ListRow
-                key={task.id}
-                leading={
-                  <TonalTile bg={badge.bg}>
-                    <Icon name="assignment" size={19} tint={badge.fg} />
-                  </TonalTile>
-                }
-                title={task.title}
-                subtitle={`${task.from} · due ${task.due}`}
-                trailing={<Badge label={badge.label} bg={badge.bg} fg={badge.fg} />}
-                chevron
-              />
-            );
-          })
-        )}
-      </SectionCard>
-
-      <DSText variant="caption" style={{ textAlign: "center" }}>
-        Sample view — live task assignment arrives with the next school release.
-      </DSText>
-    </ScrollView>
+      refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor={t.blue} />}
+      ListHeaderComponent={
+        <View style={styles.header}>
+          <PageTitle>Tasks</PageTitle>
+          <DSText variant="label" tint={t.mute}>
+            {open.length === 0
+              ? "No tasks assigned to you. Tasks from the principal will appear here."
+              : `${open.length} task${open.length === 1 ? "" : "s"} to do${done.length > 0 ? ` · ${done.length} done` : ""}`}
+          </DSText>
+        </View>
+      }
+      ListEmptyComponent={
+        <EmptyState icon="task-alt" label="No tasks assigned to you. Tasks from the principal will appear here." />
+      }
+      initialNumToRender={12}
+      maxToRenderPerBatch={12}
+      windowSize={7}
+      removeClippedSubviews={true}
+    />
   );
 }
 
 const styles = StyleSheet.create({
-  page: { paddingHorizontal: space.xl, paddingBottom: space.xl, gap: 14 }
+  page: { paddingHorizontal: space.xl, paddingBottom: space.xl, paddingTop: space.md, gap: 14 },
+  header: { gap: 10 },
+  divider: { height: StyleSheet.hairlineWidth }
 });

@@ -19,12 +19,20 @@ let cache: { years: PublicYear[]; expiresAt: number } | null = null;
 // No auth (mirrors login-id/check): exposes only year labels, low sensitivity.
 export async function GET() {
   if (cache && cache.expiresAt > Date.now()) {
-    return NextResponse.json({ ok: true, years: cache.years, cached: true });
+    return NextResponse.json({ ok: true, years: cache.years, cached: true }, {
+      headers: {
+        "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
+      },
+    });
   }
 
   if (isFirestoreQuotaPaused()) {
     if (cache) {
-      return NextResponse.json({ ok: true, years: cache.years, cached: true, stale: true });
+      return NextResponse.json({ ok: true, years: cache.years, cached: true, stale: true }, {
+        headers: {
+          "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
+        },
+      });
     }
     return firestoreQuotaResponse();
   }
@@ -40,11 +48,19 @@ export async function GET() {
       };
     });
     cache = { years, expiresAt: Date.now() + CACHE_MS };
-    return NextResponse.json({ ok: true, years });
+    return NextResponse.json({ ok: true, years }, {
+      headers: {
+        "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
+      },
+    });
   } catch (error) {
     if (isFirestoreQuotaExceededError(error) && cache) {
       pauseFirestoreAfterQuota();
-      return NextResponse.json({ ok: true, years: cache.years, cached: true, stale: true });
+      return NextResponse.json({ ok: true, years: cache.years, cached: true, stale: true }, {
+        headers: {
+          "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
+        },
+      });
     }
     return firestoreErrorResponse(error, "Unable to load academic years");
   }
