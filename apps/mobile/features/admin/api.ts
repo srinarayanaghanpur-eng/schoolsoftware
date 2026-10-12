@@ -293,9 +293,17 @@ export async function fetchFinanceSummary() {
   return result.summary;
 }
 
-export async function fetchExpenses() {
-  const result = await adminGet<{ expenses: Expense[] }>("/api/admin/finance/expenses");
-  return result.expenses ?? [];
+export async function fetchExpenses(pageSize = 30, cursor = "") {
+  const query = new URLSearchParams({ pageSize: String(pageSize) });
+  if (cursor) query.set("cursor", cursor);
+  const result = await adminGet<{ expenses: Expense[]; nextCursor: string | null; hasMore: boolean }>(
+    `/api/admin/finance/expenses?${query.toString()}`
+  );
+  return {
+    expenses: result.expenses ?? [],
+    nextCursor: result.nextCursor ?? null,
+    hasMore: result.hasMore === true
+  };
 }
 
 export async function fetchCashBook() {

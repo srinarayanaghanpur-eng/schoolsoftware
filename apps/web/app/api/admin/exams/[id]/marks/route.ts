@@ -23,9 +23,9 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
     // for bounded pages on large exams (doc ids are deterministic, so the
     // documentId order is a stable cursor).
     if (!pageSizeRaw && !cursor) {
-      const snap = await adminDb().collection(MARKS).where("examId", "==", params.id).limit(5000).get();
+      const snap = await adminDb().collection(MARKS).where("examId", "==", params.id).limit(200).get();
       const marks = snap.docs.map((doc) => serializeDoc(doc));
-      return json({ ok: true, marks });
+      return json({ ok: true, marks, hasMore: snap.docs.length === 200, nextCursor: null });
     }
     const pageSize = Math.min(Math.max(Number(pageSizeRaw) || 200, 1), 1000);
     let paged: FirebaseFirestore.Query = adminDb()

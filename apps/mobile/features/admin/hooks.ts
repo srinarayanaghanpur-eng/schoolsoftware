@@ -139,12 +139,70 @@ export function useFinanceSummary() {
 }
 
 export function useExpenses() {
-  const { data, loading, error, refresh } = useCachedFetch<Expense[]>(
-    "admin-expenses",
-    fetchExpenses,
-    5
-  );
-  return { expenses: data ?? [], loading, error, refresh };
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [cursor, setCursor] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const refresh = useCallback(async () => {
+    setError(null);
+    setLoading(true);
+    try {
+      const page = await fetchExpenses(30);
+      await mobileCache.set("admin-expenses", page.expenses, 5);
+      setExpenses(page.expenses);
+      setCursor(page.nextCursor);
+      setHasMore(page.hasMore);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to load expenses.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const loadMore = useCallback(async () => {
+    if (loadingMore || loading || !hasMore) return;
+    setLoadingMore(true);
+    try {
+      const page = await fetchExpenses(30, cursor ?? "");
+      setExpenses((prev) => [
+        ...prev,
+        ...page.expenses.filter((item) => !prev.some((p) => p.id === item.id))
+      ]);
+      setCursor(page.nextCursor);
+      setHasMore(page.hasMore);
+    } catch {
+      // Keep the list; the user can retry via pull-to-refresh.
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [cursor, hasMore, loading, loadingMore]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const cached = await mobileCache.get<Expense[]>("admin-expenses");
+        if (cancelled) return;
+        if (cached && cached.length > 0) {
+          setExpenses(cached);
+          setHasMore(true);
+          setLoading(false);
+          return;
+        }
+      } catch {
+        // Fall through to network.
+      }
+      if (!cancelled) await refresh();
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [refresh]);
+
+  return { expenses, loading, loadingMore, hasMore, error, refresh, loadMore };
 }
 
 export function useCashBook() {

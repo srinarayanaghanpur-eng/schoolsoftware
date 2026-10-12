@@ -3,7 +3,7 @@
  * Read-only: recording payments stays in the web dashboard (see index.tsx).
  */
 import React, { useMemo, useState } from "react";
-import { FlatList, RefreshControl, StyleSheet, View } from "react-native";
+import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, View } from "react-native";
 import {
   Card, DSText, EmptyState, ErrorState, FilterChips, Icon, ListRow, SkeletonPage,
   PageTitle, TonalTile
@@ -27,7 +27,7 @@ function AccountantCollections() {
   const { t } = useTheme();
   const [filter, setFilter] = useState("All");
   const { payments, loading, error, refresh } = useRecentPayments();
-  const { expenses, refresh: refreshExpenses } = useExpenses();
+  const { expenses, refresh: refreshExpenses, loadMore, loadingMore } = useExpenses();
 
   const visible = useMemo(
     () => buildTransactions(payments, expenses, filter),
@@ -116,6 +116,13 @@ function AccountantCollections() {
       ListEmptyComponent={
         <EmptyState icon="receipt-long" label={`No ${filter.toLowerCase()} transactions in this period.`} />
       }
+      ListFooterComponent={
+        loadingMore ? (
+          <ActivityIndicator size="small" color={t.blue} style={{ paddingVertical: space.md }} />
+        ) : null
+      }
+      onEndReached={() => void loadMore()}
+      onEndReachedThreshold={0.4}
       initialNumToRender={12}
       maxToRenderPerBatch={12}
       windowSize={7}

@@ -2,7 +2,7 @@
  * Admin Finance — collection summary, recent receipts and finance position.
  */
 import React, { useMemo, useState } from "react";
-import { FlatList, RefreshControl, StyleSheet, View } from "react-native";
+import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, View } from "react-native";
 import {
   Card, DSText, EmptyState, ErrorState, FilterChips, Icon, ListRow, SkeletonPage,
   PageTitle, ProgressRow, SectionCard, TonalTile
@@ -30,7 +30,7 @@ function AdminFees() {
   const [filter, setFilter] = useState("All");
   const { stats, loading, error, refresh } = useDashboardStats();
   const { payments, refresh: refreshPayments } = useRecentPayments();
-  const { expenses, refresh: refreshExpenses } = useExpenses();
+  const { expenses, refresh: refreshExpenses, loadMore, loadingMore } = useExpenses();
   const { summary } = useFinanceSummary();
 
   const visible = useMemo(
@@ -168,6 +168,13 @@ function AdminFees() {
       ListEmptyComponent={
         <EmptyState icon="receipt-long" label={`No ${filter.toLowerCase()} transactions in this period.`} />
       }
+      ListFooterComponent={
+        loadingMore ? (
+          <ActivityIndicator size="small" color={t.blue} style={{ paddingVertical: space.md }} />
+        ) : null
+      }
+      onEndReached={() => void loadMore()}
+      onEndReachedThreshold={0.4}
       initialNumToRender={12}
       maxToRenderPerBatch={12}
       windowSize={7}

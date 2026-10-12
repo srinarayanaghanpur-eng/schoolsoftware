@@ -6,7 +6,7 @@
  * here means one implementation instead of two drifting copies.
  */
 import React, { useMemo, useState } from "react";
-import { FlatList, RefreshControl, ScrollView, SectionList, StyleSheet, View } from "react-native";
+import { ActivityIndicator, FlatList, RefreshControl, ScrollView, SectionList, StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
 import {
   Avatar, Badge, BottomSheet, Card, DSText, EmptyState, ErrorState, FilterChips, Icon, ListRow,
@@ -477,10 +477,9 @@ export function ExamsScreen() {
 
 export function ExpensesScreen() {
   const { t } = useTheme();
-  const [showAll, setShowAll] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [receipts, setReceipts] = useState<Record<string, DebitVoucher[] | null>>({});
-  const { expenses, loading, error, refresh } = useExpenses();
+  const { expenses, loading, loadingMore, hasMore, error, refresh, loadMore } = useExpenses();
   const { entries, closingBalance, refresh: refreshBook } = useCashBook();
 
   const totals = useMemo(() => {
@@ -492,8 +491,6 @@ export function ExpensesScreen() {
     }
     return { income, expense };
   }, [entries]);
-
-  const visible = showAll ? expenses : expenses.slice(0, 8);
 
   if (loading && expenses.length === 0) return <SkeletonPage />;
   if (error && expenses.length === 0) return <ErrorState message={error} onRetry={refresh} />;
@@ -525,7 +522,7 @@ export function ExpensesScreen() {
 
   return (
     <FlatList
-      data={visible}
+      data={expenses}
       keyExtractor={(expense) => expense.id}
       renderItem={({ item: expense }) => {
         const expanded = expandedId === expense.id;
@@ -627,17 +624,16 @@ export function ExpensesScreen() {
         <EmptyState icon="receipt-long" label="No expenses recorded yet." />
       }
       ListFooterComponent={
-        expenses.length > 8 ? (
-          <PressableScale
-            accessibilityLabel={showAll ? "Show fewer expenses" : `View all ${expenses.length} expenses`}
-            onPress={() => setShowAll((v) => !v)}
-            style={styles.viewAll}
-          >
-            <DSText variant="bodyMedium" tint={t.blue}>{showAll ? "Show less" : "View all"}</DSText>
-            <Icon name={showAll ? "expand-less" : "chevron-right"} size={18} tint={t.blue} />
-          </PressableScale>
+        loadingMore ? (
+          <ActivityIndicator size="small" color={t.blue} style={{ paddingVertical: space.md }} />
+        ) : !hasMore && expenses.length > 0 ? (
+          <DSText variant="caption" tint={t.mute} style={{ textAlign: "center", paddingVertical: space.sm }}>
+            That’s all {expenses.length} expenses.
+          </DSText>
         ) : null
       }
+      onEndReached={() => void loadMore()}
+      onEndReachedThreshold={0.4}
       initialNumToRender={10}
       maxToRenderPerBatch={10}
       windowSize={7}
