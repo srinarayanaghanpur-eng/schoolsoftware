@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { verifyBearerToken } from "@/lib/firebaseAdmin";
 import { getSchoolSettings } from "@/lib/firestoreServer";
 
-export const DEFAULT_SUPPORT_PHONE = "6300038389";
+const DEFAULT_SUPPORT_PHONE = "6300038389";
 
 // GET /api/portal/support-contact — school office number for Help & support.
 // Any signed-in user (staff + parents); the number is public footer info.
