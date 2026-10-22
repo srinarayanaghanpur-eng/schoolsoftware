@@ -10,14 +10,15 @@
  * fetch when the endpoint lands; the section structure already handles data.
  */
 import React from "react";
-import { RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
+import { LinearGradient } from "expo-linear-gradient";
 import {
-  Avatar, Badge, DSText, ErrorState, Hero, Icon, ListRow, LoadingState,
+  Avatar, DSText, EmptyState, ErrorState, Hero, Icon, ListRow, SkeletonPage,
   PillButton, PressableScale, ScreenHeader, SectionCard, StatTile, TonalTile, useToast
 } from "@/design-system/components";
-import { color, radius, space } from "@/design-system/tokens";
+import { radius, space } from "@/design-system/tokens";
+import { useTheme } from "@/lib/Theme";
 import { useMobileSession } from "@/lib/mobileSession";
 import { useTeacherAttendanceData } from "@/lib/useTeacherAttendanceData";
 import { TeacherShell } from "@/features/teacher/shell";
@@ -26,25 +27,18 @@ import {
 } from "@/features/teacher/hooks";
 
 const QUICK_ACTIONS = [
-  { key: "attendance", icon: "how-to-reg" as const, label: "Attendance", href: "/teacher/attendance" },
-  { key: "academics", icon: "menu-book" as const, label: "Academics", href: "/teacher/academics" },
-  { key: "tasks", icon: "task-alt" as const, label: "Tasks", href: "/teacher/tasks" },
-  { key: "inbox", icon: "mail-outline" as const, label: "Inbox", href: "/teacher/inbox" }
+  { key: "attendance", icon: "how-to-reg" as const, label: "Attendance", href: "/teacher/attendance", tone: "success" as const },
+  { key: "academics", icon: "menu-book" as const, label: "Academics", href: "/teacher/academics", tone: "warning" as const },
+  { key: "tasks", icon: "task-alt" as const, label: "Tasks", href: "/teacher/tasks", tone: "info" as const },
+  { key: "inbox", icon: "mail-outline" as const, label: "Inbox", href: "/teacher/inbox", tone: "error" as const }
 ];
 
-/**
- * PLACEHOLDER — sample timetable, shown until /api/teacher/timetable exists.
- * Replace `TODAY_CLASSES` with the fetched schedule; the render loop below is
- * already data-driven.
- */
-const TODAY_CLASSES = [
-  { id: "now", subject: "Mathematics · 9A", meta: "Now · Rm 301", live: true },
-  { id: "free", subject: "Free period", meta: "11:15 – 12:00", live: false },
-  { id: "next", subject: "Mathematics · 10B", meta: "12:10 – 12:55 · Rm 108", live: false }
-];
-
-/** PLACEHOLDER — top principal-assigned task, until /api/tasks exists. */
-const TOP_TASK = { title: "Upload Unit 4 test marks", from: "Principal", due: "Today, 4:00 PM", pending: 3 };
+const QUICK_TONE = {
+  success: { bg: "okBg", fg: "ok" },
+  warning: { bg: "warnBg", fg: "warn" },
+  info: { bg: "tint", fg: "blue" },
+  error: { bg: "badBg", fg: "bad" }
+} as const;
 
 export default function TeacherHomeRoute() {
   return (
@@ -55,14 +49,14 @@ export default function TeacherHomeRoute() {
 }
 
 function TeacherHome() {
-  const insets = useSafeAreaInsets();
+  const { t } = useTheme();
   const router = useRouter();
   const toast = useToast();
   const { profile } = useMobileSession();
-  const { teacher, records, holidays, loading, error } = useTeacherAttendanceData();
+  const { teacher, records, holidays, loading, error, refresh } = useTeacherAttendanceData();
   const summary = useAttendanceSummary(records);
 
-  if (loading && !teacher) return <LoadingState label="Opening your workspace…" />;
+  if (loading && !teacher) return <SkeletonPage />;
   if (error && !teacher) return <ErrorState message={error} />;
 
   const name = teacher?.fullName ?? profile?.displayName ?? "Teacher";
@@ -73,9 +67,9 @@ function TeacherHome() {
 
   return (
     <ScrollView
-      contentContainerStyle={[styles.page, { paddingTop: insets.top + space.xs }]}
+      contentContainerStyle={styles.page}
       showsVerticalScrollIndicator={false}
-      refreshControl={<RefreshControl refreshing={loading} onRefresh={() => undefined} tintColor={color.primary} />}
+      refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor={t.blue} />}
     >
       <ScreenHeader
         eyebrow={`${greeting()} · ${dateLabel()}`}
@@ -85,10 +79,10 @@ function TeacherHome() {
             <PressableScale
               accessibilityLabel="Notifications"
               onPress={() => router.push("/teacher/inbox" as never)}
-              style={styles.bell}
+              style={[styles.bell, { backgroundColor: t.card, borderColor: t.line }]}
             >
-              <Icon name="notifications" size={21} tint={color.ink2} />
-              <View style={styles.bellDot} />
+              <Icon name="notifications" size={21} tint={t.mute} />
+              <View style={[styles.bellDot, { backgroundColor: t.bad, borderColor: t.card }]} />
             </PressableScale>
             <PressableScale accessibilityLabel="Profile" onPress={() => router.push("/teacher/profile" as never)}>
               <Avatar label={initials(name)} size={42} />
@@ -100,112 +94,97 @@ function TeacherHome() {
       {/* check-in hero */}
       {summary.checkedIn ? (
         <Hero tone="success">
-          <TonalTile bg={color.success} size={40}>
-            <Icon name="check" size={22} tint={color.onPrimary} />
+          <TonalTile bg={t.okBg} size={40}>
+            <Icon name="check" size={22} tint={t.ok} />
           </TonalTile>
           <View style={{ flex: 1, minWidth: 0 }}>
-            <DSText variant="bodyMedium" tint={color.onSuccessContainer}>
+            <DSText variant="bodyMedium" tint={t.ink}>
               Checked in · {formatTime(summary.today?.checkInTime)}
             </DSText>
-            <DSText variant="label" tint={color.success}>{today.label} today</DSText>
+            <DSText variant="label" tint={t.ok}>{today.label} today</DSText>
           </View>
           <PillButton
             label="Check out"
-            bg={color.successContainer}
-            fg={color.success}
+            bg={t.card}
+            fg={t.ok}
             onPress={() => router.push("/teacher/attendance" as never)}
           />
         </Hero>
       ) : (
-        <Hero>
+        <LinearGradient
+          colors={[t.heroFrom, t.heroMid, t.heroTo]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.hero}
+        >
           <View style={{ flex: 1, minWidth: 0 }}>
-            <Text style={styles.heroTitle}>
+            <DSText variant="title" tint="#FFFFFF">
               {summary.checkedOut ? "Day complete" : "You haven’t checked in"}
-            </Text>
-            <Text style={styles.heroMeta}>
+            </DSText>
+            <DSText variant="label" tint="rgba(255,255,255,0.85)" style={{ marginTop: 3 }}>
               {summary.checkedOut
                 ? `Checked out at ${formatTime(summary.today?.checkOutTime)}`
                 : `Location is verified before attendance is saved · ${dateLabel()}`}
-            </Text>
+            </DSText>
           </View>
           <PillButton
             label={summary.checkedOut ? "View" : "Check in"}
-            bg={color.surface}
-            fg={color.onPrimaryContainer}
+            bg="#FFFFFF"
+            fg={t.blue}
             onPress={() => router.push("/teacher/attendance" as never)}
           />
-        </Hero>
+        </LinearGradient>
       )}
 
-      {/* today's classes (placeholder timetable) */}
+      {/* today's classes — no timetable endpoint yet, so say so plainly */}
       <SectionCard
         heading="TODAY’S CLASSES"
         trailing={
           <PressableScale accessibilityLabel="Open timetable" onPress={() => router.push("/teacher/academics" as never)}>
-            <DSText variant="bodyMedium" tint={color.primary}>Timetable</DSText>
+            <DSText variant="bodyMedium" tint={t.blue}>Timetable</DSText>
           </PressableScale>
         }
       >
-        {TODAY_CLASSES.map((cls) => (
-          <View key={cls.id} style={[styles.classRow, cls.live && styles.classRowLive]}>
-            <View style={[styles.dot, { backgroundColor: cls.live ? color.primary : color.faint }]} />
-            <View style={{ flex: 1, minWidth: 0 }}>
-              <DSText variant="bodyMedium" tint={cls.live ? color.onPrimaryContainer : color.ink} numberOfLines={1}>
-                {cls.subject}
-              </DSText>
-              <DSText variant="label" tint={cls.live ? color.primaryDeep : color.muted} numberOfLines={1}>
-                {cls.meta}
-              </DSText>
-            </View>
-            {cls.live ? (
-              <PillButton
-                label="Mark"
-                icon="how-to-reg"
-                onPress={() => router.push("/teacher/attendance" as never)}
-              />
-            ) : null}
-          </View>
-        ))}
+        <EmptyState icon="event" label="Your timetable will appear here once the school publishes it." />
       </SectionCard>
 
-      {/* tasks summary (placeholder) */}
-      <SectionCard heading="TASKS" trailing={<Badge label={`${TOP_TASK.pending} due`} />}>
-        <ListRow
-          leading={<TonalTile bg={color.warningSurface}><Icon name="upload-file" size={19} tint={color.warning} /></TonalTile>}
-          title={TOP_TASK.title}
-          subtitle={`From ${TOP_TASK.from} · due ${TOP_TASK.due}`}
-          chevron
-          onPress={() => router.push("/teacher/tasks" as never)}
-        />
+      {/* tasks — no tasks endpoint yet, so say so plainly */}
+      <SectionCard heading="TASKS">
+        <EmptyState icon="task-alt" label="Tasks from the principal will appear here." />
       </SectionCard>
 
       {/* quick actions */}
       <View style={styles.quickGrid}>
-        {QUICK_ACTIONS.map((action) => (
-          <PressableScale
-            key={action.key}
-            accessibilityLabel={action.label}
-            onPress={() => router.push(action.href as never)}
-            style={styles.quickTile}
-          >
-            <Icon name={action.icon} size={22} tint={color.primary} />
-            <DSText variant="caption" tint={color.ink2} style={{ fontWeight: "500" }}>{action.label}</DSText>
-          </PressableScale>
-        ))}
+        {QUICK_ACTIONS.map((action) => {
+          const tile = QUICK_TONE[action.tone];
+          return (
+            <PressableScale
+              key={action.key}
+              accessibilityLabel={action.label}
+              onPress={() => router.push(action.href as never)}
+              style={[styles.quickTile, { backgroundColor: t.card, borderColor: t.line }]}
+            >
+              <TonalTile bg={t[tile.bg]} size={40}>
+                <Icon name={action.icon} size={22} tint={t[tile.fg]} />
+              </TonalTile>
+              <DSText variant="caption" tint={t.mute} style={{ fontWeight: "600" }}>{action.label}</DSText>
+            </PressableScale>
+          );
+        })}
       </View>
 
       {/* month stats (live) */}
       <View style={styles.statRow}>
-        <StatTile value={`${summary.percentage}%`} label="Attendance" tint={color.primary} />
-        <StatTile value={summary.present} label="Present days" tint={color.success} />
-        <StatTile value={summary.late} label="Late marks" tint={summary.late > 0 ? color.warning : undefined} />
+        <StatTile value={`${summary.percentage}%`} label="Attendance" tint={t.blue} />
+        <StatTile value={summary.present} label="Present days" tint={t.ok} />
+        <StatTile value={summary.late} label="Late marks" tint={summary.late > 0 ? t.warn : undefined} />
       </View>
 
       {/* notices & events (school calendar is live) */}
       <SectionCard heading="NOTICES & EVENTS">
         {nextHoliday ? (
           <ListRow
-            leading={<TonalTile bg={color.errorContainer}><Icon name="campaign" size={19} tint={color.error} /></TonalTile>}
+            leading={<TonalTile bg={t.badBg}><Icon name="campaign" size={19} tint={t.bad} /></TonalTile>}
             title={nextHoliday.title}
             subtitle={new Date(nextHoliday.date).toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long" })}
           />
@@ -213,7 +192,7 @@ function TeacherHome() {
           <DSText variant="label">No notices right now.</DSText>
         )}
         <ListRow
-          leading={<TonalTile bg={color.primaryContainer}><Icon name="event" size={19} tint={color.primary} /></TonalTile>}
+          leading={<TonalTile bg={t.tint}><Icon name="event" size={19} tint={t.blue} /></TonalTile>}
           title="View full school calendar"
           subtitle="Holidays, exams and events"
           chevron
@@ -227,10 +206,10 @@ function TeacherHome() {
           router.push("/teacher/history" as never);
           toast.show("Opening your attendance history");
         }}
-        style={styles.cta}
+        style={[styles.cta, { borderColor: t.faint }]}
       >
-        <Icon name="history" size={18} tint={color.primary} />
-        <DSText variant="bodyMedium" tint={color.primary}>View full history</DSText>
+        <Icon name="history" size={18} tint={t.blue} />
+        <DSText variant="bodyMedium" tint={t.blue}>View full history</DSText>
       </PressableScale>
     </ScrollView>
   );
@@ -243,7 +222,7 @@ const styles = StyleSheet.create({
     width: 42,
     height: 42,
     borderRadius: 21,
-    backgroundColor: color.surfaceVariant,
+    borderWidth: 1,
     alignItems: "center",
     justifyContent: "center"
   },
@@ -254,29 +233,23 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: color.error,
-    borderWidth: 2,
-    borderColor: color.surfaceVariant
+    borderWidth: 2
   },
-  heroTitle: { fontSize: 15, fontWeight: "600", color: color.onPrimary },
-  heroMeta: { fontSize: 12.5, color: color.onPrimary, opacity: 0.8, marginTop: 2 },
-  classRow: {
+  hero: {
+    borderRadius: radius.xl,
+    padding: space.lg,
+    paddingHorizontal: 18,
     flexDirection: "row",
     alignItems: "center",
-    gap: space.md,
-    paddingVertical: 10,
-    paddingHorizontal: space.md,
-    borderRadius: radius.sm + 2
+    gap: 14
   },
-  classRowLive: { backgroundColor: color.primaryContainer },
-  dot: { width: 8, height: 8, borderRadius: 4 },
   statRow: { flexDirection: "row", gap: 10 },
   quickGrid: { flexDirection: "row", gap: 10 },
   quickTile: {
     flex: 1,
-    backgroundColor: color.surfaceVariant,
-    borderRadius: radius.md,
-    paddingVertical: space.md + 4,
+    borderWidth: 1,
+    borderRadius: radius.lg,
+    paddingVertical: space.md + 2,
     paddingHorizontal: space.xs,
     alignItems: "center",
     gap: space.sm
@@ -284,8 +257,7 @@ const styles = StyleSheet.create({
   cta: {
     borderWidth: 1.5,
     borderStyle: "dashed",
-    borderColor: color.faint,
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
     padding: 11,
     flexDirection: "row",
     alignItems: "center",

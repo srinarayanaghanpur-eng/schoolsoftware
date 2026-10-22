@@ -15,5 +15,17 @@
         { "key": "Permissions-Policy", "value": "camera=(), microphone=(), geolocation=(self)" }
       ]
     }
+  ],
+  "crons": [
+    { "path": "/api/cron/drive-backup?collection=students", "schedule": "30 20 * * *" },
+    { "path": "/api/cron/drive-backup?collection=teachers", "schedule": "35 20 * * *" },
+    { "path": "/api/cron/drive-backup?collection=parents", "schedule": "40 20 * * *" },
+    { "path": "/api/cron/drive-backup?collection=payments", "schedule": "45 20 * * *" },
+    { "path": "/api/cron/drive-backup?collection=receipts", "schedule": "50 20 * * *" },
+    { "path": "/api/cron/drive-backup?collection=attendance", "schedule": "55 20 * * *" },
+    { "path": "/api/cron/drive-backup?collection=exams", "schedule": "0 21 * * *" },
+    { "path": "/api/cron/drive-backup?collection=exam_marks", "schedule": "5 21 * * *" },
+    { "path": "/api/cron/drive-backup?collection=fee_structures", "schedule": "10 21 * * *" },
+    { "path": "/api/cron/drive-backup?collection=settings", "schedule": "15 21 * * *" }
   ]
 }

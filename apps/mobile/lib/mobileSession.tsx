@@ -4,7 +4,10 @@ import { onAuthStateChanged, signOut } from "firebase/auth";
 import { collection, doc, getDoc, getDocs, limit, query, where } from "firebase/firestore";
 import { ROLE_LABELS, type Role, isValidRole } from "@sri-narayana/shared";
 import { auth, db } from "@/lib/firebase";
-import { clearMobileAuthStorage } from "@/lib/authStorage";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { clearMobileAuthStorage, REMEMBER_CHOICE_KEY } from "@/lib/authStorage";
+import { mobileCache } from "@/lib/cache/mobileCache";
+import { ensurePushRegistration, unregisterPushToken } from "@/lib/pushNotifications";
 import { dashboardPathForRole } from "@/lib/roleRouting";
 
 export type MobileAuthStatus = "checking" | "unauthenticated" | "authenticated" | "error";
@@ -54,8 +57,11 @@ async function resolveTeacherId(user: User, userData: Record<string, unknown>, c
 }
 
 export async function resolveMobileSession(user: User): Promise<MobileUserProfile> {
-  const token = await user.getIdTokenResult();
-  const userSnapshot = await getDoc(doc(db, "users", user.uid));
+  // Token + user doc are independent — fetch together, not one after the other.
+  const [token, userSnapshot] = await Promise.all([
+    user.getIdTokenResult(),
+    getDoc(doc(db, "users", user.uid))
+  ]);
   const userData = userSnapshot.exists() ? asRecord(userSnapshot.data()) : {};
   const claimRole = token.claims.role;
   const docRole = userData.role;
@@ -102,9 +108,14 @@ export function MobileSessionProvider({ children }: { children: React.ReactNode 
       setError(retainedErrorRef.current);
       retainedErrorRef.current = null;
       setStatus("unauthenticated");
+      // No signed-in user: wipe every cache namespace so the next
+      // account on this device cannot read the previous one's data.
+      void mobileCache.clearAllNamespaces();
       return;
     }
 
+    // Scope the cache to this account before any screen can read it.
+    void mobileCache.setOwner(nextUser.uid);
     setError(null);
     setStatus("checking");
     try {
@@ -112,6 +123,9 @@ export function MobileSessionProvider({ children }: { children: React.ReactNode 
       if (currentRun !== getRun()) return;
       setProfile(nextProfile);
       setStatus("authenticated");
+      // Best-effort: register this device for push. Failures (simulator,
+      // denied permission, offline) are silent by design.
+      void ensurePushRegistration();
     } catch (err) {
       if (currentRun !== getRun()) return;
       const message = err instanceof Error ? err.message : "Unable to verify your session.";
@@ -126,9 +140,24 @@ export function MobileSessionProvider({ children }: { children: React.ReactNode 
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (nextUser) => {
-      runRef.current += 1;
-      const currentRun = runRef.current;
-      void applyUser(nextUser, currentRun, () => runRef.current);
+      void (async () => {
+        if (nextUser) {
+          try {
+            // "Remember Me" was off at the last sign-in: drop the restored
+            // session immediately so this launch starts logged out.
+            const remembered = await AsyncStorage.getItem(REMEMBER_CHOICE_KEY);
+            if (remembered === "0") {
+              await signOut(auth).catch(() => undefined);
+              return;
+            }
+          } catch {
+            // Storage failure must never lock the user out — continue normally.
+          }
+        }
+        runRef.current += 1;
+        const currentRun = runRef.current;
+        await applyUser(nextUser, currentRun, () => runRef.current);
+      })();
     });
     return unsubscribe;
   }, [applyUser]);
@@ -140,8 +169,11 @@ export function MobileSessionProvider({ children }: { children: React.ReactNode 
   }, [applyUser]);
 
   const logout = useCallback(async () => {
+    // Unregister push BEFORE signing out so the request still carries auth.
+    await unregisterPushToken();
     await signOut(auth);
     await clearMobileAuthStorage();
+    await mobileCache.clearAllNamespaces().catch(() => undefined);
     setUser(null);
     setProfile(null);
     setError(null);

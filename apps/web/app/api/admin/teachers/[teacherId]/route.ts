@@ -1,7 +1,7 @@
 import { FieldValue } from "firebase-admin/firestore";
 import { teacherLoginUpdateSchema, type LateDeductionMode, type EmploymentType } from "@sri-narayana/shared";
 import { adminAuth, adminDb } from "@/lib/firebaseAdmin";
-import { requireAdmin, resolveRole, json } from "@/lib/apiUtils";
+import { requireAdmin, requirePermission, resolveRole, json } from "@/lib/apiUtils";
 import { writeAuditLog } from "@/lib/auditLog";
 import { assertEmployeeIdAvailable, buildTeacherAuthProfile, serializeTeacherDoc } from "@/lib/teacherAdmin";
 
@@ -20,6 +20,21 @@ function safeString(val: unknown): string | undefined {
 function safeNumber(val: unknown): number | undefined {
   const n = Number(val);
   return Number.isFinite(n) ? n : undefined;
+}
+
+// GET /api/admin/teachers/[teacherId] — staff detail (admin + principal).
+export async function GET(req: Request, { params }: { params: { teacherId: string } }) {
+  try {
+    const auth = await requirePermission(req, "staff.view");
+    if (!auth) return json({ ok: false, error: "Access denied" }, { status: 403 });
+
+    const snapshot = await adminDb().collection("teachers").doc(params.teacherId).get();
+    if (!snapshot.exists) return json({ ok: false, error: "Teacher not found" }, { status: 404 });
+    return json({ ok: true, teacher: serializeTeacherDoc(snapshot) });
+  } catch (error) {
+    console.error("[TeacherDetail] GET failed:", error);
+    return json({ ok: false, error: "Unable to load teacher" }, { status: 500 });
+  }
 }
 
 export async function PATCH(req: Request, { params }: { params: { teacherId: string } }) {

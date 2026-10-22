@@ -2,17 +2,23 @@
  * Parent Profile tab — live summary data: parent identity, linked children,
  * fee receipts (recent payments), menu, logout.
  */
-import React from "react";
-import { RefreshControl, ScrollView, StyleSheet, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import React, { useCallback, useEffect, useState } from "react";
+import { RefreshControl, ScrollView, StyleSheet, Switch, View } from "react-native";
 import { useRouter } from "expo-router";
 import {
-  Avatar, DSText, ErrorState, Icon, ListRow, LoadingState,
-  PillButton, SectionCard, TonalTile, useToast
+  Avatar, Badge, BottomSheet, DSText, EmptyState, ErrorState, Icon, ListRow,
+  PageTitle, PillButton, SectionCard, SkeletonRows, TonalTile, useToast
 } from "@/design-system/components";
-import { color, space } from "@/design-system/tokens";
+import { radius, space } from "@/design-system/tokens";
+import { useTheme } from "@/lib/Theme";
+import type { Palette } from "@/lib/Theme";
 import { useMobileSession } from "@/lib/mobileSession";
 import { formatMoney, initials, useParentSummary } from "@/features/parent/hooks";
+import { fetchPushPreferences, updatePushPreferences, type PushPrefs } from "@/features/parent/api";
+import { displayLoginContact } from "@/lib/text";
+import { openWebsite } from "@/lib/openWebsite";
+import { ChildSwitcher } from "@/features/parent/ChildSwitcher";
+import { useSelectChild, useSelectedChildId, useSelectedChildRaw } from "@/features/parent/SelectedChild";
 import { ParentShell } from "@/features/parent/shell";
 
 export default function ParentProfileRoute() {
@@ -23,14 +29,65 @@ export default function ParentProfileRoute() {
   );
 }
 
+const PREF_ROWS: Array<{ key: keyof PushPrefs; title: string; subtitle: string }> = [
+  { key: "fees", title: "Fee reminders", subtitle: "Due dates and receipts" },
+  { key: "attendance", title: "Attendance", subtitle: "Absence alerts for your child" },
+  { key: "homework", title: "Homework", subtitle: "New homework assigned" },
+  { key: "notices", title: "Notices", subtitle: "School announcements" },
+  { key: "exams", title: "Exam results", subtitle: "Published results" }
+];
+
+function childTile(index: number, t: Palette): { bg: string; fg: string } {
+  const tiles = [
+    { bg: t.tint, fg: t.blue },
+    { bg: t.okBg, fg: t.ok },
+    { bg: t.warnBg, fg: t.warn },
+    { bg: t.badBg, fg: t.bad }
+  ];
+  return tiles[index % tiles.length] ?? { bg: t.tint, fg: t.blue };
+}
+
 function ParentProfileScreen() {
-  const insets = useSafeAreaInsets();
+  const { t } = useTheme();
   const router = useRouter();
   const toast = useToast();
   const session = useMobileSession();
-  const { summary, linkedStudents, loading, error, refresh } = useParentSummary();
+  const rawChoice = useSelectedChildRaw();
+  const { summary, linkedStudents, loading, error, refresh } = useParentSummary(rawChoice);
+  const activeId = useSelectedChildId(linkedStudents);
+  const select = useSelectChild();
 
   const parentName = session.profile?.displayName ?? "Parent";
+
+  const [prefs, setPrefs] = useState<PushPrefs | null>(null);
+  const [prefsFailed, setPrefsFailed] = useState(false);
+
+  const loadPrefs = useCallback(async () => {
+    try {
+      const { prefs: fresh } = await fetchPushPreferences();
+      setPrefs(fresh);
+      setPrefsFailed(false);
+    } catch {
+      setPrefsFailed(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadPrefs();
+  }, [loadPrefs]);
+
+  const togglePref = useCallback(async (key: keyof PushPrefs) => {
+    if (!prefs) return;
+    const previous = prefs;
+    const next = { ...prefs, [key]: !prefs[key] };
+    setPrefs(next);
+    try {
+      await updatePushPreferences({ [key]: next[key] });
+    } catch {
+      setPrefs(previous);
+      toast.show("Couldn't save that setting. Please try again.");
+    }
+  }, [prefs, toast]);
 
   const logout = async () => {
     try {
@@ -41,99 +98,198 @@ function ParentProfileScreen() {
     }
   };
 
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const confirmLogout = () => setConfirmOpen(true);
+
   return (
     <ScrollView
-      contentContainerStyle={[styles.page, { paddingTop: insets.top + space.sm }]}
+      contentContainerStyle={styles.page}
       showsVerticalScrollIndicator={false}
-      refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor={color.primary} />}
+      refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor={t.blue} />}
     >
-      {/* identity */}
-      <View style={styles.identityRow}>
-        <Avatar label={initials(parentName)} size={64} bg={color.success} />
-        <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
-          <DSText variant="title" style={{ fontSize: 19 }}>{parentName}</DSText>
-          {summary ? (
-            <DSText variant="label">
-              Parent of {summary.student.name} · Class {summary.student.className}{summary.student.section}
+      <PageTitle>Profile</PageTitle>
+
+      {/* greeting header — Welcome small + name h1 */}
+      <View style={[styles.identityRow, { backgroundColor: t.card, borderColor: t.line }]}>
+        <Avatar label={initials(parentName)} size={56} bg={t.blue} fg="#FFFFFF" />
+        <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
+          <DSText variant="caption" tint={t.mute}>Welcome</DSText>
+          <DSText variant="title" style={styles.identityName} numberOfLines={1}>{parentName}</DSText>
+          {summary?.student ? (
+            <View style={styles.chipRow}>
+              <Badge
+                label={`Class ${summary.student.className ?? "—"}${summary.student.section ?? ""}`}
+                bg={t.tint}
+                fg={t.blue}
+              />
+            </View>
+          ) : null}
+          {summary?.student ? (
+            <DSText variant="label" numberOfLines={1}>
+              Parent of {summary.student.name ?? "—"}
             </DSText>
           ) : null}
-          <DSText variant="label">{session.profile?.email ?? session.profile?.employeeId ?? ""}</DSText>
+          <DSText variant="label" numberOfLines={1}>{displayLoginContact(session.profile)}</DSText>
         </View>
       </View>
 
-      {loading && !summary ? <LoadingState /> : null}
+      {loading && !summary ? <SkeletonRows count={3} /> : null}
       {error && !summary ? <ErrorState message={error} onRetry={refresh} /> : null}
+
+      <ChildSwitcher children={linkedStudents} selectedId={activeId} onSelect={select} />
 
       {/* children */}
       {linkedStudents.length > 1 ? (
         <SectionCard heading="MY CHILDREN">
-          {linkedStudents.map((child) => (
-            <ListRow
-              key={child.id}
-              leading={<Avatar label={initials(child.name)} size={36} bg={color.primary} />}
-              title={child.name}
-              subtitle={`Class ${child.className}${child.section} · Adm ${child.admissionNo}`}
-            />
-          ))}
+          {linkedStudents.map((child, index) => {
+            const tile = childTile(index, t);
+            return (
+              <View key={child.id}>
+                {index > 0 ? <View style={[styles.divider, { backgroundColor: t.line }]} /> : null}
+                <ListRow
+                  leading={<Avatar label={initials(child.name)} size={36} bg={tile.bg} fg={tile.fg} />}
+                  title={child.name}
+                  subtitle={`Class ${child.className}${child.section} · Adm ${child.admissionNo}`}
+                />
+              </View>
+            );
+          })}
         </SectionCard>
       ) : null}
 
       {/* fee receipts */}
       {summary ? (
         <SectionCard heading="FEE RECEIPTS">
-          {summary.recentPayments.length === 0 ? (
-            <DSText variant="label">No payments recorded yet.</DSText>
+          {(summary.recentPayments ?? []).length === 0 ? (
+            <EmptyState icon="receipt" label="No payments recorded yet." />
           ) : (
-            summary.recentPayments.map((payment) => (
-              <ListRow
-                key={payment.id}
-                leading={
-                  <TonalTile bg={color.successContainer} size={36}>
-                    <Icon name="check" size={18} tint={color.success} />
-                  </TonalTile>
-                }
-                title={`${formatMoney(payment.amountPaid)} · ${payment.paymentMethod || "—"}`}
-                subtitle={`Paid ${payment.createdAt}${payment.receiptNumber ? ` · Receipt ${payment.receiptNumber}` : ""}`}
-              />
+            (summary.recentPayments ?? []).map((payment, index) => (
+              <View key={payment.id}>
+                {index > 0 ? <View style={[styles.divider, { backgroundColor: t.line }]} /> : null}
+                <ListRow
+                  leading={
+                    <TonalTile bg={t.okBg} size={36}>
+                      <Icon name="check" size={18} tint={t.ok} />
+                    </TonalTile>
+                  }
+                  title={`${formatMoney(payment.amountPaid)} · ${payment.paymentMethod || "—"}`}
+                  subtitle={`Paid ${payment.createdAt}${payment.receiptNumber ? ` · Receipt ${payment.receiptNumber}` : ""}`}
+                />
+              </View>
             ))
           )}
-          {summary.fees.due > 0 ? (
-            <ListRow
-              leading={
-                <TonalTile bg={color.warningContainer} size={36}>
-                  <Icon name="schedule" size={18} tint={color.warning} />
-                </TonalTile>
-              }
-              title={`${formatMoney(summary.fees.due)} outstanding`}
-              subtitle="Pay at the school office or web portal"
-            />
+          {(summary.fees?.due ?? 0) > 0 ? (
+            <View>
+              {(summary.recentPayments ?? []).length > 0 ? <View style={[styles.divider, { backgroundColor: t.line }]} /> : null}
+              <ListRow
+                leading={
+                  <TonalTile bg={t.warnBg} size={36}>
+                    <Icon name="schedule" size={18} tint={t.warn} />
+                  </TonalTile>
+                }
+                title={`${formatMoney(summary.fees.due)} outstanding`}
+                subtitle="Pay at the school office or web portal"
+              />
+            </View>
           ) : null}
+        </SectionCard>
+      ) : null}
+
+      {/* message settings */}
+      {prefs ? (
+        <SectionCard heading="MESSAGE SETTINGS">
+          {PREF_ROWS.map((row, index) => (
+            <View key={row.key}>
+              {index > 0 ? <View style={[styles.divider, { backgroundColor: t.line }]} /> : null}
+              <ListRow
+                title={row.title}
+                subtitle={row.subtitle}
+                trailing={
+                  <Switch
+                    value={prefs[row.key]}
+                    onValueChange={() => void togglePref(row.key)}
+                    trackColor={{ false: t.line, true: t.blue }}
+                  />
+                }
+              />
+            </View>
+          ))}
+        </SectionCard>
+      ) : prefsFailed ? (
+        <SectionCard heading="MESSAGE SETTINGS">
+          <ListRow
+            title="Couldn't load message settings"
+            subtitle="Tap to retry"
+            chevron
+            onPress={() => void loadPrefs()}
+          />
         </SectionCard>
       ) : null}
 
       {/* menu */}
       <SectionCard heading="MORE">
         <ListRow
-          leading={<Icon name="description" size={21} tint={color.primary} />}
+          leading={
+            <TonalTile bg={t.tint} size={36}>
+              <Icon name="description" size={19} tint={t.blue} />
+            </TonalTile>
+          }
           title="Documents & receipts"
-          subtitle="Available in the web portal"
+          subtitle="Opens the website in your browser"
           chevron
-          onPress={() => toast.show("Open the web portal for downloads.")}
+          onPress={() => openWebsite("/portal/downloads", "Documents & receipts")}
         />
+        <View style={[styles.divider, { backgroundColor: t.line }]} />
         <ListRow
-          leading={<Icon name="help-outline" size={21} tint={color.primary} />}
+          leading={
+            <TonalTile bg={t.tint} size={36}>
+              <Icon name="help-outline" size={19} tint={t.blue} />
+            </TonalTile>
+          }
           title="Help & support"
           chevron
-          onPress={() => toast.show("Contact the school office for help.")}
+          onPress={() => router.push("/support" as never)}
         />
       </SectionCard>
 
-      <PillButton label="Logout from this device" bg={color.error} onPress={logout} />
+      <PillButton label="Logout from this device" bg={t.bad} fg="#FFFFFF" onPress={confirmLogout} />
+
+      <BottomSheet
+        visible={confirmOpen}
+        title="Log out?"
+        onClose={() => setConfirmOpen(false)}
+      >
+        <DSText variant="label">You are getting logged out from this device.</DSText>
+        <View style={{ flexDirection: "row", gap: 10, marginTop: 16 }}>
+          <View style={{ flex: 1 }}>
+            <PillButton label="Stay" block onPress={() => setConfirmOpen(false)} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <PillButton
+              label="Log out"
+              block
+              bg={t.bad}
+              fg="#FFFFFF"
+              onPress={() => { setConfirmOpen(false); void logout(); }}
+            />
+          </View>
+        </View>
+      </BottomSheet>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  page: { paddingHorizontal: space.xl, paddingBottom: space.xl, gap: 14 },
-  identityRow: { flexDirection: "row", alignItems: "center", gap: 14, paddingTop: 10 }
+  page: { paddingHorizontal: space.xl, paddingBottom: space.xl, paddingTop: space.md, gap: 14 },
+  identityRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    borderWidth: 1,
+    borderRadius: radius.xl,
+    padding: space.lg
+  },
+  identityName: { fontSize: 19, fontWeight: "700" },
+  chipRow: { flexDirection: "row" },
+  divider: { height: StyleSheet.hairlineWidth }
 });

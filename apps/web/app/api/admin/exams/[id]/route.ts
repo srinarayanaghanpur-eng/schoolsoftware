@@ -1,7 +1,7 @@
 import { FieldValue } from "firebase-admin/firestore";
 import { examCreateSchema } from "@sri-narayana/shared";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { requirePermission, serializeDoc, json } from "@/lib/apiUtils";
+import { requireAdminOrPrincipal, requirePermission, serializeDoc, json } from "@/lib/apiUtils";
 
 const COLLECTION = "exams";
 
@@ -22,7 +22,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
 
 // PATCH /api/admin/exams/[id] — edit exam fields.
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
-  const token = await requirePermission(req, "exams.edit");
+  const token = await requireAdminOrPrincipal(req);
   if (!token) return json({ ok: false, error: "Access denied" }, { status: 403 });
 
   try {
@@ -39,7 +39,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 
 // DELETE /api/admin/exams/[id] — remove exam and its marks.
 export async function DELETE(req: Request, { params }: { params: { id: string } }) {
-  const token = await requirePermission(req, "exams.delete");
+  const token = await requireAdminOrPrincipal(req);
   if (!token) return json({ ok: false, error: "Access denied" }, { status: 403 });
 
   const db = adminDb();

@@ -16,12 +16,12 @@ service firebase.storage {
 
     match /teacher-profiles/{teacherId}/{fileName} {
       allow read: if isStaff() || (signedIn() && request.auth.token.teacherId == teacherId);
-      allow write: if isAdmin();
+      allow write: if isAdmin() && request.resource.size < 5 * 1024 * 1024 && request.resource.contentType.matches('image/.*');
     }
 
     match /attendance-selfies/{teacherId}/{fileName} {
       allow read: if isAdmin() || (signedIn() && request.auth.token.teacherId == teacherId);
-      allow write: if signedIn() && request.auth.token.teacherId == teacherId;
+      allow write: if signedIn() && request.auth.token.teacherId == teacherId && request.resource.size < 5 * 1024 * 1024 && request.resource.contentType.matches('image/.*');
     }
 
     match /{allPaths=**} {

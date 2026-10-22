@@ -1,8 +1,9 @@
+import { AggregateField } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { requirePermission, json } from "@/lib/apiUtils";
 import { firestoreQuotaResponse, isFirestoreQuotaPaused } from "@/lib/firebaseErrors";
 import { docDateKey, inRange } from "@/lib/financeUtils";
-import { logFirestoreRead } from "@/lib/firestoreReadLogger";
+import { logFirestoreAggregateRead, logFirestoreRead } from "@/lib/firestoreReadLogger";
 
 // GET /api/admin/finance/summary?from=YYYY-MM-DD&to=YYYY-MM-DD
 // Profit & Loss: income (fees + other) vs expense (general + salary + advances).
@@ -24,30 +25,76 @@ export async function GET(req: Request) {
   const toDate = new Date(`${to}T23:59:59.999`);
   const db = adminDb();
 
-  const [paymentsSnap, incomesSnap, expensesSnap, salarySnap, advancesSnap] = await Promise.all([
-    db.collection("payments").where("createdAt", ">=", fromDate).where("createdAt", "<=", toDate).orderBy("createdAt", "desc").limit(1000).get(),
-    db.collection("incomes").where("createdAt", ">=", fromDate).where("createdAt", "<=", toDate).orderBy("createdAt", "desc").limit(1000).get(),
-    db.collection("expenses").where("createdAt", ">=", fromDate).where("createdAt", "<=", toDate).orderBy("createdAt", "desc").limit(1000).get(),
-    db.collection("salary_reports").where("paidAt", ">=", fromDate).where("paidAt", "<=", toDate).orderBy("paidAt", "desc").limit(1000).get(),
-    db.collection("salary_advances").where("createdAt", ">=", fromDate).where("createdAt", "<=", toDate).orderBy("createdAt", "desc").limit(1000).get()
+  // Strict-read path: five aggregates (≈5 reads total) instead of scanning up
+  // to 5,000 documents. If an aggregate fails (e.g. missing composite index),
+  // fall back to the bounded scan for that data set — never return fake zeros.
+  const sumAggregate = async (
+    collectionName: string,
+    field: string,
+    build: (query: FirebaseFirestore.Query) => FirebaseFirestore.Query
+  ): Promise<number | null> => {
+    try {
+      const snap = await build(db.collection(collectionName))
+        .aggregate({ total: AggregateField.sum(field) })
+        .get();
+      return Number(snap.data().total || 0);
+    } catch {
+      return null;
+    }
+  };
+
+  const [feesAgg, otherAgg, generalAgg, salaryAgg, advancesAgg] = await Promise.all([
+    sumAggregate("payments", "amountPaid", (q) => q.where("createdAt", ">=", fromDate).where("createdAt", "<=", toDate)),
+    sumAggregate("incomes", "amount", (q) => q.where("createdAt", ">=", fromDate).where("createdAt", "<=", toDate)),
+    sumAggregate("expenses", "amount", (q) => q.where("status", "==", "approved").where("createdAt", ">=", fromDate).where("createdAt", "<=", toDate)),
+    sumAggregate("salary_reports", "netPayable", (q) => q.where("paid", "==", true).where("paidAt", ">=", fromDate).where("paidAt", "<=", toDate)),
+    sumAggregate("salary_advances", "amount", (q) => q.where("createdAt", ">=", fromDate).where("createdAt", "<=", toDate))
   ]);
-  logFirestoreRead("FinanceSummaryAPI", "payments", paymentsSnap, { from, to, limit: 1000 });
-  logFirestoreRead("FinanceSummaryAPI", "incomes", incomesSnap, { from, to, limit: 1000 });
-  logFirestoreRead("FinanceSummaryAPI", "expenses", expensesSnap, { from, to, statusFilter: "approved", limit: 1000 });
-  logFirestoreRead("FinanceSummaryAPI", "salary_reports", salarySnap, { from, to, paidFilter: true, limit: 1000 });
-  logFirestoreRead("FinanceSummaryAPI", "salary_advances", advancesSnap, { from, to, limit: 1000 });
 
-  const sum = (snap: FirebaseFirestore.QuerySnapshot, field: string, prefer: string[] = [], filter: (data: Record<string, unknown>) => boolean = () => true) =>
-    snap.docs.reduce((acc, d) => {
-      const data = d.data();
-      return filter(data) && inRange(docDateKey(data, ...prefer), from, to) ? acc + (Number(data[field]) || 0) : acc;
-    }, 0);
+  logFirestoreAggregateRead("FinanceSummaryAPI", "payments", { operation: "sum-amountPaid", from, to });
+  logFirestoreAggregateRead("FinanceSummaryAPI", "incomes", { operation: "sum-amount", from, to });
+  logFirestoreAggregateRead("FinanceSummaryAPI", "expenses", { operation: "sum-approved", from, to });
+  logFirestoreAggregateRead("FinanceSummaryAPI", "salary_reports", { operation: "sum-paid", from, to });
+  logFirestoreAggregateRead("FinanceSummaryAPI", "salary_advances", { operation: "sum-amount", from, to });
 
-  const fees = sum(paymentsSnap, "amountPaid");
-  const other = sum(incomesSnap, "amount");
-  const general = sum(expensesSnap, "amount", [], (data) => String(data.status || "").toLowerCase() === "approved");
-  const salary = sum(salarySnap, "netPayable", ["paidAt", "month"], (data) => data.paid === true);
-  const advances = sum(advancesSnap, "amount");
+  let scannedFees = 0;
+  let scannedOther = 0;
+  let scannedGeneral = 0;
+  let scannedSalary = 0;
+  let scannedAdvances = 0;
+
+  if ([feesAgg, otherAgg, generalAgg, salaryAgg, advancesAgg].some((value) => value === null)) {
+    const [paymentsSnap, incomesSnap, expensesSnap, salarySnap, advancesSnap] = await Promise.all([
+      db.collection("payments").where("createdAt", ">=", fromDate).where("createdAt", "<=", toDate).orderBy("createdAt", "desc").limit(1000).get(),
+      db.collection("incomes").where("createdAt", ">=", fromDate).where("createdAt", "<=", toDate).orderBy("createdAt", "desc").limit(1000).get(),
+      db.collection("expenses").where("createdAt", ">=", fromDate).where("createdAt", "<=", toDate).orderBy("createdAt", "desc").limit(1000).get(),
+      db.collection("salary_reports").where("paidAt", ">=", fromDate).where("paidAt", "<=", toDate).orderBy("paidAt", "desc").limit(1000).get(),
+      db.collection("salary_advances").where("createdAt", ">=", fromDate).where("createdAt", "<=", toDate).orderBy("createdAt", "desc").limit(1000).get()
+    ]);
+    logFirestoreRead("FinanceSummaryAPI", "payments", paymentsSnap, { from, to, limit: 1000, fallback: true });
+    logFirestoreRead("FinanceSummaryAPI", "incomes", incomesSnap, { from, to, limit: 1000, fallback: true });
+    logFirestoreRead("FinanceSummaryAPI", "expenses", expensesSnap, { from, to, statusFilter: "approved", limit: 1000, fallback: true });
+    logFirestoreRead("FinanceSummaryAPI", "salary_reports", salarySnap, { from, to, paidFilter: true, limit: 1000, fallback: true });
+    logFirestoreRead("FinanceSummaryAPI", "salary_advances", advancesSnap, { from, to, limit: 1000, fallback: true });
+
+    const sum = (snap: FirebaseFirestore.QuerySnapshot, field: string, prefer: string[] = [], filter: (data: Record<string, unknown>) => boolean = () => true) =>
+      snap.docs.reduce((acc, d) => {
+        const data = d.data();
+        return filter(data) && inRange(docDateKey(data, ...prefer), from, to) ? acc + (Number(data[field]) || 0) : acc;
+      }, 0);
+
+    scannedFees = sum(paymentsSnap, "amountPaid");
+    scannedOther = sum(incomesSnap, "amount");
+    scannedGeneral = sum(expensesSnap, "amount", [], (data) => String(data.status || "").toLowerCase() === "approved");
+    scannedSalary = sum(salarySnap, "netPayable", ["paidAt", "month"], (data) => data.paid === true);
+    scannedAdvances = sum(advancesSnap, "amount");
+  }
+
+  const fees = feesAgg ?? scannedFees;
+  const other = otherAgg ?? scannedOther;
+  const general = generalAgg ?? scannedGeneral;
+  const salary = salaryAgg ?? scannedSalary;
+  const advances = advancesAgg ?? scannedAdvances;
 
   const incomeTotal = fees + other;
   const expenseTotal = general + salary + advances;

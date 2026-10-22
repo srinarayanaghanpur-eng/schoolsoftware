@@ -1,7 +1,7 @@
 import { FieldValue } from "firebase-admin/firestore";
 import { examCreateSchema } from "@sri-narayana/shared";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { requirePermission, serializeDoc, json } from "@/lib/apiUtils";
+import { requireAdminOrPrincipal, requirePermission, serializeDoc, json } from "@/lib/apiUtils";
 import { docCursor, logFirestoreRead, readLimit } from "@/lib/firestoreReadLogger";
 import { getSchoolId } from "@/lib/schoolScope";
 
@@ -69,7 +69,8 @@ export async function GET(req: Request) {
 
 // POST /api/admin/exams — create an exam.
 export async function POST(req: Request) {
-  const token = await requirePermission(req, "exams.create");
+  // Admin and principal both manage exams from the mobile app.
+  const token = await requireAdminOrPrincipal(req);
   if (!token) return json({ ok: false, error: "Access denied" }, { status: 403 });
 
   try {

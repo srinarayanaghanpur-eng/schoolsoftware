@@ -46,5 +46,9 @@ export async function GET(req: Request) {
     };
   });
 
-  return NextResponse.json({ ok: true, homework });
+  return NextResponse.json({ ok: true, homework }, {
+    headers: {
+      "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
+    },
+  });
 }

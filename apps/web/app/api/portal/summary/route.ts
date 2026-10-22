@@ -1,16 +1,21 @@
 import { NextResponse } from "next/server";
-import { hasPermission, type Role } from "@sri-narayana/shared";
-import { adminDb, verifyBearerToken } from "@/lib/firebaseAdmin";
-import { resolveRole } from "@/lib/apiUtils";
-import { getPortalLinkedStudents, verifyStudentLinked } from "@/lib/portalHelpers";
+import { adminDb } from "@/lib/firebaseAdmin";
+import {
+  authorizePortalRequest,
+  getPortalLinkedStudents,
+  resolveLinkedStudentId,
+  verifyStudentLinked
+} from "@/lib/portalHelpers";
 
 export async function GET(req: Request) {
-  const token = await verifyBearerToken(req);
-  if (!token) return NextResponse.json({ ok: false, error: "Authentication required" }, { status: 401 });
-  const role = await resolveRole(token);
-  if (!hasPermission(role, "portal.view")) {
-    return NextResponse.json({ ok: false, error: "Portal access denied" }, { status: 403 });
+  const access = await authorizePortalRequest(req);
+  if (!access.ok) {
+    return NextResponse.json(
+      { ok: false, error: access.status === 401 ? "Authentication required" : "Portal access denied" },
+      { status: access.status }
+    );
   }
+  const { token, role } = access;
 
   const db = adminDb();
   const { searchParams } = new URL(req.url);
@@ -21,9 +26,10 @@ export async function GET(req: Request) {
     return NextResponse.json({ ok: false, error: "No student linked to this account" }, { status: 404 });
   }
 
-  const studentId = requestedStudentId && linkedStudents.some((s) => s.id === requestedStudentId)
-    ? requestedStudentId
-    : linkedStudents[0].id;
+  const studentId = resolveLinkedStudentId(linkedStudents, requestedStudentId);
+  if (!studentId) {
+    return NextResponse.json({ ok: false, error: "No student linked to this account" }, { status: 404 });
+  }
 
   const valid = await verifyStudentLinked(token, studentId);
   if (!valid) {
@@ -34,15 +40,26 @@ export async function GET(req: Request) {
   if (!studentSnap.exists) return NextResponse.json({ ok: false, error: "Student not found" }, { status: 404 });
   const s = studentSnap.data() as Record<string, unknown>;
 
-  const marksSnap = await db.collection("exam_marks").where("studentId", "==", studentId).limit(500).get();
-  const examIds = [...new Set(marksSnap.docs.map((d) => d.data().examId as string))];
+  // Strict-read path: cap marks to the most recent 120 and batch-read only the
+  // exams that actually appear in them (10 max), instead of 500 marks + N+1.
+  const todayKey = new Date().toISOString().slice(0, 10);
+  const [marksSnap, noticeSnap, paymentsSnap, holidaySnap] = await Promise.all([
+    db.collection("exam_marks").where("studentId", "==", studentId).limit(120).get(),
+    db.collection("notices").orderBy("createdAt", "desc").limit(10).get(),
+    db.collection("payments").where("studentId", "==", studentId).orderBy("createdAt", "desc").limit(5).get(),
+    db.collection("holidays").where("date", ">=", todayKey).orderBy("date", "asc").limit(5).get()
+  ]);
+  // Bounded fan-out: one student's distinct exams, capped before the fetch.
+  const examIds = [...new Set(marksSnap.docs.map((d) => d.data().examId as string))].slice(0, 10);
   const publishedExamNames = new Map<string, string>();
-  await Promise.all(
-    examIds.map(async (eid) => {
-      const ex = await db.collection("exams").doc(eid).get();
-      if (ex.exists && ex.data()?.status === "published") publishedExamNames.set(eid, ex.data()?.name as string);
-    })
-  );
+  if (examIds.length > 0) {
+    const examDocs = await db.getAll(...examIds.map((eid) => db.collection("exams").doc(eid)));
+    examDocs.forEach((ex) => {
+      if (ex.exists && ex.data()?.status === "published") {
+        publishedExamNames.set(ex.id, ex.data()?.name as string);
+      }
+    });
+  }
   const marks = marksSnap.docs
     .filter((d) => publishedExamNames.has(d.data().examId))
     .map((d) => {
@@ -50,7 +67,6 @@ export async function GET(req: Request) {
       return { examName: publishedExamNames.get(m.examId) || "", subject: m.subject, marksObtained: m.marksObtained, maxMarks: m.maxMarks, grade: m.grade || "" };
     });
 
-  const noticeSnap = await db.collection("notices").orderBy("createdAt", "desc").limit(20).get();
   const notices = noticeSnap.docs
     .map((d) => d.data())
     .filter((n) => {
@@ -65,12 +81,6 @@ export async function GET(req: Request) {
 
   const due = Math.max(0, ((s.totalFeesDue as number) || 0) - ((s.totalFeesPaid as number) || 0));
 
-  const paymentsSnap = await db
-    .collection("payments")
-    .where("studentId", "==", studentId)
-    .orderBy("createdAt", "desc")
-    .limit(5)
-    .get();
   const recentPayments = paymentsSnap.docs.map((doc) => {
     const p = doc.data();
     const created = p.createdAt;
@@ -88,7 +98,6 @@ export async function GET(req: Request) {
     };
   });
 
-  const holidaySnap = await db.collection("holidays").where("date", ">=", new Date().toISOString().slice(0, 10)).orderBy("date", "asc").limit(5).get();
   const upcomingHolidays = holidaySnap.docs.map((doc) => {
     const h = doc.data();
     return { title: h.title || h.name || "Holiday", date: h.date || "", type: h.type || "holiday" };
@@ -108,5 +117,9 @@ export async function GET(req: Request) {
       upcomingHolidays,
     },
     linkedStudents
+  }, {
+    headers: {
+      "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
+    },
   });
 }

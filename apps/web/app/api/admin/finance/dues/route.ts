@@ -22,27 +22,49 @@ export async function GET(req: Request) {
   const cursor = searchParams.get("cursor")?.trim() || "";
 
   const db = adminDb();
-  let query: FirebaseFirestore.Query = db.collection("studentFeeSummaries");
-  if (academicYearId) query = query.where("academicYearId", "==", academicYearId);
-  else if (schoolId) query = query.where("schoolId", "==", schoolId);
-  const snap = await query.limit(1000).get();
-  logFirestoreRead("FinanceDuesAPI", "studentFeeSummaries", snap, { schoolId, branchId, academicYearId, classFilter, sectionFilter, pageSize });
-  const filteredDocs = snap.docs
-    .filter((doc) => {
-      const data = doc.data();
-      const balanceDue = Math.max(0, Number(data.dueAmount) || 0);
-      return balanceDue > 0
-        && String(data.feeStatus || "") !== "paid"
-        && (!schoolId || String(data.schoolId || "") === schoolId)
-        && (!branchId || String(data.branchId || "") === branchId)
-        && (!academicYearId || String(data.academicYearId || "") === academicYearId)
-        && (!classFilter || String(data.classId || data.className || "") === classFilter)
-        && (!sectionFilter || String(data.sectionId || data.sectionName || "") === sectionFilter);
-    })
-    .sort((left, right) => (Number(right.data().dueAmount) || 0) - (Number(left.data().dueAmount) || 0));
-  const startIndex = cursor ? Math.max(0, filteredDocs.findIndex((doc) => doc.id === cursor) + 1) : 0;
-  const pageDocs = filteredDocs.slice(startIndex, startIndex + pageSize);
-  const nextCursor = startIndex + pageSize < filteredDocs.length && pageDocs.length > 0 ? pageDocs[pageDocs.length - 1].id : null;
+  const matchesScope = (data: FirebaseFirestore.DocumentData) => {
+    const balanceDue = Math.max(0, Number(data.dueAmount) || 0);
+    return balanceDue > 0
+      && String(data.feeStatus || "") !== "paid"
+      && (!schoolId || String(data.schoolId || "") === schoolId)
+      && (!branchId || String(data.branchId || "") === branchId)
+      && (!academicYearId || String(data.academicYearId || "") === academicYearId)
+      && (!classFilter || String(data.classId || data.className || "") === classFilter)
+      && (!sectionFilter || String(data.sectionId || data.sectionName || "") === sectionFilter);
+  };
+
+  // Strict-read path: only 25 (pageSize) summaries per page, ordered by the
+  // largest dues. Cursor follows the last document actually scanned.
+  let baseQuery: FirebaseFirestore.Query = db.collection("studentFeeSummaries").where("dueAmount", ">", 0);
+  if (academicYearId) baseQuery = baseQuery.where("academicYearId", "==", academicYearId);
+  else if (schoolId) baseQuery = baseQuery.where("schoolId", "==", schoolId);
+
+  if (cursor) {
+    const cursorDoc = await db.collection("studentFeeSummaries").doc(cursor).get();
+    if (cursorDoc.exists) baseQuery = baseQuery.startAfter(cursorDoc);
+  }
+
+  let pageDocs: FirebaseFirestore.QueryDocumentSnapshot[] = [];
+  let nextCursor: string | null = null;
+  try {
+    const snap = await baseQuery.orderBy("dueAmount", "desc").limit(pageSize + 1).get();
+    logFirestoreRead("FinanceDuesAPI", "studentFeeSummaries", snap, { schoolId, branchId, academicYearId, classFilter, sectionFilter, pageSize, ordered: true });
+    pageDocs = snap.docs.filter((doc) => matchesScope(doc.data())).slice(0, pageSize);
+    nextCursor = snap.docs.length > pageSize && snap.docs.length > 0
+      ? snap.docs[snap.docs.length - 1].id
+      : null;
+  } catch {
+    // Missing composite index for the ordered query — degrade to a bounded
+    // scan, then paginate in memory by document id (legacy behaviour).
+    const snap = await baseQuery.limit(1000).get();
+    logFirestoreRead("FinanceDuesAPI", "studentFeeSummaries", snap, { schoolId, branchId, academicYearId, classFilter, sectionFilter, pageSize, degraded: true });
+    const filteredDocs = snap.docs
+      .filter((doc) => matchesScope(doc.data()))
+      .sort((left, right) => (Number(right.data().dueAmount) || 0) - (Number(left.data().dueAmount) || 0));
+    const startIndex = cursor ? Math.max(0, filteredDocs.findIndex((doc) => doc.id === cursor) + 1) : 0;
+    pageDocs = filteredDocs.slice(startIndex, startIndex + pageSize);
+    nextCursor = startIndex + pageSize < filteredDocs.length && pageDocs.length > 0 ? pageDocs[pageDocs.length - 1].id : null;
+  }
 
   const byClass = new Map<string, { className: string; studentCount: number; totalDue: number; students: { id: string; name: string; phone: string; parentName: string; due: number }[] }>();
   let grandTotalDue = 0;

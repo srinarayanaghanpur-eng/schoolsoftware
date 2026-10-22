@@ -12,6 +12,7 @@ import {
 } from "@/design-system/components";
 import { color, space } from "@/design-system/tokens";
 import { useMobileSession } from "@/lib/mobileSession";
+import { openWebsite } from "@/lib/openWebsite";
 import { workspaceLabel } from "@/lib/roleRouting";
 import { initials } from "@/features/teacher/hooks";
 
@@ -62,6 +63,8 @@ function DesktopOnly() {
           leading={<Icon name="computer" size={21} tint={color.primary} />}
           title="Open the web dashboard"
           subtitle="Use the same login details"
+          chevron
+          onPress={() => openWebsite("/", "the web dashboard")}
         />
       </SectionCard>
 

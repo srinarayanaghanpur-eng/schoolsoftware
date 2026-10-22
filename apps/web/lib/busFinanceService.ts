@@ -58,9 +58,11 @@ function emiMonthKey(d: Date): string {
  */
 export async function generateEmiSchedule(financeId: string, source: ScheduleSource): Promise<number> {
   const db = adminDb();
+  // EMIs per finance are small (monthly schedule, ~10y max = 120 rows).
   const existingSnap = await db
     .collection(BUS_EMI_PAYMENTS_COLLECTION)
     .where("busFinanceId", "==", financeId)
+    .limit(120)
     .get();
   const existingNumbers = new Set<number>(existingSnap.docs.map((d) => Number(d.data().emiNumber)));
 
@@ -126,7 +128,7 @@ export async function recalcFinanceSummary(financeId: string): Promise<void> {
   const financeRef = db.collection(BUS_FINANCE_COLLECTION).doc(financeId);
   const [financeSnap, paymentsSnap] = await Promise.all([
     financeRef.get(),
-    db.collection(BUS_EMI_PAYMENTS_COLLECTION).where("busFinanceId", "==", financeId).get(),
+    db.collection(BUS_EMI_PAYMENTS_COLLECTION).where("busFinanceId", "==", financeId).limit(120).get(),
   ]);
   if (!financeSnap.exists) return;
 

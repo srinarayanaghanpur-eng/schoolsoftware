@@ -9,31 +9,31 @@
  */
 
 export const color = {
-  // Surfaces
-  background: "#faf9fd",
+  // Surfaces (Zepto-style airy light-grey canvas, white cards)
+  background: "#f4f3f8",
   previewBackdrop: "#e9e7ef",
   surface: "#ffffff",
   surfaceVariant: "#f1f0f7",
-  outline: "#eceaf2",
-  outlineStrong: "#e4e2ec",
+  outline: "#e9e7f2",
+  outlineStrong: "#e0deea",
 
-  // Primary (indigo)
-  primary: "#4356a9",
-  primaryDeep: "#2d3f8f",
-  primaryContainer: "#dde1ff",
-  onPrimaryContainer: "#00174b",
-  primaryGradientA: "#3c4d9e",
-  primaryGradientB: "#4a5fc0",
+  // Primary (Zepto vivid purple)
+  primary: "#5b2ee5",
+  primaryDeep: "#3f1d9e",
+  primaryContainer: "#e6deff",
+  onPrimaryContainer: "#1e0a5c",
+  primaryGradientA: "#4a1fc4",
+  primaryGradientB: "#6f45f0",
 
   // Text
-  ink: "#1a1b22",
+  ink: "#17141f",
   ink2: "#46464f",
   ink3: "#6f6f7a",
   muted: "#8a8a94",
   faint: "#c7c6d2",
   onPrimary: "#ffffff",
 
-  // Semantic
+  // Semantic (unchanged meanings)
   success: "#2e6b32",
   successContainer: "#d3f0d0",
   onSuccessContainer: "#0c2010",
@@ -45,9 +45,17 @@ export const color = {
   errorContainer: "#ffdad6",
   onErrorContainer: "#410002",
 
+  // Zepto-style pastel tile set for category / quick-action tiles
+  tileLavender: "#e6deff",
+  tilePeach: "#ffe3cf",
+  tileMint: "#d3f0d0",
+  tileSky: "#d4e9ff",
+  tileRose: "#ffd9e2",
+  tileLemon: "#fff0b8",
+
   // Misc accents seen in the design
   accountPurple: "#7a4988",
-  inverseSurface: "#2c2c35",
+  inverseSurface: "#221d33",
   inverseAccent: "#83d5c6"
 } as const;
 

@@ -1,20 +1,23 @@
 import { NextResponse } from "next/server";
-import { hasPermission, type Role } from "@sri-narayana/shared";
-import { adminDb, verifyBearerToken } from "@/lib/firebaseAdmin";
-import { resolveRole } from "@/lib/apiUtils";
-import { getPortalLinkedStudents, verifyStudentLinked } from "@/lib/portalHelpers";
+import { adminDb } from "@/lib/firebaseAdmin";
+import { authorizePortalRequest, verifyStudentLinked } from "@/lib/portalHelpers";
 
 export async function GET(req: Request) {
-  const token = await verifyBearerToken(req);
-  if (!token) return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
-  const role = await resolveRole(token);
-  if (!hasPermission(role, "portal.view")) {
-    return NextResponse.json({ ok: false, error: "Access denied" }, { status: 403 });
+  const access = await authorizePortalRequest(req);
+  if (!access.ok) {
+    return NextResponse.json(
+      { ok: false, error: access.status === 401 ? "Authentication required" : "Portal access denied" },
+      { status: access.status }
+    );
   }
+  const { token } = access;
 
   const { searchParams } = new URL(req.url);
   const studentId = searchParams.get("studentId");
-  const month = searchParams.get("month") || new Date().toISOString().slice(0, 7);
+  const defaultMonth = new Date().toISOString().slice(0, 7);
+  const monthRaw = searchParams.get("month") || defaultMonth;
+  // The month flows into a Firestore equality filter — accept only YYYY-MM.
+  const month = /^\d{4}-(0[1-9]|1[0-2])$/.test(monthRaw) ? monthRaw : defaultMonth;
 
   if (!studentId) return NextResponse.json({ ok: false, error: "studentId required" }, { status: 400 });
 
@@ -58,5 +61,9 @@ export async function GET(req: Request) {
     student: { id: studentId, name: studentName, className, section },
     summary: { present, absent, late, total, percentage },
     attendance,
+  }, {
+    headers: {
+      "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
+    },
   });
 }
