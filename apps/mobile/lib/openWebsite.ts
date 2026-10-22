@@ -11,7 +11,7 @@ import { Alert, Linking } from "react-native";
 
 /** Production website origin (no trailing slash). Override with EXPO_PUBLIC_SITE_URL. */
 export const SITE_URL = (
-  process.env.EXPO_PUBLIC_SITE_URL ?? "https://schoolsoftware.vercel.app"
+  process.env.EXPO_PUBLIC_SITE_URL ?? "https://snhssoftware.vercel.app"
 ).replace(/\/$/, "");
 
 /** Absolute website URL for an in-site path like "/admin/reports". */

@@ -9,7 +9,7 @@ import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import {
   Avatar, Badge, Card, DSText, ErrorState, Icon, ListRow, SkeletonPage,
-  PillButton, PressableScale, ProgressRow, ScreenHeader, SectionCard, TonalTile, useToast
+  PillButton, PressableScale, ProgressRow, ScreenHeader, SectionCard, TonalTile
 } from "@/design-system/components";
 import { radius, space } from "@/design-system/tokens";
 import { useTheme } from "@/lib/Theme";
@@ -39,7 +39,6 @@ export default function PrincipalHomeRoute() {
 function PrincipalHome() {
   const { t } = useTheme();
   const router = useRouter();
-  const toast = useToast();
   const { profile } = useMobileSession();
   const attendance = useTodayAttendance();
   const { staff } = useStaff();
@@ -114,33 +113,51 @@ function PrincipalHome() {
       </LinearGradient>
 
       <View style={styles.statRow}>
-        <Card style={styles.moneyCard}>
-          <TonalTile bg={t.tint} size={36}>
-            <Icon name="groups" size={19} tint={t.blue} />
-          </TonalTile>
-          <DSText variant="display" style={styles.moneyValue} numberOfLines={1}>
-            {staff.length}
-          </DSText>
-          <DSText variant="overline" style={styles.moneyLabel} numberOfLines={1}>ON ROLL</DSText>
-        </Card>
-        <Card style={styles.moneyCard}>
-          <TonalTile bg={t.tint} size={36}>
-            <Icon name="school" size={19} tint={t.blue} />
-          </TonalTile>
-          <DSText variant="display" style={styles.moneyValue} numberOfLines={1}>
-            {stats?.totalStudents ?? 0}
-          </DSText>
-          <DSText variant="overline" style={styles.moneyLabel} numberOfLines={1}>STUDENTS</DSText>
-        </Card>
-        <Card style={styles.moneyCard}>
-          <TonalTile bg={pendingLeave.length > 0 ? t.warnBg : t.okBg} size={36}>
-            <Icon name="fact-check" size={19} tint={pendingLeave.length > 0 ? t.warn : t.ok} />
-          </TonalTile>
-          <DSText variant="display" style={styles.moneyValue} numberOfLines={1}>
-            {pendingLeave.length}
-          </DSText>
-          <DSText variant="overline" style={styles.moneyLabel} numberOfLines={1}>AWAITING</DSText>
-        </Card>
+        <PressableScale
+          accessibilityLabel="Open staff"
+          onPress={() => router.push("/principal/staff" as never)}
+          style={styles.cardPress}
+        >
+          <Card style={styles.moneyCard}>
+            <TonalTile bg={t.tint} size={36}>
+              <Icon name="groups" size={19} tint={t.blue} />
+            </TonalTile>
+            <DSText variant="display" style={styles.moneyValue} numberOfLines={1}>
+              {staff.length}
+            </DSText>
+            <DSText variant="overline" style={styles.moneyLabel} numberOfLines={1}>ON ROLL</DSText>
+          </Card>
+        </PressableScale>
+        <PressableScale
+          accessibilityLabel="Open students"
+          onPress={() => router.push("/principal/students" as never)}
+          style={styles.cardPress}
+        >
+          <Card style={styles.moneyCard}>
+            <TonalTile bg={t.tint} size={36}>
+              <Icon name="school" size={19} tint={t.blue} />
+            </TonalTile>
+            <DSText variant="display" style={styles.moneyValue} numberOfLines={1}>
+              {stats?.totalStudents ?? 0}
+            </DSText>
+            <DSText variant="overline" style={styles.moneyLabel} numberOfLines={1}>STUDENTS</DSText>
+          </Card>
+        </PressableScale>
+        <PressableScale
+          accessibilityLabel="Open approvals"
+          onPress={() => router.push("/principal/approvals" as never)}
+          style={styles.cardPress}
+        >
+          <Card style={styles.moneyCard}>
+            <TonalTile bg={pendingLeave.length > 0 ? t.warnBg : t.okBg} size={36}>
+              <Icon name="fact-check" size={19} tint={pendingLeave.length > 0 ? t.warn : t.ok} />
+            </TonalTile>
+            <DSText variant="display" style={styles.moneyValue} numberOfLines={1}>
+              {pendingLeave.length}
+            </DSText>
+            <DSText variant="overline" style={styles.moneyLabel} numberOfLines={1}>AWAITING</DSText>
+          </Card>
+        </PressableScale>
       </View>
 
       {/* assign a task prompt (staff task assignment — Phase 2) */}
@@ -161,7 +178,7 @@ function PrincipalHome() {
             icon="add-task"
             bg="#FFFFFF"
             fg={t.blue}
-            onPress={() => toast.show("Task assignment arrives in the next release.")}
+            onPress={() => router.push("/principal/tasks" as never)}
           />
         </View>
       </LinearGradient>
@@ -249,7 +266,7 @@ function PrincipalHome() {
       {/* broadcast (staff announcements — Phase 2) */}
       <PressableScale
         accessibilityLabel="Send announcement to all staff"
-        onPress={() => toast.show("Staff announcements arrive in the next release.")}
+        onPress={() => router.push("/principal/notices" as never)}
         style={[styles.broadcast, { backgroundColor: t.card, borderColor: t.line }]}
       >
         <TonalTile bg={t.tint} size={34}>
@@ -298,6 +315,7 @@ const styles = StyleSheet.create({
   },
   heroTop: { flexDirection: "row", alignItems: "center", gap: 14 },
   statRow: { flexDirection: "row", gap: 10 },
+  cardPress: { flex: 1 },
   moneyCard: {
     flex: 1,
     padding: space.md,

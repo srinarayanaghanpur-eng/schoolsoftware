@@ -1,8 +1,42 @@
-# EAS upload exclusions (monorepo root) — phone builds never need these.
-node_modules/
-apps/web/.next/
-apps/web/public/__mobile/
-apps/desktop/dist/
-dist/
-coverage/
+# EAS upload exclusions (monorepo root).
+# NOTE (verified via `eas build:inspect --stage archive`): eas-cli honors
+# root-ANCHORED patterns (leading /) but ignores bare directory names, and
+# uploads .git despite docs saying otherwise. Keep every dir anchored.
+# Phone builds only need apps/mobile + packages/shared.
+/.git/
+/node_modules/
+/apps/web/.next/
+/apps/desktop/dist/
+/apps/desktop/dist-fast-start-installer/
+/dist/
+/coverage/
+/tests/
+/test-results/
+/.playwright-cli/
+/docs/
+/audit/
 *.log
+*.tsbuildinfo
+/.expo/
+/build/
+/.next/
+google-services.json
+GoogleService-Info.plist
+
+# Environment files (all variants — NEVER upload secrets)
+.env*
+!env.example
+apps/web/.env.local
+apps/mobile/.env
+apps/desktop/.env
+
+# Firebase service account keys (sensitive — never upload)
+serviceAccount*.json
+*service-account*.json
+*-firebase-adminsdk-*.json
+*.pem
+*.key
+*.p12
+*.pfx
+*.reg
+firebase-debug.log

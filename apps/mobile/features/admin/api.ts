@@ -56,6 +56,19 @@ async function adminPatch<T>(path: string, body: unknown): Promise<T> {
   return result as T;
 }
 
+async function adminDelete<T>(path: string): Promise<T> {
+  const user = auth.currentUser;
+  if (!user) throw new Error("Please sign in again.");
+  const token = await user.getIdToken();
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  const result = (await response.json()) as { ok?: boolean; error?: string };
+  if (!response.ok || result.ok === false) throw new Error(result.error ?? "Delete failed.");
+  return result as T;
+}
+
 /* ------------------------------------------------------------------ types */
 
 export type DashboardStats = {
@@ -71,14 +84,141 @@ export type DashboardStats = {
 
 export type AdminPayment = {
   id: string;
+  studentId?: string;
   studentName?: string;
   class?: string;
   section?: string;
   amountPaid?: number;
+  amountDue?: number;
+  remainingAmount?: number;
   paymentMethod?: string;
+  paymentType?: string;
+  feeType?: string;
   receiptNumber?: string;
+  receiptId?: string;
   status?: string;
   createdAt?: string;
+  paymentDate?: string;
+  remarks?: string;
+};
+
+export type PaymentPage = {
+  payments: AdminPayment[];
+  nextCursor: string | null;
+  hasMore: boolean;
+};
+
+export type ReceiptFeeItem = {
+  name?: string;
+  label?: string;
+  type?: string;
+  description?: string;
+  periodOrMonth?: string;
+  remarks?: string;
+  amount?: number;
+};
+
+export type ReceiptRecord = {
+  id?: string;
+  receiptNo?: string;
+  receiptNumber?: string;
+  paymentId?: string;
+  academicYear?: string;
+  studentId?: string;
+  studentName?: string;
+  admissionNo?: string;
+  className?: string;
+  section?: string;
+  parentName?: string;
+  mobile?: string;
+  paymentDate?: string;
+  paymentMode?: string;
+  feeItems?: ReceiptFeeItem[];
+  totalPaid?: number;
+  balanceDue?: number;
+  createdByUsername?: string;
+  status?: string;
+};
+
+export type StudentRecord = {
+  id: string;
+  studentName?: string;
+  admissionNumber?: string;
+  admissionNo?: string;
+  class?: string;
+  section?: string;
+  rollNo?: number;
+  gender?: string;
+  fatherName?: string;
+  motherName?: string;
+  fatherPhone?: string;
+  motherPhone?: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+  dateOfBirth?: unknown;
+  status?: string;
+  feeStatus?: string;
+  totalFeeAmount?: number;
+  totalFeesPaid?: number;
+  totalFeesDue?: number;
+  totalConcessionAmount?: number;
+  academicYearId?: string;
+};
+
+export type StudentPage = {
+  students: StudentRecord[];
+  nextCursor: string | null;
+  hasMore: boolean;
+};
+
+export type DueStudent = {
+  id: string;
+  name: string;
+  phone: string;
+  parentName: string;
+  due: number;
+};
+
+export type DueClass = {
+  className: string;
+  studentCount: number;
+  totalDue: number;
+  students: DueStudent[];
+};
+
+export type DuesPage = {
+  classes: DueClass[];
+  grandTotalDue: number;
+  studentsWithDues: number;
+  nextCursor: string | null;
+  hasMore: boolean;
+};
+
+export type AdminTeacherDetail = AdminTeacher & {
+  baseSalary?: number;
+  joiningDate?: string;
+  employmentType?: string;
+  role?: string;
+  biometricUserId?: string;
+  internalEmail?: string;
+  allowedCLPerMonth?: number;
+};
+
+export type TeacherAttendanceDay = {
+  date: string;
+  status: string;
+  checkInTime?: string;
+  checkOutTime?: string;
+};
+
+export type TeacherAttendanceSummary = {
+  month: string;
+  workingDays: number;
+  present: number;
+  late: number;
+  absent: number;
+  records: TeacherAttendanceDay[];
 };
 
 export type Expense = {
@@ -163,6 +303,7 @@ export type Exam = {
   academicYearId?: string;
   startDate?: string;
   endDate?: string;
+  maxMarks?: number;
   status?: string;
   timetable?: ExamTimetableEntry[];
 };
@@ -198,6 +339,9 @@ export type Notice = {
   title?: string;
   body?: string;
   audience?: string;
+  category?: string;
+  audienceRoles?: string[];
+  audienceClasses?: string[];
   createdAt?: string;
 };
 
@@ -223,11 +367,144 @@ export async function fetchDashboardStats() {
   return result.data;
 }
 
-export async function fetchRecentPayments(pageSize = 10) {
-  const result = await adminGet<{ data: AdminPayment[] }>(
-    `/api/admin/payments?pageSize=${pageSize}`
+export async function fetchRecentPayments(pageSize = 10, cursor = "", studentId = ""): Promise<PaymentPage> {
+  const query = new URLSearchParams({ pageSize: String(pageSize) });
+  if (cursor) query.set("cursor", cursor);
+  if (studentId) query.set("studentId", studentId);
+  const result = await adminGet<{
+    data?: AdminPayment[];
+    nextCursor?: string | null;
+    hasMore?: boolean;
+  }>(`/api/admin/payments?${query.toString()}`);
+  return {
+    payments: result.data ?? [],
+    nextCursor: result.nextCursor ?? null,
+    hasMore: result.hasMore === true
+  };
+}
+
+/** Full receipt plus everything needed to show a student's payment history. */
+export async function fetchReceipt(receiptId: string) {
+  const result = await adminGet<{ receipt: ReceiptRecord; canPrint?: boolean }>(
+    `/api/admin/receipts/${encodeURIComponent(receiptId)}`
   );
-  return result.data ?? [];
+  return { receipt: result.receipt, canPrint: result.canPrint === true };
+}
+
+export async function fetchStudentPayments(studentId: string, pageSize = 20) {
+  const page = await fetchRecentPayments(pageSize, "", studentId);
+  return page.payments;
+}
+
+export async function fetchStudents(params: { q?: string; cursor?: string; pageSize?: number } = {}): Promise<StudentPage> {
+  const query = new URLSearchParams({ pageSize: String(params.pageSize ?? 25) });
+  if (params.q?.trim()) query.set("q", params.q.trim());
+  if (params.cursor) query.set("cursor", params.cursor);
+  const result = await adminGet<{
+    data?: StudentRecord[];
+    nextCursor?: string | null;
+    hasMore?: boolean;
+  }>(`/api/admin/students?${query.toString()}`);
+  return {
+    students: result.data ?? [],
+    nextCursor: result.nextCursor ?? null,
+    hasMore: result.hasMore === true
+  };
+}
+
+export async function fetchStudent(studentId: string) {
+  const result = await adminGet<{ data: StudentRecord }>(
+    `/api/admin/students/${encodeURIComponent(studentId)}`
+  );
+  return result.data;
+}
+
+export async function fetchDues(limit = 25, cursor = ""): Promise<DuesPage> {
+  const query = new URLSearchParams({ limit: String(limit) });
+  if (cursor) query.set("cursor", cursor);
+  const result = await adminGet<{
+    classes?: DueClass[];
+    grandTotalDue?: number;
+    studentsWithDues?: number;
+    nextCursor?: string | null;
+    hasMore?: boolean;
+  }>(`/api/admin/finance/dues?${query.toString()}`);
+  return {
+    classes: result.classes ?? [],
+    grandTotalDue: Number(result.grandTotalDue ?? 0),
+    studentsWithDues: Number(result.studentsWithDues ?? 0),
+    nextCursor: result.nextCursor ?? null,
+    hasMore: result.hasMore === true
+  };
+}
+
+export async function fetchTeacher(teacherId: string) {
+  const result = await adminGet<{ teacher: AdminTeacherDetail }>(
+    `/api/admin/teachers/${encodeURIComponent(teacherId)}`
+  );
+  return result.teacher;
+}
+
+export async function fetchTeacherAttendanceSummary(teacherId: string, month = "") {
+  const query = month ? `?month=${encodeURIComponent(month)}` : "";
+  const result = await adminGet<TeacherAttendanceSummary>(
+    `/api/admin/teachers/${encodeURIComponent(teacherId)}/attendance-summary${query}`
+  );
+  return {
+    month: result.month,
+    workingDays: Number(result.workingDays ?? 0),
+    present: Number(result.present ?? 0),
+    late: Number(result.late ?? 0),
+    absent: Number(result.absent ?? 0),
+    records: result.records ?? []
+  };
+}
+
+export type ExamInput = {
+  name: string;
+  academicYearId: string;
+  className: string;
+  section?: string;
+  examType: "unit_test" | "midterm" | "final" | "olympiad" | "other";
+  startDate: string;
+  endDate?: string;
+  maxMarks: number;
+  status?: "scheduled" | "ongoing" | "completed" | "published";
+};
+
+export async function createExam(input: ExamInput) {
+  const result = await adminPost<{ id: string }>("/api/admin/exams", input);
+  return result.id;
+}
+
+export async function updateExam(examId: string, input: Partial<ExamInput>) {
+  return adminPatch<{ ok: boolean }>(`/api/admin/exams/${encodeURIComponent(examId)}`, input);
+}
+
+export async function deleteExam(examId: string) {
+  return adminDelete<{ ok: boolean }>(`/api/admin/exams/${encodeURIComponent(examId)}`);
+}
+
+export type NoticeInput = {
+  title: string;
+  body: string;
+  category?: "school" | "branch" | "class" | "holiday" | "exam" | "event" | "fee" | "emergency";
+  audienceRoles?: string[];
+  channels?: ("app" | "whatsapp" | "email")[];
+  academicYearId?: string;
+};
+
+export async function createNotice(input: NoticeInput) {
+  const result = await adminPost<{ id: string }>("/api/admin/notices", input);
+  return result.id;
+}
+
+export async function updateNotice(noticeId: string, input: Partial<NoticeInput>) {
+  return adminPatch<{ ok: boolean }>(`/api/admin/notices/${encodeURIComponent(noticeId)}`, input);
+}
+
+export async function deleteNotice(noticeId: string) {
+  return adminDelete<{ ok: boolean }>(`/api/admin/notices/${encodeURIComponent(noticeId)}`);
 }
 
 export async function fetchLeaveRequests() {
@@ -417,12 +694,22 @@ export async function updateTaskStatus(taskId: string, status: "done" | "cancell
   return adminPatch<{ ok: boolean }>("/api/admin/tasks", { taskId, status });
 }
 
-/** Today's staff attendance snapshot. */
-export async function fetchTodayAttendance() {
-  const today = new Date().toISOString().slice(0, 10);
-  const result = await adminGet<{
-    records: { status?: string; teacherId?: string }[];
-    teachers: AdminTeacher[];
-  }>(`/api/admin/attendance?dateFrom=${today}&dateTo=${today}`);
-  return { records: result.records ?? [], teachers: result.teachers ?? [] };
+export type TodayAttendanceSummary = {
+  present: number;
+  late: number;
+  absent: number;
+  total: number;
+};
+
+/** Today's staff attendance counts (server-side count aggregations). */
+export async function fetchTodayAttendance(): Promise<TodayAttendanceSummary> {
+  const result = await adminGet<{ present?: number; late?: number; absent?: number; total?: number }>(
+    "/api/admin/attendance/summary"
+  );
+  return {
+    present: Number(result.present ?? 0),
+    late: Number(result.late ?? 0),
+    absent: Number(result.absent ?? 0),
+    total: Number(result.total ?? 0)
+  };
 }

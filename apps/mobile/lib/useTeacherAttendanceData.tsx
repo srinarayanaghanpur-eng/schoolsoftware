@@ -219,7 +219,7 @@ export function TeacherDataProvider({ children }: { children: React.ReactNode })
 
         dataUnsubscribers.push(
           onSnapshot(
-            query(collection(db, "holidays"), orderBy("date", "desc"), limit(370)),
+                          query(collection(db, "holidays"), orderBy("date", "desc"), limit(120)),
             (snapshot) => {
               setHolidays(snapshot.docs.map((item: QueryDocumentSnapshot) => normalizeHoliday(item.id, asRecord(item.data()))));
               markReady("holidays");

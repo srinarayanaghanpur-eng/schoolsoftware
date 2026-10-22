@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Sri Narayana High School – School ERP",
+    "name": "NarayanaOS",
     "slug": "sri-narayana-school-erp",
     "scheme": "sna",
     "version": "1.0.0",
@@ -17,7 +17,7 @@
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "Allow Sri Narayana School ERP to use your location for campus attendance."
+          "locationAlwaysAndWhenInUsePermission": "Allow NarayanaOS to use your location for campus attendance."
         }
       ],
       [
@@ -34,7 +34,7 @@
       "buildNumber": "1"
     },
     "android": {
-      "versionCode": 1,
+      "versionCode": 4,
       "package": "com.srinarayana.attendance",
       "adaptiveIcon": {
         "foregroundImage": "./assets/icon.png",

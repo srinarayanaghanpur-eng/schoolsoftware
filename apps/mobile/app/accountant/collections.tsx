@@ -4,8 +4,9 @@
  */
 import React, { useMemo, useState } from "react";
 import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, View } from "react-native";
+import { useRouter } from "expo-router";
 import {
-  Card, DSText, EmptyState, ErrorState, FilterChips, Icon, ListRow, SkeletonPage,
+  Card, DSText, EmptyState, ErrorState, FilterChips, Icon, ListRow, PressableScale, SkeletonPage,
   PageTitle, TonalTile
 } from "@/design-system/components";
 import { radius, space } from "@/design-system/tokens";
@@ -25,8 +26,12 @@ export default function AccountantCollectionsRoute() {
 
 function AccountantCollections() {
   const { t } = useTheme();
+  const router = useRouter();
   const [filter, setFilter] = useState("All");
-  const { payments, loading, error, refresh } = useRecentPayments();
+  const {
+    payments, loading, error, refresh, loadMore: loadMorePayments,
+    hasMore: paymentsHasMore, loadingMore: paymentsLoadingMore
+  } = useRecentPayments();
   const { expenses, refresh: refreshExpenses, loadMore, loadingMore } = useExpenses();
 
   const visible = useMemo(
@@ -62,6 +67,8 @@ function AccountantCollections() {
             <DSText variant="caption">{row.dateLabel}</DSText>
           </View>
         }
+        chevron={income && Boolean(row.paymentId)}
+        onPress={income && row.paymentId ? () => router.push(`/accountant/receipt/${row.paymentId}` as never) : undefined}
       />
     );
   };
@@ -117,8 +124,26 @@ function AccountantCollections() {
         <EmptyState icon="receipt-long" label={`No ${filter.toLowerCase()} transactions in this period.`} />
       }
       ListFooterComponent={
-        loadingMore ? (
-          <ActivityIndicator size="small" color={t.blue} style={{ paddingVertical: space.md }} />
+        paymentsHasMore || loadingMore ? (
+          <View style={styles.footer}>
+            {loadingMore ? (
+              <ActivityIndicator size="small" color={t.blue} />
+            ) : null}
+            {paymentsHasMore ? (
+              paymentsLoadingMore ? (
+                <ActivityIndicator size="small" color={t.blue} />
+              ) : (
+                <PressableScale
+                  accessibilityLabel="Load more receipts"
+                  onPress={() => void loadMorePayments()}
+                  style={styles.loadMore}
+                >
+                  <DSText variant="bodyMedium" tint={t.blue}>Load more receipts</DSText>
+                  <Icon name="expand-more" size={18} tint={t.blue} />
+                </PressableScale>
+              )
+            ) : null}
+          </View>
         ) : null
       }
       onEndReached={() => void loadMore()}
@@ -146,5 +171,7 @@ const styles = StyleSheet.create({
   moneyValue: { fontSize: 17, fontWeight: "800" },
   moneyLabel: { fontSize: 10 },
   receiptMoney: { fontWeight: "800" },
-  divider: { height: StyleSheet.hairlineWidth }
+  divider: { height: StyleSheet.hairlineWidth },
+  footer: { gap: space.sm, paddingVertical: space.md, alignItems: "center" },
+  loadMore: { flexDirection: "row", alignItems: "center", gap: 2 }
 });

@@ -142,33 +142,51 @@ function AdminHome() {
 
       {/* today snapshot — 3 KPI cards */}
       <View style={styles.statRow}>
-        <Card style={styles.moneyCard}>
-          <TonalTile bg={t.tint} size={36}>
-            <Icon name="groups" size={19} tint={t.blue} />
-          </TonalTile>
-          <DSText variant="display" style={styles.moneyValue} numberOfLines={1}>
-            {stats?.totalStudents ?? 0}
-          </DSText>
-          <DSText variant="overline" style={styles.moneyLabel} numberOfLines={1}>STUDENTS</DSText>
-        </Card>
-        <Card style={styles.moneyCard}>
-          <TonalTile bg={t.okBg} size={36}>
-            <Icon name="how-to-reg" size={19} tint={t.ok} />
-          </TonalTile>
-          <DSText variant="display" style={styles.moneyValue} numberOfLines={1}>
-            {`${attendance.present}/${attendance.total}`}
-          </DSText>
-          <DSText variant="overline" style={styles.moneyLabel} numberOfLines={1}>PRESENT</DSText>
-        </Card>
-        <Card style={styles.moneyCard}>
-          <TonalTile bg={t.badBg} size={36}>
-            <Icon name="error-outline" size={19} tint={t.bad} />
-          </TonalTile>
-          <DSText variant="display" style={styles.moneyValue} numberOfLines={1}>
-            {formatMoneyShort(stats?.totalFeeOutstanding)}
-          </DSText>
-          <DSText variant="overline" style={styles.moneyLabel} numberOfLines={1}>DUE</DSText>
-        </Card>
+        <PressableScale
+          accessibilityLabel="Open students"
+          onPress={() => router.push("/admin/students" as never)}
+          style={styles.cardPress}
+        >
+          <Card style={styles.moneyCard}>
+            <TonalTile bg={t.tint} size={36}>
+              <Icon name="groups" size={19} tint={t.blue} />
+            </TonalTile>
+            <DSText variant="display" style={styles.moneyValue} numberOfLines={1}>
+              {stats?.totalStudents ?? 0}
+            </DSText>
+            <DSText variant="overline" style={styles.moneyLabel} numberOfLines={1}>STUDENTS</DSText>
+          </Card>
+        </PressableScale>
+        <PressableScale
+          accessibilityLabel="Open staff attendance"
+          onPress={() => router.push("/admin/staff" as never)}
+          style={styles.cardPress}
+        >
+          <Card style={styles.moneyCard}>
+            <TonalTile bg={t.okBg} size={36}>
+              <Icon name="how-to-reg" size={19} tint={t.ok} />
+            </TonalTile>
+            <DSText variant="display" style={styles.moneyValue} numberOfLines={1}>
+              {`${attendance.present}/${attendance.total}`}
+            </DSText>
+            <DSText variant="overline" style={styles.moneyLabel} numberOfLines={1}>PRESENT</DSText>
+          </Card>
+        </PressableScale>
+        <PressableScale
+          accessibilityLabel="Open dues"
+          onPress={() => router.push("/admin/dues" as never)}
+          style={styles.cardPress}
+        >
+          <Card style={styles.moneyCard}>
+            <TonalTile bg={t.badBg} size={36}>
+              <Icon name="error-outline" size={19} tint={t.bad} />
+            </TonalTile>
+            <DSText variant="display" style={styles.moneyValue} numberOfLines={1}>
+              {formatMoneyShort(stats?.totalFeeOutstanding)}
+            </DSText>
+            <DSText variant="overline" style={styles.moneyLabel} numberOfLines={1}>DUE</DSText>
+          </Card>
+        </PressableScale>
       </View>
 
       {/* fee collection progress */}
@@ -265,6 +283,8 @@ function AdminHome() {
                   title={row.title}
                   subtitle={`${income ? "" : "− "}${formatMoney(row.amount)} · ${row.subtitle}`}
                   trailing={<DSText variant="caption">{row.dateLabel}</DSText>}
+                  chevron={income && Boolean(row.paymentId)}
+                  onPress={income && row.paymentId ? () => router.push(`/admin/receipt/${row.paymentId}` as never) : undefined}
                 />
               </View>
             );
@@ -300,6 +320,7 @@ const styles = StyleSheet.create({
   heroTop: { flexDirection: "row", alignItems: "center", gap: 14 },
   heroMoney: { fontSize: 26, fontWeight: "800" },
   statRow: { flexDirection: "row", gap: 10 },
+  cardPress: { flex: 1 },
   moneyCard: {
     flex: 1,
     padding: space.md,

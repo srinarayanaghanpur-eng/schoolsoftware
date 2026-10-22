@@ -140,33 +140,51 @@ function AccountantHome() {
       </LinearGradient>
 
       <View style={styles.statRow}>
-        <Card style={styles.moneyCard}>
-          <TonalTile bg={t.okBg} size={36}>
-            <Icon name="trending-up" size={19} tint={t.ok} />
-          </TonalTile>
-          <DSText variant="display" style={styles.moneyValue} numberOfLines={1}>
-            {formatMoneyShort(stats?.totalFeeCollected)}
-          </DSText>
-          <DSText variant="overline" style={styles.moneyLabel} numberOfLines={1}>COLLECTED</DSText>
-        </Card>
-        <Card style={styles.moneyCard}>
-          <TonalTile bg={t.badBg} size={36}>
-            <Icon name="schedule" size={19} tint={t.bad} />
-          </TonalTile>
-          <DSText variant="display" style={styles.moneyValue} numberOfLines={1}>
-            {formatMoneyShort(stats?.totalFeeOutstanding)}
-          </DSText>
-          <DSText variant="overline" style={styles.moneyLabel} numberOfLines={1}>DUE</DSText>
-        </Card>
-        <Card style={styles.moneyCard}>
-          <TonalTile bg={t.warnBg} size={36}>
-            <Icon name="group" size={19} tint={t.warn} />
-          </TonalTile>
-          <DSText variant="display" style={styles.moneyValue} numberOfLines={1}>
-            {stats?.studentsWithOutstandingFees ?? 0}
-          </DSText>
-          <DSText variant="overline" style={styles.moneyLabel} numberOfLines={1}>WITH DUES</DSText>
-        </Card>
+        <PressableScale
+          accessibilityLabel="Open collections"
+          onPress={() => router.push("/accountant/collections" as never)}
+          style={styles.cardPress}
+        >
+          <Card style={styles.moneyCard}>
+            <TonalTile bg={t.okBg} size={36}>
+              <Icon name="trending-up" size={19} tint={t.ok} />
+            </TonalTile>
+            <DSText variant="display" style={styles.moneyValue} numberOfLines={1}>
+              {formatMoneyShort(stats?.totalFeeCollected)}
+            </DSText>
+            <DSText variant="overline" style={styles.moneyLabel} numberOfLines={1}>COLLECTED</DSText>
+          </Card>
+        </PressableScale>
+        <PressableScale
+          accessibilityLabel="Open dues"
+          onPress={() => router.push("/accountant/dues" as never)}
+          style={styles.cardPress}
+        >
+          <Card style={styles.moneyCard}>
+            <TonalTile bg={t.badBg} size={36}>
+              <Icon name="schedule" size={19} tint={t.bad} />
+            </TonalTile>
+            <DSText variant="display" style={styles.moneyValue} numberOfLines={1}>
+              {formatMoneyShort(stats?.totalFeeOutstanding)}
+            </DSText>
+            <DSText variant="overline" style={styles.moneyLabel} numberOfLines={1}>DUE</DSText>
+          </Card>
+        </PressableScale>
+        <PressableScale
+          accessibilityLabel="Open students with dues"
+          onPress={() => router.push("/accountant/dues" as never)}
+          style={styles.cardPress}
+        >
+          <Card style={styles.moneyCard}>
+            <TonalTile bg={t.warnBg} size={36}>
+              <Icon name="group" size={19} tint={t.warn} />
+            </TonalTile>
+            <DSText variant="display" style={styles.moneyValue} numberOfLines={1}>
+              {stats?.studentsWithOutstandingFees ?? 0}
+            </DSText>
+            <DSText variant="overline" style={styles.moneyLabel} numberOfLines={1}>WITH DUES</DSText>
+          </Card>
+        </PressableScale>
       </View>
 
       <SectionCard heading="COLLECTION PROGRESS">
@@ -249,6 +267,8 @@ function AccountantHome() {
                   title={row.title}
                   subtitle={`${income ? "" : "− "}${formatMoney(row.amount)} · ${row.subtitle}`}
                   trailing={<DSText variant="caption">{row.dateLabel}</DSText>}
+                  chevron={income && Boolean(row.paymentId)}
+                  onPress={income && row.paymentId ? () => router.push(`/accountant/receipt/${row.paymentId}` as never) : undefined}
                 />
               </View>
             );
@@ -285,6 +305,7 @@ const styles = StyleSheet.create({
   heroTop: { flexDirection: "row", alignItems: "center", gap: 14 },
   heroMoney: { fontSize: 26, fontWeight: "800" },
   statRow: { flexDirection: "row", gap: 10 },
+  cardPress: { flex: 1 },
   moneyCard: {
     flex: 1,
     padding: space.md,

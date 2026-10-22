@@ -2,10 +2,11 @@
  * Shared workspace chrome (reference: school-dashboards-v2.html).
  *
  * AppHeader: mark tile + school name + role subtitle + dark-mode toggle.
- * AppShell: FLOATING glass nav bar — detached rounded BlurView pill with an
- * active-tab tint pill. Role shells pass their tab list; no role defines its
- * own nav styling. The bar is absolutely positioned over a spacer so it
- * never covers screen content.
+ * AppShell: DOCKED glass nav bar — full-width bar with an active-tab tint
+ * pill, its glass background reaching the screen bottom so there is no gap,
+ * with safe-area padding inside. Role shells pass their tab list; no role
+ * defines its own nav styling. The bar is absolutely positioned over a
+ * spacer so it never covers screen content.
  */
 import React from "react";
 import { usePathname, useRouter } from "expo-router";
@@ -111,16 +112,13 @@ export function AppShell({
 
         <View style={{ flex: 1 }}>{children}</View>
 
-        {/* reserve: the floating bar overlays this empty zone, never content */}
+        {/* reserve: the docked bar overlays this empty zone, never content */}
         <View style={{ height: Math.max(insets.bottom, 10) + 78, backgroundColor: t.bg }} />
 
-        <View
-          pointerEvents="box-none"
-          style={[styles.floatZone, { bottom: Math.max(insets.bottom, 10), left: 16, right: 16 }]}
-        >
+        <View pointerEvents="box-none" style={styles.dockZone}>
           <View
             style={[
-              styles.floatShadow,
+              styles.dockShadow,
               {
                 shadowColor: dark ? "#000000" : t.blue,
                 backgroundColor: dark ? "rgba(22,18,44,0.55)" : "rgba(255,255,255,0.62)"
@@ -130,40 +128,45 @@ export function AppShell({
             <BlurView
               intensity={dark ? 45 : 60}
               tint={dark ? "dark" : "light"}
-              style={[styles.floatBar, { borderColor: t.line }]}
+              style={[
+                styles.dockBar,
+                { borderColor: t.line, paddingBottom: Math.max(insets.bottom, 10) }
+              ]}
             >
-              {tabs.map((tab) => {
-                const active = tab.match.includes(pathname);
-                return (
-                  <Pressable
-                    key={tab.href}
-                    accessibilityRole="tab"
-                    accessibilityState={{ selected: active }}
-                    accessibilityLabel={tab.badge ? `${tab.label}, ${tab.badge} pending` : tab.label}
-                    onPress={() => {
-                      if (!active) router.replace(tab.href as never);
-                    }}
-                    style={styles.navItem}
-                  >
-                    <View style={[styles.tabPill, active && { backgroundColor: t.tint }]}>
-                      <View style={styles.iconWrap}>
-                        <Icon name={tab.icon} size={22} tint={active ? t.blue : t.faint} />
-                        {tab.badge && tab.badge > 0 ? (
-                          <View style={styles.navBadge}>
-                            <Text style={styles.navBadgeText}>{tab.badge > 9 ? "9+" : String(tab.badge)}</Text>
-                          </View>
-                        ) : null}
+              <View style={styles.dockRow}>
+                {tabs.map((tab) => {
+                  const active = tab.match.includes(pathname);
+                  return (
+                    <Pressable
+                      key={tab.href}
+                      accessibilityRole="tab"
+                      accessibilityState={{ selected: active }}
+                      accessibilityLabel={tab.badge ? `${tab.label}, ${tab.badge} pending` : tab.label}
+                      onPress={() => {
+                        if (!active) router.replace(tab.href as never);
+                      }}
+                      style={styles.navItem}
+                    >
+                      <View style={[styles.tabPill, active && { backgroundColor: t.tint }]}>
+                        <View style={styles.iconWrap}>
+                          <Icon name={tab.icon} size={22} tint={active ? t.blue : t.faint} />
+                          {tab.badge && tab.badge > 0 ? (
+                            <View style={styles.navBadge}>
+                              <Text style={styles.navBadgeText}>{tab.badge > 9 ? "9+" : String(tab.badge)}</Text>
+                            </View>
+                          ) : null}
+                        </View>
+                        <Text
+                          numberOfLines={1}
+                          style={[styles.navLabel, { color: active ? t.blue : t.faint }, active && styles.navLabelActive]}
+                        >
+                          {tab.label}
+                        </Text>
                       </View>
-                      <Text
-                        numberOfLines={1}
-                        style={[styles.navLabel, { color: active ? t.blue : t.faint }, active && styles.navLabelActive]}
-                      >
-                        {tab.label}
-                      </Text>
-                    </View>
-                  </Pressable>
-                );
-              })}
+                    </Pressable>
+                  );
+                })}
+              </View>
             </BlurView>
           </View>
         </View>
@@ -183,24 +186,29 @@ const styles = StyleSheet.create({
     paddingBottom: 6
   },
   offlineText: { color: "#FFFFFF", fontSize: 12, fontWeight: "500" },
-  floatZone: {
+  dockZone: {
     position: "absolute",
-    alignItems: "center"
+    left: 0,
+    right: 0,
+    bottom: 0
   },
-  floatShadow: {
-    width: "100%",
-    borderRadius: 28,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.16,
-    shadowRadius: 20,
+  dockShadow: {
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    shadowOffset: { width: 0, height: -6 },
+    shadowOpacity: 0.14,
+    shadowRadius: 18,
     elevation: 10
   },
-  floatBar: {
+  dockBar: {
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    borderTopWidth: 1,
+    overflow: "hidden"
+  },
+  dockRow: {
     flexDirection: "row",
     alignItems: "center",
-    borderRadius: 28,
-    overflow: "hidden",
-    borderWidth: 1,
     paddingVertical: 8,
     paddingHorizontal: 6
   },

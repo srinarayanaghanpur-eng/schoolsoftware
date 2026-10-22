@@ -2,7 +2,7 @@ import type { MetadataRoute } from "next";
 
 const siteUrl =
   process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/+$/, "") ||
-  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "https://schoolsoftware-two.vercel.app");
+  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "https://snhssoftware.vercel.app");
 
 export default function robots(): MetadataRoute.Robots {
   return {

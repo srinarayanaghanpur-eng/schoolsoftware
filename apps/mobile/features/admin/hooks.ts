@@ -9,7 +9,7 @@ import {
   fetchCashBook, fetchChangeRequests, fetchDashboardStats, fetchExams, fetchExpenses, fetchFinanceSummary, fetchLeaveRequests, fetchNotices,
   fetchRecentPayments, fetchStaffDirectory, fetchTasks, fetchTeachers, fetchTodayAttendance,
   type AdminPayment, type AdminTeacher, type CashBookEntry, type ChangeRequest, type DashboardStats, type Exam, type Expense, type FinanceSummary,
-  type LeaveRequest, type Notice, type StaffDirectory, type StaffTask
+  type LeaveRequest, type Notice, type StaffDirectory, type StaffTask, type TodayAttendanceSummary
 } from "./api";
 
 type AsyncState<T> = { data: T | null; loading: boolean; error: string | null };
@@ -60,12 +60,70 @@ export function useDashboardStats() {
 }
 
 export function useRecentPayments() {
-  const { data, loading, error, refresh } = useCachedFetch<AdminPayment[]>(
-    "admin-recent-payments",
-    () => fetchRecentPayments(10),
-    3
-  );
-  return { payments: data ?? [], loading, error, refresh };
+  const [payments, setPayments] = useState<AdminPayment[]>([]);
+  const [cursor, setCursor] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const refresh = useCallback(async () => {
+    setError(null);
+    setLoading(true);
+    try {
+      const page = await fetchRecentPayments(10);
+      await mobileCache.set("admin-recent-payments-v2", page.payments, 3);
+      setPayments(page.payments);
+      setCursor(page.nextCursor);
+      setHasMore(page.hasMore);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to load payments.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const loadMore = useCallback(async () => {
+    if (loadingMore || loading || !hasMore) return;
+    setLoadingMore(true);
+    try {
+      const page = await fetchRecentPayments(10, cursor ?? "");
+      setPayments((prev) => [
+        ...prev,
+        ...page.payments.filter((item) => !prev.some((p) => p.id === item.id))
+      ]);
+      setCursor(page.nextCursor);
+      setHasMore(page.hasMore);
+    } catch {
+      // Keep the current page; pull-to-refresh retries.
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [cursor, hasMore, loading, loadingMore]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const cached = await mobileCache.get<AdminPayment[]>("admin-recent-payments-v2");
+        if (cancelled) return;
+        if (cached && cached.length > 0) {
+          setPayments(cached);
+          setHasMore(true);
+          setLoading(false);
+          return;
+        }
+      } catch {
+        // Fall through to network.
+      }
+      if (!cancelled) await refresh();
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [refresh]);
+
+  return { payments, loading, loadingMore, hasMore, error, refresh, loadMore };
 }
 
 export function useLeaveRequests() {
@@ -97,7 +155,7 @@ export function useTasks(teacherId = "") {
 
 export function useNotices() {
   const { data, loading, error, refresh } = useCachedFetch<Notice[]>(
-    "admin-notices",
+    "admin-notices-v2",
     fetchNotices,
     10
   );
@@ -224,19 +282,16 @@ export function useExams() {
 }
 
 export function useTodayAttendance() {
-  const { data, loading, error, refresh } = useCachedFetch(
-    "admin-today-attendance",
+  const { data, loading, error, refresh } = useCachedFetch<TodayAttendanceSummary>(
+    "admin-today-attendance-v2",
     fetchTodayAttendance,
     3
   );
-  const records = data?.records ?? [];
-  const teachers = data?.teachers ?? [];
-  const present = records.filter((r) => r.status === "present" || r.status === "late").length;
   return {
-    present,
-    total: teachers.length,
-    late: records.filter((r) => r.status === "late").length,
-    absent: Math.max(0, teachers.length - present),
+    present: data?.present ?? 0,
+    total: data?.total ?? 0,
+    late: data?.late ?? 0,
+    absent: data?.absent ?? 0,
     loading,
     error,
     refresh
@@ -298,6 +353,8 @@ export type TxnRow = {
   amount: number;
   dateValue: number;
   dateLabel: string;
+  /** Present for fee income — opens the receipt detail screen. */
+  paymentId?: string;
 };
 
 function txnDateValue(value: unknown): number {
@@ -327,7 +384,8 @@ export function buildTransactions(
       subtitle: asText(p.paymentMethod) || "—",
       amount: Number(p.amountPaid ?? 0),
       dateValue: txnDateValue(p.createdAt),
-      dateLabel: formatDate(p.createdAt)
+      dateLabel: formatDate(p.createdAt),
+      paymentId: p.id
     });
   }
   for (const e of expenses) {

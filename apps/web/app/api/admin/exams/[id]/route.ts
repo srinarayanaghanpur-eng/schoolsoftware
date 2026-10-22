@@ -1,8 +1,7 @@
 import { FieldValue } from "firebase-admin/firestore";
 import { examCreateSchema } from "@sri-narayana/shared";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { requirePermission, resolveRole, serializeDoc, json } from "@/lib/apiUtils";
-import { gateEdit } from "@/lib/changeApprovals";
+import { requireAdminOrPrincipal, requirePermission, serializeDoc, json } from "@/lib/apiUtils";
 
 const COLLECTION = "exams";
 
@@ -23,21 +22,11 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
 
 // PATCH /api/admin/exams/[id] — edit exam fields.
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
-  const token = await requirePermission(req, "exams.edit");
+  const token = await requireAdminOrPrincipal(req);
   if (!token) return json({ ok: false, error: "Access denied" }, { status: 403 });
 
   try {
     const parsed = examCreateSchema.partial().parse(await req.json());
-    const gate = await gateEdit({
-      role: await resolveRole(token),
-      approvePermission: "exams.approve",
-      entity: "exam",
-      entityId: params.id,
-      action: "edit",
-      patch: parsed,
-      requestedBy: token.uid
-    });
-    if (!gate.proceed) return json({ ok: true, pending: true, approvalId: gate.approvalId });
     const ref = adminDb().collection(COLLECTION).doc(params.id);
     if (!(await ref.get()).exists) return json({ ok: false, error: "Exam not found" }, { status: 404 });
     await ref.update({ ...parsed, updatedAt: FieldValue.serverTimestamp() });
@@ -50,7 +39,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 
 // DELETE /api/admin/exams/[id] — remove exam and its marks.
 export async function DELETE(req: Request, { params }: { params: { id: string } }) {
-  const token = await requirePermission(req, "exams.delete");
+  const token = await requireAdminOrPrincipal(req);
   if (!token) return json({ ok: false, error: "Access denied" }, { status: 403 });
 
   const db = adminDb();

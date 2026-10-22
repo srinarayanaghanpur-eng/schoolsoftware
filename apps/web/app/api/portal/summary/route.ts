@@ -40,23 +40,26 @@ export async function GET(req: Request) {
   if (!studentSnap.exists) return NextResponse.json({ ok: false, error: "Student not found" }, { status: 404 });
   const s = studentSnap.data() as Record<string, unknown>;
 
-  // Independent reads run together — serial awaits used to ~4x this route's latency.
+  // Strict-read path: cap marks to the most recent 120 and batch-read only the
+  // exams that actually appear in them (10 max), instead of 500 marks + N+1.
   const todayKey = new Date().toISOString().slice(0, 10);
   const [marksSnap, noticeSnap, paymentsSnap, holidaySnap] = await Promise.all([
-    db.collection("exam_marks").where("studentId", "==", studentId).limit(500).get(),
-    db.collection("notices").orderBy("createdAt", "desc").limit(20).get(),
+    db.collection("exam_marks").where("studentId", "==", studentId).limit(120).get(),
+    db.collection("notices").orderBy("createdAt", "desc").limit(10).get(),
     db.collection("payments").where("studentId", "==", studentId).orderBy("createdAt", "desc").limit(5).get(),
     db.collection("holidays").where("date", ">=", todayKey).orderBy("date", "asc").limit(5).get()
   ]);
-  // Bounded fan-out: one student's distinct exams, capped before the parallel fetch.
-  const examIds = [...new Set(marksSnap.docs.map((d) => d.data().examId as string))].slice(0, 50);
+  // Bounded fan-out: one student's distinct exams, capped before the fetch.
+  const examIds = [...new Set(marksSnap.docs.map((d) => d.data().examId as string))].slice(0, 10);
   const publishedExamNames = new Map<string, string>();
-  await Promise.all(
-    examIds.map(async (eid) => {
-      const ex = await db.collection("exams").doc(eid).get();
-      if (ex.exists && ex.data()?.status === "published") publishedExamNames.set(eid, ex.data()?.name as string);
-    })
-  );
+  if (examIds.length > 0) {
+    const examDocs = await db.getAll(...examIds.map((eid) => db.collection("exams").doc(eid)));
+    examDocs.forEach((ex) => {
+      if (ex.exists && ex.data()?.status === "published") {
+        publishedExamNames.set(ex.id, ex.data()?.name as string);
+      }
+    });
+  }
   const marks = marksSnap.docs
     .filter((d) => publishedExamNames.has(d.data().examId))
     .map((d) => {

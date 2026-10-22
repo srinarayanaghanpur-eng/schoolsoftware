@@ -10,7 +10,7 @@ const siteUrl =
     ? new URL(process.env.NEXT_PUBLIC_APP_URL.trim().replace(/\/+$/, ""))
     : process.env.VERCEL_URL
       ? new URL(`https://${process.env.VERCEL_URL}`)
-      : new URL("https://schoolsoftware-two.vercel.app");
+      : new URL("https://snhssoftware.vercel.app");
 
 const jsonLd = {
   "@context": "https://schema.org",
@@ -27,13 +27,13 @@ const jsonLd = {
       "@type": "WebSite",
       "@id": `${siteUrl.origin}/#website`,
       url: siteUrl.origin,
-      name: "SNHS School Software",
-      alternateName: "NarayanaOS",
+      name: "NarayanaOS",
+      alternateName: "SNHS School Software",
       publisher: { "@id": `${siteUrl.origin}/#school` }
     },
     {
       "@type": "SoftwareApplication",
-      name: "SNHS School Software (NarayanaOS)",
+      name: "NarayanaOS",
       applicationCategory: "EducationalApplication",
       operatingSystem: "Web",
       url: siteUrl.origin,
@@ -46,12 +46,12 @@ const jsonLd = {
 export const metadata = {
   metadataBase: siteUrl,
   title: {
-    default: "SNHS School Software | NarayanaOS – Sri Narayana High School",
-    template: "%s | SNHS School Software"
+    default: "NarayanaOS – Sri Narayana High School",
+    template: "%s | NarayanaOS"
   },
   description:
-    "SNHS School Software (NarayanaOS) – official school management software for Sri Narayana High School: staff attendance, fee collection, finance, exams, salary, and parent portal.",
-  applicationName: "SNHS School Software",
+    "NarayanaOS – official school management software for Sri Narayana High School: staff attendance, fee collection, finance, exams, salary, and parent portal.",
+  applicationName: "NarayanaOS",
   authors: [{ name: "Sri Narayana High School" }],
   creator: "Sri Narayana High School",
   publisher: "Sri Narayana High School",
@@ -77,11 +77,11 @@ export const metadata = {
     apple: "/sri-narayana-high-school-logo.jpg"
   },
   openGraph: {
-    title: "SNHS School Software | NarayanaOS – Sri Narayana High School",
+    title: "NarayanaOS – Sri Narayana High School",
     description:
-      "SNHS School Software for Sri Narayana High School – attendance, fee collection, finance, exams, salary, and staff management.",
+      "NarayanaOS for Sri Narayana High School – attendance, fee collection, finance, exams, salary, and staff management.",
     url: "/",
-    siteName: "SNHS School Software",
+    siteName: "NarayanaOS",
     locale: "en_IN",
     type: "website",
     images: [
@@ -93,7 +93,7 @@ export const metadata = {
   },
   twitter: {
     card: "summary",
-    title: "SNHS School Software | NarayanaOS",
+    title: "NarayanaOS – Sri Narayana High School",
     description:
       "Official school management software for Sri Narayana High School – attendance, fees, finance, exams, salary."
   },
