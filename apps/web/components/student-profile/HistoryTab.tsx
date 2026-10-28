@@ -35,6 +35,7 @@ export function HistoryTab({
 
   const actionColor = (action: string) => {
     const a = action.toLowerCase();
+    if (a.includes("certificate")) return "text-[#7a3fbf] bg-[#f3eafd]";
     if (a.includes("payment") || a.includes("fee")) return "text-[#18765e] bg-[#e6f8ef]";
     if (a.includes("admission") || a.includes("student.created")) return "text-[#3033a1] bg-[#eef0ff]";
     if (a.includes("edit") || a.includes("update")) return "text-[#ad7413] bg-[#fff7e6]";

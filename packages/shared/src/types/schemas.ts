@@ -502,12 +502,12 @@ export const timetableBulkCreateSchema = z.object({
 });
 
 // ===== Certificates (Phase 9) =====
-export const certificateTypeSchema = z.enum(["transfer", "character", "bonafide", "conduct", "general"]);
+export const certificateTypeSchema = z.enum(["transfer", "character", "bonafide", "conduct", "general", "studyConductDob"]);
 export const certificateStatusSchema = z.enum(["draft", "issued", "cancelled"]);
 
 export const certificateCreateSchema = z.object({
   certificateType: certificateTypeSchema,
-  certificateNumber: z.string().trim().min(1, "Certificate number is required"),
+  certificateNumber: z.string().trim().optional().default(""),
   studentId: z.string().trim().min(1),
   studentName: z.string().trim().min(1, "Student name is required"),
   className: z.string().trim().min(1, "Class is required"),

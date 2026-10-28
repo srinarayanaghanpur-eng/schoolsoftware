@@ -852,6 +852,7 @@ export type AuditLogEntry = {
   ipAddress?: string;
   approvalId?: string;
   academicYearId?: string;
+  source?: string;
   createdAt: FirestoreDate;
 };
 
@@ -971,7 +972,7 @@ export type TimetableEntry = {
 };
 
 // ===== Certificates (Phase 9) =====
-export type CertificateType = "transfer" | "character" | "bonafide" | "conduct" | "general";
+export type CertificateType = "transfer" | "character" | "bonafide" | "conduct" | "general" | "studyConductDob";
 export type CertificateStatus = "draft" | "issued" | "cancelled";
 
 export type Certificate = {

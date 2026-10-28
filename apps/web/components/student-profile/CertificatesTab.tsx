@@ -1,21 +1,14 @@
 "use client";
 
 import { useEffect, useState, FormEvent } from "react";
-import {
-  FileText,
-  Award,
-  ShieldCheck,
-  RefreshCw,
-  AlertCircle,
-  Printer,
-  Plus,
-  X,
-  TrendingDown
-} from "lucide-react";
+import { Award, RefreshCw, Printer, Plus, X, TrendingDown } from "lucide-react";
 import { adminApiRequest } from "@/lib/adminApiClient";
+
+const typeLabel = (value: string) => CERTIFICATE_TYPES.find((t) => t.id === value)?.label || value;
 
 const CERTIFICATE_TYPES = [
   { id: "bonafide", label: "Bonafide Certificate" },
+  { id: "studyConductDob", label: "Study, Conduct & DOB Certificate" },
   { id: "transfer", label: "Transfer Certificate" },
   { id: "character", label: "Character Certificate" },
   { id: "conduct", label: "Conduct Certificate" },
@@ -67,10 +60,10 @@ export function CertificatesTab({
     setLoading(true);
     setError("");
     try {
-      const result = await adminApiRequest<{ success?: boolean; data?: StudentCertificate[] }>(
+      const result = await adminApiRequest<{ ok?: boolean; certificates?: StudentCertificate[] }>(
         `/api/admin/certificates?studentId=${encodeURIComponent(studentId)}&pageSize=50`
       );
-      setCertificates(result.data || []);
+      setCertificates(result.certificates || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load certificates.");
     } finally {
@@ -96,7 +89,7 @@ export function CertificatesTab({
 
     setIssuing(true);
     try {
-      const result = await adminApiRequest<{ success?: boolean; data?: StudentCertificate }>(
+      const result = await adminApiRequest<{ ok?: boolean; id?: string; certificateNumber?: string }>(
         "/api/admin/certificates",
         {
           method: "POST",
@@ -107,6 +100,7 @@ export function CertificatesTab({
             studentName: String(student.studentName || ""),
             className: String(student.class || ""),
             section: String(student.section || ""),
+            issueDate: new Date().toISOString().slice(0, 10),
             data: {
               studentName: String(student.studentName || ""),
               admissionNumber: String(student.admissionNumber || ""),
@@ -125,8 +119,9 @@ export function CertificatesTab({
           })
         }
       );
-      if (result.data) {
-        setSubmitMessage({ type: "success", text: `Certificate "${certType}" issued successfully.` });
+      if (result.id) {
+        const numberNote = result.certificateNumber ? ` Certificate No. ${result.certificateNumber}.` : "";
+        setSubmitMessage({ type: "success", text: `Certificate issued successfully.${numberNote}` });
         setIssueOpen(false);
         form.reset();
         await loadCertificates();
@@ -203,7 +198,7 @@ export function CertificatesTab({
               <tr className="border-b border-[#edf0f7] bg-[#f7f8fd]">
                 <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-wide text-[#7d86a8]">Certificate</th>
                 <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-wide text-[#7d86a8]">Number</th>
-                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-wide text-[#7d86a8]">Type</th>
+                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-wide text-[#7d86a8]">Issued By</th>
                 <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-wide text-[#7d86a8]">Issue Date</th>
                 <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-wide text-[#7d86a8]">Status</th>
                 <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-wide text-[#7d86a8]">Actions</th>
@@ -218,13 +213,13 @@ export function CertificatesTab({
                         <Award size={14} />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="text-xs font-semibold text-[#1f2136]">{c.certificateType}</p>
+                        <p className="text-xs font-semibold text-[#1f2136]">{typeLabel(c.certificateType)}</p>
                         <p className="text-[10px] text-[#7d86a8]">{c.studentName}</p>
                       </div>
                     </div>
                   </td>
                   <td className="px-4 py-3 text-xs font-semibold text-[#303247]">{c.certificateNumber}</td>
-                  <td className="px-4 py-3 text-xs text-[#5a6488]">{c.certificateType}</td>
+                  <td className="px-4 py-3 text-xs text-[#5a6488]">{c.issuedByName || "—"}</td>
                   <td className="px-4 py-3 text-xs text-[#5a6488]">{new Date(c.issueDate).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}</td>
                   <td className="px-4 py-3">
                     <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${statusColor(c.status)}`}>
@@ -232,13 +227,14 @@ export function CertificatesTab({
                     </span>
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <button
-                      type="button"
-                      className="btn-secondary shrink-0"
-                      onClick={() => window.print()}
+                    <a
+                      href={`/admin/student/${studentId}/certificate/${c.id}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="btn-secondary inline-flex shrink-0 items-center"
                     >
                       <Printer size={12} className="mr-1" /> Print
-                    </button>
+                    </a>
                   </td>
                 </tr>
               ))}
@@ -279,6 +275,10 @@ export function CertificatesTab({
               <div>
                 <label className="block text-[10px] font-bold uppercase tracking-wide text-[#7d86a8] mb-1">Academic Year</label>
                 <input type="text" name="academicYear" required className="field" placeholder="e.g. 2026-27" />
+                <p className="mt-1 text-[10px] text-[#7d86a8]">
+                  Certificate number is auto-generated from the admission number (e.g. SNHS/SCD/2026/
+                  {String(student.admissionNumber || "1001")}).
+                </p>
               </div>
 
               <div className="flex items-center gap-3 pt-4">

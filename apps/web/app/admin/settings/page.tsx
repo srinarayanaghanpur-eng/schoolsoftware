@@ -8,13 +8,38 @@ import { DeclareHolidayModal } from "@/components/DeclareHolidayModal";
 import { PageHeader } from "@/components/PageHeader";
 import { PaymentUpiSettings } from "@/components/PaymentUpiSettings";
 import { TeacherGpsSettings } from "@/components/TeacherGpsSettings";
+import { useAdminSession } from "@/components/AdminSessionContext";
 import { DEFAULT_SETTINGS } from "@sri-narayana/shared";
+import { ChevronRight, ScrollText } from "lucide-react";
+import Link from "next/link";
 
 export default function SettingsPage() {
+  const { role } = useAdminSession();
+  const canViewActivity = role === "super_admin" || role === "settings_manager";
+
   return (
     <>
       <PageHeader title="Settings" description="Locations, attendance rules, salary policy, backup, and data safety." />
       <section className="space-y-5 p-4 md:p-7">
+        {canViewActivity && (
+          <Link
+            href="/admin/settings/activity-logs"
+            className="card flex items-center justify-between gap-3 p-4 transition hover:border-[#c9d3f5]"
+          >
+            <div className="flex items-start gap-3">
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#f1ecff] text-[#6b47b8]">
+                <ScrollText size={20} />
+              </span>
+              <div>
+                <h2 className="font-semibold">Activity Log</h2>
+                <p className="text-sm font-medium text-[#7d86a8]">
+                  See every sign-in and data change across the app — who did it, when, and from which device.
+                </p>
+              </div>
+            </div>
+            <ChevronRight size={18} className="shrink-0 text-[#a4abc5]" />
+          </Link>
+        )}
         <div className="card flex flex-wrap items-center justify-between gap-3 p-4">
           <div>
             <h2 className="font-semibold">Management Declared Holiday</h2>

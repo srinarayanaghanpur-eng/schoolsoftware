@@ -6,6 +6,7 @@ import { DarkModeToggle } from "@/components/DarkModeToggle";
 import { useAuth } from "@/components/AuthProvider";
 import { clearAuthStorage } from "@/lib/authStorage";
 import { destinationForRole, resolveAuthSessionUser } from "@/lib/authSession";
+import type { Role } from "@sri-narayana/shared";
 import { employeeIdToInternalEmail, normalizeEmployeeId } from "@sri-narayana/shared/utils/employeeAuth";
 import { useRouter } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
@@ -190,14 +191,18 @@ async function signInAndResolveRole(loginId: string, password: string, rememberM
 
   await setPersistence(auth, rememberMe ? browserLocalPersistence : browserSessionPersistence);
   const credential = await signInWithEmailAndPassword(auth, employeeIdToInternalEmail(loginId), password);
+  let role: Role;
   try {
     const session = await resolveAuthSessionUser(credential.user);
-    return session.role;
+    role = session.role;
   } catch (error) {
     await signOut(auth);
     clearAuthStorage();
     throw error;
   }
+  const { logSessionActivity } = await import("@/lib/sessionActivityClient");
+  await logSessionActivity("login");
+  return role;
 }
 
 function getLoginErrorMessage(error: unknown) {

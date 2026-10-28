@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { isValidRole, type Permission, type Role } from "@sri-narayana/shared";
 import { adminDb, verifyBearerToken } from "./firebaseAdmin";
 import { roleHasAllPermissions, roleHasAnyPermission, roleHasPermission } from "./rbacAdmin";
+import { recordRequestActivity } from "./activityLog";
 
 /**
  * Effective role for a request. Prefers the Firestore `users/{uid}` assignment
@@ -74,6 +75,7 @@ export async function requireAdmin(req: Request): Promise<DecodedIdToken | null>
   if (!decodedToken) return null;
   const role = await resolveRole(decodedToken);
   if (role !== "super_admin" && role !== "admin" && role !== "settings_manager") return null;
+  await recordRequestActivity(req, decodedToken, role);
   return decodedToken;
 }
 
@@ -85,6 +87,7 @@ export async function requireAdminOrPrincipal(req: Request): Promise<DecodedIdTo
   if (!decodedToken) return null;
   const role = await resolveRole(decodedToken);
   if (role !== "super_admin" && role !== "admin" && role !== "settings_manager" && role !== "principal") return null;
+  await recordRequestActivity(req, decodedToken, role);
   return decodedToken;
 }
 
@@ -94,6 +97,7 @@ export async function requireSuperAdmin(req: Request): Promise<DecodedIdToken | 
   if (!decodedToken) return null;
   const role = await resolveRole(decodedToken);
   if (role !== "super_admin") return null;
+  await recordRequestActivity(req, decodedToken, role);
   return decodedToken;
 }
 
@@ -109,6 +113,7 @@ export async function requireTeacher(req: Request): Promise<DecodedIdToken | nul
   if (role !== "teacher") {
     return null;
   }
+  await recordRequestActivity(req, decodedToken, role);
   return decodedToken;
 }
 
@@ -121,6 +126,7 @@ export async function requireRole(req: Request, roles: Role[]): Promise<DecodedI
   if (!role || (role !== "super_admin" && !roles.includes(role))) {
     return null;
   }
+  await recordRequestActivity(req, decodedToken, role);
   return decodedToken;
 }
 
@@ -132,6 +138,7 @@ export async function requirePermission(req: Request, permission: Permission): P
   if (!await roleHasPermission(role, permission)) {
     return null;
   }
+  await recordRequestActivity(req, decodedToken, role);
   return decodedToken;
 }
 
@@ -150,6 +157,7 @@ export async function checkPermissionWithMessage(req: Request, permission: Permi
   if (!role || !await roleHasPermission(role, permission)) {
     return { ok: false, error: `Access denied. Missing permission: ${permission}. Ask super admin to enable this permission for your role.`, status: 403 };
   }
+  await recordRequestActivity(req, decodedToken, role);
   return { ok: true, token: decodedToken };
 }
 
@@ -159,6 +167,7 @@ export async function requireAllPermissions(req: Request, permissions: readonly 
   if (!decodedToken) return null;
   const role = await resolveRole(decodedToken);
   if (!await roleHasAllPermissions(role, permissions)) return null;
+  await recordRequestActivity(req, decodedToken, role);
   return decodedToken;
 }
 
@@ -168,6 +177,7 @@ export async function requireAnyPermission(req: Request, permissions: readonly P
   if (!decodedToken) return null;
   const role = await resolveRole(decodedToken);
   if (!await roleHasAnyPermission(role, permissions)) return null;
+  await recordRequestActivity(req, decodedToken, role);
   return decodedToken;
 }
 

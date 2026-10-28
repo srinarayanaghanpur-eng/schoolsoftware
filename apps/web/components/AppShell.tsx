@@ -259,6 +259,7 @@ const contextSubnavs: ContextSubnav[] = [
     matchPrefixes: ["/admin/settings", "/admin/users", "/admin/approvals", "/admin/biometric", "/admin/backup"],
     items: [
       { href: "/admin/settings", label: "School Settings", icon: Settings, module: "settings" },
+      { href: "/admin/settings/activity-logs", label: "Activity Log", icon: ScrollText, module: "settings" },
       { href: "/admin/users", label: "Users & Roles", icon: UserCog, module: "users" },
       { href: "/admin/approvals", label: "Approvals", icon: ShieldCheck, module: "settings" },
       { href: "/admin/biometric", label: "Biometric", icon: CalendarCheck, module: "settings" },
@@ -369,6 +370,7 @@ const pageTitles: Record<string, string> = {
   "/portal/contact": "Contact School",
   "/portal/profile": "Parent Profile",
   "/admin/settings": "Settings",
+  "/admin/settings/activity-logs": "Activity Log",
   "/admin/biometric": "Biometric Devices",
   "/admin/backup": "Backup & Restore",
   "/admin/report-cards": "Report Cards",

@@ -42,7 +42,8 @@ export async function getStudentProfile(studentId: string): Promise<StudentProfi
   if (!studentSnap.exists) {
     return { student: null, feeSummary: null, payments: [], receipts: [], auditLogs: [], certificates: [], examMarks: [] };
   }
-  const student = { id: studentSnap.id, ...(studentSnap.data() as Record<string, unknown>) } as Record<string, unknown>;
+  const rawStudent = studentSnap.data() as Record<string, unknown>;
+  const student = { id: studentSnap.id, ...rawStudent } as Record<string, unknown>;
 
   const fee = resolveFeeState(student as Record<string, unknown>);
 
@@ -98,7 +99,9 @@ export async function getStudentProfile(studentId: string): Promise<StudentProfi
   const auditLogs = logsSnap.docs.map((d) => ({ id: d.id, ...(toPlain(d.data()) as Record<string, unknown>) }));
 
   return {
-    student,
+    // Server Components pass this object to Client Components, so Firestore
+    // Timestamp class instances must be flattened to plain values first.
+    student: toPlain(student) as Record<string, unknown>,
     feeSummary: {
       originalFee: fee.originalFee,
       payableFee: fee.payableFee,
@@ -119,7 +122,7 @@ export async function getStudentById(studentId: string) {
   const db = adminDb();
   const snap = await db.collection("students").doc(studentId).get();
   if (!snap.exists) return null;
-  return { id: snap.id, ...snap.data() } as Record<string, unknown>;
+  return toPlain({ id: snap.id, ...snap.data() }) as Record<string, unknown>;
 }
 
 export async function recordAuditAction(params: {

@@ -16,6 +16,7 @@ type WriteAuditParams = {
   ipAddress?: string;
   approvalId?: string;
   academicYearId?: string;
+  source?: string;
 };
 
 export async function writeAuditLog(params: WriteAuditParams): Promise<string> {
@@ -34,6 +35,7 @@ export async function writeAuditLog(params: WriteAuditParams): Promise<string> {
     ipAddress: params.ipAddress,
     approvalId: params.approvalId,
     academicYearId: params.academicYearId,
+    source: params.source,
     createdAt: new Date().toISOString()
   } satisfies AuditLogEntry);
   await docRef.set(entry);

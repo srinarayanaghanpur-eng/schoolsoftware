@@ -5,7 +5,8 @@ import { useAdminSession } from "@/components/AdminSessionContext";
 import { useAcademicYears } from "@/components/AcademicYearContext";
 import { adminApiRequest, AdminApiError } from "@/lib/adminApiClient";
 import { hasPermission, formatLabel } from "@sri-narayana/shared";
-import { Plus, X, Search, Download, FileText, Eye, Trash2 } from "lucide-react";
+import { Plus, X, Search, Download, FileText, Eye, Printer, Trash2 } from "lucide-react";
+import Link from "next/link";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 
 type Certificate = {
@@ -26,11 +27,13 @@ const CERT_TYPES = [
   { value: "transfer", label: "Transfer Certificate" },
   { value: "character", label: "Character Certificate" },
   { value: "bonafide", label: "Bonafide Certificate" },
+  { value: "studyConductDob", label: "Study, Conduct & DOB Certificate" },
   { value: "conduct", label: "Conduct Certificate" },
   { value: "general", label: "General Certificate" },
 ];
 
 const typeStyles: Record<string, string> = {
+  studyConductDob: "bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400",
   transfer: "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400",
   character: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
   bonafide: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
@@ -189,7 +192,7 @@ export default function CertificatesPage() {
               </select>
             </label>
             <label className="text-sm font-semibold">Certificate #
-              <input className="field mt-1" required value={form.certificateNumber} onChange={(e) => setForm({ ...form, certificateNumber: e.target.value })} placeholder="TC-2025-001" />
+              <input className="field mt-1" value={form.certificateNumber} onChange={(e) => setForm({ ...form, certificateNumber: e.target.value })} placeholder="Auto from admission no." />
             </label>
             <label className="text-sm font-semibold">Issue Date
               <input className="field mt-1" type="date" required value={form.issueDate} onChange={(e) => setForm({ ...form, issueDate: e.target.value })} />
@@ -273,6 +276,16 @@ export default function CertificatesPage() {
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1">
+                        {c.studentId && (
+                          <Link
+                            href={`/admin/student/${c.studentId}/certificate/${c.id}`}
+                            target="_blank"
+                            className="rounded-lg p-1.5 text-primary hover:bg-primary/10"
+                            title="Print certificate"
+                          >
+                            <Printer size={14} />
+                          </Link>
+                        )}
                         {c.status === "draft" && hasPermission(role, "certificates.edit") && (
                           <button
                             onClick={() => markIssued(c.id)}

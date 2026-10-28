@@ -52,6 +52,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     markLogoutRedirect();
     try {
       if (isFirebaseConfigured) {
+        const { logSessionActivity } = await import("@/lib/sessionActivityClient");
+        await logSessionActivity("logout");
         await signOut(auth);
       }
     } catch {

@@ -6,6 +6,7 @@ import { signOut } from "firebase/auth";
 import { clearAdminApiCacheForSignOut } from "@/lib/adminApiClient";
 import { clearAuthStorage, markLogoutRedirect } from "@/lib/authStorage";
 import { clearPayrollSessionId } from "@/lib/payrollSessionClient";
+import { logSessionActivity } from "@/lib/sessionActivityClient";
 
 const INACTIVITY_TIMEOUT = 30 * 60 * 1000; // 30 minutes
 
@@ -35,6 +36,7 @@ export function useAutoLogout() {
       clearAdminApiCacheForSignOut();
       markLogoutRedirect();
       if (isFirebaseConfigured) {
+        await logSessionActivity("logout");
         try {
           await signOut(auth);
         } catch {
