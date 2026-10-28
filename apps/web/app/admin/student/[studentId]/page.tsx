@@ -1,5 +1,4 @@
-import { notFound, usePathname } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { notFound } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -23,9 +22,6 @@ import {
   Printer
 } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
-import { useAdminSession } from "@/components/AdminSessionContext";
-import { hasPermission } from "@sri-narayana/shared";
-import type { Permission } from "@sri-narayana/shared";
 import { StudentProfileHeader } from "@/components/student-profile/StudentProfileHeader";
 import { SummaryCards } from "@/components/student-profile/SummaryCards";
 import { OverviewTab } from "@/components/student-profile/OverviewTab";
@@ -49,78 +45,26 @@ const TAB_LABELS: Record<TabKey, { label: string; icon: React.ReactElement }> = 
   history: { label: "History", icon: <CreditCard size={14} /> }
 };
 
-interface StudentProfilePageProps {
-  params: { studentId: string };
-  searchParams: { [key: string]: string | string[] | undefined };
-}
-
-async function getProfileData(studentId: string) {
-  return getStudentProfile(studentId);
-}
-
 export default async function StudentProfilePage({
   params,
   searchParams
-}: StudentProfilePageProps) {
-  const router = usePathname(); // not needed but kept for clarity
-  const { role, permissions, hasPermission: sessionHasPermission } = useAdminSession();
-
+}: {
+  params: { studentId: string };
+  searchParams: { [key: string]: string | string[] | undefined };
+}) {
   const studentId = params.studentId;
-  const initialTab = (searchParams.tab as TabKey) || "overview";
+  const initialTab = (typeof searchParams.tab === "string" ? searchParams.tab : "overview") as TabKey;
 
   let data: any = null;
   let error = "";
-  let loading = true;
 
   try {
-    data = await getProfileData(studentId);
+    data = await getStudentProfile(studentId);
     if (!data.student) {
       error = "Student not found.";
     }
   } catch (err) {
     error = err instanceof Error ? err.message : "Failed to load student profile.";
-  } finally {
-    loading = false;
-  }
-
-  const [activeTab, setActiveTab] = useState<TabKey>(initialTab);
-
-  const canViewStudents = Boolean(role && hasPermission(role, "students.view"));
-  const canEditStudent = Boolean(role && hasPermission(role, "students.edit"));
-  const canViewFees = Boolean(role && hasPermission(role, "fees.view"));
-  const canCreateFees = Boolean(role && hasPermission(role, "fees.create"));
-  const canViewCertificates = Boolean(role && hasPermission(role, "certificates.view"));
-  const canCreateCertificates = Boolean(role && hasPermission(role, "certificates.create"));
-
-  if (loading) {
-    return (
-      <div className="p-4 md:p-7">
-        <PageHeader title="Student Profile" description="Loading…" />
-        <div className="card flex items-center justify-center p-16 text-sm font-medium text-[#7d86a8]">
-          <Loader2 className="animate-spin mr-2 size-5" /> Loading student profile…
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="p-4 md:p-7">
-        <PageHeader title="Student Profile" description="" />
-        <div className="card border-l-4 border-[#d84d5b] p-4 text-sm font-semibold text-[#d84d5b]">{error}</div>
-        <button
-          type="button"
-          className="mt-3 btn-secondary"
-          onClick={() => window.history.back()}
-        >
-          <ArrowLeft size={14} className="mr-1" /> Back
-        </button>
-      </div>
-    );
-  }
-
-  if (!data || !data.student || !canViewStudents) {
-    return notFound();
   }
 
   const student = data.student;
@@ -136,42 +80,24 @@ export default async function StudentProfilePage({
     { label: studentName, href: `/admin/student/${studentId}` }
   ];
 
-  const tabIsAllowed = (tab: TabKey): boolean => {
-    switch (tab) {
-      case "overview": return true;
-      case "fees": return canViewFees;
-      case "documents": return true;
-      case "certificates": return canViewCertificates;
-      case "attendance": return true;
-      case "exams": return Boolean(role && hasPermission(role, "exams.view"));
-      case "history": return true;
-      default: return false;
-    }
-  };
-
   const allTabs: TabKey[] = Object.keys(TAB_LABELS) as TabKey[];
-  const allowedTabs = allTabs.filter(tabIsAllowed);
-  if (!allowedTabs.includes(activeTab)) setActiveTab(allowedTabs[0]);
+  const activeTab = allTabs.includes(initialTab) ? initialTab : (allTabs[0] || "overview");
 
   const actionButtons = (
     <div className="flex flex-wrap gap-2">
-      {canEditStudent && (
-        <Link
-          href="/#"
-          onClick={(e) => {
-            e.preventDefault();
-            window.location.href = `/admin/students/${className.toLowerCase()}`;
-          }}
-          className="btn-secondary"
-        >
-          <FileText size={14} className="mr-1" /> Edit Student
-        </Link>
-      )}
-      {canCreateFees && (
-        <button type="button" className="btn-primary">
-          <CreditCard size={14} className="mr-1" /> Add Fee
-        </button>
-      )}
+      <Link
+        href="/#"
+        onClick={(e) => {
+          e.preventDefault();
+          window.location.href = `/admin/students/${className.toLowerCase()}`;
+        }}
+        className="btn-secondary"
+      >
+        <FileText size={14} className="mr-1" /> Edit Student
+      </Link>
+      <button type="button" className="btn-primary">
+        <CreditCard size={14} className="mr-1" /> Add Fee
+      </button>
       <Link
         href="/#"
         onClick={(e) => {
@@ -218,19 +144,19 @@ export default async function StudentProfilePage({
         </div>
       )}
 
-      <StudentProfileHeader student={student} canEdit={canEditStudent} />
-      <SummaryCards data={data} canViewFees={canViewFees} />
+      <StudentProfileHeader student={student} canEdit />
+      <SummaryCards data={data} canViewFees />
 
       <div className="card border border-[#edf0f7] overflow-hidden">
         <div className="border-b border-[#edf0f7] flex flex-wrap gap-0">
-          {allowedTabs.map((tab) => {
+          {allTabs.map((tab) => {
             const meta = TAB_LABELS[tab];
             const isActive = activeTab === tab;
             return (
               <button
                 key={tab}
                 type="button"
-                onClick={() => setActiveTab(tab)}
+                onClick={() => window.location.href = `/admin/student/${studentId}?tab=${tab}`}
                 className={`inline-flex items-center gap-2 px-4 py-3 text-sm font-bold border-b-2 transition ${
                   isActive
                     ? "border-[#3033a1] bg-[#3033a1]/5 text-[#3033a1]"
@@ -245,10 +171,10 @@ export default async function StudentProfilePage({
         </div>
 
         <div className="p-4 md:p-6">
-          {activeTab === "overview" && <OverviewTab student={student} canEdit={canEditStudent} />}
-          {activeTab === "fees" && <FeeLedgerTab student={student} data={data} canViewFees={canViewFees} canCreateFees={canCreateFees} />}
+          {activeTab === "overview" && <OverviewTab student={student} canEdit />}
+          {activeTab === "fees" && <FeeLedgerTab student={student} data={data} canViewFees canCreateFees />}
           {activeTab === "documents" && <DocumentsTab student={student} data={data} />}
-          {activeTab === "certificates" && <CertificatesTab student={student} data={data} canView={canViewCertificates} canCreate={canCreateCertificates} />}
+          {activeTab === "certificates" && <CertificatesTab student={student} data={data} canView canCreate />}
           {activeTab === "attendance" && <AttendanceTab student={student} data={data} />}
           {activeTab === "exams" && <ExamsTab student={student} data={data} />}
           {activeTab === "history" && <HistoryTab student={student} data={data} />}
