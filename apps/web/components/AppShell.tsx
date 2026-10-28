@@ -1359,11 +1359,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         key={pathname}
         className={clsx(
           "flex min-w-0 flex-1 flex-col transition-[margin] duration-300 ease-out print:ml-0 print:block",
-          contextualSubnav
-            ? contextSubnavCollapsed
+          // Sidebar is fixed at md:w-[248px]. Main margin-left counts that width exactly once.
+          // Contextual subnav (lg only) sits between sidebar and main: 224px expanded / 48px collapsed.
+          !contextualSubnav
+            ? "md:ml-[248px]"
+            : contextSubnavCollapsed
               ? "md:ml-[248px] lg:ml-[296px]"
               : "md:ml-[248px] lg:ml-[472px]"
-            : "md:ml-[248px]"
         )}
       >
         <header className="sticky top-0 z-20 flex min-h-[64px] shrink-0 items-center gap-3 border-b border-border bg-card/90 px-3 py-2.5 shadow-sm backdrop-blur md:min-h-[72px] md:gap-4 md:px-6 md:py-3 print:hidden">
