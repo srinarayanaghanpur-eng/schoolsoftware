@@ -81,7 +81,7 @@ export default async function StudentProfilePage({
         </div>
       )}
       <StudentProfileHeader student={student} />
-      <SummaryCards data={data} />
+      <SummaryCards data={data} canViewFees />
       <div className="card border border-[#edf0f7] overflow-hidden">
         <div className="border-b border-[#edf0f7] flex flex-wrap gap-0">
           {allTabs.map((tab) => {
@@ -113,9 +113,9 @@ export default async function StudentProfilePage({
         </div>
         <div className="p-4 md:p-6">
           {activeTab === "overview" && <OverviewTab student={student} />}
-          {activeTab === "fees" && <FeeLedgerTab student={student} data={data} />}
+          {activeTab === "fees" && <FeeLedgerTab student={student} data={data} canViewFees canCreateFees />}
           {activeTab === "documents" && <DocumentsTab student={student} data={data} />}
-          {activeTab === "certificates" && <CertificatesTab student={student} data={data} />}
+          {activeTab === "certificates" && <CertificatesTab student={student} data={data} canView canCreate />}
           {activeTab === "attendance" && <AttendanceTab student={student} data={data} />}
           {activeTab === "exams" && <ExamsTab student={student} data={data} />}
           {activeTab === "history" && <HistoryTab student={student} data={data} />}
