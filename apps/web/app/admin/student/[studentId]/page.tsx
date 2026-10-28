@@ -24,22 +24,28 @@ export default async function StudentProfilePage({
   const initialTab = (typeof searchParams.tab === "string" ? searchParams.tab : "overview") as TabKey;
 
   let data: any = null;
-  let error = "";
+  let error: string | null = null;
 
   try {
     data = await getStudentProfile(studentId);
-    if (!data.student) {
+    if (!data?.student) {
       error = "Student not found.";
     }
   } catch (err) {
     error = err instanceof Error ? err.message : "Failed to load student profile.";
+    console.error("Report page error:", err);
   }
 
   if (error) {
     return (
       <div className="p-4 md:p-7">
         <h1 className="text-2xl font-extrabold text-[#1f2136]">Student Profile</h1>
-        <div className="card border-l-4 border-[#d84d5b] p-4 text-sm font-semibold text-[#d84d5b]">{error}</div>
+        <div className="card border-l-4 border-[#d84d5b] p-4 text-sm font-semibold text-[#d84d5b]">
+          <p>{error}</p>
+          <p className="text-xs text-[#7d86a8] mt-2">
+            Check browser console for details. Contact support if this persists.
+          </p>
+        </div>
         <Link href="/admin/students" className="btn-secondary mt-4">
           Back to Students
         </Link>
@@ -58,24 +64,30 @@ export default async function StudentProfilePage({
   const section = String(student.section || "");
   const status = String(student.status || "active");
 
-  const breadcrumbLinks = [
-    { label: "Students", href: "/admin/students" },
-    { label: "Class List", href: `/admin/students/${className.toLowerCase()}` },
-    { label: studentName, href: `/admin/student/${studentId}` }
+  const allTabs: TabKey[] = [
+    "overview",
+    "fees",
+    "documents",
+    "certificates",
+    "attendance",
+    "exams",
+    "history"
   ];
-
-  const allTabs: TabKey[] = [ "overview", "fees", "documents", "certificates", "attendance", "exams", "history" ];
   const activeTab = allTabs.includes(initialTab) ? initialTab : "overview";
 
   return (
     <div className="p-4 md:p-7 space-y-5">
       <h1 className="text-2xl font-extrabold text-[#1f2136]">Student Profile</h1>
-      <p className="text-sm font-medium text-[#7d86a8]">{studentName} · Admission No. {admissionNumber} · Class {className}-{section}</p>
+      <p className="text-sm font-medium text-[#7d86a8]">
+        {studentName} · Admission No. {admissionNumber} · Class {className}-{section}
+      </p>
       <Link href="/admin/students" className="btn-secondary">Back to Students</Link>
       {status !== "active" && (
         <div className="card border-l-4 border-[#ad7413] bg-[#fff7e6] p-3">
           <div className="flex items-start gap-2">
-            <span className="text-xs font-bold text-[#ad7413]">Student status: {status.charAt(0).toUpperCase() + status.slice(1)}</span>
+            <span className="text-xs font-bold text-[#ad7413]">
+              Student status: {status.charAt(0).toUpperCase() + status.slice(1)}
+            </span>
             <p className="text-xs text-[#7d86a8]">Some actions may be restricted for this status.</p>
           </div>
         </div>
