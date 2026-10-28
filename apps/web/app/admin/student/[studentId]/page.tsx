@@ -96,18 +96,17 @@ export default async function StudentProfilePage({
             };
             const isActive = activeTab === tab;
             return (
-              <button
+              <Link
                 key={tab}
-                type="button"
-                onClick={() => window.location.href = `/admin/student/${studentId}?tab=${tab}`}
+                href={`/admin/student/${studentId}?tab=${tab}`}
                 className={`inline-flex items-center gap-2 px-4 py-3 text-sm font-bold border-b-2 transition ${
                   isActive
                     ? "border-[#3033a1] bg-[#3033a1]/5 text-[#3033a1]"
                     : "text-[#6f7898] hover:text-[#3033a1] hover:bg-[#f4f5fb]"
                 }`}
               >
-                {tab}
-              </button>
+                {tabLabels[tab]}
+              </Link>
             );
           })}
         </div>
