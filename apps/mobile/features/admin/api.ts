@@ -11,9 +11,18 @@ async function adminGet<T>(path: string): Promise<T> {
   if (!user) throw new Error("Please sign in again.");
   if (!API_REQUESTS_AVAILABLE) throw new Error("API URL not configured. Please set EXPO_PUBLIC_WEB_API_URL.");
   const token = await user.getIdToken();
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    headers: { Authorization: `Bearer ${token}` }
-  });
+  const response = await Promise.race([
+    fetch(`${API_BASE_URL}${path}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    }),
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error("API request timed out")), 15000)
+    )
+  ]);
+  if (!response.ok) {
+    const text = await response.text().catch(() => "Unknown error");
+    throw new Error(`API error ${response.status}: ${text}`);
+  }
   const result = (await response.json()) as {
     ok?: boolean;
     success?: boolean;
