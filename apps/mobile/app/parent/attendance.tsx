@@ -35,7 +35,10 @@ export default function ParentAttendanceRoute() {
 
 function ParentAttendanceScreen() {
   const { t } = useTheme();
-  const [month, setMonth] = useState(() => new Date().toISOString().slice(0, 7));
+  const [month, setMonth] = useState(() => {
+      const d = new Date();
+      return `${d.getFullYear()}-${d.getMonth() + 1 < 10 ? "0" : ""}${d.getMonth() + 1}`;
+    });
   const rawChoice = useSelectedChildRaw();
   const { summary, linkedStudents, loading: summaryLoading, error: summaryError, refresh: refreshSummary } =
     useParentSummary(rawChoice);
@@ -50,7 +53,7 @@ function ParentAttendanceScreen() {
     refreshRecord();
   }, [refreshSummary, refreshRecord]);
 
-  const currentMonth = new Date().toISOString().slice(0, 7);
+  const currentMonth = `${new Date().getFullYear()}-${new Date().getMonth() + 1 < 10 ? "0" : ""}${new Date().getMonth() + 1}`;
   const canGoNext = month < currentMonth;
 
   if (loading && !record && !summary) return <SkeletonRows count={3} />;
