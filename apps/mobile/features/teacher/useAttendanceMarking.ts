@@ -57,7 +57,7 @@ const INITIAL: MarkingState = {
   syncing: false
 };
 
-const OFFLINE_QUEUE_KEY = "@attendance_offline_queue";
+const OFFLINE_QUEUE_KEY = `${ATTENDANCE_BYPASS_GPS_AND_TIME ? "bypassed" : "attendance_offline_queue"}:${teacherId}`;
 
 async function loadQueue(): Promise<QueuedAttempt[]> {
   try {
@@ -246,7 +246,7 @@ export function useAttendanceMarking(teacherId?: string) {
           };
           const queue = capQueue([...(await loadQueue()), queued], OFFLINE_QUEUE_CAP);
           await saveQueue(queue);
-          const message = "No connection — saved. It will sync automatically.";
+          const message = "No connection — saved. It will sync during the next foreground session. Items older than 2 hours are rejected.";
           setState((s) => ({ ...s, submitting: false, error: message, pending: queue.length }));
           return { ok: false as const, message, queued: true as const };
         }

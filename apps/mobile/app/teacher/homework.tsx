@@ -84,9 +84,7 @@ function TeacherHomework() {
     setLoadingList(true);
     setListError(null);
     try {
-      const items = await fetchPostedHomework(
-        teacher?.subject ? { subject: teacher.subject } : {}
-      );
+      const items = await fetchPostedHomework({});
       setPosted(items);
     } catch (err) {
       setListError(err instanceof Error ? err.message : "Unable to load posted homework.");
@@ -97,7 +95,7 @@ function TeacherHomework() {
 
   useEffect(() => {
     void loadPosted();
-  }, [loadPosted]);
+  }, []);
 
   const canPost = useMemo(
     () =>

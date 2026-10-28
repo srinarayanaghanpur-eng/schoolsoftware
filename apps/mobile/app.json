@@ -5,7 +5,7 @@
     "scheme": "sna",
     "version": "1.0.0",
     "orientation": "portrait",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "default",
     "icon": "./assets/icon.png",
     "splash": {
       "image": "./assets/LOGO.png",

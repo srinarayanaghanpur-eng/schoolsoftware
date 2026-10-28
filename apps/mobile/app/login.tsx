@@ -281,6 +281,16 @@ export default function Login() {
       setLoading(false);
       await signOut(auth).catch(() => undefined);
       await clearMobileAuthStorage().catch(() => undefined);
+      // Best-effort: clear per-teacher offline queue on logout to prevent cross-account data leak.
+      // The key format is "attendance_offline_queue:{teacherId}" or "attendance_offline_queue:bypassed".
+      // We'll try to remove any matching keys.
+      try {
+        const keys = await AsyncStorage.getAllKeys();
+        const queueKeys = keys.filter(k => k.startsWith("attendance_offline_queue:"));
+        await AsyncStorage.multiRemove(queueKeys).catch(() => undefined);
+      } catch {
+        // best-effort only; logout must not fail if storage is unavailable
+      }
     }
   };
 

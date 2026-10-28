@@ -377,7 +377,7 @@ export async function fetchDashboardStats() {
   return result.data;
 }
 
-export async function fetchRecentPayments(pageSize = 10, cursor = "", studentId = ""): Promise<PaymentPage> {
+export async function fetchRecentPayments(pageSize = 100, cursor = "", studentId = ""): Promise<PaymentPage> {
   const query = new URLSearchParams({ pageSize: String(pageSize) });
   if (cursor) query.set("cursor", cursor);
   if (studentId) query.set("studentId", studentId);

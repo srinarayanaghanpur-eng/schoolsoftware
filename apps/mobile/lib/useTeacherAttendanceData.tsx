@@ -41,7 +41,17 @@ function asIsoString(value: unknown): string | undefined {
 }
 
 function asStatus(value: unknown): AttendanceStatus {
-  const statuses: AttendanceStatus[] = ["present", "late", "cl", "holiday", "absent", "not_marked"];
+  const statuses: AttendanceStatus[] = [
+    "present",
+    "late",
+    "cl",
+    "holiday",
+    "absent",
+    "not_marked",
+    "checked_in",
+    "half_day",
+    "short_hours"
+  ];
   return statuses.includes(value as AttendanceStatus) ? (value as AttendanceStatus) : "not_marked";
 }
 

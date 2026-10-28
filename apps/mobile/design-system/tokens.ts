@@ -9,13 +9,24 @@
  */
 
 export const color = {
-  // Surfaces (Zepto-style airy light-grey canvas, white cards)
-  background: "#f4f3f8",
-  previewBackdrop: "#e9e7ef",
-  surface: "#ffffff",
-  surfaceVariant: "#f1f0f7",
-  outline: "#e9e7f2",
-  outlineStrong: "#e0deea",
+  // Light mode (Zepto-style airy light-grey canvas, white cards)
+  light: {
+    background: "#f4f3f8",
+    previewBackdrop: "#e9e7ef",
+    surface: "#ffffff",
+    surfaceVariant: "#f1f0f7",
+    outline: "#e9e7f2",
+    outlineStrong: "#e0deea",
+  },
+  // Dark mode (matching light contrasts inverted)
+  dark: {
+    background: "#0b0f22",
+    previewBackdrop: "#1e1f3a",
+    surface: "#151b38",
+    surfaceVariant: "#2a2d4f",
+    outline: "#353758",
+    outlineStrong: "#2d2f4a",
+  },
 
   // Primary (Zepto vivid purple)
   primary: "#5b2ee5",

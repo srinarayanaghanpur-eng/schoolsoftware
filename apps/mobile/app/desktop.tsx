@@ -3,14 +3,14 @@
  * than dropping the user on a dead-end profile screen (the old behaviour),
  * the app says so plainly and offers a logout.
  */
-import React from "react";
+import React, { useContext } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import {
   Avatar, DSText, Icon, PillButton, SectionCard, ListRow, ToastProvider, useToast
 } from "@/design-system/components";
-import { color, space } from "@/design-system/tokens";
+import { useTheme } from "@/lib/Theme";
 import { useMobileSession } from "@/lib/mobileSession";
 import { openWebsite } from "@/lib/openWebsite";
 import { workspaceLabel } from "@/lib/roleRouting";
@@ -30,6 +30,7 @@ function DesktopOnly() {
   const toast = useToast();
   const session = useMobileSession();
   const name = session.profile?.displayName ?? "User";
+  const { t: { color } } = useTheme();
 
   const logout = async () => {
     try {
@@ -56,7 +57,7 @@ function DesktopOnly() {
       <SectionCard heading="THIS ROLE IS DESKTOP ONLY">
         <DSText variant="body">
           Settings management needs the full dashboard — school configuration,
-          roles and permissions aren’t available on mobile. Sign in on a
+          roles and permissions aren't available on mobile. Sign in on a
           computer to continue.
         </DSText>
         <ListRow

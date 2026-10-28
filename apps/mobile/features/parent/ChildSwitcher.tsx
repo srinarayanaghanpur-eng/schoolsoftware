@@ -2,10 +2,10 @@
  * ChildSwitcher — horizontal chip selector shown when a parent has more than
  * one linked child. Shared by the Phase 4 fees and attendance screens.
  */
-import React from "react";
+import React, { useContext } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { DSText } from "@/design-system/components";
-import { color, radius, space } from "@/design-system/tokens";
+import { useTheme } from "@/lib/Theme";
 import type { PortalStudent } from "./api";
 
 export function ChildSwitcher({
@@ -17,6 +17,7 @@ export function ChildSwitcher({
   selectedId?: string;
   onSelect: (id: string) => void;
 }) {
+  const { t } = useTheme();
   if (children.length < 2) return null;
   return (
     <View style={styles.row} accessibilityRole="tablist">
@@ -48,8 +49,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.md,
     paddingVertical: space.xs,
     borderRadius: radius.pill,
-    backgroundColor: color.surfaceVariant
+    backgroundColor: t.color.surfaceVariant
   },
-  chipActive: { backgroundColor: color.primaryContainer },
+  chipActive: { backgroundColor: t.color.primaryContainer },
   labelActive: { fontWeight: "700" }
 });
