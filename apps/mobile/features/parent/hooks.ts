@@ -115,7 +115,7 @@ export function useParentSummary(studentId?: string) {
 
   const load = useCallback(async (force = false) => {
     const cacheKey = `portal-summary:${studentId ?? "default"}`;
-    setState((s) => ({ ...s, loading: s.data === null, error: null }));
+    setState({ data: null, loading: true, error: null });
     try {
       if (!force) {
         const cached = await mobileCache.get<{ summary: PortalSummary; linkedStudents: PortalStudent[] }>(cacheKey);
@@ -125,8 +125,8 @@ export function useParentSummary(studentId?: string) {
         }
       }
       const fresh = await fetchSummary(studentId);
-      await mobileCache.set(cacheKey, fresh, SUMMARY_TTL_MIN);
       setState({ data: normalizeSummaryPayload(fresh), loading: false, error: null });
+      void mobileCache.set(cacheKey, fresh, SUMMARY_TTL_MIN).catch(() => undefined);
     } catch (err) {
       setState((s) => ({
         data: s.data,
@@ -163,8 +163,8 @@ export function useParentHomework(studentId?: string) {
         }
       }
       const fresh = await fetchHomework(studentId);
-      await mobileCache.set(cacheKey, fresh.homework, HOMEWORK_TTL_MIN);
       setState({ data: normalizeHomeworkList(fresh.homework), loading: false, error: null });
+      void mobileCache.set(cacheKey, fresh.homework, HOMEWORK_TTL_MIN).catch(() => undefined);
     } catch (err) {
       setState((s) => ({
         data: s.data,
@@ -198,8 +198,8 @@ export function useParentPayments(studentId?: string) {  const [state, setState]
         }
       }
       const fresh = await fetchPayments(studentId);
-      await mobileCache.set(cacheKey, fresh.payments, PAYMENTS_TTL_MIN);
       setState({ data: fresh.payments.map(normalizePaymentLike), loading: false, error: null });
+      void mobileCache.set(cacheKey, fresh.payments, PAYMENTS_TTL_MIN).catch(() => undefined);
     } catch (err) {
       setState((s) => ({
         data: s.data,
@@ -240,8 +240,8 @@ export function useParentAttendance(studentId?: string, month?: string) {
         }
       }
       const fresh = await fetchAttendance(studentId, month);
-      await mobileCache.set(cacheKey, fresh, ATTENDANCE_TTL_MIN);
       setState({ data: normalizeAttendanceRecord(fresh), loading: false, error: null });
+      void mobileCache.set(cacheKey, fresh, ATTENDANCE_TTL_MIN).catch(() => undefined);
     } catch (err) {
       setState((s) => ({
         data: s.data,
