@@ -240,14 +240,8 @@ export default function Login() {
     if (redirectedRef.current || session.status !== "authenticated" || !profile) return;
     redirectedRef.current = true;
     const fallback = dashboardPathForRole(profile.role);
-    if (fallback === "/login") {
-      // Desktop-only workspace: bounce the sign-in the session just resolved.
-      setErrorMessage("This workspace is not available in the mobile app yet. Please use the web portal.");
-      setLoading(false);
-      void signOut(auth).catch(() => undefined);
-      void clearMobileAuthStorage().catch(() => undefined);
-      return;
-    }
+    // fallback is never "/login" (dashboardPathForRole never returns it),
+    // so this branch is dead code — removed.
     // Deep link or push tap saved by a workspace guard while logged out:
     // return there (the guard validates the role on arrival).
     void (async () => {
