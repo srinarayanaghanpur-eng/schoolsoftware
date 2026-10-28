@@ -87,13 +87,7 @@ service cloud.firestore {
 
     match /attendance/{attendanceId} {
       allow read: if isAdmin() || isOwnTeacherId(resource.data.teacherId);
-      allow create: if isAdmin() ||
-        (
-          signedIn() &&
-          isOwnTeacherId(request.resource.data.teacherId) &&
-          request.resource.data.source == "mobile" &&
-          request.resource.data.adminEdited == false
-        );
+      allow create: if isAdmin();
       allow update, delete: if isAdmin();
     }
 
