@@ -77,7 +77,7 @@ export function useRecentPayments() {
     setError(null);
     setLoading(true);
     try {
-      const page = await fetchRecentPayments(10);
+      const page = await fetchRecentPayments();
       setPayments(page.payments);
       setCursor(page.nextCursor);
       setHasMore(page.hasMore);
