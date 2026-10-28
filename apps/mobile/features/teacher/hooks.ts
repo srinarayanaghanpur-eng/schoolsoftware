@@ -57,19 +57,23 @@ export function statusTone(status?: string): { label: string; tone: AttendanceTo
 
 /** Month-to-date rollup used by Home, History and Profile. */
 export function useAttendanceSummary(records: AttendanceRecord[]) {
+  const monthKey = new Date().toISOString().slice(0, 7);
   return useMemo(() => {
-    const today = records.find((record) => record.date === localDateKey());
-    const present = records.filter((r) => r.status === "present" || r.status === "late").length;
-    const late = records.filter((r) => r.status === "late").length;
-    const absent = records.filter((r) => r.status === "absent").length;
+    const monthRecords = records.filter((r) => r.date.slice(0, 7) === monthKey);
+    const present = monthRecords.filter((r) => r.status === "present" || r.status === "late").length;
+    const late = monthRecords.filter((r) => r.status === "late").length;
+    const absent = monthRecords.filter((r) => r.status === "absent").length;
+    const checkedIn = monthRecords.some((r) => r.status === "checked_in");
+    const halfDay = monthRecords.some((r) => r.status === "half_day");
+    const shortHours = monthRecords.some((r) => r.status === "short_hours");
     return {
-      today,
       percentage: getAttendancePercentage(records),
       present,
       late,
       absent,
-      checkedIn: Boolean(today?.checkInTime) && !today?.checkOutTime,
-      checkedOut: Boolean(today?.checkOutTime)
+      checkedIn,
+      halfDay,
+      shortHours
     };
   }, [records]);
 }
