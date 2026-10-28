@@ -158,6 +158,53 @@ img, svg, video, canvas {
   height: auto;
 }
 
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 3px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
+
+.skip-link {
+  position: fixed;
+  left: 0.75rem;
+  top: 0.75rem;
+  z-index: 10000;
+  transform: translateY(-180%);
+  border-radius: 0.75rem;
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 800;
+  box-shadow: 0 10px 30px rgb(var(--shadow-rgb) / 0.3);
+  transition: transform 160ms ease;
+}
+
+.skip-link:focus-visible {
+  transform: translateY(0);
+}
+
+.shortcut-key {
+  display: inline-flex;
+  min-height: 1.4rem;
+  align-items: center;
+  border-radius: 0.375rem;
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--muted));
+  padding: 0.1rem 0.4rem;
+  color: hsl(var(--foreground));
+  font-family: inherit;
+  font-size: 0.68rem;
+  font-weight: 800;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+@media print {
+  .skip-link {
+    display: none !important;
+  }
+}
+
 @keyframes erp-float-slow {
   0%, 100% {
     transform: translate3d(0, 0, 0) scale(1);

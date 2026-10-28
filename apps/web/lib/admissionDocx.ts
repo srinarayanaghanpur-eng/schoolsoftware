@@ -27,6 +27,7 @@ import {
 } from "docx";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { getBranches } from "@/lib/branchContext";
+import { resolveFeeState } from "@/lib/feeModel";
 
 /* --------------------------------------------------------------- constants */
 
@@ -265,11 +266,10 @@ export async function getAdmissionDocData(studentId: string): Promise<AdmissionD
         })
         .join(", ")
     : "";
-  const totalFeeRaw = (s.totalFeeAmount ?? s.commitmentFee) as unknown;
-  const concession =
-    (s.concession ?? s.totalFeeAmount) !== undefined && (s.concession ?? s.totalFeeAmount) !== null && (s.concession ?? s.totalFeeAmount) !== ""
-      ? Number(s.totalFeeAmount) - Number((s.commitmentFee ?? s.totalFeeAmount) as unknown)
-      : "";
+  const fee = resolveFeeState(s as Record<string, unknown>);
+  const totalFee =
+    fee.originalFee > 0 || fee.payableFee > 0 ? fmtMoney(fee.payableFee) : "";
+  const concession = fee.concession > 0 ? fee.concession : "";
   const docNames = Array.isArray(s.documentURLs)
     ? (s.documentURLs as { name?: unknown }[]).map((d) => String(d.name ?? "").toLowerCase()).join(" ")
     : "";
@@ -283,8 +283,13 @@ export async function getAdmissionDocData(studentId: string): Promise<AdmissionD
         .join(", ")
     : "";
 
+  const transportFlag = s.transportRequired;
   const transportRequired =
-    s.transportRequired || str(s.transportRouteId) || str(s.transportStopName) ? "Yes" : "No";
+    transportFlag === false || transportFlag === "No" || transportFlag === "no"
+      ? "No"
+      : transportFlag || str(s.transportRouteId) || str(s.transportStopName)
+        ? "Yes"
+        : "No";
 
   const data: AdmissionDocData = {
     admissionNo: str((s.admissionNumber ?? s.admissionNo) as unknown),
@@ -324,22 +329,22 @@ export async function getAdmissionDocData(studentId: string): Promise<AdmissionD
     transportRequired,
     routeName: routeMap.get(str(s.transportRouteId)) || str((s.busRoute ?? s.transportRouteName) as unknown),
     pickupPoint: str((s.pickupPoint ?? s.transportStopName) as unknown),
-    feePlan: str((s.feePlan ?? (s.totalFeeAmount ? "Standard" : "")) as unknown),
+    feePlan: str(
+      (s.feePlan ??
+        (fee.originalFee > 0 || fee.payableFee > 0 ? "Standard" : "")) as unknown
+    ),
     feeTypes,
-    totalFee: fmtMoney(totalFeeRaw),
+    totalFee,
     concession: typeof concession === "number" && Number.isFinite(concession) ? fmtMoney(concession) : "",
     documents: [
       { label: "Birth Certificate", checked: hasDoc("birth") },
-      { label: "Student Aadhaar", checked: Boolean(aadhaar) || hasDoc("student aadhaar", "aadhaar") },
+      { label: "Student Aadhaar", checked: Boolean(aadhaar) || hasDoc("student aadhaar") },
       { label: "Parent Aadhaar", checked: hasDoc("parent aadhaar", "father aadhaar", "mother aadhaar") },
       { label: "TC / Bonafide", checked: Boolean(prevOf("tcNo")) || hasDoc("tc", "bonafide") },
       { label: "Previous Report Card", checked: hasDoc("report") },
       { label: "Passport Photos", checked: Boolean(s.photoURL) || hasDoc("photo") },
       { label: "Caste / Income Certificate", checked: hasDoc("caste", "income") },
-      {
-        label: "Other Documents",
-        checked: Array.isArray(s.documentURLs) && (s.documentURLs as unknown[]).length > 0
-      }
+      { label: "Other Documents", checked: Boolean(otherDocuments) }
     ],
     otherDocuments,
     admissionStatus: str((s.admissionStatus ?? "Pending") as unknown),

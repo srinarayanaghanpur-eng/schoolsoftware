@@ -9,14 +9,10 @@ import {
   display,
   formatDate,
   formatDateTime,
-  previousSchoolName,
-  previousSchoolValue,
-  emergencyValue,
-  documentNames,
   hasDocument,
   otherDocumentNames,
 } from "./formatters";
-import { FieldBox, FormSection, ChecklistItem, SignatureLine, DataRow } from "./AdmissionFieldKit";
+import { FieldBox, FormSection, ChecklistItem, SignatureLine } from "./AdmissionFieldKit";
 
 export function AdmissionPrintSheet({
   r,
@@ -175,7 +171,7 @@ export function AdmissionPrintSheet({
                 label="Student Aadhaar"
                 checked={
                   Boolean(r.aadhaar) ||
-                  hasDocument(student, ["student aadhaar", "aadhaar"])
+                  hasDocument(student, ["student aadhaar"])
                 }
               />
               <ChecklistItem
@@ -210,7 +206,7 @@ export function AdmissionPrintSheet({
               />
               <ChecklistItem
                 label="Other Documents"
-                checked={(student.documentURLs ?? []).length > 0}
+                checked={Boolean(otherDocumentNames(student))}
               />
             </div>
             <div className="af-other-docs">
@@ -278,6 +274,7 @@ export function AdmissionPrintSheet({
               />
               <FieldBox label="Branch" value={r.branchName} />
               <FieldBox label="School ID" value={resolveValue(student.schoolId)} />
+              <FieldBox label="Printed Date / Time" value={formatDateTime(printedAt)} />
             </div>
           </div>
 

@@ -4,6 +4,7 @@ import { requirePermission, resolveRole, enforceBodyLimit, json } from "@/lib/ap
 import { markSummaryDirty } from "@/lib/markSummaryDirty";
 import { writeAuditLog } from "@/lib/auditLog";
 import { recalculateStudentFeeSummary } from "@/lib/feeRecalculation";
+import { buildFeeFields, feeHeadsTotals } from "@/lib/feeModel";
 
 function normalizeText(value: unknown) {
   return String(value ?? "").trim().toLowerCase();
@@ -68,13 +69,29 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       section,
       gender,
       fatherName,
+      fatherPhone,
+      fatherOccupation,
       motherName,
+      motherPhone,
+      motherOccupation,
       dateOfBirth,
       email,
       phone,
       address,
+      villageArea,
+      mandal,
+      district,
+      pincode,
       photoURL,
       aadhaarNumber,
+      bloodGroup,
+      emisId,
+      nationality,
+      motherTongue,
+      category,
+      medium,
+      secondLanguage,
+      admissionType,
       documentURLs,
       previousSchool,
       siblingAdmissionNumbers,
@@ -95,13 +112,31 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     if (!String(effName).trim() || !String(effClass).trim() || !String(effSection).trim()) {
       return json({ success: false, error: 'Missing required fields' }, { status: 400 });
     }
-    const originalFee = Number(body.annualEnrollmentFee ?? existing.annualEnrollmentFee ?? 0);
-    const committedPayableFee = Number(body.commitmentFee ?? body.committedPayableFee ?? existing.commitmentFee ?? existing.committedPayableFee ?? 0);
-    const concessionAmount = Math.max(0, originalFee - committedPayableFee);
-    const totalFeeAmount = committedPayableFee;
-    const totalFeesPaid = Number(existing.totalFeesPaid ?? 0);
-    const totalFeesDue = Math.max(0, totalFeeAmount - totalFeesPaid);
-    const feeStatus = totalFeesDue <= 0 ? 'paid' : totalFeesPaid > 0 ? 'partial' : 'pending';
+    const feeKeys = [
+      "annualEnrollmentFee",
+      "originalFeeAmount",
+      "commitmentFee",
+      "committedPayableFee",
+      "totalFeeAmount",
+      "feeHeads",
+      "transportFee"
+    ];
+    const feeInputProvided = feeKeys.some((key) =>
+      Object.prototype.hasOwnProperty.call(body, key)
+    );
+    const summaryKeys = [
+      "studentName",
+      "class",
+      "classId",
+      "section",
+      "sectionId",
+      "academicYearId",
+      "branchId",
+      "schoolId"
+    ];
+    const summaryInputProvided = summaryKeys.some((key) =>
+      Object.prototype.hasOwnProperty.call(body, key)
+    );
 
     const updateData: Record<string, unknown> = {
       studentName: effName,
@@ -117,35 +152,66 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       rollNo: Number(body.rollNo ?? existing.rollNo ?? String(existing.admissionNumber ?? "").replace(/\D/g, "") ?? 0),
       gender: gender ?? existing.gender ?? '',
       fatherName: fatherName ?? existing.fatherName ?? '',
-      fatherPhone: body.fatherPhone ?? existing.fatherPhone ?? '',
+      fatherPhone: fatherPhone ?? existing.fatherPhone ?? '',
+      fatherOccupation: fatherOccupation ?? existing.fatherOccupation ?? '',
       motherName: motherName ?? existing.motherName ?? '',
-      motherPhone: body.motherPhone ?? existing.motherPhone ?? '',
+      motherPhone: motherPhone ?? existing.motherPhone ?? '',
+      motherOccupation: motherOccupation ?? existing.motherOccupation ?? '',
       dateOfBirth: dateOfBirth !== undefined ? (dateOfBirth ? new Date(dateOfBirth) : null) : (existing.dateOfBirth ?? null),
       email: email ?? existing.email ?? '',
       phone: phone ?? existing.phone ?? '',
       address: address ?? existing.address ?? '',
+      villageArea: villageArea ?? existing.villageArea ?? '',
+      mandal: mandal ?? existing.mandal ?? '',
+      district: district ?? existing.district ?? '',
+      pincode: pincode ?? existing.pincode ?? '',
       photoURL: photoURL ?? existing.photoURL ?? '',
       aadhaarNumber: aadhaarNumber ?? existing.aadhaarNumber ?? '',
+      bloodGroup: bloodGroup ?? existing.bloodGroup ?? '',
+      emisId: emisId ?? existing.emisId ?? '',
+      nationality: nationality ?? existing.nationality ?? '',
+      motherTongue: motherTongue ?? existing.motherTongue ?? '',
+      category: category ?? existing.category ?? '',
+      medium: medium ?? existing.medium ?? '',
+      secondLanguage: secondLanguage ?? existing.secondLanguage ?? '',
+      admissionType: admissionType ?? existing.admissionType ?? '',
       documentURLs: documentURLs ?? existing.documentURLs ?? [],
       previousSchool: previousSchool !== undefined ? previousSchool : (existing.previousSchool ?? null),
       siblingAdmissionNumbers: siblingAdmissionNumbers ?? existing.siblingAdmissionNumbers ?? [],
       emergencyContact: emergencyContact !== undefined ? emergencyContact : (existing.emergencyContact ?? null),
       transportRouteId: transportRouteId ?? existing.transportRouteId ?? '',
       transportStopName: transportStopName ?? existing.transportStopName ?? '',
-      transportFee: Number(transportFee ?? existing.transportFee ?? 0),
-      annualEnrollmentFee: originalFee,
-      commitmentFee: committedPayableFee,
-      committedPayableFee,
-      originalFeeAmount: originalFee,
-      totalConcessionAmount: concessionAmount,
-      feeHeads: body.feeHeads !== undefined ? body.feeHeads : existing.feeHeads || null,
-      totalFeeAmount,
-      totalFeesDue,
-      feeStatus,
       searchKeywords: searchKeywords(effName, String(existing.admissionNumber ?? ""), (phone ?? existing.phone ?? "") as string),
-      feeLastUpdated: new Date(),
       updatedAt: new Date()
     };
+
+    if (body.transportFee !== undefined) {
+      updateData.transportFee = Number(transportFee || 0);
+    }
+    if (body.feeHeads !== undefined) {
+      updateData.feeHeads = body.feeHeads || null;
+    }
+
+    if (feeInputProvided) {
+      const heads = feeHeadsTotals(body.feeHeads);
+      const originalInput = body.originalFeeAmount ?? body.annualEnrollmentFee;
+      const payableInput = body.committedPayableFee ?? body.commitmentFee ?? body.totalFeeAmount;
+      const existingOriginal = existing.originalFeeAmount ?? existing.annualEnrollmentFee;
+      const existingPayable =
+        existing.committedPayableFee ?? existing.commitmentFee ?? existing.totalFeeAmount;
+      const originalFee = heads
+        ? heads.original
+        : originalInput ?? existingOriginal ?? existingPayable ?? 0;
+      const payableFee = heads
+        ? heads.committed
+        : payableInput ?? existingPayable ?? originalInput ?? existingOriginal ?? 0;
+      const feeFields = buildFeeFields({
+        originalFee,
+        payableFee,
+        paid: existing.totalFeesPaid ?? 0
+      });
+      Object.assign(updateData, feeFields, { feeLastUpdated: new Date() });
+    }
 
     await docRef.update(updateData);
 
@@ -155,12 +221,12 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     if (body.status !== undefined && body.status !== existing.status) {
       await markSummaryDirty("student:status");
     }
-    // Fee fields changed — rebuild the canonical summary so dues pages reflect
-    // the edit immediately instead of waiting for the next payment.
-    try {
-      await recalculateStudentFeeSummary(id, String(updateData.academicYearId || ""));
-    } catch (summaryError) {
-      console.error("Student summary recalc failed after update:", summaryError);
+    if (feeInputProvided || summaryInputProvided) {
+      try {
+        await recalculateStudentFeeSummary(id, String(updateData.academicYearId || ""));
+      } catch (summaryError) {
+        console.error("Student summary recalc failed after update:", summaryError);
+      }
     }
 
     return json({ success: true, data: { id, ...existing, ...updateData } });

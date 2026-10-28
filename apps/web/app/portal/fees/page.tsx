@@ -6,7 +6,7 @@ import { usePortalChild } from "@/components/PortalChildContext";
 import { UpiQr, DEFAULT_UPI_ID, DEFAULT_UPI_PAYEE_NAME } from "@/components/UpiQr";
 import { adminApiRequest } from "@/lib/adminApiClient";
 import { formatLabel } from "@sri-narayana/shared";
-import { CreditCard, Download, ReceiptText, TriangleAlert } from "lucide-react";
+import { Download, ReceiptText, TriangleAlert } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
@@ -25,8 +25,6 @@ function FeeManagement() {
   const { selectedChildId, selectedChild, children, switchChild, loading: childrenLoading } = usePortalChild();
   const [data, setData] = useState<FeeSummary | null>(null);
   const [loading, setLoading] = useState(true);
-  const [paying, setPaying] = useState(false);
-  const [receipt, setReceipt] = useState<{ receiptId: string; amount: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showUpi, setShowUpi] = useState(false);
 
@@ -48,29 +46,6 @@ function FeeManagement() {
     if (selectedChildId) void loadData(selectedChildId);
   }, [selectedChildId]);
 
-  const payNow = async () => {
-    if (!data || data.fees.due <= 0) return;
-    setPaying(true);
-    setError(null);
-    setReceipt(null);
-    try {
-      const order = await adminApiRequest<{ ok: true; orderId: string; amount: number }>("/api/fees/order", {
-        method: "POST",
-        body: JSON.stringify({ studentId: data.student.id, amount: data.fees.due, paymentType: "portal-fee", note: "Portal fee payment" }),
-      });
-      const confirmation = await adminApiRequest<{ ok: true; receiptId: string; amount: number }>("/api/fees/confirm", {
-        method: "POST",
-        body: JSON.stringify({ orderId: order.orderId, transactionId: `FEE-${Date.now()}`, method: "online" }),
-      });
-      setReceipt({ receiptId: confirmation.receiptId, amount: confirmation.amount });
-      await loadData(data.student.id);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to complete payment.");
-    } finally {
-      setPaying(false);
-    }
-  };
-
   if (childrenLoading) {
     return <section className="p-4 md:p-7"><div className="card p-8 text-center text-sm font-semibold text-[#7d86a8]">Loading...</div></section>;
   }
@@ -90,11 +65,6 @@ function FeeManagement() {
       />
       <section className="space-y-5 p-4 md:p-7">
         {error && <div className="rounded-2xl border border-[#ffd5da] bg-[#ffebed] px-4 py-3 text-sm font-semibold text-[#c83f4d]">{error}</div>}
-        {receipt && (
-          <div className="rounded-2xl border border-[#c8f0dc] bg-[#e6f8ef] px-4 py-3 text-sm font-semibold text-[#0f8d52]">
-            Payment successful! Receipt: <Link href={`/portal/payments/${receipt.receiptId}`} className="underline">{receipt.receiptId}</Link> for {formatINR(receipt.amount)}.
-          </div>
-        )}
 
         {loading ? (
           <div className="card p-8 text-center text-sm font-semibold text-[#7d86a8]">Loading fee details...</div>
@@ -129,13 +99,12 @@ function FeeManagement() {
             <div className="card p-5">
               <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div>
-                  <h2 className="font-extrabold text-[#1f2136]">Make Payment</h2>
-                  <p className="mt-1 text-sm font-medium text-[#7d86a8]">Pay outstanding fees online via card, UPI, or net banking.</p>
+                  <h2 className="font-extrabold text-[#1f2136]">Pay at School Office</h2>
+                  <p className="mt-1 text-sm font-medium text-[#7d86a8]">
+                    Fee payments are recorded by school staff. Pay at the office or use the UPI QR, then show the payment reference to staff for a receipt.
+                  </p>
                 </div>
                 <div className="flex flex-wrap gap-3">
-                  <button className="btn-primary" onClick={() => void payNow()} disabled={paying || data.fees.due <= 0}>
-                    <CreditCard size={16} /> {paying ? "Processing..." : data.fees.due > 0 ? `Pay ${formatINR(data.fees.due)}` : "No dues"}
-                  </button>
                   <button className="btn-secondary" onClick={() => setShowUpi(!showUpi)}>
                     {showUpi ? "Hide QR" : "Scan & Pay (UPI)"}
                   </button>

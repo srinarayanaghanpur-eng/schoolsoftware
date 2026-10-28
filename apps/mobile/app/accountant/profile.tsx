@@ -1,11 +1,11 @@
 import React from "react";
 import { AccountantShell } from "@/features/admin/shell";
-import { ManagementProfileScreen } from "@/features/admin/screens";
+import { WorkspaceProfileScreen } from "../admin/profile";
 
 export default function AccountantProfileRoute() {
   return (
     <AccountantShell>
-      <ManagementProfileScreen />
+      <WorkspaceProfileScreen />
     </AccountantShell>
   );
 }

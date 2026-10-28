@@ -159,12 +159,13 @@ function LoginField({
         styles.field,
         {
           backgroundColor: th.field,
-          borderColor: focused ? "#3B6BFF" : "rgba(255,255,255,0.6)",
-          shadowColor: focused ? "#3B6BFF" : "#788CC8",
-          shadowOpacity: focused ? 0.35 : 0.3,
-          shadowRadius: focused ? 10 : 16,
+          borderWidth: focused ? 2 : 1,
+          borderColor: focused ? "#2F5BEA" : "rgba(255,255,255,0.6)",
+          shadowColor: focused ? "#2F5BEA" : "#788CC8",
+          shadowOpacity: focused ? 0.5 : 0.3,
+          shadowRadius: focused ? 14 : 16,
           shadowOffset: { width: 4, height: 6 },
-          elevation: focused ? 4 : 2
+          elevation: focused ? 6 : 2
         }
       ]}
     >
@@ -173,6 +174,7 @@ function LoginField({
         ref={inputRef}
         style={[styles.input, { color: th.text }]}
         placeholderTextColor={th.placeholder}
+        selectionColor="#2F5BEA"
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
         {...inputProps}
@@ -574,13 +576,13 @@ const styles = StyleSheet.create({
   },
   title: { fontSize: 26, fontWeight: "800", textAlign: "center" },
   subtitle: {
-    fontSize: 10.5,
+    fontSize: 11.5,
     letterSpacing: 3,
     textTransform: "uppercase",
     textAlign: "center",
     marginTop: 6
   },
-  helper: { fontSize: 11, color: "#E5484D", marginTop: 6, marginLeft: 4 },
+  helper: { fontSize: 12.5, color: "#E5484D", marginTop: 6, marginLeft: 4 },
   rememberRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -595,8 +597,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center"
   },
-  rememberText: { fontSize: 10, fontWeight: "500" },
-  forgot: { fontSize: 10, fontWeight: "600", color: "#1F43D6" },
+  rememberText: { fontSize: 13, fontWeight: "500" },
+  forgot: { fontSize: 13, fontWeight: "600", color: "#1F43D6" },
   loginBtn: { borderRadius: 24 },
   loginGradient: {
     height: 48,
@@ -659,7 +661,7 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
     padding: 0,
-    fontSize: 12,
+    fontSize: 15,
     backgroundColor: "transparent",
     borderWidth: 0,
     outlineWidth: 0

@@ -1,11 +1,11 @@
 import React from "react";
 import { PrincipalShell } from "@/features/admin/shell";
-import { ManagementProfileScreen } from "@/features/admin/screens";
+import { WorkspaceProfileScreen } from "../admin/profile";
 
 export default function PrincipalProfileRoute() {
   return (
     <PrincipalShell>
-      <ManagementProfileScreen />
+      <WorkspaceProfileScreen />
     </PrincipalShell>
   );
 }

@@ -4,7 +4,7 @@
  */
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  ActivityIndicator, RefreshControl, ScrollView, SectionList, StyleSheet, View
+  ActivityIndicator, Alert, RefreshControl, ScrollView, SectionList, Share, StyleSheet, View
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import {
@@ -18,7 +18,7 @@ import { dashboardPathForRole } from "@/lib/roleRouting";
 import { asDateString } from "@/lib/text";
 import { initials } from "@/features/teacher/hooks";
 import {
-  fetchDues, fetchReceipt, fetchStudent, fetchStudentPayments, fetchStudents,
+  fetchDues, fetchReceipt, fetchReceiptShareLink, fetchStudent, fetchStudentPayments, fetchStudents,
   fetchTeacher, fetchTeacherAttendanceSummary,
   type AdminPayment, type AdminTeacherDetail, type DueStudent, type ReceiptRecord,
   type StudentRecord, type TeacherAttendanceSummary
@@ -70,6 +70,7 @@ export function ReceiptDetailScreen() {
   const [receipt, setReceipt] = useState<ReceiptRecord | null>(null);
   const [history, setHistory] = useState<AdminPayment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [sharing, setSharing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -95,6 +96,29 @@ export function ReceiptDetailScreen() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  const shareReceiptLink = useCallback(async () => {
+    if (!receipt) return;
+    setSharing(true);
+    try {
+      const { url } = await fetchReceiptShareLink(receipt.id ?? receiptId);
+      if (!url) throw new Error("Receipt link is unavailable.");
+      await Share.share({
+        title: `Receipt ${receipt.receiptNo ?? ""}`,
+        message: [
+          "Dear Parent,",
+          `Fee payment receipt ${receipt.receiptNo ?? ""} for ${receipt.studentName ?? "student"}.`,
+          `Amount paid: ${formatMoney(receipt.totalPaid)}`,
+          `View receipt: ${url}`
+        ].join("\n"),
+        url
+      });
+    } catch (err) {
+      Alert.alert("Unable to share receipt", err instanceof Error ? err.message : "Please try again.");
+    } finally {
+      setSharing(false);
+    }
+  }, [receipt, receiptId]);
 
   if (loading && !receipt) return <SkeletonPage />;
   if (error && !receipt) return <ErrorState message={error} onRetry={load} />;
@@ -134,6 +158,13 @@ export function ReceiptDetailScreen() {
           Balance after payment · {formatMoney(receipt.balanceDue)}
         </DSText>
       </Card>
+
+      <PillButton
+        label={sharing ? "Preparing link…" : "Share receipt link"}
+        icon="share"
+        block
+        onPress={sharing ? undefined : () => void shareReceiptLink()}
+      />
 
       <SectionCard heading="STUDENT">
         <ListRow
@@ -399,6 +430,9 @@ export function StudentDetailScreen() {
   if (!student) return <EmptyState icon="person-off" label="Student not found." />;
 
   const due = Number(student.totalFeesDue ?? 0);
+  const feeHeads = (student.feeHeads ?? []).filter(
+    (head) => head && (head.name || head.committed || head.original || head.amount)
+  );
 
   return (
     <ScrollView contentContainerStyle={styles.page} showsVerticalScrollIndicator={false}>
@@ -488,6 +522,20 @@ export function StudentDetailScreen() {
           trailing={<Badge label={formatText(student.feeStatus, "pending")} bg={due > 0 ? t.badBg : t.okBg} fg={due > 0 ? t.bad : t.ok} />}
         />
       </SectionCard>
+
+      {feeHeads.length > 0 ? (
+        <SectionCard heading="FEE BREAKDOWN">
+          {feeHeads.map((head, index) => (
+            <View key={`${head.name ?? "fee"}-${index}`}>
+              {index > 0 ? <View style={[styles.divider, { backgroundColor: t.line }]} /> : null}
+              <ListRow
+                title={formatMoney(head.committed ?? head.original ?? head.amount ?? 0)}
+                subtitle={formatText(head.name, "Fee")}
+              />
+            </View>
+          ))}
+        </SectionCard>
+      ) : null}
 
       <SectionCard heading={`PAYMENT HISTORY · ${payments.length}`}>
         {payments.length === 0 ? (

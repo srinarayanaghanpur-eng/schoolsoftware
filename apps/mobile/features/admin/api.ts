@@ -164,6 +164,7 @@ export type StudentRecord = {
   totalFeesDue?: number;
   totalConcessionAmount?: number;
   academicYearId?: string;
+  feeHeads?: { name?: string; original?: number; committed?: number; amount?: number }[];
 };
 
 export type StudentPage = {
@@ -391,6 +392,15 @@ export async function fetchReceipt(receiptId: string) {
   return { receipt: result.receipt, canPrint: result.canPrint === true };
 }
 
+/** Create (or reuse) the receipt's public read-only share link. */
+export async function fetchReceiptShareLink(receiptId: string) {
+  const result = await adminPost<{ url: string; expiresAt?: string }>(
+    `/api/admin/receipts/${encodeURIComponent(receiptId)}/share-link`,
+    {}
+  );
+  return { url: result.url, expiresAt: result.expiresAt };
+}
+
 export async function fetchStudentPayments(studentId: string, pageSize = 20) {
   const page = await fetchRecentPayments(pageSize, "", studentId);
   return page.payments;
@@ -540,6 +550,7 @@ export type StaffDriver = {
   vehicleNo?: string;
   vehicle?: string;
   licenseNo?: string;
+  status?: string;
 };
 
 export type StaffOffice = {
@@ -548,12 +559,17 @@ export type StaffOffice = {
   role?: string;
   email?: string;
   phone?: string;
+  status?: string;
+  uid?: string;
+  teacherId?: string;
+  employeeId?: string;
 };
 
 export type StaffDirectory = {
   teachers: AdminTeacher[];
   drivers: StaffDriver[];
   office: StaffOffice[];
+  other: StaffOffice[];
 };
 
 export async function fetchStaffDirectory() {
@@ -561,7 +577,8 @@ export async function fetchStaffDirectory() {
   return {
     teachers: result.teachers ?? [],
     drivers: result.drivers ?? [],
-    office: result.office ?? []
+    office: result.office ?? [],
+    other: result.other ?? []
   };
 }
 

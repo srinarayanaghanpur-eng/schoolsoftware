@@ -8,6 +8,7 @@ import { useAdmissionData } from "./useAdmissionData";
 import { AdmissionPrintSheet } from "./AdmissionPrintSheet";
 import AdmissionPrintStyles from "./AdmissionPrintStyles";
 import { resolveValue } from "./formatters";
+import { classIdToSlug } from "@/lib/studentClasses";
 
 export default function AdmissionFormPage() {
   const params = useParams();
@@ -65,7 +66,12 @@ export default function AdmissionFormPage() {
   };
 
   const handleEdit = () => {
-    router.push(`/admin/students?id=${params.id}&edit=1`);
+    const classId = resolveValue(student?.class);
+    if (!classId) {
+      router.push(`/admin/students?edit=${params.id}`);
+      return;
+    }
+    router.push(`/admin/students/${classIdToSlug(classId)}?edit=${params.id}`);
   };
 
   if (loading || !lookupsLoaded) {

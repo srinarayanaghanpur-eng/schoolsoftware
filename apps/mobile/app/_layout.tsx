@@ -5,7 +5,6 @@
  * (e.g. app/parent/_layout.tsx) own their own chrome.
  */
 import React, { useEffect } from "react";
-import { Stack } from "expo-router";
 import { Platform, StatusBar, StyleSheet, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { useFonts } from "expo-font";
@@ -17,23 +16,73 @@ import {
   PlusJakartaSans_700Bold,
   PlusJakartaSans_800ExtraBold
 } from "@expo-google-fonts/plus-jakarta-sans";
-import { MobileSessionProvider } from "@/lib/mobileSession";
+import { MobileSessionProvider, useMobileSession } from "@/lib/mobileSession";
 import { setupPushListeners } from "@/lib/pushNotifications";
 import { ErrorBoundary } from "@/lib/ErrorBoundary";
-import { ThemeProvider } from "@/lib/Theme";
-import { color } from "@/design-system/tokens";
+import { ThemeProvider, useTheme } from "@/lib/Theme";
+import { ThemedStack } from "@/lib/ThemedStack";
 
 function PushBootstrap({ children }: { children: React.ReactNode }) {
   useEffect(() => setupPushListeners(), []);
   return <>{children}</>;
 }
 
-// Keep the native splash up until fonts are ready — the tree renders
-// nothing before that, so without this the launch shows a white flash.
+// The native splash remains visible until the session check finishes, so the
+// first rendered route never exposes a blank themed frame.
+function SplashGate({ children }: { children: React.ReactNode }) {
+  const { status } = useMobileSession();
+  useEffect(() => {
+    if (status !== "checking") {
+      void SplashScreen.hideAsync().catch(() => undefined);
+    }
+  }, [status]);
+  return <>{children}</>;
+}
+
 void SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
+function AppBootstrap({ fontsReady }: { fontsReady: boolean }) {
+  const { t, dark, hydrated } = useTheme();
+  const ready = fontsReady && hydrated;
+
+  if (!ready) return null;
+
+  return (
+    <>
+      <StatusBar
+        barStyle={dark ? "light-content" : "dark-content"}
+        backgroundColor={t.bg}
+      />
+      <View
+        style={[
+          styles.stage,
+          { backgroundColor: Platform.OS === "web" ? t.page : t.bg }
+        ]}
+      >
+        <View
+          style={[
+            styles.appFrame,
+            { backgroundColor: t.bg },
+            Platform.OS === "web" ? { shadowColor: t.ink } : null
+          ]}
+        >
+          <ErrorBoundary>
+            <MobileSessionProvider>
+              <SplashGate>
+                <PushBootstrap>
+                  <ThemedStack />
+                </PushBootstrap>
+              </SplashGate>
+            </MobileSessionProvider>
+          </ErrorBoundary>
+        </View>
+      </View>
+    </>
+  );
+}
+
 export default function RootLayout() {
-  const [fontsLoaded] = useFonts({
+  const [fontsLoaded, fontError] = useFonts({
     PlusJakartaSans_400Regular,
     PlusJakartaSans_500Medium,
     PlusJakartaSans_600SemiBold,
@@ -41,29 +90,11 @@ export default function RootLayout() {
     PlusJakartaSans_800ExtraBold
   });
 
-  useEffect(() => {
-    if (fontsLoaded) {
-      void SplashScreen.hideAsync().catch(() => undefined);
-    }
-  }, [fontsLoaded]);
-
-  if (!fontsLoaded) return null;
   return (
     <SafeAreaProvider>
-      <StatusBar barStyle="dark-content" backgroundColor={color.background} />
-      <View style={styles.stage}>
-        <View style={styles.appFrame}>
-          <ErrorBoundary>
-            <ThemeProvider>
-              <MobileSessionProvider>
-                <PushBootstrap>
-                  <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: color.background } }} />
-                </PushBootstrap>
-              </MobileSessionProvider>
-            </ThemeProvider>
-          </ErrorBoundary>
-        </View>
-      </View>
+      <ThemeProvider>
+        <AppBootstrap fontsReady={fontsLoaded || fontError != null} />
+      </ThemeProvider>
     </SafeAreaProvider>
   );
 }
@@ -71,17 +102,14 @@ export default function RootLayout() {
 const styles = StyleSheet.create({
   stage: {
     flex: 1,
-    backgroundColor: Platform.OS === "web" ? color.previewBackdrop : color.background,
     alignItems: "center"
   },
   appFrame: {
     flex: 1,
     width: "100%",
     maxWidth: Platform.OS === "web" ? 428 : undefined,
-    backgroundColor: color.background,
     ...(Platform.OS === "web"
       ? {
-          shadowColor: color.ink,
           shadowOffset: { width: 0, height: 12 },
           shadowOpacity: 0.14,
           shadowRadius: 32

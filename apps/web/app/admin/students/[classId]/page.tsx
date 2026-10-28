@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRefreshOnFocus } from "@/lib/useRefreshOnFocus";
 import { Plus, X, ArrowLeft, Edit2, Trash2, Search, Upload, Camera, QrCode, Printer, ReceiptText, Save, Archive, ArchiveRestore, IndianRupee } from "lucide-react";
 import Link from "next/link";
@@ -32,18 +32,37 @@ export interface Student {
   studentName: string;
   class: string;
   section: string;
+  gender?: string;
   fatherName: string;
+  fatherPhone?: string;
+  fatherOccupation?: string;
   motherName: string;
+  motherPhone?: string;
+  motherOccupation?: string;
   dateOfBirth: string;
   email: string;
   phone: string;
   address: string;
+  villageArea?: string;
+  mandal?: string;
+  district?: string;
+  pincode?: string;
   annualEnrollmentFee?: string;
   commitmentFee?: string;
+  committedPayableFee?: string;
+  totalConcessionAmount?: string;
   photoURL?: string;
   aadhaarNumber?: string;
+  bloodGroup?: string;
+  emisId?: string;
+  nationality?: string;
+  motherTongue?: string;
+  category?: string;
+  medium?: string;
+  secondLanguage?: string;
+  admissionType?: string;
   documentURLs?: { name: string; url: string }[];
-  previousSchool?: { name: string; address: string; yearLeft: string } | null;
+  previousSchool?: { name: string; address: string; yearLeft: string; lastClass?: string; tcNo?: string } | null;
   siblingAdmissionNumbers?: string[];
   emergencyContact?: { name: string; phone: string; relation: string } | null;
   transportRouteId?: string;
@@ -139,6 +158,7 @@ export default function StudentsPage() {
   const [pageCursors, setPageCursors] = useState<(string | null)[]>([null]);
   const [sectionCount, setSectionCount] = useState<number | null>(null);
   const toast = usePopup();
+  const deepLinkEditRef = useRef<string | null>(null);
   
   const [editingId, setEditingId] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -185,18 +205,34 @@ export default function StudentsPage() {
     gender: "",
     fatherName: "",
     fatherPhone: "",
+    fatherOccupation: "",
     motherName: "",
     motherPhone: "",
+    motherOccupation: "",
     dateOfBirth: "",
     email: "",
     phone: "",
     address: "",
+    villageArea: "",
+    mandal: "",
+    district: "",
+    pincode: "",
     photoURL: "",
     aadhaarNumber: "",
+    bloodGroup: "",
+    emisId: "",
+    nationality: "",
+    motherTongue: "",
+    category: "",
+    medium: "",
+    secondLanguage: "",
+    admissionType: "",
     documentURLs: [] as { name: string; url: string }[],
     previousSchoolName: "",
     previousSchoolAddress: "",
     previousSchoolYearLeft: "",
+    previousSchoolLastClass: "",
+    previousSchoolTcNo: "",
     siblingAdmissionNumbers: "",
     emergencyContactName: "",
     emergencyContactPhone: "",
@@ -210,6 +246,7 @@ export default function StudentsPage() {
   });
   const [newFeeType, setNewFeeType] = useState<string>("Books");
   const [newFeeAmount, setNewFeeAmount] = useState<string>("");
+  const [feeFieldsDirty, setFeeFieldsDirty] = useState(false);
 
   // Add (or update) a per-student fee-type row in Fee Details.
   const addFeeHead = () => {
@@ -227,6 +264,7 @@ export default function StudentsPage() {
       return { ...prev, feeHeads: heads, commitmentFee: String(totalCommitted) };
     });
     setNewFeeAmount("");
+    setFeeFieldsDirty(true);
     toast.success(`${newFeeType} fee added.`);
   };
 
@@ -236,6 +274,7 @@ export default function StudentsPage() {
       const totalCommitted = heads.reduce((s, h) => s + h.committed, 0);
       return { ...prev, feeHeads: heads, commitmentFee: String(totalCommitted) };
     });
+    setFeeFieldsDirty(true);
   };
 
   // Keep the "Transport Fee" breakdown row in sync with the chosen bus stop.
@@ -257,6 +296,7 @@ export default function StudentsPage() {
       const totalCommitted = heads.reduce((s, h) => s + h.committed, 0);
       return { ...prev, feeHeads: heads, commitmentFee: String(totalCommitted) };
     });
+    setFeeFieldsDirty(true);
   };
 
   // Reload whenever the class/section/year selection changes, so the
@@ -413,48 +453,80 @@ export default function StudentsPage() {
         gender: formData.gender,
         fatherName: formData.fatherName,
         fatherPhone: formData.fatherPhone,
+        fatherOccupation: formData.fatherOccupation,
         motherName: formData.motherName,
         motherPhone: formData.motherPhone,
+        motherOccupation: formData.motherOccupation,
         dateOfBirth: formData.dateOfBirth,
         email: formData.email,
         phone: formData.phone,
         address: formData.address,
+        villageArea: formData.villageArea,
+        mandal: formData.mandal,
+        district: formData.district,
+        pincode: formData.pincode,
         photoURL: formData.photoURL,
         aadhaarNumber: formData.aadhaarNumber,
+        bloodGroup: formData.bloodGroup,
+        emisId: formData.emisId,
+        nationality: formData.nationality,
+        motherTongue: formData.motherTongue,
+        category: formData.category,
+        medium: formData.medium,
+        secondLanguage: formData.secondLanguage,
+        admissionType: formData.admissionType,
         documentURLs: formData.documentURLs,
         siblingAdmissionNumbers: formData.siblingAdmissionNumbers
           ? formData.siblingAdmissionNumbers.split(",").map((s) => s.trim()).filter(Boolean)
-          : [],
-        annualEnrollmentFee: Number(formData.annualEnrollmentFee || 0),
-        commitmentFee: Number(formData.commitmentFee || 0),
-        committedPayableFee: Number(formData.commitmentFee || 0),
-        feeHeads: formData.feeHeads.length > 0 ? formData.feeHeads : undefined
+          : []
       };
 
-      if (formData.previousSchoolName) {
-        payload.previousSchool = {
-          name: formData.previousSchoolName,
-          address: formData.previousSchoolAddress || "",
-          yearLeft: formData.previousSchoolYearLeft || ""
-        };
+      const includeFeeFields = !isEditing || feeFieldsDirty;
+      if (includeFeeFields) {
+        payload.annualEnrollmentFee = Number(formData.annualEnrollmentFee || 0);
+        payload.commitmentFee = Number(formData.commitmentFee || 0);
+        payload.committedPayableFee = Number(formData.commitmentFee || 0);
+        payload.feeHeads = formData.feeHeads.length > 0 ? formData.feeHeads : undefined;
       }
 
-      if (formData.emergencyContactName) {
-        payload.emergencyContact = {
-          name: formData.emergencyContactName,
-          phone: formData.emergencyContactPhone || "",
-          relation: formData.emergencyContactRelation || ""
-        };
-      }
+      const hasPreviousSchool = Boolean(
+        formData.previousSchoolName ||
+          formData.previousSchoolAddress ||
+          formData.previousSchoolYearLeft ||
+          formData.previousSchoolLastClass ||
+          formData.previousSchoolTcNo
+      );
+      payload.previousSchool = hasPreviousSchool
+        ? {
+            name: formData.previousSchoolName,
+            address: formData.previousSchoolAddress || "",
+            yearLeft: formData.previousSchoolYearLeft || "",
+            lastClass: formData.previousSchoolLastClass || "",
+            tcNo: formData.previousSchoolTcNo || ""
+          }
+        : null;
 
-      if (formData.transportRouteId) {
-        payload.transportRouteId = formData.transportRouteId;
-        payload.transportStopName = formData.transportStopName;
-        // Transport fee now lives in the Fee Details breakdown; derive it so
-        // the stored field (used by older reports) stays consistent.
-        payload.transportFee = Number(
-          formData.feeHeads.find((h) => h.name === "Transport Fee")?.committed ?? 0
-        );
+      const hasEmergencyContact = Boolean(
+        formData.emergencyContactName ||
+          formData.emergencyContactPhone ||
+          formData.emergencyContactRelation
+      );
+      payload.emergencyContact = hasEmergencyContact
+        ? {
+            name: formData.emergencyContactName,
+            phone: formData.emergencyContactPhone || "",
+            relation: formData.emergencyContactRelation || ""
+          }
+        : null;
+
+      // Always send transport fields so selecting "No transport" clears the
+      // route/stop/fee instead of preserving the previous assignment.
+      payload.transportRouteId = formData.transportRouteId;
+      payload.transportStopName = formData.transportRouteId ? formData.transportStopName : "";
+      if (includeFeeFields) {
+        payload.transportFee = formData.transportRouteId
+          ? Number(formData.feeHeads.find((h) => h.name === "Transport Fee")?.committed ?? 0)
+          : 0;
       }
 
       await adminApiRequest(
@@ -515,6 +587,7 @@ export default function StudentsPage() {
       }
       return updates as typeof prev;
     });
+    if (name === "class" || name === "transportRouteId") setFeeFieldsDirty(true);
   };
 
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -582,18 +655,34 @@ export default function StudentsPage() {
       gender: "",
       fatherName: "",
       fatherPhone: "",
+      fatherOccupation: "",
       motherName: "",
       motherPhone: "",
+      motherOccupation: "",
       dateOfBirth: "",
       email: "",
       phone: "",
       address: "",
+      villageArea: "",
+      mandal: "",
+      district: "",
+      pincode: "",
       photoURL: "",
       aadhaarNumber: "",
+      bloodGroup: "",
+      emisId: "",
+      nationality: "",
+      motherTongue: "",
+      category: "",
+      medium: "",
+      secondLanguage: "",
+      admissionType: "",
       documentURLs: [],
       previousSchoolName: "",
       previousSchoolAddress: "",
       previousSchoolYearLeft: "",
+      previousSchoolLastClass: "",
+      previousSchoolTcNo: "",
       siblingAdmissionNumbers: "",
       emergencyContactName: "",
       emergencyContactPhone: "",
@@ -605,6 +694,7 @@ export default function StudentsPage() {
       commitmentFee: "0",
       feeHeads: []
     });
+    setFeeFieldsDirty(false);
   };
 
   const openAddForm = () => {
@@ -613,21 +703,38 @@ export default function StudentsPage() {
     setShowForm(true);
   };
 
-  const openEditForm = async (row: Student) => {
-    // List rows are lean (photo/documents stripped for speed) — fetch the full
-    // record so the edit form shows existing photo + documents.
-    let student: Student = row;
+  const openEditForm = async (row: Pick<Student, "id">) => {
+    // List rows are lean (photo/documents stripped for speed) — always fetch
+    // the full record so editing never saves an incomplete photo/document set.
+    let student: Student;
     try {
       const res = await adminApiRequest<{ success?: boolean; data?: Student }>(
         `/api/admin/students/${row.id}`
       );
-      if (res.data) student = { ...row, ...res.data };
-    } catch {
-      // Fall back to row data; photo/documents just won't prefill.
+      if (!res.data) throw new Error("Student not found");
+      student = { ...(row as Student), ...res.data, id: row.id };
+    } catch (err) {
+      toast.error(
+        "Could not load student details",
+        err instanceof Error ? err.message : "The student record could not be loaded. Please try again."
+      );
+      return false;
     }
     setEditingId(student.id);
-    const prevSchool = student.previousSchool as { name?: string; address?: string; yearLeft?: string } | null | undefined;
-    const emergContact = student.emergencyContact as { name?: string; phone?: string; relation?: string } | null | undefined;
+    const rawPrevSchool = student.previousSchool as unknown;
+    const prevSchool =
+      typeof rawPrevSchool === "string"
+        ? null
+        : (rawPrevSchool as { name?: string; address?: string; yearLeft?: string; lastClass?: string; tcNo?: string } | null | undefined);
+    const previousSchoolName =
+      typeof rawPrevSchool === "string" ? rawPrevSchool : prevSchool?.name ?? "";
+    const rawEmergency = student.emergencyContact as unknown;
+    const emergContact =
+      typeof rawEmergency === "string"
+        ? null
+        : (rawEmergency as { name?: string; phone?: string; relation?: string } | null | undefined);
+    const emergencyPhone =
+      typeof rawEmergency === "string" ? rawEmergency : emergContact?.phone ?? "";
     const fs = feeStructures.find((s) => s.className === student.class);
     const studentFees = student as typeof student & {
       feeHeads?: { name: string; original: number; committed: number }[];
@@ -653,34 +760,72 @@ export default function StudentsPage() {
       studentName: student.studentName ?? "",
       class: student.class,
       section: student.section ?? "A",
-      gender: "",
+      gender: student.gender ?? "",
       fatherName: student.fatherName ?? "",
-      fatherPhone: "",
+      fatherPhone: student.fatherPhone ?? "",
+      fatherOccupation: student.fatherOccupation ?? "",
       motherName: student.motherName ?? "",
-      motherPhone: "",
+      motherPhone: student.motherPhone ?? "",
+      motherOccupation: student.motherOccupation ?? "",
       dateOfBirth: typeof student.dateOfBirth === "string" ? student.dateOfBirth.slice(0, 10) : "",
       email: student.email ?? "",
       phone: student.phone ?? "",
       address: student.address ?? "",
+      villageArea: student.villageArea ?? "",
+      mandal: student.mandal ?? "",
+      district: student.district ?? "",
+      pincode: student.pincode ?? "",
       photoURL: student.photoURL ?? "",
       aadhaarNumber: student.aadhaarNumber ?? "",
+      bloodGroup: student.bloodGroup ?? "",
+      emisId: student.emisId ?? "",
+      nationality: student.nationality ?? "",
+      motherTongue: student.motherTongue ?? "",
+      category: student.category ?? "",
+      medium: student.medium ?? "",
+      secondLanguage: student.secondLanguage ?? "",
+      admissionType: student.admissionType ?? "",
       documentURLs: (student.documentURLs as { name: string; url: string }[]) ?? [],
-      previousSchoolName: prevSchool?.name ?? "",
+      previousSchoolName,
       previousSchoolAddress: prevSchool?.address ?? "",
       previousSchoolYearLeft: prevSchool?.yearLeft ?? "",
+      previousSchoolLastClass: prevSchool?.lastClass ?? "",
+      previousSchoolTcNo: prevSchool?.tcNo ?? "",
       siblingAdmissionNumbers: (student.siblingAdmissionNumbers ?? []).join(", "),
       emergencyContactName: emergContact?.name ?? "",
-      emergencyContactPhone: emergContact?.phone ?? "",
+      emergencyContactPhone: emergencyPhone,
       emergencyContactRelation: emergContact?.relation ?? "",
       transportRouteId: student.transportRouteId ?? "",
       transportStopName: student.transportStopName ?? "",
       transportFee: String(student.transportFee ?? "0"),
-      annualEnrollmentFee: academicFeeForClass(student.class),
+      annualEnrollmentFee: String(student.annualEnrollmentFee ?? academicFeeForClass(student.class)),
       commitmentFee: String(feeHeads.reduce((s, h) => s + h.committed, 0)),
       feeHeads
     });
+    setFeeFieldsDirty(false);
     setShowForm(true);
+    return true;
   };
+
+  // Deep link from the admission form: /admin/students/class-1?edit=<id>.
+  // Open the edit modal once, then strip the query so closing it stays closed.
+  useEffect(() => {
+    const editParam = searchParams.get("edit");
+    if (!editParam || !canEditStudent) return;
+    const editId = editParam === "1" ? searchParams.get("id") : editParam;
+    if (!editId || deepLinkEditRef.current === editId) return;
+    deepLinkEditRef.current = editId;
+
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("edit");
+    params.delete("id");
+    const query = params.toString();
+    router.replace(query ? `${window.location.pathname}?${query}` : window.location.pathname, { scroll: false });
+
+    const row = students.find((s) => s.id === editId);
+    void openEditForm(row ?? { id: editId });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, students, canEditStudent]);
 
   const handleArchive = async (student: Student) => {
     if (!canDeleteStudent) return;
@@ -909,6 +1054,7 @@ export default function StudentsPage() {
           syncTransportFeeRow={syncTransportFeeRow}
           removeFeeHead={removeFeeHead}
           addFeeHead={addFeeHead}
+          markFeeFieldsDirty={() => setFeeFieldsDirty(true)}
           newFeeType={newFeeType}
           setNewFeeType={setNewFeeType}
           newFeeAmount={newFeeAmount}

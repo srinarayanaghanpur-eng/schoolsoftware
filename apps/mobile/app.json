@@ -34,8 +34,9 @@
       "buildNumber": "1"
     },
     "android": {
-      "versionCode": 4,
+      "versionCode": 7,
       "package": "com.srinarayana.attendance",
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/icon.png",
         "backgroundColor": "#f4f3f8"

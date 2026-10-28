@@ -4,7 +4,6 @@ import { paymentOrderSchema } from "@sri-narayana/shared";
 import { adminDb, verifyBearerToken } from "@/lib/firebaseAdmin";
 import { resolveRole } from "@/lib/apiUtils";
 import { roleHasPermission } from "@/lib/rbacAdmin";
-import { verifyStudentLinked } from "@/lib/portalHelpers";
 import { checkRateLimit } from "@/lib/quota/rateLimiter";
 
 // POST /api/fees/order — create an online payment order for a student.
@@ -27,17 +26,9 @@ export async function POST(req: Request) {
     const student = await db.collection("students").doc(parsed.studentId).get();
     if (!student.exists) return NextResponse.json({ ok: false, error: "Student not found" }, { status: 404 });
 
-    // IDOR fix: parents may only create orders for linked students.
-    // Everyone else needs fees.create (admin/accountant/principal/
-    // settings_manager/super_admin/teacher-with-grant). Without this gate any
-    // authenticated role (teacher, student, ...) could mint payment orders for
-    // arbitrary students.
-    if (role === "parent") {
-      const linked = await verifyStudentLinked(token, parsed.studentId);
-      if (!linked) return NextResponse.json({ ok: false, error: "Student not linked" }, { status: 403 });
-    } else if (!(await roleHasPermission(role, "fees.create"))) {
+    if (!(await roleHasPermission(role, "fees.create"))) {
       return NextResponse.json(
-        { ok: false, error: "Access denied. Missing permission: fees.create. Ask super admin to enable this permission for your role." },
+        { ok: false, error: "Fee payments can only be recorded by school staff." },
         { status: 403 }
       );
     }

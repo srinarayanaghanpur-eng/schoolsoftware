@@ -252,7 +252,9 @@ function ParentProfileScreen() {
         />
       </SectionCard>
 
-      <PillButton label="Logout from this device" bg={t.bad} fg="#FFFFFF" onPress={confirmLogout} />
+      <View style={styles.logoutWrap}>
+        <PillButton label="Logout from this device" bg={t.bad} fg="#FFFFFF" onPress={confirmLogout} />
+      </View>
 
       <BottomSheet
         visible={confirmOpen}
@@ -291,5 +293,6 @@ const styles = StyleSheet.create({
   },
   identityName: { fontSize: 19, fontWeight: "700" },
   chipRow: { flexDirection: "row" },
-  divider: { height: StyleSheet.hairlineWidth }
+  divider: { height: StyleSheet.hairlineWidth },
+  logoutWrap: { alignItems: "center" }
 });

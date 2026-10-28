@@ -75,7 +75,15 @@ export function ResponsiveTable<T>({
               {rows.map((row) => (
                 <tr
                   key={rowKey(row)}
+                  tabIndex={onRowClick ? 0 : undefined}
+                  aria-label={onRowClick ? "Open row details" : undefined}
                   onClick={onRowClick ? () => onRowClick(row) : undefined}
+                  onKeyDown={(event) => {
+                    if (!onRowClick || event.target !== event.currentTarget) return;
+                    if (event.key !== "Enter" && event.key !== " ") return;
+                    event.preventDefault();
+                    onRowClick(row);
+                  }}
                   className={`border-t ${onRowClick ? "cursor-pointer" : ""}`}
                 >
                   {columns.map((c) => (
@@ -95,7 +103,15 @@ export function ResponsiveTable<T>({
         {rows.map((row) => (
           <div
             key={rowKey(row)}
+            tabIndex={onRowClick ? 0 : undefined}
+            aria-label={onRowClick ? "Open row details" : undefined}
             onClick={onRowClick ? () => onRowClick(row) : undefined}
+            onKeyDown={(event) => {
+              if (!onRowClick || event.target !== event.currentTarget) return;
+              if (event.key !== "Enter" && event.key !== " ") return;
+              event.preventDefault();
+              onRowClick(row);
+            }}
             className={`card p-4 ${onRowClick ? "cursor-pointer" : ""}`}
           >
             {primaryCols.length > 0 && (

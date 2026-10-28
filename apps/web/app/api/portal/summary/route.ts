@@ -6,6 +6,7 @@ import {
   resolveLinkedStudentId,
   verifyStudentLinked
 } from "@/lib/portalHelpers";
+import { resolveFeeState } from "@/lib/feeModel";
 
 export async function GET(req: Request) {
   const access = await authorizePortalRequest(req);
@@ -79,7 +80,8 @@ export async function GET(req: Request) {
     .slice(0, 10)
     .map((n) => ({ title: n.title as string, body: n.body as string, createdAt: n.createdAt ? String(n.createdAt) : undefined }));
 
-  const due = Math.max(0, ((s.totalFeesDue as number) || 0) - ((s.totalFeesPaid as number) || 0));
+  const fee = resolveFeeState(s);
+  const due = fee.due;
 
   const recentPayments = paymentsSnap.docs.map((doc) => {
     const p = doc.data();
@@ -109,7 +111,7 @@ export async function GET(req: Request) {
     ok: true,
     summary: {
       student: { id: studentId, name: s.studentName || "", className: s.class || "", section: s.section || "", admissionNo: s.admissionNumber || "" },
-      fees: { total: (s.totalFeeAmount as number) || 0, paid: (s.totalFeesPaid as number) || 0, due, status: s.feeStatus, feeBalanceCarriedForward },
+      fees: { total: fee.payableFee, paid: fee.paid, due, status: fee.status, feeBalanceCarriedForward },
 
       marks,
       notices,
@@ -119,7 +121,7 @@ export async function GET(req: Request) {
     linkedStudents
   }, {
     headers: {
-      "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
+      "Cache-Control": "private, no-store",
     },
   });
 }

@@ -1,7 +1,7 @@
 import { FieldPath, FieldValue } from "firebase-admin/firestore";
 import { examMarksBulkSchema } from "@sri-narayana/shared";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { requirePermission, serializeDoc, json } from "@/lib/apiUtils";
+import { requireAdminOrPrincipal, requirePermission, serializeDoc, json } from "@/lib/apiUtils";
 
 const MARKS = "exam_marks";
 
@@ -50,8 +50,10 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
 
 // POST /api/admin/exams/[id]/marks — bulk enter/update marks (upsert by student+subject).
 export async function POST(req: Request, { params }: { params: { id: string } }) {
-  const token = await requirePermission(req, "exams.edit");
+  const token = await requireAdminOrPrincipal(req);
   if (!token) return json({ ok: false, error: "Access denied" }, { status: 403 });
+  const permitted = await requirePermission(req, "exams.edit");
+  if (!permitted) return json({ ok: false, error: "Access denied" }, { status: 403 });
 
   try {
     const { marks } = examMarksBulkSchema.parse(await req.json());

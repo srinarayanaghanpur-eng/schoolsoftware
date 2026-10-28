@@ -137,7 +137,9 @@ function TeacherProfile() {
         Your details are managed by the school office.
       </DSText>
 
-      <PillButton label="Logout from this device" block bg={t.bad} icon="logout" onPress={confirmLogout} />
+      <View style={styles.logoutWrap}>
+        <PillButton label="Logout from this device" bg={t.bad} icon="logout" onPress={confirmLogout} />
+      </View>
 
       <BottomSheet
         visible={confirmOpen}
@@ -173,5 +175,6 @@ const styles = StyleSheet.create({
     borderRadius: radius.xl,
     padding: space.lg
   },
-  statRow: { flexDirection: "row", gap: 10 }
+  statRow: { flexDirection: "row", gap: 10 },
+  logoutWrap: { alignItems: "center" }
 });

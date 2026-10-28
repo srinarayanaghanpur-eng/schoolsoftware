@@ -109,11 +109,9 @@ export function aggregateDuesByClass(
     }
     const rawClass = String(d.className || d.classId || d.classApplied || d.grade || "Unknown");
     const className = classNamesById?.get(rawClass) ?? rawClass;
-    // due = assigned fee − concessions − completed payments, but prefer the
-    // precomputed dueAmount kept in sync by recalculateStudentFeeSummary.
     const due = d.dueAmount !== undefined
       ? toNumberSafe(d.dueAmount)
-      : Math.max(0, toNumberSafe(d.totalFee) - toNumberSafe(d.totalConcession) - toNumberSafe(d.totalPaid));
+      : Math.max(0, toNumberSafe(d.totalFee) - toNumberSafe(d.totalPaid));
     const row = byClass.get(className) ?? { className, total: 0, dueCount: 0, dueAmount: 0 };
     row.total += 1;
     if (due > 0) {

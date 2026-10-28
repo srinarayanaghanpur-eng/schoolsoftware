@@ -5,6 +5,9 @@
 # Phone builds only need apps/mobile + packages/shared.
 /.git/
 /node_modules/
+/apps/mobile/node_modules/
+/apps/web/node_modules/
+/apps/desktop/node_modules/
 /apps/web/.next/
 /apps/desktop/dist/
 /apps/desktop/dist-fast-start-installer/
@@ -20,7 +23,8 @@
 /.expo/
 /build/
 /.next/
-google-services.json
+# Required for Android FCM token registration (client config, not a secret).
+# Keep the iOS plist excluded until it is needed.
 GoogleService-Info.plist
 
 # Environment files (all variants — NEVER upload secrets)

@@ -16,18 +16,34 @@ export interface StudentFormData {
   gender: string;
   fatherName: string;
   fatherPhone: string;
+  fatherOccupation: string;
   motherName: string;
   motherPhone: string;
+  motherOccupation: string;
   dateOfBirth: string;
   email: string;
   phone: string;
   address: string;
+  villageArea: string;
+  mandal: string;
+  district: string;
+  pincode: string;
   photoURL: string;
   aadhaarNumber: string;
+  bloodGroup: string;
+  emisId: string;
+  nationality: string;
+  motherTongue: string;
+  category: string;
+  medium: string;
+  secondLanguage: string;
+  admissionType: string;
   documentURLs: { name: string; url: string }[];
   previousSchoolName: string;
   previousSchoolAddress: string;
   previousSchoolYearLeft: string;
+  previousSchoolLastClass: string;
+  previousSchoolTcNo: string;
   siblingAdmissionNumbers: string;
   emergencyContactName: string;
   emergencyContactPhone: string;
@@ -58,6 +74,7 @@ interface Props {
   syncTransportFeeRow: (routeId: string, stopName: string) => void;
   removeFeeHead: (name: string) => void;
   addFeeHead: () => void;
+  markFeeFieldsDirty: () => void;
   newFeeType: string;
   setNewFeeType: React.Dispatch<React.SetStateAction<string>>;
   newFeeAmount: string;
@@ -82,6 +99,7 @@ export function StudentFormModal({
   syncTransportFeeRow,
   removeFeeHead,
   addFeeHead,
+  markFeeFieldsDirty,
   newFeeType,
   setNewFeeType,
   newFeeAmount,
@@ -173,6 +191,21 @@ export function StudentFormModal({
                     </div>
 
                     <div>
+                      <label className="block text-sm font-semibold text-[#303247]">Medium</label>
+                      <input type="text" name="medium" value={formData.medium} onChange={handleChange} placeholder="e.g. English / Telugu" className="field mt-1" />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-[#303247]">Second Language</label>
+                      <input type="text" name="secondLanguage" value={formData.secondLanguage} onChange={handleChange} placeholder="e.g. Hindi / Telugu" className="field mt-1" />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-[#303247]">Admission Type</label>
+                      <input type="text" name="admissionType" value={formData.admissionType} onChange={handleChange} placeholder="e.g. New / Transfer" className="field mt-1" />
+                    </div>
+
+                    <div>
                       <label className="block text-sm font-semibold text-[#303247]">Gender</label>
                       <select name="gender" value={formData.gender} onChange={handleChange} className="field mt-1">
                         <option value="">Select gender</option>
@@ -183,6 +216,31 @@ export function StudentFormModal({
                     <div>
                       <label className="block text-sm font-semibold text-[#303247]">Date of Birth</label>
                       <div className="mt-1"><DatePicker name="dateOfBirth" value={formData.dateOfBirth} onChange={(e) => setFormData((prev) => ({ ...prev, dateOfBirth: e.target.value }))} /></div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-[#303247]">Blood Group</label>
+                      <input type="text" name="bloodGroup" value={formData.bloodGroup} onChange={handleChange} placeholder="e.g. B+" className="field mt-1" />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-[#303247]">EMIS / Child ID</label>
+                      <input type="text" name="emisId" value={formData.emisId} onChange={handleChange} placeholder="Government child ID" className="field mt-1" />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-[#303247]">Nationality</label>
+                      <input type="text" name="nationality" value={formData.nationality} onChange={handleChange} placeholder="e.g. Indian" className="field mt-1" />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-[#303247]">Mother Tongue</label>
+                      <input type="text" name="motherTongue" value={formData.motherTongue} onChange={handleChange} placeholder="e.g. Telugu" className="field mt-1" />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-[#303247]">Category</label>
+                      <input type="text" name="category" value={formData.category} onChange={handleChange} placeholder="e.g. OC / BC / SC / ST" className="field mt-1" />
                     </div>
 
                     {/* ---- Parent / Guardian Details ---- */}
@@ -199,6 +257,11 @@ export function StudentFormModal({
                     </div>
 
                     <div>
+                      <label className="block text-sm font-semibold text-[#303247]">Father Occupation</label>
+                      <input type="text" name="fatherOccupation" value={formData.fatherOccupation} onChange={handleChange} placeholder="e.g. Farmer / Business" className="field mt-1" />
+                    </div>
+
+                    <div>
                       <label className="block text-sm font-semibold text-[#303247]">Mother Name</label>
                       <input type="text" name="motherName" value={formData.motherName} onChange={handleChange} placeholder="Mother's name" className="field mt-1" />
                     </div>
@@ -206,6 +269,11 @@ export function StudentFormModal({
                     <div>
                       <label className="block text-sm font-semibold text-[#303247]">Mother Phone</label>
                       <input type="tel" name="motherPhone" value={formData.motherPhone} onChange={handleChange} placeholder="10-digit number" className="field mt-1" />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-[#303247]">Mother Occupation</label>
+                      <input type="text" name="motherOccupation" value={formData.motherOccupation} onChange={handleChange} placeholder="e.g. Homemaker" className="field mt-1" />
                     </div>
 
                     <div>
@@ -220,7 +288,27 @@ export function StudentFormModal({
 
                     <div className="md:col-span-2 lg:col-span-3">
                       <label className="block text-sm font-semibold text-[#303247]">Address</label>
-                      <textarea name="address" value={formData.address} onChange={handleChange} placeholder="Street address" rows={2} className="field mt-1" />
+                      <textarea name="address" value={formData.address} onChange={handleChange} placeholder="House / street address" rows={2} className="field mt-1" />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-[#303247]">Village / Area</label>
+                      <input type="text" name="villageArea" value={formData.villageArea} onChange={handleChange} placeholder="Village or area" className="field mt-1" />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-[#303247]">Mandal</label>
+                      <input type="text" name="mandal" value={formData.mandal} onChange={handleChange} placeholder="Mandal" className="field mt-1" />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-[#303247]">District</label>
+                      <input type="text" name="district" value={formData.district} onChange={handleChange} placeholder="District" className="field mt-1" />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-[#303247]">PIN Code</label>
+                      <input type="text" name="pincode" value={formData.pincode} onChange={handleChange} placeholder="6-digit PIN" maxLength={6} className="field mt-1" />
                     </div>
 
                     {/* ---- Emergency Contact ---- */}
@@ -304,6 +392,16 @@ export function StudentFormModal({
                       <input type="text" name="previousSchoolYearLeft" value={formData.previousSchoolYearLeft} onChange={handleChange} placeholder="e.g. 2025-26" className="field mt-1" />
                     </div>
 
+                    <div>
+                      <label className="block text-sm font-semibold text-[#303247]">Last Studied Class</label>
+                      <input type="text" name="previousSchoolLastClass" value={formData.previousSchoolLastClass} onChange={handleChange} placeholder="e.g. 5" className="field mt-1" />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-[#303247]">TC Number</label>
+                      <input type="text" name="previousSchoolTcNo" value={formData.previousSchoolTcNo} onChange={handleChange} placeholder="Transfer certificate number" className="field mt-1" />
+                    </div>
+
                     <div className="md:col-span-2 lg:col-span-3">
                       <label className="block text-sm font-semibold text-[#303247]">Previous School Address</label>
                       <input type="text" name="previousSchoolAddress" value={formData.previousSchoolAddress} onChange={handleChange} placeholder="School address" className="field mt-1" />
@@ -323,7 +421,16 @@ export function StudentFormModal({
 
                     <div>
                       <label className="block text-sm font-semibold text-[#303247]">Transport Route</label>
-                      <select name="transportRouteId" value={formData.transportRouteId} onChange={handleChange} className="field mt-1">
+                      <select
+                        name="transportRouteId"
+                        value={formData.transportRouteId}
+                        onChange={(e) => {
+                          const routeId = e.target.value;
+                          setFormData((prev) => ({ ...prev, transportRouteId: routeId, transportStopName: "" }));
+                          syncTransportFeeRow(routeId, "");
+                        }}
+                        className="field mt-1"
+                      >
                         <option value="">No transport</option>
                         {transportRoutes.map((route) => (
                           <option key={route.id} value={route.id}>{route.name}</option>
@@ -397,6 +504,7 @@ export function StudentFormModal({
                                           const totalCommitted = heads.reduce((s, h) => s + h.committed, 0);
                                           return { ...prev, feeHeads: heads, commitmentFee: String(totalCommitted) };
                                         });
+                                        markFeeFieldsDirty();
                                       }}
                                     />
                                   </td>

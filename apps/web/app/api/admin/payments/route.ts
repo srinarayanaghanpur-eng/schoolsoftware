@@ -6,6 +6,7 @@ import { docCursor, logFirestoreRead, readLimit } from "@/lib/firestoreReadLogge
 import { getSchoolId } from "@/lib/schoolScope";
 import { buildReceiptRecord, generateReceiptNumber, resolveAcademicYearLabel } from "@/lib/receiptService";
 import { validatePaymentAllowed, recalculateStudentFeeSummary } from "@/lib/feeRecalculation";
+import { resolveFeeState } from "@/lib/feeModel";
 import { markSummaryDirty } from "@/lib/markSummaryDirty";
 
 /**
@@ -212,9 +213,10 @@ export async function POST(request: NextRequest) {
       // Re-validate against the FRESH student snapshot (the pre-check above
       // reads outside the transaction — a concurrent payment could have
       // consumed the balance in between). Same rules as validatePaymentAllowed.
-      const freshDue = Number(student.totalFeesDue ?? 0);
-      const freshPaid = Number(student.totalFeesPaid || 0);
-      if (String(student.feeStatus || "pending") === "paid" || (freshDue <= 0 && freshPaid > 0)) {
+      const fee = resolveFeeState(student as Record<string, unknown>);
+      const freshDue = fee.due;
+      const freshPaid = fee.paid;
+      if (fee.status === "paid" || freshDue <= 0) {
         throw new Error("This student has already paid the full fee. No due amount pending.");
       }
       if (payable > freshDue) {
@@ -290,7 +292,7 @@ export async function POST(request: NextRequest) {
       transaction.set(paymentRef, paymentData);
       transaction.set(receiptRef, receiptData);
       transaction.update(studentRef, {
-        totalFeesPaid: Number(student.totalFeesPaid || 0) + Number(amountPaid),
+        totalFeesPaid: freshPaid + Number(amountPaid),
         totalFeesDue: remainingAmount,
         feeStatus,
         lastPaymentDate: now,
@@ -308,9 +310,9 @@ export async function POST(request: NextRequest) {
         phone: student.phone || student.fatherPhone || "",
         className: student.class || classId,
         sectionName: student.section || sectionId,
-        totalFee: Number(student.totalFeeAmount || 0),
-        totalPaid: Number(student.totalFeesPaid || 0) + Number(amountPaid),
-        totalConcession: Number(student.totalConcessionAmount || 0),
+        totalFee: fee.payableFee,
+        totalPaid: freshPaid + Number(amountPaid),
+        totalConcession: fee.concession,
         dueAmount: remainingAmount,
         feeStatus,
         lastPaymentDate: now,

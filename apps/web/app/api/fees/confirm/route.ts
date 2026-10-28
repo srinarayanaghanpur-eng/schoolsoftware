@@ -4,14 +4,13 @@ import { paymentConfirmSchema } from "@sri-narayana/shared";
 import { adminDb, verifyBearerToken } from "@/lib/firebaseAdmin";
 import { resolveRole } from "@/lib/apiUtils";
 import { roleHasPermission } from "@/lib/rbacAdmin";
-import { verifyStudentLinked } from "@/lib/portalHelpers";
 import { checkRateLimit } from "@/lib/quota/rateLimiter";
 import { getSchoolId } from "@/lib/schoolScope";
 import { buildReceiptRecord, generateReceiptNumber, resolveAcademicYearLabel } from "@/lib/receiptService";
-import { validatePaymentAllowed, recalculateStudentFeeSummary } from "@/lib/feeRecalculation";
+import { recalculateStudentFeeSummary } from "@/lib/feeRecalculation";
+import { resolveFeeState } from "@/lib/feeModel";
 
-// POST /api/fees/confirm — finalize a payment order: mark paid, record the payment,
-// and update the student's fee totals. (A real gateway would verify a signature here.)
+// POST /api/fees/confirm — staff-only finalization of a collected fee payment.
 export async function POST(req: Request) {
   const token = await verifyBearerToken(req);
   if (!token) return NextResponse.json({ ok: false, error: "Authentication required" }, { status: 401 });
@@ -19,14 +18,9 @@ export async function POST(req: Request) {
   // 30 confirms/min per user — duplicate confirms are idempotent, this bounds abuse.
   const limit = await checkRateLimit({ key: `fees_confirm:${token.uid}`, maxRequests: 30, windowMinutes: 1 });
   if (!limit.allowed) return NextResponse.json({ ok: false, error: "Too many requests" }, { status: 429 });
-  // Permission-based, not a role allowlist: whoever holds fees.create may
-  // finalize orders (super_admin/admin/accountant/principal/settings_manager/
-  // teacher-with-grant). Parents are handled by the own-order + linked-student
-  // path below; any other role without fees.create is rejected outright.
-  const isStaff = await roleHasPermission(role, "fees.create");
-  if (!isStaff && role !== "parent") {
+  if (!(await roleHasPermission(role, "fees.create"))) {
     return NextResponse.json(
-      { ok: false, error: "Access denied. Missing permission: fees.create. Ask super admin to enable this permission for your role." },
+      { ok: false, error: "Fee payments can only be recorded by school staff." },
       { status: 403 }
     );
   }
@@ -38,14 +32,6 @@ export async function POST(req: Request) {
     // Pre-authz (outside transaction): IDOR + parent linkage.
     const preSnap = await orderRef.get();
     if (!preSnap.exists) return NextResponse.json({ ok: false, error: "Order not found" }, { status: 404 });
-    const preOrder = preSnap.data() as { studentId?: string; createdBy?: string };
-    if (!isStaff && preOrder.createdBy !== token.uid) {
-      return NextResponse.json({ ok: false, error: "You can only confirm your own payment order." }, { status: 403 });
-    }
-    if (role === "parent" && preOrder.studentId) {
-      const linked = await verifyStudentLinked(token, preOrder.studentId);
-      if (!linked) return NextResponse.json({ ok: false, error: "Student not linked" }, { status: 403 });
-    }
     const paymentRef = db.collection("payments").doc();
     const receiptRef = db.collection("receipts").doc();
     const now = new Date();
@@ -68,10 +54,6 @@ export async function POST(req: Request) {
 
       const order = orderSnap.data() as { studentId: string; amount: number; paymentType: string; feeType?: string; status: string; note?: string; paymentId?: string; receiptId?: string; receiptNumber?: string; createdBy?: string };
       orderStudentId = order.studentId;
-      // IDOR fix: only the creator or staff may confirm this order.
-      if (!isStaff && order.createdBy !== token.uid) {
-        throw new Error("You can only confirm your own payment order.");
-      }
       if (order.status === "paid") {
         existingPaymentId = String(order.paymentId ?? "");
         paymentId = existingPaymentId;
@@ -88,20 +70,17 @@ export async function POST(req: Request) {
 
       amountPaid = Number(order.amount) || 0;
 
-      // Validate: check if student has pending balance before processing.
-      const sFeeStatus = String(student.feeStatus || "pending");
-      const sTotalFeesDue = Number(student.totalFeesDue ?? 0);
-      const sTotalFeesPaid = Number(student.totalFeesPaid || 0);
-      if (sFeeStatus === "paid" || (sTotalFeesDue <= 0 && sTotalFeesPaid > 0)) {
+      const fee = resolveFeeState(student as Record<string, unknown>);
+      const amountDue = fee.due;
+      if (fee.status === "paid" || amountDue <= 0) {
         throw new Error("This student has already paid the full fee. No due amount pending.");
       }
-      if (amountPaid > sTotalFeesDue) {
-        throw new Error(`Payment amount cannot be greater than pending due of ₹${sTotalFeesDue.toLocaleString("en-IN")}.`);
+      if (amountPaid > amountDue) {
+        throw new Error(`Payment amount cannot be greater than pending due of ₹${amountDue.toLocaleString("en-IN")}.`);
       }
 
-      const amountDue = Number(student.totalFeesDue ?? 0);
       const remainingAmount = Math.max(0, amountDue - amountPaid);
-      const totalPaid = Number(student.totalFeesPaid || 0) + amountPaid;
+      const totalPaid = fee.paid + amountPaid;
       const feeStatus: "paid" | "partial" | "pending" = remainingAmount <= 0 ? "paid" : amountPaid > 0 ? "partial" : "pending";
       const schoolId = String(student.schoolId || getSchoolId(token));
       const branchId = String(student.branchId || "default-branch");
@@ -133,7 +112,7 @@ export async function POST(req: Request) {
         receiptNumber,
         remarks: order.note || null,
         status: "completed",
-        source: "online",
+        source: "manual",
         paidBy: token.uid,
         paidByName: token.name ?? token.uid,
         recordedBy: token.uid,
@@ -158,7 +137,7 @@ export async function POST(req: Request) {
       transaction.set(paymentRef, paymentData);
       transaction.set(receiptRef, receiptData);
       transaction.set(studentRef, {
-        totalFeesPaid: FieldValue.increment(amountPaid),
+        totalFeesPaid: totalPaid,
         totalFeesDue: remainingAmount,
         feeStatus,
         lastPaymentDate: now,
@@ -179,9 +158,9 @@ export async function POST(req: Request) {
         phone: student.phone || student.fatherPhone || "",
         className: student.class || classId,
         sectionName: student.section || sectionId,
-        totalFee: Number(student.totalFeeAmount || 0),
+        totalFee: fee.payableFee,
         totalPaid,
-        totalConcession: Number(student.totalConcessionAmount || 0),
+        totalConcession: fee.concession,
         dueAmount: remainingAmount,
         feeStatus,
         lastPaymentDate: now,

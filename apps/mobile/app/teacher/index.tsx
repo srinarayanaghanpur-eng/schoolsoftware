@@ -3,15 +3,13 @@
  * (Teacher App.dc.html): greeting, check-in hero, today's classes, tasks,
  * quick actions, month stats and notices.
  *
- * DATA HONESTY: attendance figures and the school calendar are live. Timetable
- * and principal-assigned tasks have no mobile endpoint yet (Phase 2 backlog),
- * so those sections render representative PLACEHOLDER content to preserve the
- * designed layout. Each placeholder is marked below — swap it for the real
- * fetch when the endpoint lands; the section structure already handles data.
+ * DATA HONESTY: attendance figures, the school calendar and principal-assigned
+ * tasks are live. The timetable has no mobile endpoint yet, so that section
+ * renders a clearly-labelled placeholder until it lands.
  */
 import React from "react";
 import { RefreshControl, ScrollView, StyleSheet, View } from "react-native";
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import {
   Avatar, DSText, EmptyState, ErrorState, Hero, Icon, ListRow, SkeletonPage,
@@ -22,6 +20,8 @@ import { useTheme } from "@/lib/Theme";
 import { useMobileSession } from "@/lib/mobileSession";
 import { useTeacherAttendanceData } from "@/lib/useTeacherAttendanceData";
 import { TeacherShell } from "@/features/teacher/shell";
+import { useTasks } from "@/features/admin/hooks";
+import { asText } from "@/lib/text";
 import {
   dateLabel, formatTime, greeting, initials, statusTone, useAttendanceSummary
 } from "@/features/teacher/hooks";
@@ -55,6 +55,20 @@ function TeacherHome() {
   const { profile } = useMobileSession();
   const { teacher, records, holidays, loading, error, refresh } = useTeacherAttendanceData();
   const summary = useAttendanceSummary(records);
+  const teacherId = teacher?.id ?? profile?.teacherId ?? "";
+  const { tasks, loading: tasksLoading, refresh: refreshTasks } = useTasks(teacherId);
+  const openTasks = React.useMemo(
+    () => tasks.filter((task) => task.status === "assigned").slice(0, 2),
+    [tasks]
+  );
+
+  // Revalidate when the tab regains focus so a task assigned (or completed)
+  // on the Tasks screen is reflected here immediately.
+  useFocusEffect(
+    React.useCallback(() => {
+      void refreshTasks();
+    }, [refreshTasks])
+  );
 
   if (loading && !teacher) return <SkeletonPage />;
   if (error && !teacher) return <ErrorState message={error} />;
@@ -69,7 +83,13 @@ function TeacherHome() {
     <ScrollView
       contentContainerStyle={styles.page}
       showsVerticalScrollIndicator={false}
-      refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor={t.blue} />}
+      refreshControl={
+        <RefreshControl
+          refreshing={loading || tasksLoading}
+          onRefresh={() => { refresh(); void refreshTasks(); }}
+          tintColor={t.blue}
+        />
+      }
     >
       <ScreenHeader
         eyebrow={`${greeting()} · ${dateLabel()}`}
@@ -82,7 +102,6 @@ function TeacherHome() {
               style={[styles.bell, { backgroundColor: t.card, borderColor: t.line }]}
             >
               <Icon name="notifications" size={21} tint={t.mute} />
-              <View style={[styles.bellDot, { backgroundColor: t.bad, borderColor: t.card }]} />
             </PressableScale>
             <PressableScale accessibilityLabel="Profile" onPress={() => router.push("/teacher/profile" as never)}>
               <Avatar label={initials(name)} size={42} />
@@ -148,9 +167,35 @@ function TeacherHome() {
         <EmptyState icon="event" label="Your timetable will appear here once the school publishes it." />
       </SectionCard>
 
-      {/* tasks — no tasks endpoint yet, so say so plainly */}
-      <SectionCard heading="TASKS">
-        <EmptyState icon="task-alt" label="Tasks from the principal will appear here." />
+      {/* tasks — live assignments from the principal/admin */}
+      <SectionCard
+        heading="TASKS"
+        trailing={
+          <PressableScale accessibilityLabel="View all tasks" onPress={() => router.push("/teacher/tasks" as never)}>
+            <DSText variant="bodyMedium" tint={t.blue}>View all</DSText>
+          </PressableScale>
+        }
+      >
+        {openTasks.length > 0 ? (
+          openTasks.map((task) => (
+            <ListRow
+              key={task.id}
+              leading={
+                <TonalTile bg={t.warnBg}>
+                  <Icon name="assignment" size={19} tint={t.warn} />
+                </TonalTile>
+              }
+              title={asText(task.title) || "Task"}
+              subtitle={task.dueDate ? `Due ${asText(task.dueDate)}` : "No due date"}
+              chevron
+              onPress={() => router.push("/teacher/tasks" as never)}
+            />
+          ))
+        ) : tasksLoading ? (
+          <DSText variant="label" tint={t.mute}>Loading tasks…</DSText>
+        ) : (
+          <EmptyState icon="task-alt" label="No tasks assigned to you right now." />
+        )}
       </SectionCard>
 
       {/* quick actions */}
@@ -226,15 +271,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center"
   },
-  bellDot: {
-    position: "absolute",
-    top: 9,
-    right: 10,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    borderWidth: 2
-  },
   hero: {
     borderRadius: radius.xl,
     padding: space.lg,
@@ -244,9 +280,9 @@ const styles = StyleSheet.create({
     gap: 14
   },
   statRow: { flexDirection: "row", gap: 10 },
-  quickGrid: { flexDirection: "row", gap: 10 },
+  quickGrid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", rowGap: 10 },
   quickTile: {
-    flex: 1,
+    width: "48%",
     borderWidth: 1,
     borderRadius: radius.lg,
     paddingVertical: space.md + 2,

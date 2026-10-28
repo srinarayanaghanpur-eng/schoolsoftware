@@ -4,6 +4,7 @@
  */
 import React from "react";
 import { FlatList, RefreshControl, StyleSheet, View } from "react-native";
+import { useFocusEffect } from "expo-router";
 import {
   DSText, EmptyState, ErrorState, Icon, ListRow, SkeletonPage,
   PageTitle, PillButton, TonalTile, useToast
@@ -33,6 +34,14 @@ function TeacherTasks() {
   const teacherId = teacher?.id ?? profile?.teacherId ?? "";
   const { tasks, loading, error, refresh } = useTasks(teacherId);
   const [busyId, setBusyId] = React.useState<string | null>(null);
+
+  // A task assigned while this screen was cached must appear without waiting
+  // for the 2-minute TTL, so revalidate every time the tab gains focus.
+  useFocusEffect(
+    React.useCallback(() => {
+      if (teacherId) void refresh();
+    }, [teacherId, refresh])
+  );
 
   const open = tasks.filter((task) => task.status === "assigned");
   const done = tasks.filter((task) => task.status !== "assigned");

@@ -3,35 +3,9 @@ import { adminDb } from "@/lib/firebaseAdmin";
 import { QueryDocumentSnapshot } from "firebase-admin/firestore";
 import { requirePermission, json } from "@/lib/apiUtils";
 import { logFirestoreRead, readLimit } from "@/lib/firestoreReadLogger";
+import { resolveFeeState } from "@/lib/feeModel";
 
 export const dynamic = "force-dynamic";
-
-function num(value: unknown) {
-  return Number(value) || 0;
-}
-
-function totalFeeForStudent(student: Record<string, unknown>) {
-  const totalFeeAmount = num(student.totalFeeAmount);
-  if (totalFeeAmount > 0) return totalFeeAmount;
-  return num(student.committedPayableFee) + num(student.transportFee) + num(student.feeBalanceCarriedForward);
-}
-
-function paidForStudent(student: Record<string, unknown>) {
-  return num(student.totalFeesPaid);
-}
-
-function outstandingForStudent(student: Record<string, unknown>, paid: number) {
-  const totalFee = totalFeeForStudent(student);
-  const storedDue = num(student.totalFeesDue);
-
-  if (storedDue > 0 && totalFee > 0 && storedDue + paid <= totalFee + 1) {
-    return storedDue;
-  }
-  if (storedDue > 0) {
-    return Math.max(0, storedDue - paid);
-  }
-  return Math.max(0, totalFee - paid);
-}
 
 /**
  * GET /api/admin/reports/attendance-fee
@@ -73,11 +47,8 @@ export async function GET(request: NextRequest) {
       .slice(0, pageSize);
 
     let report = students.map((student: any) => {
-      const totalPaid = paidForStudent(student);
-
+      const fee = resolveFeeState(student);
       const attendance = student.attendancePercentage || 0;
-      const totalFee = totalFeeForStudent(student);
-      const remainingAmount = outstandingForStudent(student, totalPaid);
 
       return {
         admissionNumber: student.admissionNumber,
@@ -85,14 +56,15 @@ export async function GET(request: NextRequest) {
         class: student.class,
         section: student.section,
         attendancePercentage: attendance,
-        annualEnrollmentFee: student.annualEnrollmentFee || 0,
-        commitmentFee: student.commitmentFee || 0,
-        totalFeeAmount: totalFee,
-        totalFeeDue: remainingAmount,
-        totalPaid,
-        remainingAmount,
-        feePaidPercentage: totalFee > 0 ? ((totalPaid / totalFee) * 100).toFixed(2) : '0.00',
-        feeStatus: remainingAmount === 0 ? "paid" : totalPaid > 0 ? "partial" : student.feeStatus || "pending",
+        annualEnrollmentFee: fee.originalFee,
+        commitmentFee: fee.payableFee,
+        totalFeeAmount: fee.payableFee,
+        totalFeeDue: fee.due,
+        totalPaid: fee.paid,
+        remainingAmount: fee.due,
+        feePaidPercentage:
+          fee.payableFee > 0 ? ((fee.paid / fee.payableFee) * 100).toFixed(2) : '0.00',
+        feeStatus: fee.status,
         attendanceEligibility: attendance >= 75 ? 'Eligible' : 'Ineligible'
       };
     });

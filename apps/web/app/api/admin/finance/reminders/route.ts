@@ -5,6 +5,7 @@ import { firestoreQuotaResponse, isFirestoreQuotaPaused } from "@/lib/firebaseEr
 import { writeAuditLog } from "@/lib/auditLog";
 import { logFirestoreRead, readLimit } from "@/lib/firestoreReadLogger";
 import { getSchoolId } from "@/lib/schoolScope";
+import { resolveFeeState } from "@/lib/feeModel";
 
 type FeeTypeDue = {
   id: string;
@@ -76,10 +77,16 @@ function studentFromSummary(
   studentData: FirebaseFirestore.DocumentData = {}
 ): ReminderStudent {
   const summary = summaryDoc.data() ?? {};
+  const fee = resolveFeeState(studentData);
   const studentId = asString(summary.studentId || summaryDoc.id.split("_")[0] || summaryDoc.id);
-  const totalFee = amount(summary.totalFee || studentData.totalFeeAmount);
-  const paidAmount = amount(summary.totalPaid || studentData.totalFeesPaid);
-  const concessionAmount = amount(summary.totalConcession || studentData.totalConcessionAmount);
+  const totalFee =
+    summary.totalFee !== undefined ? amount(summary.totalFee) : fee.payableFee;
+  const paidAmount =
+    summary.totalPaid !== undefined ? amount(summary.totalPaid) : fee.paid;
+  const concessionAmount =
+    summary.totalConcession !== undefined
+      ? amount(summary.totalConcession)
+      : fee.concession;
   const className = asString(summary.className || summary.classId || studentData.class || studentData.classId);
   const sectionName = asString(summary.sectionName || summary.sectionId || studentData.section || studentData.sectionId);
 
@@ -92,7 +99,7 @@ function studentFromSummary(
     parentMobile: asString(summary.parentMobile || summary.phone || studentData.parentMobile || studentData.phone || studentData.fatherPhone || studentData.motherPhone),
     className,
     sectionName,
-    totalDue: amount(summary.dueAmount || studentData.totalFeesDue),
+    totalDue: summary.dueAmount !== undefined ? amount(summary.dueAmount) : fee.due,
     totalFee,
     paidAmount,
     concessionAmount,

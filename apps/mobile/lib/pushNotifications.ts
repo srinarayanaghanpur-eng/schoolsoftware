@@ -19,6 +19,9 @@ import { API_BASE_URL, API_REQUESTS_AVAILABLE } from "./api";
 
 const STORED_TOKEN_KEY = "@push:expo_token";
 
+/** Built-in system notification sound — no bundled audio asset required. */
+const DEFAULT_NOTIFICATION_SOUND = "default" as const;
+
 /**
  * First path segments the app can deep-link into. Anything else in a push
  * payload is ignored so a crafted notification can never open an
@@ -70,7 +73,7 @@ export function setupPushListeners(): () => void {
       shouldShowAlert: true,
       shouldShowBanner: true,
       shouldShowList: true,
-      shouldPlaySound: false,
+      shouldPlaySound: true,
       shouldSetBadge: false
     })
   });
@@ -78,7 +81,8 @@ export function setupPushListeners(): () => void {
   if (Platform.OS === "android") {
     void Notifications.setNotificationChannelAsync("default", {
       name: "Default",
-      importance: Notifications.AndroidImportance.DEFAULT
+      importance: Notifications.AndroidImportance.DEFAULT,
+      sound: DEFAULT_NOTIFICATION_SOUND
     }).catch(() => undefined);
   }
 
@@ -106,6 +110,21 @@ export function setupPushListeners(): () => void {
     responseSub.remove();
     tokenSub?.remove();
   };
+}
+
+/**
+ * Schedule a local notification with the system default sound. Android 8+
+ * reads the sound from the "default" channel above; older Android and iOS
+ * read it from the notification content.
+ */
+export async function scheduleLocalNotification(
+  content: Notifications.NotificationContentInput,
+  trigger: Notifications.NotificationTriggerInput = null
+): Promise<string> {
+  return Notifications.scheduleNotificationAsync({
+    content: { ...content, sound: content.sound ?? DEFAULT_NOTIFICATION_SOUND },
+    trigger
+  });
 }
 
 async function authedPost(path: string, body: Record<string, unknown>): Promise<boolean> {

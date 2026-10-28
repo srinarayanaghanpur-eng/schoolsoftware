@@ -59,15 +59,18 @@ export interface StudentData {
     | { name?: string; phone?: string; relation?: string }
     | string
     | null;
-  transportRequired?: boolean;
+  transportRequired?: boolean | string;
   transportRouteId?: string;
   transportRouteName?: string;
   transportStopName?: string;
   busRoute?: string;
   pickupPoint?: string;
   annualEnrollmentFee?: number | string;
+  originalFeeAmount?: number | string;
   commitmentFee?: number | string;
+  committedPayableFee?: number | string;
   totalFeeAmount?: number | string;
+  totalConcessionAmount?: number | string;
   concession?: number | string;
   feePlan?: string;
   feeHeads?: { name: string; amount: number }[] | null;

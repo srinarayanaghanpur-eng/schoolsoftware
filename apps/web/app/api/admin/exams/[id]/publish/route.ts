@@ -1,14 +1,16 @@
 import { FieldValue } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { enforceBodyLimit, requirePermission, json } from "@/lib/apiUtils";
+import { enforceBodyLimit, requireAdminOrPrincipal, requirePermission, json } from "@/lib/apiUtils";
 import { checkRateLimit } from "@/lib/quota/rateLimiter";
 import { getParentUidsForClass, sendPushToUsers } from "@/lib/push/sendPush";
 
 // POST /api/admin/exams/[id]/publish — publish results (status = "published").
 // Requires the approve permission (principal/admin).
 export async function POST(req: Request, { params }: { params: { id: string } }) {
-  const token = await requirePermission(req, "exams.approve");
+  const token = await requireAdminOrPrincipal(req);
   if (!token) return json({ ok: false, error: "Access denied" }, { status: 403 });
+  const permitted = await requirePermission(req, "exams.approve");
+  if (!permitted) return json({ ok: false, error: "Access denied" }, { status: 403 });
 
   // Publishing is irreversible from the UI — throttle accidental double-clicks.
   const limit = await checkRateLimit({ key: `exam-publish:${token.uid}`, maxRequests: 30, windowMinutes: 1 });

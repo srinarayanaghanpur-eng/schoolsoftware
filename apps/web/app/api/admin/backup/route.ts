@@ -1,33 +1,11 @@
 import { createHash } from "crypto";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { requireAdmin, json } from "@/lib/apiUtils";
-
-const BACKUP_COLLECTIONS = [
-  "users",
-  "teachers",
-  "attendance",
-  "attendance_logs",
-  "biometric_logs",
-  "holidays",
-  "salary_reports",
-  "settings",
-  "password_reset_requests",
-  "password_reset_history",
-  "leave_requests",
-  "attendance_edit_audit_logs",
-  "admin_notifications"
-];
-
-function serializeFirestoreValue(value: unknown): unknown {
-  if (!value || typeof value !== "object") return value;
-  if ("toDate" in value && typeof value.toDate === "function") {
-    return value.toDate().toISOString();
-  }
-  if (Array.isArray(value)) return value.map(serializeFirestoreValue);
-  return Object.fromEntries(
-    Object.entries(value as Record<string, unknown>).map(([key, item]) => [key, serializeFirestoreValue(item)])
-  );
-}
+import {
+  createBackupManifest,
+  isPreservedCollection,
+  serializeFirestoreValue
+} from "@/lib/backupManifest";
 
 export async function GET(req: Request) {
   try {
@@ -38,9 +16,13 @@ export async function GET(req: Request) {
 
     const db = adminDb();
     const generatedAt = new Date().toISOString();
+    const collectionNames = (await db.listCollections())
+      .map((collection) => collection.id)
+      .filter((name) => !isPreservedCollection(name))
+      .sort();
     const collections: Record<string, Array<{ id: string; data: unknown }>> = {};
 
-    for (const collectionName of BACKUP_COLLECTIONS) {
+    for (const collectionName of collectionNames) {
       const snapshot = await db.collection(collectionName).get();
       collections[collectionName] = snapshot.docs.map((doc) => ({
         id: doc.id,
@@ -48,11 +30,14 @@ export async function GET(req: Request) {
       }));
     }
 
+    const manifest = createBackupManifest(collections);
     const backup = {
       appName: "SRI NARAYANA HIGH SCHOOL",
       backupType: "firestore-json",
+      manifestVersion: manifest.manifestVersion,
       generatedAt,
       generatedBy: decodedToken.uid,
+      manifest,
       collections
     };
     const payload = JSON.stringify(backup, null, 2);
@@ -64,9 +49,12 @@ export async function GET(req: Request) {
       fileName,
       generatedAt,
       generatedBy: decodedToken.uid,
-      collectionNames: BACKUP_COLLECTIONS,
-      documentCounts: Object.fromEntries(
-        Object.entries(collections).map(([collectionName, docs]) => [collectionName, docs.length])
+      manifestVersion: manifest.manifestVersion,
+      collectionNames: manifest.collectionNames,
+      documentCounts: manifest.documentCounts,
+      totalDocuments: Object.values(manifest.documentCounts).reduce(
+        (sum, count) => sum + count,
+        0
       ),
       usedForErase: false
     });
@@ -77,4 +65,3 @@ export async function GET(req: Request) {
     return json({ ok: false, error: message }, { status: 400 });
   }
 }
-

@@ -4,6 +4,7 @@ import { requirePermission, json } from "@/lib/apiUtils";
 import { createApprovalRequest } from "@/lib/approvalEngine";
 import { writeAuditLog } from "@/lib/auditLog";
 import { recalculateStudentFeeSummary } from "@/lib/feeRecalculation";
+import { applyConcessionToState, resolveFeeState } from "@/lib/feeModel";
 
 /**
  * GET /api/concessions/[id]
@@ -54,7 +55,8 @@ export async function PATCH(
     if (!auth) return json({ success: false, error: "Unauthorized" }, { status: 401 });
 
     const body = await request.json();
-    const { status, approvalNotes, concessionAmount, validUpto, userId } = body;
+    const { status, approvalNotes, concessionAmount, validUpto } = body;
+    const actorId = auth.uid;
 
     const docRef = db.collection('concessions').doc(params.id);
     const docSnap = await docRef.get();
@@ -80,76 +82,150 @@ export async function PATCH(
     };
 
     if (status && (status === "approved" || status === "rejected")) {
-      // Do the actual status update
-      updateData.status = status;
-      updateData.approvalNotes = approvalNotes;
-      updateData.approvedBy = userId;
-      updateData.approvalDate = new Date();
-      updateData.isActive = status === 'approved';
-      updateData.history = [
-        ...(concession.history || []),
-        {
-          action: status === 'approved' ? 'approved' : 'rejected',
-          changedBy: userId,
-          changedAt: new Date(),
-          oldData: { status: concession.status },
-          newData: { status }
+      const studentId = String(concession.studentId || "").trim();
+      if (status === "approved" && !studentId) {
+        return json(
+          { success: false, error: "Concession has no student assigned." },
+          { status: 400 }
+        );
+      }
+
+      const studentRef = studentId ? db.collection("students").doc(studentId) : null;
+      const now = new Date();
+
+      const outcome = await db.runTransaction(async (transaction) => {
+        const freshSnap = await transaction.get(docRef);
+        if (!freshSnap.exists) {
+          return { error: "not_found" as const };
         }
-      ];
 
-      await docRef.update(updateData);
+        const fresh = freshSnap.data() ?? {};
+        const currentStatus = String(fresh.status || "");
+        if (currentStatus === "approved" && status === "approved") {
+          return { alreadyProcessed: true as const, concession: fresh };
+        }
+        if (currentStatus !== "pending") {
+          return { error: "not_pending" as const, currentStatus };
+        }
 
-      // Also create audit trail
+        const studentSnap =
+          status === "approved" && studentRef ? await transaction.get(studentRef) : null;
+        if (status === "approved" && !studentSnap?.exists) {
+          return { error: "student_not_found" as const };
+        }
+
+        const nextUpdate: Record<string, unknown> = {
+          status,
+          approvalNotes,
+          approvedBy: actorId,
+          approvalDate: now,
+          isActive: status === "approved",
+          history: [
+            ...(Array.isArray(fresh.history) ? fresh.history : []),
+            {
+              action: status === "approved" ? "approved" : "rejected",
+              changedBy: actorId,
+              changedAt: now,
+              oldData: { status: currentStatus },
+              newData: { status }
+            }
+          ],
+          updatedAt: now
+        };
+
+        transaction.update(docRef, nextUpdate);
+
+        if (status === "approved" && studentRef && studentSnap) {
+          const student = studentSnap.data() ?? {};
+          const applied = applyConcessionToState(
+            resolveFeeState(student as Record<string, unknown>),
+            fresh.concessionAmount
+          );
+          transaction.update(studentRef, {
+            ...applied,
+            activeConcessionCount: Number(student.activeConcessionCount || 0) + 1,
+            concessionStatus: "approved",
+            feeLastUpdated: now,
+            updatedAt: now
+          });
+        }
+
+        return {
+          update: nextUpdate,
+          concession: fresh,
+          previousStatus: currentStatus
+        };
+      });
+
+      if ("error" in outcome) {
+        if (outcome.error === "not_found") {
+          return json(
+            { success: false, error: "Concession not found" },
+            { status: 404 }
+          );
+        }
+        if (outcome.error === "student_not_found") {
+          return json(
+            { success: false, error: "Student not found for this concession." },
+            { status: 404 }
+          );
+        }
+        return json(
+          {
+            success: false,
+            error: `Only pending concessions can be approved or rejected (current status: ${outcome.currentStatus || "unknown"}).`
+          },
+          { status: 409 }
+        );
+      }
+
+      if ("alreadyProcessed" in outcome) {
+        return json({
+          success: true,
+          alreadyProcessed: true,
+          data: { id: params.id, ...outcome.concession }
+        });
+      }
+
       await writeAuditLog({
-        action: status === 'approved' ? 'concession.added' : 'concession.updated',
-        entityType: 'concession',
+        action: status === "approved" ? "concession.added" : "concession.updated",
+        entityType: "concession",
         entityId: params.id,
-        actorId: userId ?? "system",
+        actorId,
         actorRole: "admin",
-        oldValues: { status: concession.status } as Record<string, unknown>,
-        newValues: { status } as Record<string, unknown>,
+        oldValues: { status: outcome.previousStatus } as Record<string, unknown>,
+        newValues: {
+          status,
+          concessionAmount: outcome.concession.concessionAmount
+        } as Record<string, unknown>,
         reason: approvalNotes ?? undefined
       });
 
-      // Create approval request record for the approvals dashboard
       await createApprovalRequest({
         requestType: "concession",
         entityType: "concession",
         entityId: params.id,
-        title: `Concession ${status} — ${concession.studentName || concession.studentId}`,
-        description: approvalNotes || `${status} by ${userId}`,
-        requestedBy: userId || "system",
+        title: `Concession ${status} — ${outcome.concession.studentName || outcome.concession.studentId}`,
+        description: approvalNotes || `${status} by ${actorId}`,
+        requestedBy: actorId,
         payload: {
           ...body,
-          concessionData: concession,
+          concessionData: outcome.concession,
           finalStatus: status
         }
       });
 
-      // Update student if approved
-      if (status === 'approved') {
-        const studentRef = db.collection('students').doc(concession.studentId);
-        const studentSnap = await studentRef.get();
-        if (studentSnap.exists) {
-          const student = studentSnap.data() ?? {};
-          await studentRef.update({
-            totalConcessionAmount: ((student.totalConcessionAmount as number) || 0) + (concessionAmount || 0),
-            activeConcessionCount: ((student.activeConcessionCount as number) || 0) + 1,
-            concessionStatus: 'approved',
-            feeLastUpdated: new Date()
-          });
-          // Approved concession must reduce dues immediately — rebuild summary.
-          try {
-            await recalculateStudentFeeSummary(concession.studentId, String(student.academicYearId || ""));
-          } catch (summaryError) {
-            console.error("Student summary recalc failed after concession approval:", summaryError);
-          }
+      if (status === "approved" && studentId) {
+        try {
+          await recalculateStudentFeeSummary(studentId);
+        } catch (summaryError) {
+          console.error("Student summary recalc failed after concession approval:", summaryError);
         }
       }
 
       return json({
         success: true,
-        data: { id: params.id, ...concession, ...updateData }
+        data: { id: params.id, ...outcome.concession, ...outcome.update }
       });
     }
 
@@ -167,7 +243,7 @@ export async function PATCH(
         ...(concession.history || []),
         {
           action: 'edited',
-          changedBy: userId,
+          changedBy: actorId,
           changedAt: new Date(),
           oldData: { ...updates },
           newData: updates
@@ -189,7 +265,7 @@ export async function PATCH(
         oldData: { status: concession.status },
         newData: { status: updateData.status || concession.status }
       },
-      userId,
+      userId: actorId,
       timestamp: new Date()
     });
 
@@ -197,7 +273,7 @@ export async function PATCH(
       action: 'concession.updated',
       entityType: 'concession',
       entityId: params.id,
-      actorId: userId ?? "system",
+      actorId,
       actorRole: "admin",
       oldValues: { status: concession.status } as Record<string, unknown>,
       newValues: { status: updateData.status || concession.status } as Record<string, unknown>,
@@ -230,8 +306,7 @@ export async function DELETE(
     const auth = await requirePermission(request, "fees.delete");
     if (!auth) return json({ success: false, error: "Unauthorized" }, { status: 401 });
 
-    const { userId } = await request.json();
-
+    const actorId = auth.uid;
     const docRef = db.collection('concessions').doc(params.id);
     const docSnap = await docRef.get();
 
@@ -266,7 +341,7 @@ export async function DELETE(
         ...(concession.history || []),
         {
           action: 'deleted',
-          changedBy: userId,
+          changedBy: actorId,
           changedAt: new Date(),
           oldData: { status: concession.status },
           newData: { status: 'rejected' }
@@ -284,8 +359,18 @@ export async function DELETE(
         oldData: concession,
         newData: {}
       },
-      userId,
+      userId: actorId,
       timestamp: new Date()
+    });
+
+    await writeAuditLog({
+      action: "concession.deleted",
+      entityType: "concession",
+      entityId: params.id,
+      actorId,
+      actorRole: "admin",
+      oldValues: { status: concession.status } as Record<string, unknown>,
+      newValues: { status: "rejected" } as Record<string, unknown>
     });
 
     return json({ success: true });

@@ -17,6 +17,7 @@ import { useTeacherAttendanceData } from "@/lib/useTeacherAttendanceData";
 import { TeacherShell } from "@/features/teacher/shell";
 import { useAttendanceMarking } from "@/features/teacher/useAttendanceMarking";
 import { proximityState } from "@/features/teacher/proximity";
+import { ATTENDANCE_BYPASS_GPS_AND_TIME } from "@sri-narayana/shared";
 import {
   dateLabel, formatTime, greeting, statusTone, useAttendanceSummary
 } from "@/features/teacher/hooks";
@@ -40,10 +41,15 @@ function TeacherAttendance() {
 
   // Plain-language location state. Raw metres/accuracy stay in the request
   // payload and server record — they are never rendered here.
-  const denied = marking.permission === "denied";
-  const firstFix = marking.locating && marking.distance === null && !marking.error && !denied;
-  const state =
-    denied || marking.distance === null
+  const bypass = ATTENDANCE_BYPASS_GPS_AND_TIME;
+  const denied = !bypass && marking.permission === "denied";
+  const firstFix = !bypass && marking.locating && marking.distance === null && !marking.error && !denied;
+  const state = bypass
+    ? {
+        kind: "ok" as const,
+        text: "Location and time checks are temporarily off. You can mark attendance any time."
+      }
+    : denied || marking.distance === null
       ? null
       : Platform.OS === "web"
         ? {
@@ -57,8 +63,9 @@ function TeacherAttendance() {
           );
 
   const canCheckIn =
-    !denied && !firstFix && !marking.submitting && state?.kind === "ok";
+    !denied && !firstFix && !marking.submitting && (bypass || state?.kind === "ok");
   const showProximity =
+    !bypass &&
     state !== null &&
     (state.kind === "ok" || state.kind === "near") &&
     (marking.distance ?? Number.POSITIVE_INFINITY) < 500;
@@ -67,8 +74,15 @@ function TeacherAttendance() {
       ? 0
       : Math.max(0, Math.min(100, 100 - (marking.distance / marking.allowedRadius) * 100));
 
-  const heroLook =
-    firstFix || state === null
+  const heroLook = bypass
+    ? {
+        tone: "success" as const,
+        tileBg: t.okBg,
+        tint: t.ok,
+        icon: "verified-user" as const,
+        text: "Location and time checks are temporarily off. You can mark attendance any time."
+      }
+    : firstFix || state === null
       ? {
           tone: "warning" as const,
           tileBg: t.warnBg,
@@ -262,14 +276,16 @@ function TeacherAttendance() {
         />
       </View>
 
-      <PillButton
-        label={marking.locating ? "Locating…" : "Refresh location"}
-        block
-        icon="my-location"
-        bg={t.card}
-        fg={t.mute}
-        onPress={() => { void marking.refreshLocation(); }}
-      />
+      {!bypass ? (
+        <PillButton
+          label={marking.locating ? "Locating…" : "Refresh location"}
+          block
+          icon="my-location"
+          bg={t.card}
+          fg={t.mute}
+          onPress={() => { void marking.refreshLocation(); }}
+        />
+      ) : null}
 
       {/* month KPIs (live) */}
       <View style={styles.statRow}>
@@ -284,8 +300,9 @@ function TeacherAttendance() {
       </SectionCard>
 
       <DSText variant="caption" style={{ textAlign: "center" }}>
-        Your location is checked only at the moment you mark attendance. It is
-        never tracked in the background.
+        {bypass
+          ? "Temporary mode: GPS and time checks are off. This will be restored when the school asks."
+          : "Your location is checked only at the moment you mark attendance. It is never tracked in the background."}
       </DSText>
     </ScrollView>
   );

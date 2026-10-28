@@ -64,11 +64,11 @@ function ParentHallTicketScreen() {
       return;
     }
     setOpenId(examId);
-    if (!activeId || tickets[examId]) return;
+    if (!activeId || tickets[`${activeId}:${examId}`]) return;
     setLoadingTicket(examId);
     try {
       const result = await fetchHallTicket(examId, activeId);
-      setTickets((prev) => ({ ...prev, [examId]: result.hallTicket }));
+      setTickets((prev) => ({ ...prev, [`${activeId}:${examId}`]: result.hallTicket }));
     } catch {
       setOpenId(null);
     } finally {
@@ -87,7 +87,7 @@ function ParentHallTicketScreen() {
       keyExtractor={(exam) => exam.id}
       renderItem={({ item: exam }) => {
         const open = openId === exam.id;
-        const ticket = tickets[exam.id];
+        const ticket = tickets[`${activeId}:${exam.id}`];
         const papers = exam.timetable ?? [];
         return (
           <SectionCard

@@ -1,14 +1,16 @@
 import { FieldValue } from "firebase-admin/firestore";
 import { noticeCreateSchema } from "@sri-narayana/shared";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { requirePermission, json } from "@/lib/apiUtils";
+import { requireAdminOrPrincipal, requirePermission, json } from "@/lib/apiUtils";
 
 const COLLECTION = "notices";
 
 // PATCH /api/admin/notices/[id] — edit a notice.
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
-  const token = await requirePermission(req, "communication.create");
+  const token = await requireAdminOrPrincipal(req);
   if (!token) return json({ ok: false, error: "Access denied" }, { status: 403 });
+  const permitted = await requirePermission(req, "communication.create");
+  if (!permitted) return json({ ok: false, error: "Access denied" }, { status: 403 });
 
   try {
     const parsed = noticeCreateSchema.partial().parse(await req.json());
@@ -24,8 +26,10 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 
 // DELETE /api/admin/notices/[id]
 export async function DELETE(req: Request, { params }: { params: { id: string } }) {
-  const token = await requirePermission(req, "communication.create");
+  const token = await requireAdminOrPrincipal(req);
   if (!token) return json({ ok: false, error: "Access denied" }, { status: 403 });
+  const permitted = await requirePermission(req, "communication.create");
+  if (!permitted) return json({ ok: false, error: "Access denied" }, { status: 403 });
 
   await adminDb().collection(COLLECTION).doc(params.id).delete();
   return json({ ok: true });

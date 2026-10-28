@@ -10,9 +10,8 @@
  */
 import React from "react";
 import { usePathname, useRouter } from "expo-router";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
 import { MaterialIcons } from "@expo/vector-icons";
 import { DSText, Icon, ToastProvider } from "./components";
@@ -44,14 +43,12 @@ export function AppHeader({ subtitle }: { subtitle: string }) {
       }}
     >
       <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-        <LinearGradient
-          colors={[t.heroFrom, t.heroTo]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={{ width: 40, height: 40, borderRadius: 12, alignItems: "center", justifyContent: "center" }}
-        >
-          <Icon name="school" size={22} tint="#FFFFFF" />
-        </LinearGradient>
+        <Image
+          source={require("../assets/LOGO.png")}
+          style={{ width: 40, height: 40 }}
+          resizeMode="contain"
+          accessibilityLabel="Sri Narayana High School logo"
+        />
         <View style={{ flex: 1, minWidth: 0 }}>
           <DSText numberOfLines={1} style={{ fontSize: 15, fontWeight: "800" }}>
             Sri Narayana High School

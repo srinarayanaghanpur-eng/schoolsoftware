@@ -1,3 +1,4 @@
+import { randomBytes } from "crypto";
 import type { DecodedIdToken } from "firebase-admin/auth";
 import type { Firestore, Transaction } from "firebase-admin/firestore";
 import { FieldValue } from "firebase-admin/firestore";
@@ -39,7 +40,42 @@ export type DigitalFeeReceiptRecord = {
   status?: string;
 };
 
+export type PublicReceiptFeeItem = {
+  type: string;
+  periodOrMonth: string;
+  amount: number;
+  remarks: string;
+};
+
+export type PublicReceiptRecord = {
+  receiptNo: string;
+  paymentDate: string;
+  studentName: string;
+  admissionNo: string;
+  className: string;
+  section: string;
+  totalPaid: number;
+  balanceDue: number;
+  paymentMode: string;
+  feeItems: PublicReceiptFeeItem[];
+  status: string;
+  school: {
+    schoolName: string;
+    address: string;
+    phone: string;
+  };
+};
+
 type FirestoreRecord = Record<string, unknown>;
+
+/** Public receipt links stay valid for 30 days, then rotate on next request. */
+export const RECEIPT_SHARE_TOKEN_TTL_DAYS = 30;
+const RECEIPT_SHARE_TOKEN_TTL_MS = RECEIPT_SHARE_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000;
+const SHARE_TOKEN_PATTERN = /^[A-Za-z0-9_-]{32}$/;
+
+export function isReceiptShareToken(value: unknown): value is string {
+  return typeof value === "string" && SHARE_TOKEN_PATTERN.test(value);
+}
 
 const DEFAULT_ACADEMIC_YEAR = "2026-27";
 const FEE_ITEM_TYPES: ReceiptFeeItemType[] = [
@@ -58,6 +94,18 @@ function toIso(value: unknown): string {
   if (isFirestoreTimestamp(value)) return value.toDate().toISOString();
   const parsed = new Date(String(value));
   return Number.isNaN(parsed.getTime()) ? String(value) : parsed.toISOString();
+}
+
+function timestampToMillis(value: unknown): number {
+  if (!value) return 0;
+  if (value instanceof Date) return value.getTime();
+  if (isFirestoreTimestamp(value)) return value.toDate().getTime();
+  if (typeof value === "number") return value;
+  if (typeof value === "string") {
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? 0 : parsed.getTime();
+  }
+  return 0;
 }
 
 function currentAcademicYearLabel(date = new Date()) {
@@ -243,6 +291,96 @@ export async function getReceiptByPaymentId(paymentId: string) {
   const receipt = await getReceiptById(paymentId);
   if (receipt?.paymentId === paymentId || receipt?.id === paymentId) return receipt;
   return null;
+}
+
+function sanitizePublicFeeItems(items: ReceiptFeeItem[]): PublicReceiptFeeItem[] {
+  return items.map((item) => ({
+    type: String(item.type || "Fee").slice(0, 80),
+    periodOrMonth: String(item.periodOrMonth || "").slice(0, 80),
+    amount: Number(item.amount || 0),
+    remarks: String(item.remarks || "").slice(0, 200)
+  }));
+}
+
+function toPublicReceipt(receipt: DigitalFeeReceiptRecord): PublicReceiptRecord {
+  const header = schoolReceiptHeader();
+  return {
+    receiptNo: receipt.receiptNo,
+    paymentDate: receipt.paymentDate,
+    studentName: receipt.studentName,
+    admissionNo: receipt.admissionNo,
+    className: receipt.className,
+    section: receipt.section,
+    totalPaid: receipt.totalPaid,
+    balanceDue: receipt.balanceDue,
+    paymentMode: receipt.paymentMode,
+    feeItems: sanitizePublicFeeItems(receipt.feeItems),
+    status: receipt.status === "cancelled" ? "cancelled" : "issued",
+    school: header
+  };
+}
+
+async function isReceiptPaymentCancelled(receipt: DigitalFeeReceiptRecord) {
+  if (!receipt.paymentId) return false;
+  const paySnap = await adminDb().collection("payments").doc(receipt.paymentId).get().catch(() => null);
+  return Boolean(paySnap?.exists && String((paySnap.data() as FirestoreRecord)?.status ?? "") === "cancelled");
+}
+
+/**
+ * Resolve a public share token to a sanitized receipt. Tokens are looked up
+ * with a single-field `shareToken` query (the field is indexed automatically),
+ * and every invalid state collapses to `null` so callers cannot tell whether a
+ * token ever existed, expired, or belongs to a cancelled receipt.
+ */
+export async function getPublicReceiptByShareToken(shareToken: string): Promise<PublicReceiptRecord | null> {
+  if (!isReceiptShareToken(shareToken)) return null;
+
+  const snap = await adminDb().collection("receipts").where("shareToken", "==", shareToken).limit(1).get();
+  if (snap.empty) return null;
+
+  const doc = snap.docs[0];
+  const data = doc.data() as FirestoreRecord;
+  const expiresAt = timestampToMillis(data.shareTokenExpiresAt);
+  if (!expiresAt || expiresAt <= Date.now()) return null;
+
+  const receipt = normalizeReceipt(doc.id, data);
+  if (receipt.status === "cancelled") return null;
+  if (await isReceiptPaymentCancelled(receipt)) return null;
+
+  return toPublicReceipt(receipt);
+}
+
+/**
+ * Return a receipt's current share token, rotating it when missing or expired.
+ * Called only from the authenticated share-link endpoint.
+ */
+export async function getOrCreateReceiptShareToken(receiptId: string): Promise<{ token: string; expiresAt: Date } | null> {
+  const receipt = await getReceiptById(receiptId);
+  if (!receipt || receipt.status === "cancelled") return null;
+  if (await isReceiptPaymentCancelled(receipt)) return null;
+
+  const db = adminDb();
+  const ref = db.collection("receipts").doc(receipt.id);
+
+  return db.runTransaction(async (transaction) => {
+    const snap = await transaction.get(ref);
+    if (!snap.exists) return null;
+    const data = snap.data() as FirestoreRecord;
+    const existingToken = data.shareToken;
+    const existingExpiry = timestampToMillis(data.shareTokenExpiresAt);
+    if (isReceiptShareToken(existingToken) && existingExpiry > Date.now()) {
+      return { token: existingToken, expiresAt: new Date(existingExpiry) };
+    }
+
+    const token = randomBytes(24).toString("base64url");
+    const expiresAt = new Date(Date.now() + RECEIPT_SHARE_TOKEN_TTL_MS);
+    transaction.set(ref, {
+      shareToken: token,
+      shareTokenExpiresAt: expiresAt,
+      shareTokenUpdatedAt: new Date()
+    }, { merge: true });
+    return { token, expiresAt };
+  });
 }
 
 export async function getReceiptsByStudent(studentId: string, pageSize = 25) {

@@ -1,5 +1,5 @@
-import { FieldValue } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebaseAdmin";
+import { resolveFeeState } from "@/lib/feeModel";
 
 export type FeeSummaryResult = {
   totalFee: number;
@@ -12,6 +12,24 @@ export type FeeSummaryResult = {
 function safeNumber(value: unknown, fallback = 0): number {
   const n = Number(value);
   return Number.isFinite(n) ? Math.max(0, n) : fallback;
+}
+
+function dateMillis(value: unknown): number {
+  if (!value) return 0;
+  if (value instanceof Date) return value.getTime();
+  if (typeof value === "object" && "toDate" in value && typeof value.toDate === "function") {
+    return (value.toDate() as Date).getTime();
+  }
+  const parsed = new Date(String(value)).getTime();
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function latestPaymentDate(payments: Record<string, unknown>[]): Date | null {
+  let latest = 0;
+  for (const payment of payments) {
+    latest = Math.max(latest, dateMillis(payment.paymentDate), dateMillis(payment.createdAt));
+  }
+  return latest > 0 ? new Date(latest) : null;
 }
 
 export async function recalculateStudentFeeSummary(
@@ -35,21 +53,16 @@ export async function recalculateStudentFeeSummary(
   // Use provided academicYearId, or fall back to student doc's value.
   const effectiveAcademicYearId = academicYearId || String(student.academicYearId || "");
 
-  const totalFee = safeNumber(student.totalFeeAmount);
-  const totalConcession = safeNumber(student.totalConcessionAmount);
-  const committedPayable = safeNumber(student.committedPayableFee || student.commitmentFee);
-  const assignedFee = totalFee > 0 ? totalFee : committedPayable;
+  const fee = resolveFeeState(student as Record<string, unknown>);
 
   const paidAmount = paymentsSnap.docs.reduce(
     (sum, doc) => sum + safeNumber(doc.data().amountPaid),
     0
   );
-
-  const concessionAmount = safeNumber(student.totalConcessionAmount) || Math.max(0, safeNumber(student.originalFeeAmount || student.annualEnrollmentFee) - assignedFee);
-  // Dues reflect concessions: payable minus approved concessions minus completed payments.
-  const balanceDue = Math.max(0, assignedFee - concessionAmount - paidAmount);
+  const balanceDue = Math.max(0, fee.payableFee - paidAmount);
   const feeStatus: "paid" | "partial" | "pending" =
     balanceDue <= 0 ? "paid" : paidAmount > 0 ? "partial" : "pending";
+  const lastPaymentDate = latestPaymentDate(paymentsSnap.docs.map((doc) => doc.data()));
 
   const now = new Date();
 
@@ -57,6 +70,7 @@ export async function recalculateStudentFeeSummary(
     totalFeesPaid: paidAmount,
     totalFeesDue: balanceDue,
     feeStatus,
+    lastPaymentDate,
     feeLastUpdated: now
   });
 
@@ -73,16 +87,22 @@ export async function recalculateStudentFeeSummary(
     className: String(student.class || student.classId || ""),
     sectionName: String(student.section || student.sectionId || ""),
     phone: String(student.phone || student.fatherPhone || ""),
-    totalFee: assignedFee,
+    totalFee: fee.payableFee,
     totalPaid: paidAmount,
-    totalConcession: concessionAmount,
+    totalConcession: fee.concession,
     dueAmount: balanceDue,
     feeStatus,
-    lastPaymentDate: now,
+    lastPaymentDate,
     updatedAt: now
   }, { merge: true });
 
-  return { totalFee: assignedFee, paidAmount, concessionAmount, balanceDue, feeStatus };
+  return {
+    totalFee: fee.payableFee,
+    paidAmount,
+    concessionAmount: fee.concession,
+    balanceDue,
+    feeStatus
+  };
 }
 
 export async function validatePaymentAllowed(
@@ -98,22 +118,11 @@ export async function validatePaymentAllowed(
   }
 
   const student = studentSnap.data()!;
-  const feeStatus = String(student.feeStatus || "pending");
-  const totalFeesDue = safeNumber(student.totalFeesDue);
-  const totalFeesPaid = safeNumber(student.totalFeesPaid);
+  const fee = resolveFeeState(student as Record<string, unknown>);
+  const feeStatus = fee.status;
+  const balanceDue = fee.due;
 
-  if (feeStatus === "paid" || (totalFeesDue <= 0 && totalFeesPaid > 0)) {
-    return {
-      allowed: false,
-      error: "This student has already paid the full fee. No due amount pending.",
-      balanceDue: 0,
-      feeStatus: "paid"
-    };
-  }
-
-  const balanceDue = Math.max(0, totalFeesDue);
-
-  if (balanceDue <= 0) {
+  if (feeStatus === "paid" || balanceDue <= 0) {
     return {
       allowed: false,
       error: "No pending due amount for this student.",

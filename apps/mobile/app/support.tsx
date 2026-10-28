@@ -24,7 +24,8 @@ const PHONE_CACHE_TTL_MINUTES = 60;
 export default function SupportRoute() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { t } = useTheme();
+  const { t, dark } = useTheme();
+  const accent = dark ? t.blue2 : t.blue;
   const [adminPhone, setAdminPhone] = useState(FALLBACK_PHONE);
 
   useEffect(() => {
@@ -61,6 +62,7 @@ export default function SupportRoute() {
 
   return (
     <ScrollView
+      style={{ backgroundColor: t.bg }}
       contentContainerStyle={[styles.page, { paddingTop: insets.top + space.lg }]}
       showsVerticalScrollIndicator={false}
     >
@@ -70,13 +72,13 @@ export default function SupportRoute() {
         onPress={() => router.back()}
         style={styles.backRow}
       >
-        <Icon name="arrow-back" size={20} tint={t.blue} />
-        <DSText variant="bodyMedium" tint={t.blue}>Back</DSText>
+        <Icon name="arrow-back" size={20} tint={accent} />
+        <DSText variant="bodyMedium" tint={accent}>Back</DSText>
       </Pressable>
 
       <View style={styles.hero}>
         <TonalTile bg={t.tint} size={64}>
-          <Icon name="support-agent" size={32} tint={t.blue} />
+          <Icon name="support-agent" size={32} tint={accent} />
         </TonalTile>
         <DSText variant="title" style={styles.title}>Help & support</DSText>
         <DSText variant="body" tint={t.mute} style={styles.subtitle}>
@@ -95,7 +97,14 @@ export default function SupportRoute() {
             <DSText variant="label" tint={t.mute}>Tap below to call</DSText>
           </View>
         </Card>
-        <PillButton label={`Call ${adminPhone}`} block bg={t.ok} icon="call" onPress={callAdmin} />
+        <PillButton
+          label={`Call ${adminPhone}`}
+          block
+          bg={t.ok}
+          fg={dark ? t.bg : t.card}
+          icon="call"
+          onPress={callAdmin}
+        />
       </SectionCard>
 
       <DSText variant="caption" tint={t.mute} style={styles.note}>

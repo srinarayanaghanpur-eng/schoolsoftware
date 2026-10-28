@@ -76,7 +76,7 @@ Dashboard cards on the list page: Active Loans, Total Loan Amount, Total EMI Pai
   ```
   firebase deploy --only firestore:rules
   ```
-- **Indexes:** **none required.** All Firestore queries use a single `where` and sort in memory (the same approach the Students route uses to avoid composite-index errors). No `firestore.indexes.json` change.
+- **Indexes:** **required and deployed.** The list route filters by `academicYearId`/`status`/`schoolId` and orders by `vehicleNumber`; the overdue report filters by `academicYearId`/`schoolId` and ranges on `dueDate`. Added the corresponding composite indexes to `firestore.indexes.json` and deployed them to `teacher-nara` on 2026-10-28. List and overdue queries now run successfully; both Bus Finance collections are currently empty.
 - **Storage:** EMI payment proof uploads go to `bus-finance/<vehicleNumber>/proofs/...` via the existing upload service / `storage.rules`. If your storage rules are path-restrictive, allow that prefix for admins.
 
 ## 8. Design notes / decisions

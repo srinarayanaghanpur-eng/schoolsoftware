@@ -6,6 +6,7 @@ import { docCursor, logFirestoreRead, readLimit } from "@/lib/firestoreReadLogge
 import { firestoreErrorResponse, firestoreQuotaResponse, isFirestoreQuotaPaused } from "@/lib/firebaseErrors";
 import { getSchoolId } from "@/lib/schoolScope";
 import { markSummaryDirty } from "@/lib/markSummaryDirty";
+import { buildFeeFields, feeHeadsTotals } from "@/lib/feeModel";
 import { createHash } from "node:crypto";
 
 function normalizeText(value: unknown) {
@@ -175,13 +176,29 @@ export async function POST(request: NextRequest) {
       section,
       gender,
       fatherName,
+      fatherPhone,
+      fatherOccupation,
       motherName,
+      motherPhone,
+      motherOccupation,
       dateOfBirth,
       email,
       phone,
       address,
+      villageArea,
+      mandal,
+      district,
+      pincode,
       photoURL,
       aadhaarNumber,
+      bloodGroup,
+      emisId,
+      nationality,
+      motherTongue,
+      category,
+      medium,
+      secondLanguage,
+      admissionType,
       documentURLs,
       previousSchool,
       siblingAdmissionNumbers,
@@ -264,13 +281,20 @@ export async function POST(request: NextRequest) {
     }
     if (typeof body.requireApproval === "boolean") requireApproval = body.requireApproval;
 
-    const originalFee = Number(body.annualEnrollmentFee || 0);
-    const committedPayableFee = Number(body.commitmentFee || body.committedPayableFee || 0);
-    const concessionAmount = Math.max(0, originalFee - committedPayableFee);
-    const totalFeeAmount = committedPayableFee;
-    const totalFeesPaid = 0;
-    const totalFeesDue = totalFeeAmount;
-    const feeStatus = totalFeeAmount > 0 ? 'pending' : 'paid';
+    const heads = feeHeadsTotals(body.feeHeads);
+    const originalFee =
+      heads?.original ?? body.originalFeeAmount ?? body.annualEnrollmentFee ?? 0;
+    const committedPayableFee =
+      heads?.committed ??
+      body.committedPayableFee ??
+      body.commitmentFee ??
+      body.totalFeeAmount ??
+      originalFee;
+    const feeFields = buildFeeFields({
+      originalFee,
+      payableFee: committedPayableFee,
+      paid: 0
+    });
 
     // Create student document
     const studentData: Record<string, unknown> = {
@@ -289,15 +313,29 @@ export async function POST(request: NextRequest) {
       rollNo: Number(body.rollNo || String(admissionNumber).replace(/\D/g, "") || 0),
       gender: gender || '',
       fatherName: fatherName || '',
-      fatherPhone: body.fatherPhone || '',
+      fatherPhone: fatherPhone || '',
+      fatherOccupation: fatherOccupation || '',
       motherName: motherName || '',
-      motherPhone: body.motherPhone || '',
+      motherPhone: motherPhone || '',
+      motherOccupation: motherOccupation || '',
       dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
       email: email || '',
       phone: phone || '',
       address: address || '',
+      villageArea: villageArea || '',
+      mandal: mandal || '',
+      district: district || '',
+      pincode: pincode || '',
       photoURL: photoURL || '',
       aadhaarNumber: aadhaarNumber || '',
+      bloodGroup: bloodGroup || '',
+      emisId: emisId || '',
+      nationality: nationality || '',
+      motherTongue: motherTongue || '',
+      category: category || '',
+      medium: medium || '',
+      secondLanguage: secondLanguage || '',
+      admissionType: admissionType || '',
       documentURLs: documentURLs || [],
       previousSchool: previousSchool || null,
       siblingAdmissionNumbers: siblingAdmissionNumbers || [],
@@ -305,16 +343,8 @@ export async function POST(request: NextRequest) {
       transportRouteId: transportRouteId || '',
       transportStopName: transportStopName || '',
       transportFee: Number(transportFee || 0),
-      annualEnrollmentFee: originalFee,
-      commitmentFee: committedPayableFee,
-      committedPayableFee,
-      originalFeeAmount: originalFee,
-      totalConcessionAmount: concessionAmount,
       feeHeads: body.feeHeads || null,
-      totalFeeAmount,
-      totalFeesDue,
-      totalFeesPaid,
-      feeStatus,
+      ...feeFields,
       attendancePercentage: 0,
       admissionStatus: requireApproval ? "pending" : "approved",
       searchKeywords: searchKeywords(studentName, admissionNumber, body.phone || phone || ""),
@@ -347,12 +377,12 @@ export async function POST(request: NextRequest) {
       phone: phone || body.fatherPhone || '',
       className: classStr,
       sectionName: section,
-      totalFee: totalFeeAmount,
-      totalPaid: 0,
-      totalConcession: concessionAmount,
-      committedPayableFee,
-      originalFeeAmount: originalFee,
-      dueAmount: totalFeesDue,
+      totalFee: feeFields.totalFeeAmount,
+      totalPaid: feeFields.totalFeesPaid,
+      totalConcession: feeFields.totalConcessionAmount,
+      committedPayableFee: feeFields.committedPayableFee,
+      originalFeeAmount: feeFields.originalFeeAmount,
+      dueAmount: feeFields.totalFeesDue,
       updatedAt: new Date()
     }, { merge: true });
 

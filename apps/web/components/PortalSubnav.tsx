@@ -24,7 +24,7 @@ const TABS = [
 export function PortalSubnav() {
   const pathname = usePathname();
   return (
-    <nav className="flex flex-wrap gap-2 px-4 pt-4 md:px-7">
+    <nav aria-label="Portal navigation" className="flex flex-wrap gap-2 px-4 pt-4 md:px-7">
       {TABS.filter(Boolean).map(({ href, label, icon }) => {
         const isActive = pathname === href || (href !== "/portal" && pathname.startsWith(`${href}/`));
         const Icon = icon ?? Circle;
@@ -32,6 +32,7 @@ export function PortalSubnav() {
           <Link
             key={href}
             href={href}
+            aria-current={isActive ? "page" : undefined}
             className={`inline-flex items-center gap-2 rounded-full px-3.5 py-2 text-sm font-semibold transition ${
               isActive ? "bg-primary text-primary-foreground shadow-sm" : "bg-card text-muted-foreground ring-1 ring-border hover:bg-muted hover:text-foreground"
             }`}

@@ -4,7 +4,6 @@
  */
 import React from "react";
 import { Redirect } from "expo-router";
-import { SkeletonPage } from "@/design-system/components";
 import { useMobileSession } from "@/lib/mobileSession";
 import { dashboardPathForRole } from "@/lib/roleRouting";
 
@@ -12,7 +11,7 @@ export default function Index() {
   const session = useMobileSession();
 
   if (session.status === "checking") {
-    return <SkeletonPage />;
+    return null;
   }
   if (session.status === "authenticated" && session.profile) {
     return <Redirect href={dashboardPathForRole(session.profile.role) as never} />;

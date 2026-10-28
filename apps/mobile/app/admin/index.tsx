@@ -17,7 +17,7 @@ import { asDateString } from "@/lib/text";
 import { useMobileSession } from "@/lib/mobileSession";
 import { AdminShell } from "@/features/admin/shell";
 import {
-  formatDate, formatMoney, formatMoneyShort, formatText, useDashboardStats, useExpenses, useLeaveRequests,
+  formatDate, formatMoney, formatMoneyShort, formatText, useDashboardStats, useLeaveRequests,
   useRecentPayments, useTodayAttendance, buildTransactions
 } from "@/features/admin/hooks";
 import { dateLabel, greeting, initials } from "@/features/teacher/hooks";
@@ -44,7 +44,6 @@ function AdminHome() {
   const { stats, loading, error, refresh } = useDashboardStats();
   const attendance = useTodayAttendance();
   const { payments } = useRecentPayments();
-  const { expenses } = useExpenses();
   const { requests } = useLeaveRequests();
 
   const last7Days = useMemo(() => {
@@ -77,8 +76,8 @@ function AdminHome() {
   }, [payments]);
 
   const txns = useMemo(
-    () => buildTransactions(payments, expenses, "All").slice(0, 4),
-    [payments, expenses]
+    () => buildTransactions(payments, [], "All").slice(0, 4),
+    [payments]
   );
 
   if (loading && !stats) return <SkeletonPage />;
@@ -332,9 +331,9 @@ const styles = StyleSheet.create({
   moneyValue: { fontSize: 17, fontWeight: "800" },
   moneyLabel: { fontSize: 10 },
   divider: { height: StyleSheet.hairlineWidth },
-  quickGrid: { flexDirection: "row", gap: 10 },
+  quickGrid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", rowGap: 10 },
   quickTile: {
-    flex: 1,
+    width: "48%",
     borderWidth: 1,
     borderRadius: radius.lg,
     paddingVertical: space.md + 2,

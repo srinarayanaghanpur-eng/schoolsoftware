@@ -4,7 +4,7 @@
  * Single source of truth for color + font. Light and dark palettes mirror
  * the reference CSS variables exactly; screens read everything through
  * useTheme() and never import static color literals. Choice persists in
- * AsyncStorage and defaults to the OS scheme.
+ * AsyncStorage and defaults to light mode (OS scheme is not followed).
  */
 import React, {
   createContext,
@@ -14,7 +14,6 @@ import React, {
   useMemo,
   useState
 } from "react";
-import { useColorScheme } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export type ThemeMode = "light" | "dark";
@@ -81,6 +80,7 @@ type ThemeContextValue = {
   mode: ThemeMode;
   dark: boolean;
   t: Palette;
+  hydrated: boolean;
   toggle: () => void;
   setMode: (mode: ThemeMode) => void;
 };
@@ -89,20 +89,33 @@ const ThemeContext = createContext<ThemeContextValue>({
   mode: "light",
   dark: false,
   t: light,
+  hydrated: true,
   toggle: () => undefined,
   setMode: () => undefined
 });
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const system = useColorScheme();
-  const [mode, setModeState] = useState<ThemeMode>(system === "dark" ? "dark" : "light");
+  const [mode, setModeState] = useState<ThemeMode>("light");
+  const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
-    AsyncStorage.getItem(THEME_KEY)
-      .then((stored) => {
-        if (stored === "light" || stored === "dark") setModeState(stored);
-      })
-      .catch(() => undefined);
+    let active = true;
+    const hydrate = async () => {
+      try {
+        const stored = await AsyncStorage.getItem(THEME_KEY);
+        if (active && (stored === "light" || stored === "dark")) {
+          setModeState(stored);
+        }
+      } catch {
+        // Keep the light default when storage is unavailable.
+      } finally {
+        if (active) setHydrated(true);
+      }
+    };
+    void hydrate();
+    return () => {
+      active = false;
+    };
   }, []);
 
   const setMode = useCallback((next: ThemeMode) => {
@@ -119,8 +132,15 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const value = useMemo<ThemeContextValue>(
-    () => ({ mode, dark: mode === "dark", t: mode === "dark" ? dark : light, toggle, setMode }),
-    [mode, toggle, setMode]
+    () => ({
+      mode,
+      dark: mode === "dark",
+      t: mode === "dark" ? dark : light,
+      hydrated,
+      toggle,
+      setMode
+    }),
+    [mode, hydrated, toggle, setMode]
   );
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;

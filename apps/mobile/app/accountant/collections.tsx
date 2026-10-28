@@ -32,7 +32,17 @@ function AccountantCollections() {
     payments, loading, error, refresh, loadMore: loadMorePayments,
     hasMore: paymentsHasMore, loadingMore: paymentsLoadingMore
   } = useRecentPayments();
-  const { expenses, refresh: refreshExpenses, loadMore, loadingMore } = useExpenses();
+  const {
+    expenses, refresh: refreshExpenses, loadMore: loadMoreExpenses,
+    hasMore: expensesHasMore, loadingMore: expensesLoadingMore
+  } = useExpenses();
+  const hasMore = paymentsHasMore || expensesHasMore;
+  const loadingMore = paymentsLoadingMore || expensesLoadingMore;
+
+  const loadMore = () => {
+    void loadMorePayments();
+    void loadMoreExpenses();
+  };
 
   const visible = useMemo(
     () => buildTransactions(payments, expenses, filter),
@@ -124,29 +134,24 @@ function AccountantCollections() {
         <EmptyState icon="receipt-long" label={`No ${filter.toLowerCase()} transactions in this period.`} />
       }
       ListFooterComponent={
-        paymentsHasMore || loadingMore ? (
+        hasMore || loadingMore ? (
           <View style={styles.footer}>
             {loadingMore ? (
               <ActivityIndicator size="small" color={t.blue} />
-            ) : null}
-            {paymentsHasMore ? (
-              paymentsLoadingMore ? (
-                <ActivityIndicator size="small" color={t.blue} />
-              ) : (
-                <PressableScale
-                  accessibilityLabel="Load more receipts"
-                  onPress={() => void loadMorePayments()}
-                  style={styles.loadMore}
-                >
-                  <DSText variant="bodyMedium" tint={t.blue}>Load more receipts</DSText>
-                  <Icon name="expand-more" size={18} tint={t.blue} />
-                </PressableScale>
-              )
-            ) : null}
+            ) : (
+              <PressableScale
+                accessibilityLabel="Load more transactions"
+                onPress={loadMore}
+                style={styles.loadMore}
+              >
+                <DSText variant="bodyMedium" tint={t.blue}>Load more transactions</DSText>
+                <Icon name="expand-more" size={18} tint={t.blue} />
+              </PressableScale>
+            )}
           </View>
         ) : null
       }
-      onEndReached={() => void loadMore()}
+      onEndReached={loadMore}
       onEndReachedThreshold={0.4}
       initialNumToRender={12}
       maxToRenderPerBatch={12}

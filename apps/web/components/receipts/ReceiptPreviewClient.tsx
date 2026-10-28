@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Clipboard, Download, MessageCircle, Printer, Send } from "lucide-react";
+import { ArrowLeft, Clipboard, Download, Link2, MessageCircle, Printer, Send } from "lucide-react";
 import type { DigitalFeeReceiptRecord } from "@/lib/receiptService";
 import { adminApiRequest } from "@/lib/adminApiClient";
 import { ReceiptA4Page } from "./ReceiptA4Page";
@@ -23,7 +23,7 @@ function parentMobileForLink(value: string) {
   return tenDigit.length === 10 ? `91${tenDigit}` : tenDigit;
 }
 
-function buildParentMessage(receipt: DigitalFeeReceiptRecord) {
+function buildParentMessage(receipt: DigitalFeeReceiptRecord, receiptUrl?: string) {
   return [
     "Dear Parent,",
     `Fee payment received for ${receipt.studentName || "student"}.`,
@@ -32,6 +32,7 @@ function buildParentMessage(receipt: DigitalFeeReceiptRecord) {
     `Amount Paid: ₹${formatINR(receipt.totalPaid)}`,
     `Balance Due: ₹${formatINR(receipt.balanceDue)}`,
     `Date: ${formatDate(receipt.paymentDate)}`,
+    ...(receiptUrl ? ["", `View receipt: ${receiptUrl}`] : []),
     "",
     "Sri Narayana High School"
   ].join("\n");
@@ -57,7 +58,10 @@ export function ReceiptPreviewClient({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
+  const [receiptUrl, setReceiptUrl] = useState("");
   const [hasAutoPrinted, setHasAutoPrinted] = useState(false);
+  const receiptDocId = receipt?.id ?? "";
 
   useEffect(() => {
     if (!receiptId) return;
@@ -72,7 +76,28 @@ export function ReceiptPreviewClient({
       .finally(() => setLoading(false));
   }, [receiptId]);
 
-  const message = useMemo(() => receipt ? buildParentMessage(receipt) : "", [receipt]);
+  useEffect(() => {
+    if (!receiptDocId || !showShareActions || printOnly) {
+      setReceiptUrl("");
+      return;
+    }
+    let cancelled = false;
+    adminApiRequest<{ ok: true; url: string }>(
+      `/api/receipts/${encodeURIComponent(receiptDocId)}/share-link`,
+      { method: "POST", body: JSON.stringify({}) }
+    )
+      .then((result) => {
+        if (!cancelled && typeof result.url === "string") setReceiptUrl(result.url);
+      })
+      .catch(() => {
+        if (!cancelled) setReceiptUrl("");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [printOnly, receiptDocId, showShareActions]);
+
+  const message = useMemo(() => receipt ? buildParentMessage(receipt, receiptUrl || undefined) : "", [receipt, receiptUrl]);
   const mobile = useMemo(() => receipt ? parentMobileForLink(receipt.mobile) : "", [receipt]);
   const whatsappUrl = mobile && message ? `https://wa.me/${mobile}?text=${encodeURIComponent(message)}` : "";
   const smsUrl = mobile && message ? `sms:${mobile}?body=${encodeURIComponent(message)}` : "";
@@ -106,6 +131,13 @@ export function ReceiptPreviewClient({
     await navigator.clipboard.writeText(message);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const copyReceiptLink = async () => {
+    if (!receiptUrl) return;
+    await navigator.clipboard.writeText(receiptUrl);
+    setLinkCopied(true);
+    setTimeout(() => setLinkCopied(false), 2000);
   };
 
   if (loading) {
@@ -156,6 +188,11 @@ export function ReceiptPreviewClient({
               <a href={smsUrl} className="btn-secondary text-sm">
                 <Send size={16} /> Send SMS
               </a>
+            )}
+            {showShareActions && receiptUrl && (
+              <button type="button" onClick={copyReceiptLink} className="btn-secondary text-sm">
+                <Link2 size={16} /> {linkCopied ? "Link Copied" : "Copy Receipt Link"}
+              </button>
             )}
             {showShareActions && (
               <button type="button" onClick={copySmsText} className="btn-secondary text-sm">

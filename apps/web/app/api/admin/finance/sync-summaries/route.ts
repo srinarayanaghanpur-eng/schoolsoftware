@@ -1,6 +1,7 @@
 import { adminDb } from "@/lib/firebaseAdmin";
 import { requirePermission, json } from "@/lib/apiUtils";
 import { logFirestoreRead } from "@/lib/firestoreReadLogger";
+import { feeStatusFor, resolveFeeState, toFeeAmount } from "@/lib/feeModel";
 
 // POST /api/admin/finance/sync-summaries
 // Rebuilds studentFeeSummaries from the students collection for one academic
@@ -32,11 +33,12 @@ export async function POST(req: Request) {
   for (const doc of snap.docs) {
     const s = doc.data();
     if (String(s.status || "active") !== "active") continue;
-    const totalFee = Number(s.totalFeeAmount || 0);
-    const totalPaid = Number(s.totalFeesPaid || 0);
-    const totalConcession = Number(s.totalConcessionAmount || 0);
-    const dueAmount = Math.max(0, Number(s.totalFeesDue ?? (totalFee - totalPaid - totalConcession)) || 0);
-    const feeStatus: "paid" | "partial" | "pending" = dueAmount <= 0 ? "paid" : totalPaid > 0 ? "partial" : "pending";
+    const fee = resolveFeeState(s as Record<string, unknown>);
+    const totalFee = fee.payableFee;
+    const totalPaid = toFeeAmount(s.totalFeesPaid);
+    const totalConcession = fee.concession;
+    const dueAmount = Math.max(0, totalFee - totalPaid);
+    const feeStatus = feeStatusFor(dueAmount, totalPaid);
 
     const ref = db.collection("studentFeeSummaries").doc(`${doc.id}_${academicYearId}`);
     writer.set(ref, {

@@ -5,7 +5,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import { adminApiRequest } from "@/lib/adminApiClient";
 import type { StudentData, AcademicYear, BranchInfo, AppUser, TransportRoute } from "./form-types";
-import { resolveValue, emergencyValue, previousSchoolName, previousSchoolValue } from "./formatters";
+import { resolveValue, emergencyValue, previousSchoolName, previousSchoolValue, formatMoney } from "./formatters";
+import { resolveFeeState } from "@/lib/feeModel";
 
 export function useAdmissionData() {
   const params = useParams();
@@ -72,8 +73,10 @@ export function useAdmissionData() {
   useEffect(() => {
     const fetchLookups = async () => {
       try {
+        // Each lookup is independent: a role that can view students may not be
+        // allowed to list users/routes. One 403 must not blank every lookup.
         const [yearsRes, branchesRes, usersRes, routesRes] =
-          await Promise.all([
+          await Promise.allSettled([
             adminApiRequest<{ ok: boolean; years: AcademicYear[] }>(
               "/api/admin/academic-years"
             ),
@@ -88,12 +91,18 @@ export function useAdmissionData() {
             ),
           ]);
 
-      if (yearsRes.years) setAcademicYears(yearsRes.years);
-      if (branchesRes.branches) setBranches(branchesRes.branches);
-      if (usersRes.users) setUsers(usersRes.users);
-      if (routesRes.routes) setRoutes(routesRes.routes);
-      } catch (err) {
-        console.error("Error fetching lookups:", err);
+        if (yearsRes.status === "fulfilled" && yearsRes.value.years) {
+          setAcademicYears(yearsRes.value.years);
+        }
+        if (branchesRes.status === "fulfilled" && branchesRes.value.branches) {
+          setBranches(branchesRes.value.branches);
+        }
+        if (usersRes.status === "fulfilled" && usersRes.value.users) {
+          setUsers(usersRes.value.users);
+        }
+        if (routesRes.status === "fulfilled" && routesRes.value.routes) {
+          setRoutes(routesRes.value.routes);
+        }
       } finally {
         setLookupsLoaded(true);
       }
@@ -156,12 +165,14 @@ export function useAdmissionData() {
     const lastClass = resolveValue(previousSchoolValue(student, "lastClass"));
     const tcNo = resolveValue(previousSchoolValue(student, "tcNo"));
 
-    const transportRequired = student.transportRequired
-      ? "Yes"
-      : resolveValue(student.transportRouteId) ||
-        resolveValue(student.transportStopName)
-        ? "Yes"
-        : "No";
+    const transportFlag = student.transportRequired;
+    const transportRequired =
+      transportFlag === false || transportFlag === "No" || transportFlag === "no"
+        ? "No"
+        : transportFlag || resolveValue(student.transportRouteId) ||
+          resolveValue(student.transportStopName)
+          ? "Yes"
+          : "No";
     const routeName =
       routeMap.get(resolveValue(student.transportRouteId)) ||
       resolveValue(student.busRoute ?? student.transportRouteName);
@@ -169,9 +180,10 @@ export function useAdmissionData() {
       student.pickupPoint ?? student.transportStopName
     );
 
+    const fee = resolveFeeState(student as unknown as Record<string, unknown>);
     const feePlan = resolveValue(
       student.feePlan ??
-        (student.totalFeeAmount ? "Standard" : "")
+        (fee.originalFee > 0 || fee.payableFee > 0 ? "Standard" : "")
     );
     const feeTypes = student.feeHeads
       ? student.feeHeads
@@ -187,10 +199,12 @@ export function useAdmissionData() {
           })
           .join(", ")
       : "";
-    const totalFee = student.totalFeeAmount ?? student.commitmentFee ?? "";
-    const concession = student.concession ?? student.totalFeeAmount
-      ? Number(student.totalFeeAmount) - Number(student.commitmentFee ?? student.totalFeeAmount)
-      : "";
+    const totalFee =
+      fee.originalFee > 0 || fee.payableFee > 0
+        ? formatMoney(fee.payableFee)
+        : "";
+    const concession =
+      fee.concession > 0 ? formatMoney(fee.concession) : "";
 
     const verifiedByUid = resolveValue(student.verifiedBy);
     const createdByUid = resolveValue(student.createdBy);

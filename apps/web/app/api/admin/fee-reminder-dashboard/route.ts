@@ -3,6 +3,7 @@ import { adminDb } from "@/lib/firebaseAdmin";
 import { requirePermission, serializeDoc, json } from "@/lib/apiUtils";
 import { getSchoolId } from "@/lib/schoolScope";
 import { logFirestoreRead, readLimit } from "@/lib/firestoreReadLogger";
+import { resolveFeeState } from "@/lib/feeModel";
 
 const STUDENTS_COLLECTION = "students";
 const QUEUE_COLLECTION = "fee_reminder_queue";
@@ -49,12 +50,14 @@ export async function GET(req: Request) {
     logFirestoreRead("FeeReminderDashboardAPI", STUDENTS_COLLECTION, dueStudentsSnapshot, { schoolId, academicYearId });
     logFirestoreRead("FeeReminderDashboardAPI", QUEUE_COLLECTION, queueSnapshot, { schoolId });
 
-    const students = dueStudentsSnapshot.docs
-      .map((doc) => serializeDoc(doc))
-      .filter((s) => String(s.schoolId || "") === schoolId)
-      .filter((s) => Number(s.totalFeesDue || 0) > 0)
-      .filter((s) => String(s.feeStatus || "") !== "paid")
-      .filter((s) => String(s.status || "") === "active");
+    const students: Array<Record<string, unknown>> = dueStudentsSnapshot.docs.flatMap((doc) => {
+      const student = serializeDoc(doc) as Record<string, unknown>;
+      if (String(student.schoolId || "") !== schoolId) return [];
+      if (String(student.status || "") !== "active") return [];
+      const fee = resolveFeeState(student);
+      if (fee.due <= 0 || fee.status === "paid") return [];
+      return [{ ...student, totalFeesDue: fee.due, feeStatus: fee.status }];
+    });
 
     const totalDueStudents = students.length;
     const totalDueAmount = students.reduce((sum, s) => sum + (Number(s.totalFeesDue) || 0), 0);

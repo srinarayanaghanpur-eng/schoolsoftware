@@ -1,5 +1,5 @@
 import React from "react";
-import { Stack } from "expo-router";
+import { ThemedStack } from "@/lib/ThemedStack";
 import { TeacherDataProvider } from "@/lib/useTeacherAttendanceData";
 import { WorkspaceGuard } from "@/lib/WorkspaceGuard";
 import type { Role } from "@sri-narayana/shared";
@@ -10,7 +10,7 @@ export default function TeacherLayout() {
   return (
     <WorkspaceGuard allowed={ALLOWED}>
       <TeacherDataProvider>
-        <Stack screenOptions={{ headerShown: false, animation: "fade" }} />
+        <ThemedStack animation="fade" />
       </TeacherDataProvider>
     </WorkspaceGuard>
   );

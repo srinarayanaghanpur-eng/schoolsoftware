@@ -67,8 +67,6 @@ function PortalDashboard() {
   const { profile } = useAdminSession();
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [loading, setLoading] = useState(true);
-  const [paying, setPaying] = useState(false);
-  const [receipt, setReceipt] = useState<{ receiptId: string; amount: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const loadSummary = async (studentId: string) => {
@@ -88,29 +86,6 @@ function PortalDashboard() {
   useEffect(() => {
     if (selectedChildId) void loadSummary(selectedChildId);
   }, [selectedChildId]);
-
-  const payNow = async () => {
-    if (!summary || summary.fees.due <= 0) return;
-    setPaying(true);
-    setError(null);
-    setReceipt(null);
-    try {
-      const order = await adminApiRequest<{ ok: true; orderId: string; amount: number }>("/api/fees/order", {
-        method: "POST",
-        body: JSON.stringify({ studentId: summary.student.id, amount: summary.fees.due, paymentType: "portal-fee", note: "Portal pay now" }),
-      });
-      const confirmation = await adminApiRequest<{ ok: true; receiptId: string; amount: number }>("/api/fees/confirm", {
-        method: "POST",
-        body: JSON.stringify({ orderId: order.orderId, transactionId: `PORTAL-${Date.now()}`, method: "online" }),
-      });
-      setReceipt({ receiptId: confirmation.receiptId, amount: confirmation.amount });
-      await loadSummary(summary.student.id);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to complete payment.");
-    } finally {
-      setPaying(false);
-    }
-  };
 
   if (childrenLoading) {
     return (
@@ -142,7 +117,7 @@ function PortalDashboard() {
     : null;
 
   const quickActions: QuickAction[] = [
-    { label: "Make Payment", icon: CreditCard, onClick: () => void payNow(), accent: "bg-[#eef0ff] text-[#3033a1]" },
+    { label: "Fee Details", icon: CreditCard, href: "/portal/fees", accent: "bg-[#eef0ff] text-[#3033a1]" },
     { label: "Download Receipt", icon: ReceiptText, href: "/portal/payments", accent: "bg-[#e6f8ef] text-[#0f8d52]" },
     { label: "Report Card", icon: Award, href: "/portal/exams", accent: "bg-[#fff3df] text-[#b87d0e]" },
     { label: "Notices", icon: BellRing, href: "/portal/notices", accent: "bg-[#fdeef0] text-[#d84d5b]" },
@@ -184,7 +159,6 @@ function PortalDashboard() {
 
       <section className="space-y-5 p-4 md:p-7">
         {error && <div className="rounded-2xl border border-[#ffd5da] bg-[#ffebed] px-4 py-3 text-sm font-semibold text-[#c83f4d]">{error}</div>}
-        {receipt && <div className="rounded-2xl border border-[#c8f0dc] bg-[#e6f8ef] px-4 py-3 text-sm font-semibold text-[#0f8d52]">Receipt {receipt.receiptId} generated for {formatINR(receipt.amount)}.</div>}
 
         {loading ? (
           <div className="card p-8 text-center text-sm font-semibold text-[#7d86a8]">Loading dashboard...</div>
@@ -257,12 +231,12 @@ function PortalDashboard() {
                   <div>
                     <h2 className="font-extrabold text-[#1f2136]">Fee Payment</h2>
                     <p className="mt-1 text-sm font-medium text-[#7d86a8]">
-                      {noDues ? "You're up to date with your fee payments." : "Pay the current outstanding amount online."}
+                      {noDues ? "You're up to date with your fee payments." : "Pay at the school office. Staff will record your receipt."}
                     </p>
                   </div>
-                  <button className="btn-primary" onClick={() => void payNow()} disabled={paying || summary.fees.due <= 0}>
-                    <CreditCard size={16} /> {paying ? "Processing..." : summary.fees.due > 0 ? `Pay ${formatINR(summary.fees.due)}` : "No dues"}
-                  </button>
+                  <Link className="btn-secondary" href="/portal/fees">
+                    <CreditCard size={16} /> View Details
+                  </Link>
                 </div>
                 <div className="mt-5 h-3 overflow-hidden rounded-full bg-[#eef0f7]">
                   <div className="h-full rounded-full bg-[#3033a1]" style={{ width: `${paidPercent}%` }} />
@@ -351,7 +325,7 @@ function PortalDashboard() {
                     return action.href ? (
                       <Link key={action.label} href={action.href} className={className}>{inner}</Link>
                     ) : (
-                      <button key={action.label} type="button" onClick={action.onClick} disabled={paying || noDues} className={`${className} disabled:cursor-not-allowed disabled:opacity-50`}>{inner}</button>
+                      <button key={action.label} type="button" onClick={action.onClick} disabled={noDues} className={`${className} disabled:cursor-not-allowed disabled:opacity-50`}>{inner}</button>
                     );
                   })}
                 </div>

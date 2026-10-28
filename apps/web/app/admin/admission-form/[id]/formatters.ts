@@ -12,6 +12,13 @@ export function display(value: unknown): string {
   return resolveValue(value) || "—";
 }
 
+export function formatMoney(value: unknown): string {
+  if (value === null || value === undefined || value === "") return "";
+  const amount = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(amount)) return resolveValue(value);
+  return `\u20B9${amount.toLocaleString("en-IN")}`;
+}
+
 export function extractDate(
   value: unknown
 ): Date | null {

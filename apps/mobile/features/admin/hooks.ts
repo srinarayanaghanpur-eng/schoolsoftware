@@ -4,6 +4,7 @@
  */
 import { useCallback, useEffect, useState } from "react";
 import { mobileCache } from "@/lib/cache/mobileCache";
+import { deduped } from "@/lib/fetchDedupe";
 import { asDateString, asText } from "@/lib/text";
 import {
   fetchCashBook, fetchChangeRequests, fetchDashboardStats, fetchExams, fetchExpenses, fetchFinanceSummary, fetchLeaveRequests, fetchNotices,
@@ -28,8 +29,11 @@ function useCachedFetch<T>(cacheKey: string, fetcher: () => Promise<T>, ttlMinut
             return;
           }
         }
-        const fresh = await fetcher();
-        await mobileCache.set(cacheKey, fresh, ttlMinutes);
+        const fresh = await deduped(`admin-hook:${cacheKey}`, async () => {
+          const data = await fetcher();
+          void mobileCache.set(cacheKey, data, ttlMinutes).catch(() => undefined);
+          return data;
+        });
         setState({ data: fresh, loading: false, error: null });
       } catch (err) {
         setState((s) => ({
@@ -43,11 +47,13 @@ function useCachedFetch<T>(cacheKey: string, fetcher: () => Promise<T>, ttlMinut
     [cacheKey, ttlMinutes] // eslint-disable-line react-hooks/exhaustive-deps
   );
 
+  const refresh = useCallback(() => load(true), [load]);
+
   useEffect(() => {
     void load();
   }, [load]);
 
-  return { ...state, refresh: () => load(true) };
+  return { ...state, refresh };
 }
 
 export function useDashboardStats() {
@@ -72,10 +78,10 @@ export function useRecentPayments() {
     setLoading(true);
     try {
       const page = await fetchRecentPayments(10);
-      await mobileCache.set("admin-recent-payments-v2", page.payments, 3);
       setPayments(page.payments);
       setCursor(page.nextCursor);
       setHasMore(page.hasMore);
+      void mobileCache.set("admin-recent-payments-v2", page.payments, 3).catch(() => undefined);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to load payments.");
     } finally {
@@ -181,6 +187,7 @@ export function useStaffDirectory() {
     teachers: data?.teachers ?? [],
     drivers: data?.drivers ?? [],
     office: data?.office ?? [],
+    other: data?.other ?? [],
     loading,
     error,
     refresh
@@ -209,10 +216,10 @@ export function useExpenses() {
     setLoading(true);
     try {
       const page = await fetchExpenses(30);
-      await mobileCache.set("admin-expenses", page.expenses, 5);
       setExpenses(page.expenses);
       setCursor(page.nextCursor);
       setHasMore(page.hasMore);
+      void mobileCache.set("admin-expenses", page.expenses, 5).catch(() => undefined);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to load expenses.");
     } finally {

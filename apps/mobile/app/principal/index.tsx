@@ -336,9 +336,9 @@ const styles = StyleSheet.create({
   },
   promptTitle: { fontSize: 15, fontWeight: "700" },
   promptMeta: { marginTop: 2 },
-  quickGrid: { flexDirection: "row", gap: 10 },
+  quickGrid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", rowGap: 10 },
   quickTile: {
-    flex: 1,
+    width: "48%",
     borderWidth: 1,
     borderRadius: radius.lg,
     paddingVertical: space.md + 2,
