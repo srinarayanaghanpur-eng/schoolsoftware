@@ -1,6 +1,15 @@
 import type { EmploymentType, SchoolSettings } from "./types/models";
 
 /**
+ * TEMPORARY switch requested by the school: attendance marking no longer
+ * requires a GPS fix or the normal check-in/check-out time window.
+ * Set back to `false` to restore GPS + time enforcement.
+ *
+ * This lives in the shared package so the mobile app and the API always agree.
+ */
+export const ATTENDANCE_BYPASS_GPS_AND_TIME = true;
+
+/**
  * Check-in / check-out time windows per employment type (24h "HH:MM", IST).
  * - Check-in is only allowed between checkInStart and checkInEnd.
  * - A check-in at or after lateAfter (but within the window) is marked "late".
