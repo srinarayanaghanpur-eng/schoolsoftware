@@ -1,7 +1,5 @@
-"use client";
-
-import { useParams, useRouter, useSearchParams, notFound, usePathname } from "next/navigation";
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { notFound, usePathname } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -51,17 +49,41 @@ const TAB_LABELS: Record<TabKey, { label: string; icon: React.ReactElement }> = 
   history: { label: "History", icon: <CreditCard size={14} /> }
 };
 
-export default function StudentProfilePage() {
-  const { studentId } = useParams();
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const pathname = usePathname();
+interface StudentProfilePageProps {
+  params: { studentId: string };
+  searchParams: { [key: string]: string | string[] | undefined };
+}
+
+async function getProfileData(studentId: string) {
+  return getStudentProfile(studentId);
+}
+
+export default async function StudentProfilePage({
+  params,
+  searchParams
+}: StudentProfilePageProps) {
+  const router = usePathname(); // not needed but kept for clarity
   const { role, permissions, hasPermission: sessionHasPermission } = useAdminSession();
 
-  const [data, setData] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [activeTab, setActiveTab] = useState<TabKey>("overview");
+  const studentId = params.studentId;
+  const initialTab = (searchParams.tab as TabKey) || "overview";
+
+  let data: any = null;
+  let error = "";
+  let loading = true;
+
+  try {
+    data = await getProfileData(studentId);
+    if (!data.student) {
+      error = "Student not found.";
+    }
+  } catch (err) {
+    error = err instanceof Error ? err.message : "Failed to load student profile.";
+  } finally {
+    loading = false;
+  }
+
+  const [activeTab, setActiveTab] = useState<TabKey>(initialTab);
 
   const canViewStudents = Boolean(role && hasPermission(role, "students.view"));
   const canEditStudent = Boolean(role && hasPermission(role, "students.edit"));
@@ -69,37 +91,6 @@ export default function StudentProfilePage() {
   const canCreateFees = Boolean(role && hasPermission(role, "fees.create"));
   const canViewCertificates = Boolean(role && hasPermission(role, "certificates.view"));
   const canCreateCertificates = Boolean(role && hasPermission(role, "certificates.create"));
-
-  const initialTab = (searchParams.get("tab") as TabKey) || "overview";
-
-  useEffect(() => {
-    if (!studentId) {
-      setError("Missing student ID.");
-      setLoading(false);
-      return;
-    }
-    let cancelled = false;
-    (async () => {
-      try {
-        setLoading(true);
-        const result = await getStudentProfile(studentId as string);
-        if (cancelled) return;
-        if (!result.student) {
-          setError("Student not found.");
-          setLoading(false);
-          return;
-        }
-        setData(result);
-        setActiveTab(initialTab);
-      } catch (err) {
-        if (cancelled) return;
-        setError(err instanceof Error ? err.message : "Failed to load student profile.");
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [studentId]);
 
   if (loading) {
     return (
@@ -120,7 +111,7 @@ export default function StudentProfilePage() {
         <button
           type="button"
           className="mt-3 btn-secondary"
-          onClick={() => router.back()}
+          onClick={() => window.history.back()}
         >
           <ArrowLeft size={14} className="mr-1" /> Back
         </button>
@@ -142,7 +133,7 @@ export default function StudentProfilePage() {
   const breadcrumbLinks = [
     { label: "Students", href: "/admin/students" },
     { label: "Class List", href: `/admin/students/${className.toLowerCase()}` },
-    { label: studentName, href: pathname }
+    { label: studentName, href: `/admin/student/${studentId}` }
   ];
 
   const tabIsAllowed = (tab: TabKey): boolean => {
@@ -169,7 +160,7 @@ export default function StudentProfilePage() {
           href="/#"
           onClick={(e) => {
             e.preventDefault();
-            router.push(`/admin/students/${className.toLowerCase()}`);
+            window.location.href = `/admin/students/${className.toLowerCase()}`;
           }}
           className="btn-secondary"
         >
