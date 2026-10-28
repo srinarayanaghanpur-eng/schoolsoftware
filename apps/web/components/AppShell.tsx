@@ -1036,7 +1036,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return () => window.cancelAnimationFrame(frame);
   }, [mobileNavOpen]);
 
-  const [contextSubnavCollapsed, setContextSubnavCollapsed] = useState(false);
+  const [contextSubnavCollapsed, setContextSubnavCollapsed] = useState(true);
   const [contextSubnavPreferenceLoaded, setContextSubnavPreferenceLoaded] = useState(false);
   const [contextSubnavDrawerOpen, setContextSubnavDrawerOpen] = useState(false);
   useEffect(() => {
