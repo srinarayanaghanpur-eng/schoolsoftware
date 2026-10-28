@@ -59,11 +59,16 @@ function ParentMessagesScreen() {
 
   const send = async () => {
     if (!body.trim()) return;
+    if (!summary?.student.id) {
+      toast.show("Please select a student linked to your account.");
+      setSending(false);
+      return;
+    }
     setSending(true);
     try {
       await sendParentMessage({
         studentId: summary?.student.id,
-        type: "general",
+        type: "enquiry",
         subject: `Message from parent of ${summary?.student.name ?? "student"}`,
         body: body.trim()
       });
