@@ -189,7 +189,9 @@ export const ROLE_PERMISSIONS: Record<Role, readonly (Permission | typeof ALL)[]
     "certificates.view",
     "academic_years.view"
   ],
-  settings_manager: [ALL],
+  settings_manager: [
+    "settings.view", "settings.create", "settings.edit", "settings.delete", "settings.bulk_upload"
+  ],
   parent: ["portal.view"]
 };
 
