@@ -779,7 +779,7 @@ export function ExpensesScreen() {
   if (loading && expenses.length === 0) return <SkeletonPage />;
   if (error && expenses.length === 0) return <ErrorState message={error} onRetry={refresh} />;
 
-  const toggle = (expense: Expense) => {
+const toggle = (expense: Expense) => {
     if (expandedId === expense.id) {
       setExpandedId(null);
       return;
@@ -789,11 +789,8 @@ export function ExpensesScreen() {
     setReceipts((prev) => ({ ...prev, [expense.id]: null }));
     void (async () => {
       try {
-        const [linked, similar] = await Promise.all([
-          expense.voucherId ? fetchVouchersByIds([expense.voucherId]) : Promise.resolve([]),
-          expense.category ? fetchVouchersByCategory(expense.category, 3) : Promise.resolve([])
-        ]);
-        const merged = [...linked, ...similar.filter((s) => !linked.some((l) => l.id === s.id))].slice(0, 4);
+        const linked = expense.voucherId ? fetchVouchersByIds([expense.voucherId]) : Promise.resolve([]);
+        const merged = linked.slice(0, 4);
         setReceipts((prev) => ({ ...prev, [expense.id]: merged }));
       } catch {
         setReceipts((prev) => ({ ...prev, [expense.id]: [] }));
