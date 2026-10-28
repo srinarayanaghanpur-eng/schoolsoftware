@@ -276,8 +276,8 @@ export default function Login() {
     try {
       const loginId = employeeId.trim();
       const loginEmail = loginId.includes("@") ? loginId : employeeIdToInternalEmail(loginId);
-      await signInWithEmailAndPassword(auth, loginEmail, password);
       await AsyncStorage.setItem(REMEMBER_CHOICE_KEY, remember ? "1" : "0").catch(() => undefined);
+      await signInWithEmailAndPassword(auth, loginEmail, password);
       // The session provider resolves the profile and this screen's redirect
       // effect navigates. (Resolving here too used to double every login read.)
       // Loading stays true until the redirect unmounts this screen.
