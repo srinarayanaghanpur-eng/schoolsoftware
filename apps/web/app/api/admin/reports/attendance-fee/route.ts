@@ -48,6 +48,7 @@ export async function GET(request: NextRequest) {
     const sectionFilter = searchParams.get('section');
     const minAttendance = searchParams.get('minAttendance');
     const maxAttendance = searchParams.get('maxAttendance');
+    const academicYearId = searchParams.get('academicYearId') || "";
     const pageSize = readLimit(searchParams.get("pageSize") ?? searchParams.get("limit"), 100, 500);
 
     let query: FirebaseFirestore.Query = db.collection('students');
@@ -64,6 +65,7 @@ export async function GET(request: NextRequest) {
         ...d.data()
       }))
       .filter((student: any) => {
+        if (academicYearId && student.academicYearId && student.academicYearId !== academicYearId) return false;
         if (sectionFilter && student.section !== sectionFilter && student.sectionId !== sectionFilter) return false;
         return true;
       })
@@ -86,7 +88,7 @@ export async function GET(request: NextRequest) {
         annualEnrollmentFee: student.annualEnrollmentFee || 0,
         commitmentFee: student.commitmentFee || 0,
         totalFeeAmount: totalFee,
-        totalFeeDue: totalFee,
+        totalFeeDue: remainingAmount,
         totalPaid,
         remainingAmount,
         feePaidPercentage: totalFee > 0 ? ((totalPaid / totalFee) * 100).toFixed(2) : '0.00',
@@ -109,7 +111,8 @@ export async function GET(request: NextRequest) {
       success: true,
       data: report.sort(
         (a: any, b: any) => b.attendancePercentage - a.attendancePercentage
-      )
+      ),
+      truncated: studentsSnapshot.size >= 500
     });
   } catch (error) {
     console.error('Error generating attendance-fee report:', error);

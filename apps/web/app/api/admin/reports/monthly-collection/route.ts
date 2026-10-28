@@ -27,17 +27,19 @@ export async function GET(request: NextRequest) {
     const db = adminDb();
     const searchParams = request.nextUrl.searchParams;
     const year = parseInt(searchParams.get('year') || String(new Date().getFullYear()), 10);
-    const yearStart = new Date(year, 0, 1);
-    const yearEnd = new Date(year, 11, 31, 23, 59, 59, 999);
+    const fromParam = searchParams.get("from") || "";
+    const toParam = searchParams.get("to") || "";
+    const rangeStart = fromParam ? new Date(`${fromParam}T00:00:00`) : new Date(year, 0, 1);
+    const rangeEnd = toParam ? new Date(`${toParam}T23:59:59.999`) : new Date(year, 11, 31, 23, 59, 59, 999);
 
     const paymentsSnap = await db.collection('payments')
-      .where("createdAt", ">=", yearStart)
-      .where("createdAt", "<=", yearEnd)
+      .where("createdAt", ">=", rangeStart)
+      .where("createdAt", "<=", rangeEnd)
       .orderBy("createdAt", "asc")
       .limit(5000)
       .get();
-    logFirestoreRead("MonthlyCollectionReportAPI", "payments", paymentsSnap, { year, limit: 5000 });
-    const byMonth = new Map<number, { count: number; total: number }>();
+    logFirestoreRead("MonthlyCollectionReportAPI", "payments", paymentsSnap, { year, fromParam, toParam, limit: 5000 });
+    const byMonth = new Map<string, { count: number; total: number }>();
 
     paymentsSnap.docs.forEach((d) => {
       const data = d.data();
@@ -48,24 +50,30 @@ export async function GET(request: NextRequest) {
           : rawDate && typeof rawDate.toDate === "function"
             ? rawDate.toDate()
             : null;
-      if (!dte) return;
-      if (isNaN(dte.getTime()) || dte.getFullYear() !== year) return;
-      const month = dte.getMonth(); // 0-based
-      const existing = byMonth.get(month) ?? { count: 0, total: 0 };
+      if (!dte || isNaN(dte.getTime())) return;
+      if (dte < rangeStart || dte > rangeEnd) return;
+      const key = `${dte.getFullYear()}-${String(dte.getMonth() + 1).padStart(2, "0")}`;
+      const existing = byMonth.get(key) ?? { count: 0, total: 0 };
       existing.count++;
       existing.total += Number(data.amountPaid) || 0;
-      byMonth.set(month, existing);
+      byMonth.set(key, existing);
     });
 
-    const months = Array.from({ length: 12 }, (_, i) => {
-      const m = byMonth.get(i);
-      return {
-        month: i + 1,
-        monthName: MONTH_NAMES[i],
-        count: m?.count ?? 0,
-        total: m?.total ?? 0
-      };
-    });
+    const months: Array<{ month: number; monthName: string; monthKey: string; year: number; count: number; total: number }> = [];
+    const cursor = new Date(rangeStart.getFullYear(), rangeStart.getMonth(), 1);
+    while (cursor <= rangeEnd) {
+      const key = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, "0")}`;
+      const entry = byMonth.get(key);
+      months.push({
+        month: cursor.getMonth() + 1,
+        monthName: `${MONTH_NAMES[cursor.getMonth()]} ${cursor.getFullYear()}`,
+        monthKey: key,
+        year: cursor.getFullYear(),
+        count: entry?.count ?? 0,
+        total: entry?.total ?? 0
+      });
+      cursor.setMonth(cursor.getMonth() + 1);
+    }
 
     return json({ success: true, year, months, truncated: paymentsSnap.size >= 5000 });
   } catch (error) {

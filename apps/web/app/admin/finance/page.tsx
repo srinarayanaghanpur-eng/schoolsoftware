@@ -7,7 +7,6 @@ import {
   AlertCircle,
   ArrowUpRight,
   Banknote,
-  BookOpen,
   ClipboardList,
   CreditCard,
   Download,
@@ -382,32 +381,6 @@ export default function FinanceDashboardPage() {
     />
   );
 
-  const renderReportsTab = () => (
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-      {[
-        { icon: <FileText size={20} />, title: "Daily Collection Report", desc: "Day-wise fee collection summary" },
-        { icon: <BookOpen size={20} />, title: "Class-wise Collection", desc: "Fee collection grouped by class" },
-        { icon: <Users size={20} />, title: "Student-wise Ledger", desc: "Individual student fee ledger" },
-        { icon: <AlertCircle size={20} />, title: "Dues Report", desc: "All pending fee dues" },
-        { icon: <TrendingDown size={20} />, title: "Defaulters Report", desc: "Students with overdue fees" },
-        { icon: <FileText size={20} />, title: "Expense Report", desc: "Category-wise expense breakdown" },
-        { icon: <Wallet size={20} />, title: "Cash Book", desc: "Daily cash inflow & outflow" },
-        { icon: <TrendingUp size={20} />, title: "Profit & Loss", desc: "Income vs expense summary" },
-        { icon: <CreditCard size={20} />, title: "Trial Balance", desc: "Accounts trial balance" },
-      ].map((r) => (
-        <div key={r.title} className="rounded-2xl border border-[#e2e8f0] bg-white p-4 shadow-sm hover:shadow-md transition-all cursor-pointer">
-          <div className="flex items-start gap-3">
-            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[#eff6ff] text-[#2563eb]">{r.icon}</span>
-            <div>
-              <p className="text-sm font-extrabold text-[#1e293b]">{r.title}</p>
-              <p className="text-xs text-[#64748b]">{r.desc}</p>
-            </div>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-
   const tabContent: Record<string, () => React.ReactNode> = {
     overview: renderOverview,
     collection: renderCollectionTab,
@@ -417,13 +390,12 @@ export default function FinanceDashboardPage() {
     settlements: renderSettlementsTab,
     receipts: renderReceiptsTab,
     transfers: renderTransfersTab,
-    reports: renderReportsTab,
   };
 
   return (
     <FinanceShell
       title="Fees & Finance"
-      description="Manage fee collection, dues, expenses, receipts, and reports."
+      description="Manage fee collection, dues, expenses, receipts, and bank transfers."
       action={
         <div className="flex items-center gap-2">
           <select

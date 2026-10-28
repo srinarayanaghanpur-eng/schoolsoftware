@@ -78,6 +78,7 @@ import AppLoader from "@/components/AppLoader";
 import { LiveClock } from "@/components/LiveClock";
 import { DarkModeToggle } from "@/components/DarkModeToggle";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { KeyboardShortcuts, type ShortcutItem } from "@/components/KeyboardShortcuts";
 import { SectionTabs } from "@/components/SectionTabs";
 import { API_STATUS_EVENT } from "@/lib/adminApiClient";
 import { refreshClaims } from "@/lib/authClaims";
@@ -133,8 +134,7 @@ const FINANCE_CALC_PREFIXES = [
   "/admin/payments",
   "/admin/fee-structures",
   "/admin/fee-concessions",
-  "/admin/fee-reminders",
-  "/admin/fee-reports"
+  "/admin/fee-reminders"
 ];
 
 const primaryNav: NavItem[] = [
@@ -148,7 +148,7 @@ const primaryNav: NavItem[] = [
     label: "Fees & Finance",
     module: "fees",
     icon: IndianRupee,
-    activePrefixes: ["/admin/finance", "/admin/payments", "/admin/fee-structures", "/admin/fee-concessions", "/admin/fee-reminders", "/admin/fee-reports"]
+    activePrefixes: ["/admin/finance", "/admin/payments", "/admin/fee-structures", "/admin/fee-concessions", "/admin/fee-reminders"]
   },
   { href: "/admin/salary", label: "Salary & Payroll", module: "payroll", icon: Wallet, activePrefixes: ["/admin/salary"] },
   {
@@ -214,6 +214,17 @@ const desktopNavSections: Array<{ label: string; hrefs: string[] }> = [
       "/admin/ai-agent",
       "/admin/settings"
     ]
+  },
+  {
+    label: "School Modules",
+    hrefs: [
+      "/admin/transport",
+      "/admin/transport/bus-finance",
+      "/admin/library",
+      "/admin/hostel",
+      "/admin/inventory",
+      "/admin/certificates"
+    ]
   }
 ];
 
@@ -221,7 +232,7 @@ const contextSubnavs: ContextSubnav[] = [
   {
     title: "Fees & Finance",
     eyebrow: "Accounts",
-    matchPrefixes: ["/admin/finance", "/admin/payments", "/admin/fee-structures", "/admin/fee-concessions", "/admin/fee-reminders", "/admin/fee-reports"],
+    matchPrefixes: ["/admin/finance", "/admin/payments", "/admin/fee-structures", "/admin/fee-concessions", "/admin/fee-reminders"],
     items: [
       { href: "/admin/finance", label: "Overview", icon: BarChart3, module: "fees" },
       { href: "/admin/payments", label: "Collect Fee", icon: ReceiptIndianRupee, module: "fees" },
@@ -229,8 +240,7 @@ const contextSubnavs: ContextSubnav[] = [
       { href: "/admin/finance/expenses", label: "Expenses", icon: Wallet, module: "fees" },
       { href: "/admin/finance/dues", label: "Dues", icon: FileStack, module: "fees" },
       { href: "/admin/payments", label: "Receipts", icon: ScrollText, module: "fees", activePrefixes: ["/admin/finance/receipt"] },
-      { href: "/admin/finance/invoices", label: "Invoices", icon: FileText, module: "fees" },
-      { href: "/admin/reports", label: "Reports", icon: BarChart3, module: "fees" }
+      { href: "/admin/finance/invoices", label: "Invoices", icon: FileText, module: "fees" }
     ]
   },
   {
@@ -433,7 +443,7 @@ function isSubSidebarCompactViewport() {
   return typeof window !== "undefined" && window.matchMedia(SUB_SIDEBAR_COMPACT_QUERY).matches;
 }
 
-function NavEntry({ item, pathname }: { item: NavItem; pathname: string }) {
+function NavEntry({ item, pathname, onNavigate }: { item: NavItem; pathname: string; onNavigate?: () => void }) {
   const active = isPathActive(pathname, item.href, item.activePrefixes);
   const childActive = item.children?.some((child) => isPathActive(pathname, child.href)) ?? false;
   const [open, setOpen] = useState(active || childActive);
@@ -444,6 +454,8 @@ function NavEntry({ item, pathname }: { item: NavItem; pathname: string }) {
       <div className="flex items-stretch">
         <Link
           href={item.href}
+          onClick={onNavigate}
+          aria-current={active ? "page" : undefined}
           className={clsx(
             "group relative flex flex-1 items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] font-semibold transition duration-200",
             active
@@ -480,6 +492,8 @@ function NavEntry({ item, pathname }: { item: NavItem; pathname: string }) {
               <Link
                 key={child.href}
                 href={child.href}
+                onClick={onNavigate}
+                aria-current={childIsActive ? "page" : undefined}
                 className={clsx(
                   "flex items-center gap-3 rounded-lg px-3 py-2 text-[12px] font-semibold transition duration-200",
                   childIsActive ? "bg-white/[0.15] text-white" : "text-[#b9c2ee] hover:bg-white/10 hover:text-white"
@@ -493,6 +507,27 @@ function NavEntry({ item, pathname }: { item: NavItem; pathname: string }) {
         </div>
       )}
     </div>
+  );
+}
+
+function MyAttendanceNavLink({ pathname, onNavigate }: { pathname: string; onNavigate?: () => void }) {
+  const active = pathname === "/admin/my-attendance";
+  return (
+    <Link
+      href="/admin/my-attendance"
+      onClick={onNavigate}
+      aria-current={active ? "page" : undefined}
+      className={clsx(
+        "group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] font-semibold transition duration-200",
+        active
+          ? "bg-white/[0.14] text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08),0_8px_18px_rgba(5,8,55,0.18)]"
+          : "text-[#d7defb] hover:bg-white/[0.09] hover:text-white"
+      )}
+    >
+      {active && <span className="absolute inset-y-2 -left-2 w-1 rounded-r-full bg-[#f7c948]" />}
+      <CalendarCheck size={18} strokeWidth={2.35} className={active ? "text-white" : "text-[#bbc6ff] group-hover:text-white"} />
+      My Attendance
+    </Link>
   );
 }
 
@@ -548,7 +583,7 @@ function ContextualSubnav({
   const items = (subnav.items ?? []).filter((item): item is ContextSubnavItem => Boolean(item?.href && item.label));
 
   const renderLinks = (onNavigate?: () => void, interactive = true) => (
-    <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto px-3 py-4">
+    <nav aria-label={`${subnav.title} navigation`} className="min-h-0 flex-1 space-y-1 overflow-y-auto px-3 py-4">
       {items.map(({ href, label, icon, activePrefixes }) => {
         const active = isPathActive(pathname, href, activePrefixes);
         const Icon = icon ?? FallbackIcon;
@@ -558,6 +593,7 @@ function ContextualSubnav({
             href={href}
             onClick={onNavigate}
             tabIndex={interactive ? undefined : -1}
+            aria-current={active ? "page" : undefined}
             className={clsx(
               "group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] font-bold transition",
               active
@@ -859,6 +895,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const title = pathname.startsWith("/admin/finance")
     ? "Finance / Accounts"
     : pageTitles[pathname] ?? "Administration";
+  const contentRef = useRef<HTMLDivElement>(null);
+  const previousPathRef = useRef(pathname);
+  useEffect(() => {
+    if (previousPathRef.current === pathname) return;
+    previousPathRef.current = pathname;
+    const frame = window.requestAnimationFrame(() => contentRef.current?.focus());
+    return () => window.cancelAnimationFrame(frame);
+  }, [pathname]);
 
   // Live, current date. Starts null so SSR and first client render match
   // (no hydration mismatch); filled on mount and refreshed every minute so it
@@ -983,7 +1027,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   // Mobile slide-in nav drawer. Closes automatically on navigation.
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const mobileNavRef = useRef<HTMLElement>(null);
+  const mobileMenuButtonRef = useRef<HTMLButtonElement>(null);
   useEffect(() => setMobileNavOpen(false), [pathname]);
+  useEffect(() => {
+    if (!mobileNavOpen) return;
+    const frame = window.requestAnimationFrame(() => {
+      mobileNavRef.current?.querySelector<HTMLElement>("button, a[href]")?.focus();
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [mobileNavOpen]);
 
   const [contextSubnavCollapsed, setContextSubnavCollapsed] = useState(false);
   const [contextSubnavPreferenceLoaded, setContextSubnavPreferenceLoaded] = useState(false);
@@ -1006,6 +1059,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     }
   }, [contextSubnavCollapsed, contextSubnavPreferenceLoaded]);
   useEffect(() => setContextSubnavDrawerOpen(false), [pathname]);
+  useEffect(() => {
+    if (!mobileNavOpen && !contextSubnavDrawerOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      const wasMobileOpen = mobileNavOpen;
+      setMobileNavOpen(false);
+      setContextSubnavDrawerOpen(false);
+      if (wasMobileOpen) {
+        window.requestAnimationFrame(() => mobileMenuButtonRef.current?.focus());
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [mobileNavOpen, contextSubnavDrawerOpen]);
 
   // The accountant has no use for the admin dashboard — send them straight to
   // Finance as their home so they don't land on (or see the URL of) /admin/dashboard.
@@ -1081,6 +1149,32 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       .map((item) => !isPortalRole && role === "accountant" && item.href === "/admin/dashboard" ? { ...item, href: "/admin/finance", label: "Finance", short: "Finance" } : item),
     [role, rolePermissions, isPortalRole]
   );
+  const shortcutItems = useMemo<ShortcutItem[]>(() => {
+    const result: ShortcutItem[] = [];
+    const seen = new Set<string>();
+    const add = (href: string, label: string, group: string, module?: Module) => {
+      if (!href || !label) return;
+      if (module && (!role || !canAccessModuleFromList(role, rolePermissions, module))) return;
+      if (!isRoleAllowedForPath(href, role)) return;
+      const key = `${href}::${label}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      result.push({ href, label, group });
+    };
+
+    if (isPortalRole) {
+      portalNav.forEach((item) => add(item.href, item.label, "Portal", item.module));
+      return result;
+    }
+
+    primaryNav.forEach((item) => add(item.href, item.label, "Main Navigation", item.module));
+    secondaryNav.forEach((item) => add(item.href, item.label, "School Modules", item.module));
+    contextSubnavs.forEach((section) => section.items.forEach((item) => add(item.href, item.label, section.title, item.module)));
+    if (role && canAccessModuleFromList(role, rolePermissions, "attendance")) {
+      add("/admin/my-attendance", "My Attendance", "Me", "attendance");
+    }
+    return result;
+  }, [role, rolePermissions, isPortalRole]);
   const currentModule = moduleForPath(pathname);
   // Denied if EITHER the module RBAC matrix OR the central route table blocks the
   // current path. The route table covers the sensitive sub-areas (finance,
@@ -1156,6 +1250,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <AdminSessionProvider value={sessionValue}>
       <AcademicYearProvider>
     <div className="erp-app min-h-screen bg-background text-foreground md:flex print:block print:bg-white">
+      <a href="#main-content" className="skip-link">Skip to main content</a>
       <OfflineBanner />
       {/* Mobile backdrop */}
       {mobileNavOpen && (
@@ -1168,8 +1263,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       <aside
         className={clsx(
-          "fixed inset-y-0 left-0 z-50 flex w-[264px] max-w-[85vw] flex-col overflow-hidden bg-[linear-gradient(180deg,#17217f_0%,#11195f_100%)] text-white shadow-2xl transition-transform duration-300 ease-out md:w-[248px] md:max-w-none md:shadow-[12px_0_28px_rgba(18,27,105,0.12)] md:translate-x-0 print:hidden",
-          mobileNavOpen ? "translate-x-0" : "-translate-x-full"
+          "fixed inset-y-0 left-0 z-50 flex w-[264px] max-w-[85vw] flex-col overflow-hidden bg-[linear-gradient(180deg,#17217f_0%,#11195f_100%)] text-white shadow-2xl transition-[transform,visibility] duration-300 ease-out md:w-[248px] md:max-w-none md:visible md:shadow-[12px_0_28px_rgba(18,27,105,0.12)] md:translate-x-0 print:hidden",
+          mobileNavOpen ? "visible translate-x-0" : "invisible -translate-x-full"
         )}
       >
         <div className="flex items-center gap-3 border-b border-white/10 px-4 py-5">
@@ -1190,26 +1285,28 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </button>
         </div>
 
-        {/* Mobile: curated essentials only */}
-        <nav className="nav-scroll min-h-0 flex-1 space-y-1 overflow-y-auto px-3 py-5 md:hidden">
-          {bottomTabs.map((item) => {
-            const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
-            const Icon = item.icon ?? FallbackIcon;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={clsx(
-                  "group relative flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-semibold transition duration-200",
-                  active ? "bg-white/[0.14] text-white shadow-[0_8px_20px_rgba(8,10,92,0.18)]" : "text-[#dce2ff] hover:bg-white/10 hover:text-white"
-                )}
-              >
-                {active && <span className="absolute inset-y-3 -left-2 w-1 rounded-r-full bg-[#ffd23f]" />}
-                <Icon size={20} strokeWidth={2.4} className={active ? "text-white" : "text-[#c5ceff] group-hover:text-white"} />
-                {item.label}
-              </Link>
-            );
-          })}
+        {/* Mobile: full role-filtered navigation */}
+        <nav
+          id="mobile-navigation"
+          ref={mobileNavRef}
+          aria-label="Main navigation"
+          className="nav-scroll min-h-0 flex-1 space-y-5 overflow-y-auto px-3 py-5 md:hidden"
+        >
+          {desktopNavGroups.map((section) => (
+            <div key={section.label} className="space-y-1">
+              <p className="px-2 pb-1.5 text-[10px] font-extrabold uppercase tracking-[0.13em] text-[#8fa0ed]">{section.label}</p>
+              {section.items.map((item) => (
+                <NavEntry key={item.href} item={item} pathname={pathname} onNavigate={() => setMobileNavOpen(false)} />
+              ))}
+            </div>
+          ))}
+
+          {role && canAccessModuleFromList(role, rolePermissions, "attendance") && (
+            <div className="space-y-1 pt-1">
+              <p className="px-2 pb-1.5 text-[10px] font-extrabold uppercase tracking-[0.13em] text-[#8fa0ed]">Me</p>
+              <MyAttendanceNavLink pathname={pathname} onNavigate={() => setMobileNavOpen(false)} />
+            </div>
+          )}
         </nav>
 
         {/* Desktop: full navigation */}
@@ -1226,19 +1323,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           {role && canAccessModuleFromList(role, rolePermissions, "attendance") && (
             <div className="space-y-1 pt-1">
               <p className="px-2 pb-1.5 text-[10px] font-extrabold uppercase tracking-[0.13em] text-[#8fa0ed]">Me</p>
-              <Link
-                href="/admin/my-attendance"
-                className={clsx(
-                  "group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] font-semibold transition duration-200",
-                  pathname === "/admin/my-attendance"
-                    ? "bg-white/[0.14] text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08),0_8px_18px_rgba(5,8,55,0.18)]"
-                    : "text-[#d7defb] hover:bg-white/[0.09] hover:text-white"
-                )}
-              >
-                {pathname === "/admin/my-attendance" && <span className="absolute inset-y-2 -left-2 w-1 rounded-r-full bg-[#ffd23f]" />}
-                <CalendarCheck size={18} strokeWidth={2.35} className={pathname === "/admin/my-attendance" ? "text-white" : "text-[#c5ceff] group-hover:text-white"} />
-                My Attendance
-              </Link>
+              <MyAttendanceNavLink pathname={pathname} />
             </div>
           )}
         </nav>
@@ -1285,12 +1370,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       >
         <header className="sticky top-0 z-20 flex min-h-[64px] shrink-0 items-center gap-3 border-b border-border bg-card/90 px-3 py-2.5 shadow-sm backdrop-blur md:min-h-[72px] md:gap-4 md:px-6 md:py-3 print:hidden">
           <button
+            ref={mobileMenuButtonRef}
             type="button"
             onClick={() => {
               setContextSubnavDrawerOpen(false);
               setMobileNavOpen(true);
             }}
             aria-label="Open menu"
+            aria-expanded={mobileNavOpen}
+            aria-controls="mobile-navigation"
             className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-accent text-accent-foreground transition hover:bg-muted md:hidden"
           >
             <Menu size={20} />
@@ -1303,6 +1391,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
           <AcademicYearBadge />
           <LiveClock className="hidden sm:inline-flex" />
+          <KeyboardShortcuts items={shortcutItems} />
           <DarkModeToggle />
           {role && canAccessModuleFromList(role, rolePermissions, "communication") && (
             <Link
@@ -1343,7 +1432,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </div>
           </div>
         )}
-        <div key={pathname} className="page-enter min-w-0 flex-1 overflow-y-auto overflow-x-hidden pb-[76px] md:pb-0 print:overflow-visible print:pb-0 print:opacity-100">
+        <div
+          key={pathname}
+          id="main-content"
+          ref={contentRef}
+          tabIndex={-1}
+          className="page-enter min-w-0 flex-1 overflow-y-auto overflow-x-hidden pb-[76px] outline-none md:pb-0 print:overflow-visible print:pb-0 print:opacity-100"
+        >
           <ErrorBoundary resetKey={pathname}>
             {sessionLoading || signingOut ? <AppLoader message={signingOut ? "Signing out…" : "Preparing your workspace…"} /> : routeDenied ? <AccessDeniedState module={currentModule} /> : (<>{!contextualSubnav && <SectionTabs />}{children}</>)}
           </ErrorBoundary>
@@ -1370,7 +1465,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </main>
 
       {/* Mobile bottom tab bar — quick access to the essentials */}
-      <nav className="fixed inset-x-0 bottom-0 z-30 flex items-stretch border-t border-border bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden print:hidden">
+      <nav aria-label="Quick navigation" className="fixed inset-x-0 bottom-0 z-30 flex items-stretch border-t border-border bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden print:hidden">
         {bottomTabs.map((item) => {
           const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
           const Icon = item.icon ?? FallbackIcon;
@@ -1378,6 +1473,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <Link
               key={item.href}
               href={item.href}
+              aria-current={active ? "page" : undefined}
               className={clsx(
                 "flex flex-1 flex-col items-center justify-center gap-1 py-2 text-[10px] font-bold transition",
                 active ? "text-primary" : "text-muted-foreground"

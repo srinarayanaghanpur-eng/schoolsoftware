@@ -33,5 +33,4 @@ export const FINANCE_TABS = [
   { id: "settlements", label: "Settlements" },
   { id: "receipts", label: "Receipts" },
   { id: "transfers", label: "Bank Transfers" },
-  { id: "reports", label: "Reports" },
 ];

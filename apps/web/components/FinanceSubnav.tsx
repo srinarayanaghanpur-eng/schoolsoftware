@@ -26,8 +26,7 @@ const TABS = [
   { href: "/admin/finance/payables", label: "Payables", icon: TrendingDown },
   { href: "/admin/finance/receivables", label: "Receivables", icon: DollarSign },
   { href: "/admin/finance/deleted-bills", label: "Deleted Bills", icon: FileText },
-  { href: "/admin/finance/branch-accounts", label: "Branch Accts", icon: Building2 },
-  { href: "/admin/fee-reports", label: "Reports", icon: BarChart3 }
+  { href: "/admin/finance/branch-accounts", label: "Branch Accts", icon: Building2 }
 ];
 
 /** Horizontal sub-navigation shown at the top of every Finance page. */

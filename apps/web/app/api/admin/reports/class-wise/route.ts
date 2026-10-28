@@ -67,12 +67,12 @@ export async function GET(request: NextRequest) {
           ? classData.totalFeeAmount / classData.totalStudents
           : 0,
       feePaidPercentage:
-        classData.totalFeeDue > 0
-          ? ((classData.totalFeePaid / classData.totalFeeDue) * 100).toFixed(2)
+        classData.totalFeeAmount > 0
+          ? ((classData.totalFeePaid / classData.totalFeeAmount) * 100).toFixed(2)
           : '0.00'
     }));
 
-    return json({ success: true, data: result });
+    return json({ success: true, data: result, truncated: summariesSnapshot.size >= pageSize });
   } catch (error) {
     console.error('Error generating class-wise report:', error);
     return json(

@@ -12,8 +12,9 @@ import {
   buildMonthlyAttendanceRows,
   buildSalaryRows
 } from "@sri-narayana/shared/services/reports";
-import { Download, FileText } from "lucide-react";
+import { Download, FileDown, FileText } from "lucide-react";
 import { useState } from "react";
+import { downloadCsv } from "@/components/reports/reportUtils";
 
 async function downloadRows(rows: Record<string, unknown>[], sheetName: string, fileName: string) {
   const XLSX = await import("xlsx");
@@ -87,11 +88,17 @@ export function ExportButtons({
       <button className="btn-secondary" disabled={Boolean(downloading)} onClick={() => runDownload("daily", buildDailyAttendanceRows(attendance, teachers), "Daily", "daily-attendance.xlsx")}>
         <Download size={16} /> {downloading === "daily" ? "Preparing..." : "Daily"}
       </button>
+      <button className="btn-secondary" onClick={() => downloadCsv(buildDailyAttendanceRows(attendance, teachers), "daily-attendance")}>
+        <FileDown size={16} /> Daily CSV
+      </button>
       <button className="btn-secondary" onClick={() => openPrintableReport("Daily attendance report", buildDailyAttendanceRows(attendance, teachers))}>
         <FileText size={16} /> Daily PDF
       </button>
       <button className="btn-secondary" disabled={Boolean(downloading)} onClick={() => runDownload("monthly", buildMonthlyAttendanceRows(attendance, teachers), "Monthly", "monthly-attendance.xlsx")}>
         <Download size={16} /> {downloading === "monthly" ? "Preparing..." : "Monthly"}
+      </button>
+      <button className="btn-secondary" onClick={() => downloadCsv(buildMonthlyAttendanceRows(attendance, teachers), "monthly-attendance")}>
+        <FileDown size={16} /> Monthly CSV
       </button>
       <button className="btn-secondary" onClick={() => openPrintableReport("Monthly attendance report", buildMonthlyAttendanceRows(attendance, teachers))}>
         <FileText size={16} /> Monthly PDF
@@ -101,6 +108,9 @@ export function ExportButtons({
           <button className="btn-secondary" disabled={Boolean(downloading)} onClick={() => runDownload("salary", buildSalaryRows(salaryReports), "Salary", "salary-report.xlsx")}>
             <Download size={16} /> {downloading === "salary" ? "Preparing..." : "Salary"}
           </button>
+          <button className="btn-secondary" onClick={() => downloadCsv(buildSalaryRows(salaryReports), "salary-report")}>
+            <FileDown size={16} /> Salary CSV
+          </button>
           <button className="btn-secondary" onClick={() => openPrintableReport("Salary report", buildSalaryRows(salaryReports))}>
             <FileText size={16} /> Salary PDF
           </button>
@@ -108,6 +118,9 @@ export function ExportButtons({
       )}
       <button className="btn-secondary" disabled={Boolean(downloading)} onClick={() => runDownload("biometric", buildBiometricLogRows(biometricLogs), "Biometric", "biometric-logs.xlsx")}>
         <Download size={16} /> {downloading === "biometric" ? "Preparing..." : "Biometric"}
+      </button>
+      <button className="btn-secondary" onClick={() => downloadCsv(buildBiometricLogRows(biometricLogs), "biometric-logs")}>
+        <FileDown size={16} /> Biometric CSV
       </button>
       <button className="btn-secondary" onClick={() => openPrintableReport("Biometric log report", buildBiometricLogRows(biometricLogs))}>
         <FileText size={16} /> Biometric PDF

@@ -68,7 +68,7 @@ export async function GET(request: NextRequest) {
         commitmentFee: 0,
         previousYearDues: 0,
         totalFeeAmount: totalFee,
-        totalFeeDue: totalFee,
+        totalFeeDue: remainingAmount,
         totalPaid,
         remainingAmount,
         feeStatus: remainingAmount === 0 ? "paid" : totalPaid > 0 ? "partial" : student.feeStatus || "pending",
@@ -76,7 +76,7 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    return json({ success: true, data: report });
+    return json({ success: true, data: report, truncated: snapshot.size >= 500 });
   } catch (error) {
     console.error('Error generating student-wise report:', error);
     return json(

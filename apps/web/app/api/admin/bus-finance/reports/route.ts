@@ -27,10 +27,13 @@ export async function GET(req: NextRequest) {
     const type = (searchParams.get("type") || "monthly") as ReportType;
     const monthFilter = searchParams.get("month"); // YYYY-MM
     const yearFilter = searchParams.get("year"); // YYYY
+    const fromFilter = searchParams.get("from") || "";
+    const toFilter = searchParams.get("to") || "";
+    const asOfFilter = searchParams.get("asOf") || new Date().toISOString().slice(0, 10);
     const academicYearId = searchParams.get("academicYearId") || "";
     const schoolId = searchParams.get("schoolId") || "";
     const pageSize = readLimit(searchParams.get("pageSize") ?? searchParams.get("limit"), 25, 1000);
-    const today = new Date().toISOString().slice(0, 10);
+    const today = asOfFilter;
 
     const db = adminDb();
 
@@ -73,6 +76,7 @@ export async function GET(req: NextRequest) {
       const month = monthFilter || today.slice(0, 7);
       rows = payments
         .filter((p) => String(p.emiMonth) === month)
+        .filter((p) => (!fromFilter || String(p.dueDate) >= fromFilter) && (!toFilter || String(p.dueDate) <= toFilter))
         .map((p) => ({
           vehicleNumber: p.vehicleNumber,
           financeCompany: companyOf(p.busFinanceId),
@@ -87,6 +91,7 @@ export async function GET(req: NextRequest) {
     } else if (type === "pending") {
       rows = payments
         .filter((p) => p.status === "pending" || p.status === "partial")
+        .filter((p) => (!fromFilter || String(p.dueDate) >= fromFilter) && (!toFilter || String(p.dueDate) <= toFilter))
         .map((p) => ({
           vehicleNumber: p.vehicleNumber,
           financeCompany: companyOf(p.busFinanceId),
@@ -101,6 +106,7 @@ export async function GET(req: NextRequest) {
     } else if (type === "overdue") {
       rows = payments
         .filter((p) => p.status !== "paid" && String(p.dueDate) < today)
+        .filter((p) => (!fromFilter || String(p.dueDate) >= fromFilter) && (!toFilter || String(p.dueDate) <= toFilter))
         .map((p) => ({
           vehicleNumber: p.vehicleNumber,
           financeCompany: companyOf(p.busFinanceId),
@@ -165,7 +171,8 @@ export async function GET(req: NextRequest) {
       return json({ ok: false, error: "Unknown report type" }, { status: 400 });
     }
 
-    return json({ ok: true, type, rows });
+    const truncated = financeSnap.size >= pageSize || paymentsSnap.size >= Math.min(1000, pageSize * 10);
+    return json({ ok: true, type, rows, truncated });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to build report";
     return json({ ok: false, error: message }, { status: 500 });

@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
       }))
       .sort((a, b) => b.totalCollected - a.totalCollected);
 
-    return json({ success: true, data });
+    return json({ success: true, data, truncated: paymentsSnap.size >= 1000 });
   } catch (error) {
     console.error("Error generating payment-mode report:", error);
     return json({ success: false, error: "Failed to generate report" }, { status: 500 });
