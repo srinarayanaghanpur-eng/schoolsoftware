@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import {
+  ATTENDANCE_BYPASS_GPS_AND_TIME,
   ATTENDANCE_WINDOWS,
   createAttendanceDocumentId,
   getDistanceFromCampus,
@@ -26,7 +27,7 @@ function getEffectiveGpsSettings(
   settings: Awaited<ReturnType<typeof getSchoolSettings>>
 ) {
   return {
-    gpsRequired: teacher.gpsEnabled !== false,
+    gpsRequired: !ATTENDANCE_BYPASS_GPS_AND_TIME && teacher.gpsEnabled !== false,
     settings: {
       ...settings,
       campusLatitude: teacher.gpsLatitude ?? settings.campusLatitude,
@@ -111,47 +112,7 @@ export async function POST(req: Request) {
           accuracyMeters: payload.accuracyMeters
         }
       : undefined;
-    const distanceFromCampus = gps ? getDistanceFromCampus(gps, settings) : undefined;
-
-    if (gpsRequired && !gps) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "GPS location is required for this teacher. Ask admin to disable GPS or update the teacher GPS location."
-        },
-        { status: 400 }
-      );
-    }
-
-    if (gpsRequired && gps && !isInsideCampus(gps, settings)) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "You are outside campus. Attendance not allowed.",
-          distanceFromCampus,
-          allowedRadius: settings.geofenceRadiusMeters
-        },
-        { status: 403 }
-      );
-    }
-
-    // ===== Time-window enforcement (admins may mark outside the window) =====
-    const employmentType = teacher.employmentType ?? "full_time";
-    const window = ATTENDANCE_WINDOWS[employmentType] ?? ATTENDANCE_WINDOWS.full_time;
-    if (!isAdmin) {
-      if (payload.eventType === "checkin" && !isWithinCheckInWindow(effectiveTimestamp, settings, employmentType)) {
-        return NextResponse.json(
-          { ok: false, error: `Check-in is only allowed between ${window.checkInStart} and ${window.checkInEnd}.` },
-          { status: 403 }
-        );
-      }
-      if (payload.eventType === "checkout" && !isWithinCheckOutWindow(effectiveTimestamp, settings, employmentType)) {
-        return NextResponse.json(
-          { ok: false, error: `Check-out is only allowed between ${window.checkOutStart} and ${window.checkOutEnd}.` },
-          { status: 403 }
-        );
-      }
-    }
+    
 
     const date = toDateKey(effectiveTimestamp, settings.timezone);
     const attendanceDocumentId = createAttendanceDocumentId(payload.teacherId, date);

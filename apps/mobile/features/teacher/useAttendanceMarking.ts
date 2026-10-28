@@ -11,6 +11,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Location from "expo-location";
 import * as Device from "expo-device";
 import {
+  ATTENDANCE_BYPASS_GPS_AND_TIME,
   DEFAULT_SETTINGS,
   getDistanceFromCampus,
   isInsideCampus
@@ -93,6 +94,21 @@ export function useAttendanceMarking(teacherId?: string) {
   const submittingRef = useRef(false);
 
   const locate = useCallback(async () => {
+    // TEMPORARY: the school asked to switch off GPS until further notice.
+    // Marking still goes through the authenticated server endpoint.
+    if (ATTENDANCE_BYPASS_GPS_AND_TIME) {
+      setState((s) => ({
+        ...s,
+        locating: false,
+        permission: "granted",
+        distance: 0,
+        accuracy: null,
+        insideCampus: true,
+        error: null
+      }));
+      return { point: null, accuracy: undefined };
+    }
+
     setState((s) => ({ ...s, locating: true, error: null }));
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
@@ -106,37 +122,7 @@ export function useAttendanceMarking(teacherId?: string) {
         return null;
       }
 
-      const position = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.High
-      });
-      const point = {
-        latitude: position.coords.latitude,
-        longitude: position.coords.longitude
-      };
-      const distance = getDistanceFromCampus(point, DEFAULT_SETTINGS);
-
-      setState((s) => ({
-        ...s,
-        locating: false,
-        permission: "granted",
-        distance,
-        accuracy: position.coords.accuracy ?? null,
-        insideCampus: isInsideCampus(point, DEFAULT_SETTINGS)
-      }));
-      return { point, accuracy: position.coords.accuracy ?? undefined };
-    } catch {
-      setState((s) => ({
-        ...s,
-        locating: false,
-        error: "Couldn’t read your location. Move to an open area and try again."
-      }));
-      return null;
-    }
-  }, []);
-
-  useEffect(() => {
-    void locate();
-  }, [locate]);
+      
 
   /**
    * Flush the offline queue FIFO. Items leave only on 2xx or a definitive
@@ -216,8 +202,8 @@ export function useAttendanceMarking(teacherId?: string) {
       }
       submittingRef.current = true;
 
-      const fix = await locate();
-      if (!fix) {
+      const fix = ATTENDANCE_BYPASS_GPS_AND_TIME ? null : await locate();
+      if (!ATTENDANCE_BYPASS_GPS_AND_TIME && !fix) {
         submittingRef.current = false;
         return { ok: false as const, message: "Location unavailable" };
       }
@@ -226,9 +212,13 @@ export function useAttendanceMarking(teacherId?: string) {
         teacherId,
         eventType,
         timestamp: new Date().toISOString(),
-        latitude: fix.point.latitude,
-        longitude: fix.point.longitude,
-        accuracyMeters: fix.accuracy,
+        ...(fix?.point
+          ? {
+              latitude: fix.point.latitude,
+              longitude: fix.point.longitude,
+              accuracyMeters: fix.accuracy
+            }
+          : {}),
         deviceInfo: deviceInfo()
       };
 
@@ -249,9 +239,9 @@ export function useAttendanceMarking(teacherId?: string) {
             clientRequestId: newUuid(),
             action: eventType,
             capturedAt: new Date().toISOString(),
-            lat: fix.point.latitude,
-            lng: fix.point.longitude,
-            accuracy: fix.accuracy,
+            lat: fix?.point?.latitude,
+            lng: fix?.point?.longitude,
+            accuracy: fix?.accuracy,
             payload
           };
           const queue = capQueue([...(await loadQueue()), queued], OFFLINE_QUEUE_CAP);
