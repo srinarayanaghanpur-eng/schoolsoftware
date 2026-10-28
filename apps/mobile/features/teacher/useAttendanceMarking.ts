@@ -236,7 +236,7 @@ export function useAttendanceMarking(teacherId?: string) {
         const status = err instanceof AttendanceSubmitError ? err.status : undefined;
         if (classifySubmitFailure(status) !== "definitive") {
           const queued: QueuedAttempt = {
-            clientRequestId: newUuid(),
+            clientRequestId: `${teacherId}:${eventType}:${timestamp}`,
             action: eventType,
             capturedAt: new Date().toISOString(),
             lat: fix?.point?.latitude,
