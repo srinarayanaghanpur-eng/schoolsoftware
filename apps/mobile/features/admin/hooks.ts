@@ -111,18 +111,12 @@ export function useRecentPayments() {
     let cancelled = false;
     (async () => {
       try {
-        const cached = await mobileCache.get<AdminPayment[]>("admin-recent-payments-v2");
-        if (cancelled) return;
-        if (cached && cached.length > 0) {
-          setPayments(cached);
-          setHasMore(true);
-          setLoading(false);
-          return;
-        }
-      } catch {
-        // Fall through to network.
+        // Always fetch from network; cache is for future refreshes only.
+        await refresh();
+      } catch (err) {
+        // already reported via refresh's setError
       }
-      if (!cancelled) await refresh();
+      if (!cancelled) setLoading(false);
     })();
     return () => {
       cancelled = true;
@@ -249,18 +243,12 @@ export function useExpenses() {
     let cancelled = false;
     (async () => {
       try {
-        const cached = await mobileCache.get<Expense[]>("admin-expenses");
-        if (cancelled) return;
-        if (cached && cached.length > 0) {
-          setExpenses(cached);
-          setHasMore(true);
-          setLoading(false);
-          return;
-        }
-      } catch {
-        // Fall through to network.
+        // Always fetch from network; cache is for future refreshes only.
+        await refresh();
+      } catch (err) {
+        // already reported via refresh's setError
       }
-      if (!cancelled) await refresh();
+      if (!cancelled) setLoading(false);
     })();
     return () => {
       cancelled = true;
