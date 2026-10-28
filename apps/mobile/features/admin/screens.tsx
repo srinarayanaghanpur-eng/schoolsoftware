@@ -7,7 +7,7 @@
  */
 import React, { useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, FlatList, RefreshControl, ScrollView, SectionList, StyleSheet, View } from "react-native";
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import {
   Avatar, Badge, BottomSheet, Card, DSText, EmptyState, ErrorState, FilterChips, Icon, ListRow,
   SkeletonPage, PageTitle, PillButton, PressableScale, ProgressRow, SectionCard, TextField, TonalTile, useToast,
@@ -37,51 +37,110 @@ import {
 
 const STAFF_FILTERS = ["All", "Active", "Inactive"];
 
+type StaffSection = {
+  title: string;
+  kind: "teacher" | "driver" | "office";
+  data: (AdminTeacher | StaffDriver | StaffOffice)[];
+};
+
+const SUPPORT_ROLES = new Set(["accountant", "settings_manager", "support", "support_staff"]);
+const ADMIN_OFFICE_ROLES = new Set(["super_admin", "admin", "principal", "administrator", "office_admin"]);
+
+function staffField(member: object, key: string) {
+  const value = (member as Record<string, unknown>)[key];
+  return typeof value === "string" ? value : "";
+}
+
+function normalizeStaffRole(role?: string) {
+  return (role ?? "").trim().toLowerCase().replace(/[\s-]+/g, "_");
+}
+
+function staffCategoryForOffice(role?: string): "support" | "office" | "other" {
+  const key = normalizeStaffRole(role);
+  if (!key) return "other";
+  if (SUPPORT_ROLES.has(key) || /(support|assistant|librarian|clerk|attender|nurse|warden|cook|security)/.test(key)) {
+    return "support";
+  }
+  if (ADMIN_OFFICE_ROLES.has(key) || /(admin|principal|office|manager)/.test(key)) {
+    return "office";
+  }
+  return "other";
+}
+
+function matchesStaffFilter(member: { status?: string }, filter: string) {
+  if (filter === "All") return true;
+  const status = (member.status ?? "active").toLowerCase();
+  return filter === "Active" ? status === "active" : status !== "active";
+}
+
+function matchesStaffQuery(member: AdminTeacher | StaffDriver | StaffOffice, query: string) {
+  const q = query.trim().toLowerCase();
+  if (!q) return true;
+  return [
+    "fullName", "name", "displayName", "employeeId", "subject", "role", "email",
+    "phone", "mobile", "vehicleNo", "vehicle", "licenseNo"
+  ].some((key) => staffField(member, key).toLowerCase().includes(q));
+}
+
 export function StaffScreen() {
   const { t } = useTheme();
   const router = useRouter();
   const { profile } = useMobileSession();
   const [filter, setFilter] = useState("All");
-  const { teachers, drivers, office, loading, error, refresh } = useStaffDirectory();
+  const [query, setQuery] = useState("");
+  const { teachers, drivers, office, other, loading, error, refresh } = useStaffDirectory();
   const attendance = useTodayAttendance();
   const assignHref =
     workspaceForRole(profile?.role) === "principal" ? "/principal/tasks" : "/admin/tasks";
   const staffBase = dashboardPathForRole(profile?.role);
+  const totalStaff = teachers.length + drivers.length + office.length + other.length;
 
-  const visibleTeachers = useMemo(() => {
-    if (filter === "All") return teachers;
-    const wanted = filter.toLowerCase();
-    return teachers.filter((member) => (member.status ?? "active").toLowerCase() === wanted);
-  }, [teachers, filter]);
+  const visible = useMemo(() => {
+    const matches = (member: AdminTeacher | StaffDriver | StaffOffice) =>
+      matchesStaffFilter(member, filter) && matchesStaffQuery(member, query);
+    const officeMembers = [...office, ...other].filter(
+      (member, index, all) => all.findIndex((item) => item.id === member.id) === index
+    );
+    return {
+      teaching: teachers.filter(matches),
+      drivers: drivers.filter(matches),
+      support: officeMembers.filter((member) => staffCategoryForOffice(member.role) === "support" && matches(member)),
+      adminOffice: officeMembers.filter((member) => staffCategoryForOffice(member.role) === "office" && matches(member)),
+      other: officeMembers.filter((member) => staffCategoryForOffice(member.role) === "other" && matches(member))
+    };
+  }, [teachers, drivers, office, other, filter, query]);
 
   const sections = useMemo(() => {
-    const list: {
-      title: string;
-      kind: "teacher" | "driver" | "office";
-      data: (AdminTeacher | StaffDriver | StaffOffice)[];
-    }[] = [];
-    if (visibleTeachers.length > 0) {
-      list.push({ title: `TEACHERS · ${visibleTeachers.length}`, kind: "teacher", data: visibleTeachers });
+    const list: StaffSection[] = [];
+    if (visible.teaching.length > 0) {
+      list.push({ title: `TEACHING · ${visible.teaching.length}`, kind: "teacher", data: visible.teaching });
     }
-    if (drivers.length > 0) {
-      list.push({ title: `DRIVERS · ${drivers.length}`, kind: "driver", data: drivers });
+    if (visible.drivers.length > 0) {
+      list.push({ title: `DRIVERS · ${visible.drivers.length}`, kind: "driver", data: visible.drivers });
     }
-    if (office.length > 0) {
-      list.push({ title: `OFFICE & SUPPORT · ${office.length}`, kind: "office", data: office });
+    if (visible.support.length > 0) {
+      list.push({ title: `SUPPORT · ${visible.support.length}`, kind: "office", data: visible.support });
+    }
+    if (visible.adminOffice.length > 0) {
+      list.push({ title: `ADMIN/OFFICE · ${visible.adminOffice.length}`, kind: "office", data: visible.adminOffice });
+    }
+    if (visible.other.length > 0) {
+      list.push({ title: `OTHER/UNASSIGNED · ${visible.other.length}`, kind: "office", data: visible.other });
     }
     return list;
-  }, [visibleTeachers, drivers, office]);
+  }, [visible]);
 
-  if (loading && teachers.length === 0) return <SkeletonPage />;
-  if (error && teachers.length === 0) return <ErrorState message={error} onRetry={refresh} />;
+  if (loading && totalStaff === 0) return <SkeletonPage />;
+  if (error && totalStaff === 0) return <ErrorState message={error} onRetry={refresh} />;
 
   const attendanceRate = attendance.total > 0 ? (attendance.present / attendance.total) * 100 : 0;
 
-  // Virtualized sections: teachers, drivers, office & support staff.
+  // Virtualized sections: Teaching, Drivers, Support, Admin/Office, Other.
   return (
     <SectionList
       sections={sections}
       keyExtractor={(member) => member.id}
+      stickySectionHeadersEnabled
       renderItem={({ item, section }) => {
         if (section.kind === "driver") {
           const driver = item as StaffDriver;
@@ -96,12 +155,15 @@ export function StaffScreen() {
         }
         if (section.kind === "office") {
           const member = item as StaffOffice;
-          const roleKey = (member.role ?? "") as keyof typeof ROLE_LABELS;
+          const role = member.role ?? "";
+          const roleLabel = role && role in ROLE_LABELS
+            ? ROLE_LABELS[role as keyof typeof ROLE_LABELS]
+            : role || "Unassigned";
           return (
             <ListRow
               leading={<Avatar label={initials(member.displayName ?? "?")} size={40} />}
-              title={member.displayName ?? "Staff member"}
-              subtitle={`${ROLE_LABELS[roleKey] ?? member.role ?? "Staff"}${member.email ? ` · ${member.email}` : ""}`}
+              title={member.displayName ?? member.email ?? "Staff member"}
+              subtitle={`${roleLabel}${member.email ? ` · ${member.email}` : ""}`}
             />
           );
         }
@@ -124,7 +186,9 @@ export function StaffScreen() {
         );
       }}
       renderSectionHeader={({ section }) => (
-        <DSText variant="overline" style={styles.sectionTitle}>{section.title}</DSText>
+        <View style={{ backgroundColor: t.bg, paddingTop: space.sm, paddingBottom: 2 }}>
+          <DSText variant="overline" tint={t.mute}>{section.title}</DSText>
+        </View>
       )}
       ItemSeparatorComponent={() => <View style={[styles.separator, { backgroundColor: t.line }]} />}
       contentContainerStyle={styles.page}
@@ -170,7 +234,7 @@ export function StaffScreen() {
                   <Icon name="groups" size={18} tint={t.blue} />
                 </TonalTile>
                 <DSText variant="display" style={styles.moneyValue} numberOfLines={1}>
-                  {teachers.length}
+                  {totalStaff}
                 </DSText>
                 <DSText variant="overline" style={styles.moneyLabel} numberOfLines={1}>ON ROLL</DSText>
               </Card>
@@ -186,6 +250,13 @@ export function StaffScreen() {
             />
           </SectionCard>
 
+          <TextField
+            value={query}
+            onChangeText={setQuery}
+            placeholder="Search staff by name, role, ID or phone"
+            accessibilityLabel="Search staff"
+          />
+
           <FilterChips options={STAFF_FILTERS} value={filter} onChange={setFilter} />
 
           <PillButton
@@ -197,11 +268,14 @@ export function StaffScreen() {
             onPress={() => router.push(assignHref as never)}
           />
 
-          <DSText variant="label" tint={t.mute}>Filter applies to teachers.</DSText>
+          <DSText variant="label" tint={t.mute}>Search and status filters apply to every staff group.</DSText>
         </View>
       }
       ListEmptyComponent={
-        <EmptyState icon="groups" label={`No ${filter.toLowerCase()} staff to show.`} />
+        <EmptyState
+          icon="groups"
+          label={query.trim() ? "No staff match your search." : `No ${filter.toLowerCase()} staff to show.`}
+        />
       }
       initialNumToRender={15}
       maxToRenderPerBatch={15}
@@ -339,7 +413,7 @@ export function ApprovalsScreen() {
             <ListRow
               leading={<Avatar label={initials(change.requestedByName ?? "?")} size={40} />}
               title={change.requestedByName ?? "Staff member"}
-              subtitle={change.note ? change.note : `Item ${change.entityId.slice(0, 8)}…`}
+              subtitle={change.note ? change.note : `Item ${change.entityId?.slice(0, 8) ?? "…"}…`}
             />
             {change.action === "edit" && lines.length > 0 ? (
               <View style={{ marginTop: space.xs, gap: 2 }}>
@@ -357,7 +431,7 @@ export function ApprovalsScreen() {
                     icon="check"
                     bg={t.blue}
                     fg="#FFFFFF"
-                    onPress={() => { if (!busyChangeId) void decideChange(change.id, "approved"); }}
+                    onPress={() => { if (!busyChangeId) { if (change.action === "delete" && !confirm(`Delete ${change.entity ?? "entity"} (id: ${change.entityId ?? "unknown"})`)) return; void decideChange(change.id, "approved"); } }}
                   />
                 </View>
                 <View style={{ flex: 1 }}>
@@ -854,6 +928,8 @@ export function ExpensesScreen() {
 
 /* ----------------------------------------------------------------- Tasks */
 
+type TaskTeacher = { id: string; name: string; employeeId?: string; subject?: string };
+
 export function TaskAssignScreen() {
   const { t } = useTheme();
   const toast = useToast();
@@ -865,20 +941,54 @@ export function TaskAssignScreen() {
   const [dueDate, setDueDate] = useState("");
   const [posting, setPosting] = useState(false);
   const [busyCancelId, setBusyCancelId] = useState<string | null>(null);
-  const { teachers } = useStaffDirectory();
+  const { teachers, other, refresh: refreshStaff } = useStaffDirectory();
   const { tasks, loading, error, refresh } = useTasks();
+
+  useFocusEffect(
+    React.useCallback(() => {
+      void refresh();
+      void refreshStaff();
+    }, [refresh, refreshStaff])
+  );
+
+  const teacherOptions = useMemo<TaskTeacher[]>(() => {
+    const options: TaskTeacher[] = [];
+    const seen = new Set<string>();
+    for (const member of teachers) {
+      if (seen.has(member.id)) continue;
+      seen.add(member.id);
+      options.push({
+        id: member.id,
+        name: staffField(member, "fullName") || staffField(member, "name") || staffField(member, "displayName") || member.employeeId || "Unnamed",
+        employeeId: member.employeeId,
+        subject: member.subject
+      });
+    }
+    // Teacher logins can exist before their teachers/ master record. They are
+    // still valid assignees, so include teacher-role entries from "other".
+    for (const member of other) {
+      if ((member.role ?? "").trim().toLowerCase() !== "teacher" || seen.has(member.id)) continue;
+      seen.add(member.id);
+      options.push({
+        id: member.id,
+        name: staffField(member, "displayName") || staffField(member, "fullName") || staffField(member, "name") || member.email || member.employeeId || "Teacher",
+        employeeId: member.employeeId
+      });
+    }
+    return options;
+  }, [teachers, other]);
 
   const matches = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return [];
-    return teachers
+    return teacherOptions
       .filter((member) =>
-        `${member.fullName ?? ""} ${member.employeeId ?? ""} ${member.subject ?? ""}`
+        `${member.name} ${member.employeeId ?? ""} ${member.subject ?? ""}`
           .toLowerCase()
           .includes(q)
       )
       .slice(0, 8);
-  }, [teachers, query]);
+  }, [teacherOptions, query]);
 
   const assigned = useMemo(() => tasks.filter((task) => task.status === "assigned"), [tasks]);
 
@@ -903,7 +1013,7 @@ export function TaskAssignScreen() {
       setTitle("");
       setDescription("");
       setDueDate("");
-      refresh();
+      await refresh();
     } catch (err) {
       toast.show(err instanceof Error ? err.message : "Unable to assign task.");
     } finally {
@@ -916,7 +1026,7 @@ export function TaskAssignScreen() {
     try {
       await updateTaskStatus(taskId, "cancelled");
       toast.show("Task cancelled.");
-      refresh();
+      await refresh();
     } catch (err) {
       toast.show(err instanceof Error ? err.message : "Couldn't cancel the task.");
     } finally {
@@ -967,8 +1077,8 @@ export function TaskAssignScreen() {
                 {matches.map((member) => (
                   <ListRow
                     key={member.id}
-                    leading={<Avatar label={initials(member.fullName ?? "?")} size={36} />}
-                    title={member.fullName ?? "Unnamed"}
+                    leading={<Avatar label={initials(member.name || "?")} size={36} />}
+                    title={member.name || "Unnamed"}
                     subtitle={`${member.subject ?? "—"}${member.employeeId ? ` · ${member.employeeId}` : ""}`}
                     chevron={teacherId !== member.id}
                     trailing={
@@ -978,8 +1088,8 @@ export function TaskAssignScreen() {
                     }
                     onPress={() => {
                       setTeacherId(member.id);
-                      setTeacherName(member.fullName ?? "");
-                      setQuery(member.fullName ?? "");
+                      setTeacherName(member.name);
+                      setQuery(member.name);
                     }}
                   />
                 ))}
