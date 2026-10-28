@@ -1,12 +1,6 @@
 import { NextResponse } from "next/server";
 import {
-  ATTENDANCE_BYPASS_GPS_AND_TIME,
-  ATTENDANCE_WINDOWS,
   createAttendanceDocumentId,
-  getDistanceFromCampus,
-  isInsideCampus,
-  isWithinCheckInWindow,
-  isWithinCheckOutWindow,
   mergeAttendanceEvent,
   mobileAttendancePayloadSchema,
   nowIso,
@@ -27,7 +21,7 @@ function getEffectiveGpsSettings(
   settings: Awaited<ReturnType<typeof getSchoolSettings>>
 ) {
   return {
-    gpsRequired: !ATTENDANCE_BYPASS_GPS_AND_TIME && teacher.gpsEnabled !== false,
+    gpsRequired: false,
     settings: {
       ...settings,
       campusLatitude: teacher.gpsLatitude ?? settings.campusLatitude,
@@ -112,6 +106,8 @@ export async function POST(req: Request) {
           accuracyMeters: payload.accuracyMeters
         }
       : undefined;
+
+    const employmentType = teacher.employmentType ?? "full_time";
     
 
     const date = toDateKey(effectiveTimestamp, settings.timezone);
@@ -141,7 +137,7 @@ export async function POST(req: Request) {
         source: "mobile",
         eventType: payload.eventType,
         gps,
-        distanceFromCampus,
+        distanceFromCampus: 0,
         deviceInfo: payload.deviceInfo
       },
       settings,
@@ -208,7 +204,7 @@ export async function POST(req: Request) {
       academicYearId,
       latitude: payload.latitude,
       longitude: payload.longitude,
-      distanceFromCampus,
+      distanceFromCampus: 0,
       gpsRequired,
       deviceInfo: payload.deviceInfo,
       rawData: payload,
