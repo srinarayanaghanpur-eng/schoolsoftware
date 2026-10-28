@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRefreshOnFocus } from "@/lib/useRefreshOnFocus";
-import { Plus, X, ArrowLeft, Edit2, Trash2, Search, Upload, Camera, QrCode, Printer, ReceiptText, Save, Archive, ArchiveRestore, IndianRupee } from "lucide-react";
+import { Plus, X, ArrowLeft, Edit2, Trash2, Search, Upload, Camera, QrCode, Printer, ReceiptText, Save, Archive, ArchiveRestore, IndianRupee, UserCircle } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams, useRouter, useParams, notFound } from "next/navigation";
 import { DatePicker } from "@/components/DatePicker";
@@ -118,6 +118,7 @@ export default function StudentsPage() {
 
   const rowMenuFor = (student: Student): ContextMenuItem[] => {
     const items: ContextMenuItem[] = [];
+    items.push({ label: "View Profile", icon: <UserCircle size={15} />, onSelect: () => router.push(`/admin/student/${student.id}`) });
     items.push({ label: "Show QR", icon: <QrCode size={15} />, onSelect: () => setShowQrModal(student.id) });
     items.push({ label: "Print admission form", icon: <Printer size={15} />, onSelect: () => router.push(`/admin/admission-form/${student.id}`) });
     items.push({ label: "Fee receipts", icon: <ReceiptText size={15} />, onSelect: () => router.push(`/admin/payments?studentId=${student.id}`) });
@@ -1208,6 +1209,9 @@ export default function StudentsPage() {
                     {student.phone && <a href={`tel:${student.phone}`} className="mt-0.5 inline-block text-xs font-semibold text-[#3033a1]">{student.phone}</a>}
                   </div>
                   <div className="flex shrink-0 items-center gap-1">
+                    <button onClick={() => router.push(`/admin/student/${student.id}`)} className="grid h-9 w-9 place-items-center rounded-xl bg-[#eef0ff] text-[#3033a1]" aria-label="View student profile">
+                      <UserCircle size={16} />
+                    </button>
                     <button onClick={() => setShowQrModal(student.id)} className="grid h-9 w-9 place-items-center rounded-xl bg-[#eef6ff] text-[#3069a1]" aria-label="Show student details QR">
                       <QrCode size={16} />
                     </button>
@@ -1275,6 +1279,9 @@ export default function StudentsPage() {
                       <td className="px-6 py-4 text-sm font-medium text-[#7d86a8]">{student.phone}</td>
                     <td className="px-6 py-4 text-center">
                       <div className="flex items-center justify-center gap-1">
+                        <button onClick={() => router.push(`/admin/student/${student.id}`)} className="grid h-9 w-9 place-items-center rounded-xl bg-[#eef0ff] text-[#3033a1]" title="View student profile">
+                          <UserCircle size={16} />
+                        </button>
                         <button onClick={() => setShowQrModal(student.id)} className="grid h-9 w-9 place-items-center rounded-xl bg-[#eef6ff] text-[#3069a1] hover:bg-[#e0edff]" title="Show student details QR">
                           <QrCode size={16} />
                         </button>

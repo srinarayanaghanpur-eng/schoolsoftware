@@ -78,7 +78,7 @@ export async function GET(req: Request) {
       return roleOk && classOk;
     })
     .slice(0, 10)
-    .map((n) => ({ title: n.title as string, body: n.body as string, createdAt: n.createdAt ? String(n.createdAt) : undefined }));
+    .map((n) => ({ title: n.title as string, body: n.body as string, createdAt: n.createdAt ? n.createdAt.toDate().toISOString().slice(0, 10) : undefined }));
 
   const fee = resolveFeeState(s);
   const due = fee.due;
