@@ -28,25 +28,39 @@ export async function GET(req: Request) {
   const token = await requirePermission(req, "certificates.view");
   if (!token) return json({ ok: false, error: "Access denied" }, { status: 403 });
 
-  const { searchParams } = new URL(req.url);
-  const studentId = searchParams.get("studentId") || "";
-  const certificateType = searchParams.get("type") || "";
-  const status = searchParams.get("status") || "";
-  const academicYearId = searchParams.get("academicYearId") || "";
+  try {
+    const { searchParams } = new URL(req.url);
+    const studentId = searchParams.get("studentId") || "";
+    const certificateType = searchParams.get("type") || "";
+    const status = searchParams.get("status") || "";
+    const academicYearId = searchParams.get("academicYearId") || "";
 
-  const db = adminDb();
-  let query: FirebaseFirestore.Query = db.collection(COLLECTION);
+    // Certificates are low-volume. Use a single equality filter (the most
+    // selective one) and filter/sort in memory so the query never needs a
+    // composite index.
+    let query: FirebaseFirestore.Query = adminDb().collection(COLLECTION);
+    if (studentId) query = query.where("studentId", "==", studentId);
+    else if (academicYearId) query = query.where("academicYearId", "==", academicYearId);
+    query = query.limit(500);
 
-  if (academicYearId) query = query.where("academicYearId", "==", academicYearId);
-  if (studentId) query = query.where("studentId", "==", studentId);
-  if (certificateType) query = query.where("certificateType", "==", certificateType);
-  if (status) query = query.where("status", "==", status);
+    const snap = await query.get();
+    const certificates = snap.docs
+      .map((d) => serializeDoc(d))
+      .filter((certificate) => {
+        if (academicYearId && certificate.academicYearId !== academicYearId) return false;
+        if (certificateType && certificate.certificateType !== certificateType) return false;
+        if (status && certificate.status !== status) return false;
+        return true;
+      })
+      .sort((a, b) =>
+        String(b.issueDate ?? "").localeCompare(String(a.issueDate ?? ""))
+      );
 
-  query = query.orderBy("issueDate", "desc").limit(500);
-
-  const snap = await query.get();
-  const certificates = snap.docs.map((d) => serializeDoc(d));
-  return json({ ok: true, certificates });
+    return json({ ok: true, certificates });
+  } catch (error) {
+    console.error("[certificates] list failed:", error);
+    return json({ ok: false, error: "Failed to load certificates" }, { status: 500 });
+  }
 }
 
 function str(value: unknown): string {
