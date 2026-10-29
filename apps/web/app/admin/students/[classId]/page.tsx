@@ -2,12 +2,11 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRefreshOnFocus } from "@/lib/useRefreshOnFocus";
-import { Plus, X, ArrowLeft, Edit2, Trash2, Search, Upload, Camera, QrCode, Printer, ReceiptText, Save, Archive, ArchiveRestore, IndianRupee, UserCircle } from "lucide-react";
+import { Plus, X, ArrowLeft, Edit2, Search, Upload, Camera, IndianRupee, UserCircle } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams, useRouter, useParams, notFound } from "next/navigation";
 import { DatePicker } from "@/components/DatePicker";
 import { PageHeader } from "@/components/PageHeader"; import { usePopup } from "@/components/CenterPopup";
-import RowContextMenu, { type ContextMenuItem } from "@/components/RowContextMenu";
 import { PaginationControls } from "@/components/PaginationControls";
 import { useAdminSession } from "@/components/AdminSessionContext";
 import { useAcademicYears } from "@/components/AcademicYearContext";
@@ -108,44 +107,11 @@ export default function StudentsPage() {
   const canEditStudent = Boolean(role && hasPermission(role, "students.edit"));
   const canDeleteStudent = Boolean(role && hasPermission(role, "students.delete"));
   const canViewFees = Boolean(role && hasPermission(role, "fees.view"));
-  // Permanent delete is super-admin only; other admins archive/restore.
-  const isSuperAdmin = role === "super_admin";
   // Active list vs archived list. Archived students keep all history
-  // (payments, attendance, marks, links) and can be restored.
+  // (payments, attendance, marks, links) and can be restored from their profile.
   const [statusTab, setStatusTab] = useState<"active" | "archived">("active");
-  // Right-click menu on student rows (same actions as the icon buttons).
-  const [rowMenu, setRowMenu] = useState<{ x: number; y: number; items: ContextMenuItem[] } | null>(null);
-
-  const rowMenuFor = (student: Student): ContextMenuItem[] => {
-    const items: ContextMenuItem[] = [];
-    items.push({ label: "View Profile", icon: <UserCircle size={15} />, onSelect: () => router.push(`/admin/student/${student.id}`) });
-    items.push({ label: "Show QR", icon: <QrCode size={15} />, onSelect: () => setShowQrModal(student.id) });
-    items.push({ label: "Print admission form", icon: <Printer size={15} />, onSelect: () => router.push(`/admin/admission-form/${student.id}`) });
-    items.push({ label: "Fee receipts", icon: <ReceiptText size={15} />, onSelect: () => router.push(`/admin/payments?studentId=${student.id}`) });
-    if (canEditStudent) {
-      items.push({ label: "Edit", icon: <Edit2 size={15} />, onSelect: () => openEditForm(student) });
-    }
-    if (canDeleteStudent && statusTab === "active") {
-      items.push({ label: "Archive", icon: <Archive size={15} />, onSelect: () => void handleArchive(student) });
-    }
-    if (canDeleteStudent && statusTab === "archived") {
-      items.push({ label: "Restore", icon: <ArchiveRestore size={15} />, onSelect: () => void handleRestore(student) });
-    }
-    if (isSuperAdmin) {
-      items.push({ label: "Delete permanently", icon: <Trash2 size={15} />, danger: true, onSelect: () => void handleDelete(student) });
-    }
-    return items;
-  };
-
-  const openRowMenu = (e: React.MouseEvent, student: Student) => {
-    e.preventDefault();
-    setRowMenu({ x: e.clientX, y: e.clientY, items: rowMenuFor(student) });
-  };
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [confirmBulk, setConfirmBulk] = useState(false);
-  const [bulkDeleting, setBulkDeleting] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [classFilter, setClassFilter] = useState(routeClassId || "1");
@@ -164,7 +130,6 @@ export default function StudentsPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [transportRoutes, setTransportRoutes] = useState<TransportRoute[]>([]);
-  const [showQrModal, setShowQrModal] = useState<string | null>(null);
   const [feeStructures, setFeeStructures] = useState<FeeStructureItem[]>([]);
   const [feeLoading, setFeeLoading] = useState(false);
 
@@ -395,7 +360,6 @@ export default function StudentsPage() {
         `/api/admin/students?${buildStudentQuery(targetCursor)}`
       );
       setStudents(data.data ?? []);
-      setSelectedIds(new Set());
       setNextCursor(data.nextCursor ?? null);
       setHasMore(Boolean(data.hasMore));
       setCurrentPage(targetPage);
@@ -828,176 +792,10 @@ export default function StudentsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams, students, canEditStudent]);
 
-  const handleArchive = async (student: Student) => {
-    if (!canDeleteStudent) return;
-    const ok = await toast.confirm(
-      `Archive ${student.studentName}?`,
-      `${student.admissionNumber} will leave the active list. All history (fees, attendance, marks) is kept and they can be restored.`,
-      { okLabel: "Archive", danger: false }
-    );
-    if (!ok) return;
-    try {
-      await adminApiRequest(`/api/admin/students/${student.id}`, { method: "PATCH", body: JSON.stringify({ status: "archived" }) });
-      toast.success("Student archived. History preserved.");
-      fetchStudents();
-      fetchSectionCount();
-    } catch (err) {
-      toast.error("Failed to archive student", err instanceof AdminApiError ? err.message : undefined);
-    }
-  };
-
-  const handleRestore = async (student: Student) => {
-    if (!canDeleteStudent) return;
-    try {
-      await adminApiRequest(`/api/admin/students/${student.id}`, { method: "PATCH", body: JSON.stringify({ status: "active" }) });
-      toast.success("Student restored to the active list.");
-      fetchStudents();
-      fetchSectionCount();
-    } catch (err) {
-      toast.error("Failed to restore student", err instanceof AdminApiError ? err.message : undefined);
-    }
-  };
-
-  const bulkArchiveRestore = async () => {
-    if (!canDeleteStudent || selectedIds.size === 0) return;
-    const target = statusTab === "active" ? "archived" : "active";
-    if (statusTab === "active") {
-      const ok = await toast.confirm(
-        `Archive ${selectedIds.size} student(s)?`,
-        "History is kept and they can be restored.",
-        { okLabel: "Archive all", danger: false }
-      );
-      if (!ok) return;
-    }
-    try {
-      const ids = Array.from(selectedIds);
-      const results = await Promise.allSettled(
-        ids.map((id) => adminApiRequest(`/api/admin/students/${id}`, { method: "PATCH", body: JSON.stringify({ status: target }) }))
-      );
-      const okCount = results.filter((r) => r.status === "fulfilled").length;
-      toast.success(statusTab === "active" ? `${okCount} student(s) archived.` : `${okCount} student(s) restored.`);
-      setSelectedIds(new Set());
-      fetchStudents();
-      fetchSectionCount();
-    } catch (err) {
-      toast.error("Bulk update failed", err instanceof AdminApiError ? err.message : undefined);
-    }
-  };
-
-  const handleDelete = async (student: Student) => {
-    if (!isSuperAdmin) return;
-    const ok = await toast.confirm(
-      `Delete ${student.studentName}?`,
-      `${student.admissionNumber}. This cannot be undone — use Archive instead to keep history.`,
-      { okLabel: "Delete", danger: true }
-    );
-    if (!ok) return;
-    
-    try {
-      await adminApiRequest(`/api/admin/students/${student.id}`, { method: "DELETE" });
-      toast.success("Student deleted.");
-      fetchStudents();
-    } catch (err) {
-      toast.error("Failed to delete student", err instanceof AdminApiError ? err.message : undefined);
-    }
-  };
-
-  const bulkDelete = async () => {
-    if (!isSuperAdmin || selectedIds.size === 0) return;
-    
-    setBulkDeleting(true);
-    try {
-      const result = await adminApiRequest<{ success?: boolean; deleted?: number }>("/api/admin/students/bulk-delete", {
-        method: "POST",
-        body: JSON.stringify({ ids: Array.from(selectedIds) })
-      });
-      toast.success(`${result.deleted ?? selectedIds.size} student(s) permanently deleted.`);
-      setSelectedIds(new Set());
-      setConfirmBulk(false);
-      fetchStudents();
-      fetchSectionCount();
-    } catch (err) {
-      toast.error("Failed to delete students", err instanceof AdminApiError ? err.message : undefined);
-    } finally {
-      setBulkDeleting(false);
-    }
-  };
-
-  const toggleSelectOne = (id: string) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
-
-  const allVisibleSelected = students.length > 0 && students.every((s) => selectedIds.has(s.id));
-  const toggleSelectAllVisible = () => {
-    setSelectedIds((prev) => {
-      if (allVisibleSelected) return new Set();
-      const next = new Set(prev);
-      students.forEach((s) => next.add(s.id));
-      return next;
-    });
-  };
-
   const closeForm = () => {
     setShowForm(false);
     resetForm();
   };
-
-  // The QR URL carries only an opaque server-issued token; the student details
-  // are stored server-side and never encoded into the link.
-  const issueQrUrl = async (student: Student): Promise<{ url: string; ttl: number }> => {
-    const origin = typeof window === "undefined" ? "" : window.location.origin;
-    const issued = await adminApiRequest<{ ok: true; token: string; expiresInMs: number }>(
-      "/api/student-qr",
-      {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ studentId: student.id })
-      }
-    );
-    return {
-      url: `${origin}/student-qr?t=${encodeURIComponent(issued.token)}`,
-      ttl: issued.expiresInMs
-    };
-  };
-
-  const [qrCanvas, setQrCanvas] = useState<Record<string, { url: string; at: number; ttl: number }>>({});
-
-  // QR codes are generated on demand for the student whose modal is open,
-  // instead of encoding every visible row on each students fetch. A cached code
-  // is re-issued once the token is near expiry so a QR reopened later still scans.
-  useEffect(() => {
-    if (!showQrModal) return;
-    const cached = qrCanvas[showQrModal];
-    if (cached && Date.now() - cached.at < cached.ttl * 0.8) return;
-    const student = students.find((s) => s.id === showQrModal);
-    if (!student) return;
-    let cancelled = false;
-    (async () => {
-      const QRCode = (await import("qrcode")).default;
-      try {
-        const issued = await issueQrUrl(student);
-        const dataUrl = await QRCode.toDataURL(issued.url, {
-          width: 160,
-          margin: 1,
-          color: { dark: "#1b1d32", light: "#ffffff" }
-        });
-        if (!cancelled) {
-          setQrCanvas((prev) => ({
-            ...prev,
-            [student.id]: { url: dataUrl, at: Date.now(), ttl: issued.ttl }
-          }));
-        }
-      } catch { /* skip */ }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [showQrModal, students, qrCanvas]);
 
   if (!routeClassId) notFound();
   const classLabel = CLASS_LABELS[routeClassId] ?? routeClassId;
@@ -1006,7 +804,7 @@ export default function StudentsPage() {
     <>
       <PageHeader
         title={`${classLabel} Students`}
-        description={`Student records for ${classLabel} — fees, documents, QR, and admission forms.`}
+        description={`Student records for ${classLabel} — open a student to manage fees, documents, QR, and admission forms.`}
         action={
           <>
             <Link
@@ -1155,30 +953,6 @@ export default function StudentsPage() {
         </button>
         </div>
 
-        {canDeleteStudent && selectedIds.size > 0 && (
-          <div className="card flex flex-wrap items-center gap-3 border-[#ffd5da] bg-[#fff6f7] p-3">
-            <span className="text-sm font-bold text-[#c83f4d]">{selectedIds.size} selected</span>
-            <button type="button" className="btn-secondary" onClick={() => setSelectedIds(new Set())}>Clear</button>
-            <button
-              type="button"
-              className="inline-flex items-center gap-1.5 rounded-xl bg-[#3033a1] px-3 py-2 text-sm font-bold text-white hover:bg-[#20226f]"
-              onClick={() => void bulkArchiveRestore()}
-            >
-              {statusTab === "active" ? <><Archive size={15} /> Archive selected</> : <><ArchiveRestore size={15} /> Restore selected</>}
-            </button>
-            {isSuperAdmin && (
-              <button
-                type="button"
-                className="inline-flex items-center gap-1.5 rounded-xl bg-[#ed515d] px-3 py-2 text-sm font-bold text-white hover:bg-[#d8434f] disabled:opacity-60"
-                onClick={() => setConfirmBulk(true)}
-                disabled={bulkDeleting}
-              >
-                <Trash2 size={15} /> Delete permanently
-              </button>
-            )}
-          </div>
-        )}
-
         <div className="card overflow-hidden">
         {loading ? (
             <div className="p-6 text-center text-sm font-medium text-[#7d86a8]">Loading students...</div>
@@ -1189,16 +963,7 @@ export default function StudentsPage() {
             {/* Mobile: card list */}
             <ul className="divide-y divide-[#edf0f7] md:hidden">
               {students.map((student) => (
-                <li key={student.id} onContextMenu={(e) => openRowMenu(e, student)} className={`flex items-start gap-3 p-4 ${selectedIds.has(student.id) ? "bg-[#fff6f7]" : ""}`}>
-                  {canDeleteStudent && (
-                    <input
-                      type="checkbox"
-                      className="mt-3"
-                      checked={selectedIds.has(student.id)}
-                      onChange={() => toggleSelectOne(student.id)}
-                      aria-label={`Select ${student.studentName}`}
-                    />
-                  )}
+                <li key={student.id} className="flex items-start gap-3 p-4">
                   <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#eef0ff] text-xs font-extrabold text-[#3033a1]">
                     {student.class}{student.section}
                   </span>
@@ -1212,35 +977,6 @@ export default function StudentsPage() {
                     <button onClick={() => router.push(`/admin/student/${student.id}`)} className="grid h-9 w-9 place-items-center rounded-xl bg-[#eef0ff] text-[#3033a1]" aria-label="View student profile">
                       <UserCircle size={16} />
                     </button>
-                    <button onClick={() => setShowQrModal(student.id)} className="grid h-9 w-9 place-items-center rounded-xl bg-[#eef6ff] text-[#3069a1]" aria-label="Show student details QR">
-                      <QrCode size={16} />
-                    </button>
-                    <Link href={`/admin/admission-form/${student.id}`} className="grid h-9 w-9 place-items-center rounded-xl bg-[#f0faf0] text-[#2d8659]" aria-label="Print admission form">
-                      <Printer size={16} />
-                    </Link>
-                    <Link href={`/admin/payments?studentId=${student.id}`} className="grid h-9 w-9 place-items-center rounded-xl bg-[#fff7e6] text-[#ad7413]" aria-label="Open fee receipts">
-                      <ReceiptText size={16} />
-                    </Link>
-                    {canEditStudent && (
-                      <button onClick={() => openEditForm(student)} className="grid h-9 w-9 place-items-center rounded-xl bg-[#eeefff] text-[#3033a1]" aria-label="Edit student">
-                        <Edit2 size={16} />
-                      </button>
-                    )}
-                    {canDeleteStudent && statusTab === "active" && (
-                      <button onClick={() => handleArchive(student)} className="grid h-9 w-9 place-items-center rounded-xl bg-[#eef0ff] text-[#3033a1]" aria-label="Archive student">
-                        <Archive size={16} />
-                      </button>
-                    )}
-                    {canDeleteStudent && statusTab === "archived" && (
-                      <button onClick={() => handleRestore(student)} className="grid h-9 w-9 place-items-center rounded-xl bg-[#e6f8ef] text-[#0f8d52]" aria-label="Restore student">
-                        <ArchiveRestore size={16} />
-                      </button>
-                    )}
-                    {isSuperAdmin && (
-                      <button onClick={() => handleDelete(student)} className="grid h-9 w-9 place-items-center rounded-xl bg-[#ffebed] text-[#ed515d]" aria-label="Delete student permanently">
-                        <Trash2 size={16} />
-                      </button>
-                    )}
                   </div>
                 </li>
               ))}
@@ -1251,11 +987,6 @@ export default function StudentsPage() {
               <table className="w-full min-w-[860px]">
                 <thead className="border-b border-[#edf0f7] bg-[#f7f8fd]">
                 <tr>
-                    {canDeleteStudent && (
-                      <th className="px-4 py-3 text-left">
-                        <input type="checkbox" checked={allVisibleSelected} onChange={toggleSelectAllVisible} aria-label="Select all visible students" />
-                      </th>
-                    )}
                     <th className="px-6 py-3 text-left text-xs font-bold uppercase tracking-[0.03em] text-[#6f7898]">Admission No.</th>
                     <th className="px-6 py-3 text-left text-xs font-bold uppercase tracking-[0.03em] text-[#6f7898]">Name</th>
                     <th className="px-6 py-3 text-left text-xs font-bold uppercase tracking-[0.03em] text-[#6f7898]">Class</th>
@@ -1266,52 +997,16 @@ export default function StudentsPage() {
               </thead>
               <tbody>
                 {students.map((student) => (
-                    <tr key={student.id} onContextMenu={(e) => openRowMenu(e, student)} className={`border-b border-[#edf0f7] transition last:border-b-0 hover:bg-[#fafbff] ${selectedIds.has(student.id) ? "bg-[#fff6f7]" : ""}`}>
-                      {canDeleteStudent && (
-                        <td className="px-4 py-4">
-                          <input type="checkbox" checked={selectedIds.has(student.id)} onChange={() => toggleSelectOne(student.id)} aria-label={`Select ${student.studentName}`} />
-                        </td>
-                      )}
+                    <tr key={student.id} className="border-b border-[#edf0f7] transition last:border-b-0 hover:bg-[#fafbff]">
                       <td className="px-6 py-4 text-sm font-bold text-[#303247]">{student.admissionNumber}</td>
                       <td className="px-6 py-4 text-sm font-semibold text-[#303247]">{student.studentName}</td>
                       <td className="px-6 py-4 text-sm font-medium text-[#7d86a8]">{student.class}-{student.section}</td>
                       <td className="px-6 py-4 text-sm font-medium text-[#7d86a8]">{student.fatherName}</td>
                       <td className="px-6 py-4 text-sm font-medium text-[#7d86a8]">{student.phone}</td>
                     <td className="px-6 py-4 text-center">
-                      <div className="flex items-center justify-center gap-1">
-                        <button onClick={() => router.push(`/admin/student/${student.id}`)} className="grid h-9 w-9 place-items-center rounded-xl bg-[#eef0ff] text-[#3033a1]" title="View student profile">
-                          <UserCircle size={16} />
-                        </button>
-                        <button onClick={() => setShowQrModal(student.id)} className="grid h-9 w-9 place-items-center rounded-xl bg-[#eef6ff] text-[#3069a1] hover:bg-[#e0edff]" title="Show student details QR">
-                          <QrCode size={16} />
-                        </button>
-                        <Link href={`/admin/admission-form/${student.id}`} className="grid h-9 w-9 place-items-center rounded-xl bg-[#f0faf0] text-[#2d8659] hover:bg-[#dff5e5]" title="Print admission form">
-                          <Printer size={16} />
-                        </Link>
-                        <Link href={`/admin/payments?studentId=${student.id}`} className="grid h-9 w-9 place-items-center rounded-xl bg-[#fff7e6] text-[#ad7413] hover:bg-[#ffefc7]" title="Open fee receipts">
-                          <ReceiptText size={16} />
-                        </Link>
-                        {canEditStudent && (
-                        <button onClick={() => openEditForm(student)} className="grid h-9 w-9 place-items-center rounded-xl bg-[#eeefff] text-[#3033a1] hover:bg-[#e3e5ff]" title="Edit student">
-                        <Edit2 size={16} />
+                      <button onClick={() => router.push(`/admin/student/${student.id}`)} className="grid h-9 w-9 place-items-center rounded-xl bg-[#eef0ff] text-[#3033a1] hover:bg-[#e3e5ff] mx-auto" title="View student profile">
+                        <UserCircle size={16} />
                       </button>
-                        )}
-                        {canDeleteStudent && statusTab === "active" && (
-                        <button onClick={() => handleArchive(student)} className="grid h-9 w-9 place-items-center rounded-xl bg-[#eef0ff] text-[#3033a1] hover:bg-[#e3e5ff]" title="Archive student (keeps history)">
-                        <Archive size={16} />
-                      </button>
-                        )}
-                        {canDeleteStudent && statusTab === "archived" && (
-                        <button onClick={() => handleRestore(student)} className="grid h-9 w-9 place-items-center rounded-xl bg-[#e6f8ef] text-[#0f8d52] hover:bg-[#d6f2e3]" title="Restore student">
-                        <ArchiveRestore size={16} />
-                      </button>
-                        )}
-                        {isSuperAdmin && (
-                        <button onClick={() => handleDelete(student)} className="grid h-9 w-9 place-items-center rounded-xl bg-[#ffebed] text-[#ed515d] hover:bg-[#ffdfe4]" title="Delete permanently (super admin only)">
-                        <Trash2 size={16} />
-                      </button>
-                        )}
-                      </div>
                     </td>
                   </tr>
                 ))}
@@ -1353,52 +1048,6 @@ export default function StudentsPage() {
           </div>
         </div>
 
-        {/* Bulk delete confirm modal */}
-        {confirmBulk && (
-          <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" onClick={() => setConfirmBulk(false)}>
-            <div className="card w-full max-w-sm p-6" onClick={(e) => e.stopPropagation()}>
-              <h3 className="text-lg font-bold text-[#c83f4d]">Delete {selectedIds.size} student(s)?</h3>
-              <p className="mt-2 text-sm font-medium text-[#5f6888]">
-                This permanently removes the selected students and their fee summaries from the database. This cannot be undone.
-              </p>
-              <div className="mt-5 flex justify-end gap-2">
-                <button type="button" className="btn-secondary" onClick={() => setConfirmBulk(false)} disabled={bulkDeleting}>Cancel</button>
-                <button
-                  type="button"
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-[#ed515d] px-4 py-2 text-sm font-bold text-white hover:bg-[#d8434f] disabled:opacity-60"
-                  onClick={bulkDelete}
-                  disabled={bulkDeleting}
-                >
-                  <Trash2 size={15} /> {bulkDeleting ? "Deleting..." : "Delete permanently"}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* QR Code Modal */}
-        {showQrModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setShowQrModal(null)}>
-            <div className="w-full max-w-xs rounded-2xl bg-white p-6 text-center shadow-2xl" onClick={(e) => e.stopPropagation()}>
-              {qrCanvas[showQrModal] ? (
-                <img src={qrCanvas[showQrModal].url} alt="Student QR Code" className="mx-auto" />
-              ) : (
-                <div className="mx-auto grid h-[160px] w-[160px] place-items-center rounded-xl bg-[#f3f4fb] text-xs font-semibold text-[#7d86a8]">Generating…</div>
-              )}
-              {((): Student | undefined => {
-                const s = students.find((st) => st.id === showQrModal);
-                return s;
-              })() && (
-                <div className="mt-3">
-                  <p className="text-sm font-bold text-[#1f2136]">{students.find((s) => s.id === showQrModal)?.studentName}</p>
-                  <p className="text-xs font-medium text-[#7d86a8]">Scan to open student details</p>
-                </div>
-              )}
-              <button onClick={() => setShowQrModal(null)} className="btn-primary mt-4 w-full">Close</button>
-            </div>
-          </div>
-        )}
-        <RowContextMenu menu={rowMenu} onClose={() => setRowMenu(null)} />
         </>
       )}
       </section>

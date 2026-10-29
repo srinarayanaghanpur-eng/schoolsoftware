@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import { ArrowLeft, ChevronRight, Info } from "lucide-react";
 import { StudentProfileHeader } from "@/components/student-profile/StudentProfileHeader";
+import { StudentProfileActions } from "@/components/student-profile/StudentProfileActions";
 import { SummaryCards } from "@/components/student-profile/SummaryCards";
 import { OverviewTab } from "@/components/student-profile/OverviewTab";
 import { FeeLedgerTab } from "@/components/student-profile/FeeLedgerTab";
@@ -10,6 +12,7 @@ import { AttendanceTab } from "@/components/student-profile/AttendanceTab";
 import { ExamsTab } from "@/components/student-profile/ExamsTab";
 import { HistoryTab } from "@/components/student-profile/HistoryTab";
 import { getStudentProfile } from "@/app/admin/student/[studentId]/page.server";
+import { CLASS_LABELS, classIdToSlug } from "@/lib/studentClasses";
 
 type TabKey = "overview" | "fees" | "documents" | "certificates" | "attendance" | "exams" | "history";
 
@@ -67,50 +70,78 @@ export default async function StudentProfilePage({
   }
 
   const student = data.student;
-  const admissionNumber = String(student.admissionNumber || student.admissionNo || "");
   const studentName = String(student.studentName || "");
   const className = String(student.class || "");
-  const section = String(student.section || "");
   const status = String(student.status || "active");
+  const statusLabel = status.charAt(0).toUpperCase() + status.slice(1);
   const activeTab = ALL_TABS.includes(initialTab) ? initialTab : "overview";
+  const classLabel = className && CLASS_LABELS[className] ? CLASS_LABELS[className] : "";
 
   return (
-    <div className="p-4 md:p-7 space-y-5">
-      <h1 className="text-2xl font-extrabold text-[#1f2136]">Student Profile</h1>
-      <p className="text-sm font-medium text-[#7d86a8]">
-        {studentName} · Admission No. {admissionNumber} · Class {className}-{section}
-      </p>
-      <Link href="/admin/students" className="btn-secondary">Back to Students</Link>
+    <div className="space-y-5 p-4 md:p-7">
+      <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-1 text-xs font-semibold text-muted-foreground">
+        <Link
+          href="/admin/students"
+          className="inline-flex items-center gap-1 rounded-md px-1 py-0.5 transition hover:text-primary"
+        >
+          <ArrowLeft size={13} aria-hidden="true" />
+          Students
+        </Link>
+        {classLabel && (
+          <>
+            <ChevronRight size={12} className="opacity-60" aria-hidden="true" />
+            <Link
+              href={`/admin/students/${classIdToSlug(className)}`}
+              className="rounded-md px-1 py-0.5 transition hover:text-primary"
+            >
+              {classLabel}
+            </Link>
+          </>
+        )}
+        <ChevronRight size={12} className="opacity-60" aria-hidden="true" />
+        <span className="max-w-[16rem] truncate text-foreground" aria-current="page">
+          {studentName}
+        </span>
+      </nav>
+
+      <StudentProfileHeader student={student} />
+      <StudentProfileActions student={student} />
+
       {status !== "active" && (
-        <div className="card border-l-4 border-[#ad7413] bg-[#fff7e6] p-3">
-          <div className="flex items-start gap-2">
-            <span className="text-xs font-bold text-[#ad7413]">
-              Student status: {status.charAt(0).toUpperCase() + status.slice(1)}
-            </span>
-            <p className="text-xs text-[#7d86a8]">Some actions may be restricted for this status.</p>
+        <div className="flex items-start gap-3 rounded-xl border border-warning/40 bg-warning/10 p-3">
+          <Info size={17} className="mt-0.5 shrink-0 text-warning" aria-hidden="true" />
+          <div>
+            <p className="text-sm font-bold text-foreground">Student status: {statusLabel}</p>
+            <p className="mt-0.5 text-xs font-medium text-muted-foreground">
+              Some actions may be restricted while the student is {status}.
+            </p>
           </div>
         </div>
       )}
-      <StudentProfileHeader student={student} />
+
       <SummaryCards data={data} canViewFees />
-      <div className="card border border-[#edf0f7] overflow-hidden">
-        <div className="border-b border-[#edf0f7] flex flex-wrap gap-0">
-          {ALL_TABS.map((tab) => {
-            const isActive = activeTab === tab;
-            return (
-              <Link
-                key={tab}
-                href={`/admin/student/${studentId}?tab=${tab}`}
-                className={`inline-flex items-center gap-2 px-4 py-3 text-sm font-bold border-b-2 transition ${
-                  isActive
-                    ? "border-[#3033a1] bg-[#3033a1]/5 text-[#3033a1]"
-                    : "text-[#6f7898] hover:text-[#3033a1] hover:bg-[#f4f5fb]"
-                }`}
-              >
-                {TAB_LABELS[tab]}
-              </Link>
-            );
-          })}
+
+      <div className="card overflow-hidden">
+        <div className="border-b border-border bg-muted/40 p-2">
+          <nav aria-label="Student profile sections" className="flex gap-1 overflow-x-auto pb-0.5">
+            {ALL_TABS.map((tab) => {
+              const isActive = activeTab === tab;
+              return (
+                <Link
+                  key={tab}
+                  href={`/admin/student/${studentId}?tab=${tab}`}
+                  aria-current={isActive ? "page" : undefined}
+                  className={`inline-flex h-10 shrink-0 items-center rounded-lg px-4 text-sm font-bold transition ${
+                    isActive
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-muted-foreground hover:bg-card hover:text-foreground"
+                  }`}
+                >
+                  {TAB_LABELS[tab]}
+                </Link>
+              );
+            })}
+          </nav>
         </div>
         <div className="p-4 md:p-6">
           {activeTab === "overview" && <OverviewTab student={student} />}

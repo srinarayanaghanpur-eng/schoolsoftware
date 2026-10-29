@@ -1,37 +1,52 @@
 "use client";
 
-import Link from "next/link";
 import {
   User,
   MapPin,
   Phone,
   Mail,
-  Cake,
-  Microscope,
-  Building,
   Shield,
-  Edit2,
   Info,
   CalendarCheck,
   UserCircle,
-  TrendingDown
+  Hash,
+  GraduationCap
 } from "lucide-react";
 
-type StatusColor = {
-  active: string;
-  inactive: string;
-  transferred: string;
-  left: string;
+const STATUS_STYLES: Record<
+  string,
+  { badge: string; dot: string; label: string }
+> = {
+  active: {
+    badge:
+      "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300",
+    dot: "bg-emerald-500",
+    label: "Active"
+  },
+  inactive: {
+    badge:
+      "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300",
+    dot: "bg-rose-500",
+    label: "Inactive"
+  },
+  transferred: {
+    badge:
+      "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300",
+    dot: "bg-amber-500",
+    label: "Transferred"
+  },
+  left: {
+    badge:
+      "border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-500/30 dark:bg-indigo-500/10 dark:text-indigo-300",
+    dot: "bg-indigo-500",
+    label: "Left"
+  }
 };
 
-const STATUS_COLORS: Record<string, { bg: string; text: string; border: string }> = {
-  active: { bg: "#e6f8ef", text: "#0f8d52", border: "#d6f2e3" },
-  inactive: { bg: "#fff7f8", text: "#b33b51", border: "#ffeaea" },
-  transferred: { bg: "#fff7e6", text: "#ad7413", border: "#ffe0c7" },
-  left: { bg: "#f7f8fd", text: "#3033a1", border: "#e3e8ff" }
-};
+const chipClass =
+  "inline-flex items-center gap-1.5 rounded-lg border border-border bg-muted/50 px-2.5 py-1 text-[11px] font-bold text-foreground";
 
-export function StudentProfileHeader({ student, canEdit }: { student: Record<string, unknown>; canEdit?: boolean }) {
+export function StudentProfileHeader({ student }: { student: Record<string, unknown> }) {
   const name = String(student.studentName || "");
   const admissionNumber = String(student.admissionNumber || student.admissionNo || "");
   const className = String(student.class || "");
@@ -46,10 +61,10 @@ export function StudentProfileHeader({ student, canEdit }: { student: Record<str
     : "—";
   const gender = String(student.gender || "—");
   const bloodGroup = String(student.bloodGroup || "—");
-  const academicYearId = String(student.academicYearId || "");
+  const admissionStatus = String(student.admissionStatus || "—");
   const photoURL = String(student.photoURL || "");
 
-  const statusStyle = STATUS_COLORS[status] || STATUS_COLORS.active;
+  const statusStyle = STATUS_STYLES[status] || STATUS_STYLES.active;
 
   const initials = name
     .split(" ")
@@ -61,53 +76,73 @@ export function StudentProfileHeader({ student, canEdit }: { student: Record<str
 
   return (
     <div className="card overflow-hidden p-0">
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-4 md:gap-6 p-4 md:p-6">
-        <div className="md:col-span-4 flex flex-col items-center gap-3">
-          <div className="relative group">
-            <div className="relative">
-              {photoURL ? (
-                <img src={photoURL} alt={name} className="w-28 h-28 rounded-full object-cover border-2 border-white shadow-sm" />
-              ) : (
-                <div className="w-28 h-28 rounded-full flex items-center justify-center bg-[#eef0ff] text-[#3033a1] text-3xl font-extrabold border-2 border-white shadow-sm">
-                  {initials}
-                </div>
-              )}
-              {canEdit && (
-                <button type="button" className="absolute bottom-0 right-0 grid h-8 w-8 place-items-center rounded-full bg-white ring-2 ring-white shadow-sm transition hover:bg-[#f4f5fb]">
-                  <Edit2 size={14} className="text-[#3033a1]" />
-                </button>
-              )}
-            </div>
-            <p className="mt-2 text-xs font-medium text-[#7d86a8]">Student Photo</p>
+      <div className="h-1.5 w-full bg-gradient-to-r from-primary via-[#4f63f6] to-[#8a69de]" />
+      <div className="grid grid-cols-1 gap-5 p-4 md:grid-cols-12 md:gap-7 md:p-6">
+        <div className="flex flex-col items-center justify-center gap-3 md:col-span-3">
+          <div className="relative">
+            {photoURL ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={photoURL}
+                alt={name}
+                className="h-28 w-28 rounded-full object-cover shadow-md ring-4 ring-card"
+              />
+            ) : (
+              <div className="grid h-28 w-28 place-items-center rounded-full bg-gradient-to-br from-primary to-[#5751b8] text-3xl font-extrabold text-white shadow-md ring-4 ring-card">
+                {initials}
+              </div>
+            )}
+            <span
+              className={`absolute bottom-1 right-1 h-5 w-5 rounded-full border-2 border-card ${statusStyle.dot}`}
+              aria-hidden="true"
+            />
           </div>
-          <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold ${statusStyle.bg} text-${statusStyle.text} border border-${statusStyle.border}`}>
-            {status.charAt(0).toUpperCase() + status.slice(1)}
-          </span>
         </div>
 
-        <div className="md:col-span-8 space-y-3">
-          <div className="flex flex-wrap items-center gap-2 mb-1">
-            <h1 className="text-2xl font-extrabold text-[#1f2136] tracking-tight">{name}</h1>
-            <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold ${statusStyle.bg} text-${statusStyle.text} border border-${statusStyle.border}`}>
-              {status.charAt(0).toUpperCase() + status.slice(1)}
+        <div className="min-w-0 md:col-span-9">
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="text-2xl font-extrabold tracking-tight text-foreground md:text-3xl">{name}</h1>
+            <span
+              className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wide ${statusStyle.badge}`}
+            >
+              <span className={`h-1.5 w-1.5 rounded-full ${statusStyle.dot}`} aria-hidden="true" />
+              {statusStyle.label}
             </span>
           </div>
-          <p className="text-sm font-semibold text-[#3033a1]">
-            Admission No. {admissionNumber} &nbsp;·&nbsp; Class {className}-{section}{rollNo > 0 ? ` &nbsp;·&nbsp; Roll No. ${rollNo}` : ""}
-          </p>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="mt-2.5 flex flex-wrap gap-2">
+            <span className={chipClass}>
+              <Hash size={12} className="text-primary" aria-hidden="true" />
+              Adm No. {admissionNumber || "—"}
+            </span>
+            <span className={chipClass}>
+              <GraduationCap size={12} className="text-primary" aria-hidden="true" />
+              Class {className || "—"}-{section || "—"}
+            </span>
+            {rollNo > 0 && (
+              <span className={chipClass}>
+                <UserCircle size={12} className="text-primary" aria-hidden="true" />
+                Roll No. {rollNo}
+              </span>
+            )}
+          </div>
+
+          <div className="mt-4 grid grid-cols-2 gap-2.5 lg:grid-cols-4">
             <DetailRow label="Date of Birth" value={dateOfBirth} icon={<User size={14} />} />
             <DetailRow label="Gender" value={gender} icon={<User size={14} />} />
             <DetailRow label="Blood Group" value={bloodGroup} icon={<Shield size={14} />} />
             <DetailRow label="Admission Date" value={dateOfAdmission} icon={<CalendarCheck size={14} />} />
-            <DetailRow label="Academic Year" value={academicYearId || "—"} icon={<Building size={14} />} />
+            <DetailRow
+              label="Admission Status"
+              value={admissionStatus.charAt(0).toUpperCase() + admissionStatus.slice(1)}
+              icon={<Shield size={14} />}
+            />
             <DetailRow label="Address" value={String(student.address || "—")} icon={<MapPin size={14} />} />
             <DetailRow label="Father" value={String(student.fatherName || "—")} icon={<UserCircle size={14} />} />
             <DetailRow label="Mother" value={String(student.motherName || "—")} icon={<UserCircle size={14} />} />
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-2">
+          <div className="mt-2.5 grid grid-cols-2 gap-2.5 lg:grid-cols-4">
             <DetailRow label="Father Phone" value={String(student.fatherPhone || "—")} icon={<Phone size={14} />} />
             <DetailRow label="Mother Phone" value={String(student.motherPhone || "—")} icon={<Phone size={14} />} />
             <DetailRow label="Student Phone" value={String(student.phone || "—")} icon={<Phone size={14} />} />
@@ -126,11 +161,13 @@ export function StudentProfileHeader({ student, canEdit }: { student: Record<str
 function DetailRow({ label, value, icon }: { label: string; value: string; icon: React.ReactElement }) {
   const truncated = value.length > 28 ? value.slice(0, 28) + "…" : value;
   return (
-    <div className="flex items-center gap-2 rounded-xl border border-[#edf0f7] bg-[#f7f8fd] p-2">
-      <div className="grid h-8 w-8 place-items-center rounded-lg bg-[#eef0ff] text-[#3033a1]">{icon}</div>
+    <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/30 p-2 transition hover:bg-muted/60">
+      <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">{icon}</div>
       <div className="min-w-0 flex-1">
-        <p className="text-[10px] uppercase tracking-wider text-[#7d86a8]">{label}</p>
-        <p className="text-xs font-semibold text-[#1f2136] truncate" title={value}>{truncated}</p>
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</p>
+        <p className="truncate text-xs font-semibold text-foreground" title={value}>
+          {truncated}
+        </p>
       </div>
     </div>
   );
