@@ -1,6 +1,6 @@
 "use client";
 
-import { Users, Phone, Mail, MapPin, Microscope, Building, UserCircle, Shield, FileText, CalendarCheck } from "lucide-react";
+import { Users, Phone, Mail, MapPin, Microscope, Building, UserCircle, Shield, FileText } from "lucide-react";
 
 type SectionProps = {
   title: string;
@@ -11,31 +11,39 @@ type SectionProps = {
 
 function Section({ title, subtitle, icon, children }: SectionProps) {
   return (
-    <div className="space-y-3">
-      <div className="flex items-center gap-2">
-        <div className="grid h-8 w-8 place-items-center rounded-lg bg-[#eef0ff] text-[#3033a1]">{icon}</div>
-        <h3 className="text-sm font-extrabold text-[#1f2136]">{title}</h3>
-        {subtitle && <p className="ml-auto text-[10px] font-medium text-[#7d86a8]">{subtitle}</p>}
+    <section className="profile-card-hover card overflow-hidden p-4 md:p-5">
+      <div className="mb-4 flex items-start gap-3">
+        <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-primary to-[#5751b8] text-white shadow-lg shadow-primary/20">
+          {icon}
+        </div>
+        <div className="min-w-0">
+          <h3 className="text-sm font-extrabold text-foreground">{title}</h3>
+          {subtitle && <p className="mt-0.5 text-[11px] font-medium text-muted-foreground">{subtitle}</p>}
+        </div>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">{children}</div>
-    </div>
+      <div className="stagger grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">{children}</div>
+    </section>
   );
 }
 
 function DetailItem({ label, value, icon }: { label: string; value: string; icon: React.ReactElement }) {
   const truncated = value.length > 32 ? value.slice(0, 32) + "…" : value;
   return (
-    <div className="flex items-start gap-3 p-3 rounded-xl border border-[#edf0f7] bg-[#f7f8fd]">
-      <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[#eef0ff] text-[#3033a1]">{icon}</div>
+    <div className="group flex items-start gap-3 rounded-xl border border-border/70 bg-muted/30 p-3 transition duration-300 hover:-translate-y-0.5 hover:border-primary/25 hover:bg-accent/60 hover:shadow-sm">
+      <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary transition duration-300 group-hover:scale-110 group-hover:bg-primary group-hover:text-primary-foreground">
+        {icon}
+      </div>
       <div className="min-w-0 flex-1">
-        <p className="text-[10px] uppercase tracking-wider text-[#7d86a8]">{label}</p>
-        <p className="text-xs font-semibold text-[#1f2136] leading-relaxed">{truncated}</p>
+        <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{label}</p>
+        <p className="mt-0.5 text-xs font-semibold leading-relaxed text-foreground" title={value}>
+          {truncated}
+        </p>
       </div>
     </div>
   );
 }
 
-export function OverviewTab({ student, canEdit }: { student: Record<string, unknown>; canEdit?: boolean }) {
+export function OverviewTab({ student }: { student: Record<string, unknown> }) {
   const name = String(student.studentName || "—");
   const admissionNumber = String(student.admissionNumber || student.admissionNo || "—");
   const className = String(student.class || "—");
@@ -75,8 +83,8 @@ export function OverviewTab({ student, canEdit }: { student: Record<string, unkn
   const academicYearId = String(student.academicYearId || "—");
 
   return (
-    <div className="space-y-6">
-      <Section title="Personal Details" subtitle="Student identity and personal information" icon={<UserCircle size={16} />}>
+    <div className="space-y-5">
+      <Section title="Personal Details" subtitle="Student identity and personal information" icon={<UserCircle size={18} />}>
         <DetailItem label="Full Name" value={name} icon={<UserCircle size={14} />} />
         <DetailItem label="Admission Number" value={admissionNumber} icon={<FileText size={14} />} />
         <DetailItem label="Class & Section" value={`${className} - ${section}${rollNo > 0 ? ` (Roll No. ${rollNo})` : ""}`} icon={<Microscope size={14} />} />
@@ -93,7 +101,7 @@ export function OverviewTab({ student, canEdit }: { student: Record<string, unkn
         <DetailItem label="Admission Type" value={admissionType} icon={<FileText size={14} />} />
       </Section>
 
-      <Section title="Admission Details" subtitle="Admission record and academic placement" icon={<Building size={16} />}>
+      <Section title="Admission Details" subtitle="Admission record and academic placement" icon={<Building size={18} />}>
         <DetailItem label="Admission Date" value={student.createdAt ? new Date(String(student.createdAt)).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "Not recorded"} icon={<FileText size={14} />} />
         <DetailItem label="Academic Year" value={academicYearId} icon={<Building size={14} />} />
         <DetailItem label="Class" value={className} icon={<Microscope size={14} />} />
@@ -105,7 +113,7 @@ export function OverviewTab({ student, canEdit }: { student: Record<string, unkn
         <DetailItem label="Status" value={String(student.status || "active").charAt(0).toUpperCase() + String(student.status || "active").slice(1)} icon={<Shield size={14} />} />
       </Section>
 
-      <Section title="Parent & Guardian Details" subtitle="Contact information for parents and emergency contacts" icon={<Users size={16} />}>
+      <Section title="Parent & Guardian Details" subtitle="Contact information for parents and emergency contacts" icon={<Users size={18} />}>
         <DetailItem label="Father's Name" value={fatherName} icon={<UserCircle size={14} />} />
         <DetailItem label="Father's Phone" value={fatherPhone} icon={<Phone size={14} />} />
         <DetailItem label="Father's Occupation" value={fatherOccupation} icon={<Microscope size={14} />} />
@@ -119,7 +127,7 @@ export function OverviewTab({ student, canEdit }: { student: Record<string, unkn
         <DetailItem label="Email" value={email} icon={<Mail size={14} />} />
       </Section>
 
-      <Section title="Address Details" subtitle="Residential address" icon={<MapPin size={16} />}>
+      <Section title="Address Details" subtitle="Residential address" icon={<MapPin size={18} />}>
         <DetailItem label="Address" value={address} icon={<MapPin size={14} />} />
         <DetailItem label="Village / Area" value={villageArea} icon={<MapPin size={14} />} />
         <DetailItem label="Mandal" value={mandal} icon={<MapPin size={14} />} />
@@ -128,7 +136,7 @@ export function OverviewTab({ student, canEdit }: { student: Record<string, unkn
       </Section>
 
       {previousSchool && (
-        <Section title="Previous School" subtitle="Details of the school last attended" icon={<Building size={16} />}>
+        <Section title="Previous School" subtitle="Details of the school last attended" icon={<Building size={18} />}>
           <DetailItem label="School Name" value={previousSchool.name || "—"} icon={<Building size={14} />} />
           <DetailItem label="Address" value={previousSchool.address || "—"} icon={<MapPin size={14} />} />
           <DetailItem label="Year Left" value={previousSchool.yearLeft || "—"} icon={<FileText size={14} />} />

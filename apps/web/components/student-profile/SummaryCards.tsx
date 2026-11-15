@@ -11,12 +11,33 @@ type FeeSummary = {
   status: "paid" | "partial" | "pending";
 };
 
+const TONES = {
+  primary: {
+    icon: "bg-primary/10 text-primary",
+    glow: "bg-primary/15",
+    bar: "bg-gradient-to-r from-primary to-[#7c6cf0]"
+  },
+  emerald: {
+    icon: "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300",
+    glow: "bg-emerald-400/15",
+    bar: "bg-gradient-to-r from-emerald-500 to-teal-400"
+  },
+  rose: {
+    icon: "bg-rose-50 text-rose-700 dark:bg-rose-500/10 dark:text-rose-300",
+    glow: "bg-rose-400/15",
+    bar: "bg-gradient-to-r from-rose-500 to-orange-400"
+  },
+  violet: {
+    icon: "bg-violet-50 text-violet-700 dark:bg-violet-500/10 dark:text-violet-300",
+    glow: "bg-violet-400/15",
+    bar: "bg-gradient-to-r from-violet-500 to-fuchsia-400"
+  }
+} as const;
+
 export function SummaryCards({
-  data,
-  canViewFees
+  data
 }: {
   data: { feeSummary?: FeeSummary | null; payments?: unknown[]; receipts?: unknown[]; certificates?: unknown[] } | null;
-  canViewFees: boolean;
 }) {
   const feeSummary = data?.feeSummary || null;
   const receipts = data?.receipts || [];
@@ -30,13 +51,13 @@ export function SummaryCards({
   const paidPercent = totalFee > 0 ? Math.min(100, Math.round((totalPaid / totalFee) * 100)) : 0;
 
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="stagger grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
       <StatCard
         title="Total Fee"
         value={`₹${totalFee.toLocaleString("en-IN")}`}
         subtitle={concession > 0 ? `Concession: ₹${concession.toLocaleString("en-IN")}` : "Payable amount"}
-        icon={<IndianRupee size={18} />}
-        accent="bg-primary/10 text-primary"
+        icon={<IndianRupee size={19} />}
+        tone="primary"
       />
 
       <StatCard
@@ -49,8 +70,8 @@ export function SummaryCards({
               ? `${paidPercent}% of total fee paid`
               : "No payment recorded"
         }
-        icon={<TrendingUp size={18} />}
-        accent="bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300"
+        icon={<TrendingUp size={19} />}
+        tone="emerald"
         progress={paidPercent}
       />
 
@@ -58,20 +79,16 @@ export function SummaryCards({
         title="Outstanding Balance"
         value={`₹${totalDue.toLocaleString("en-IN")}`}
         subtitle={totalDue > 0 ? "Due now" : "No pending balance"}
-        icon={<AlertCircle size={18} />}
-        accent={
-          totalDue > 0
-            ? "bg-rose-50 text-rose-700 dark:bg-rose-500/10 dark:text-rose-300"
-            : "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300"
-        }
+        icon={<AlertCircle size={19} />}
+        tone={totalDue > 0 ? "rose" : "emerald"}
       />
 
       <StatCard
         title="Documents"
         value={`${receipts.length + certificates.length}`}
         subtitle={`${receipts.length} receipts · ${certificates.length} certificates`}
-        icon={<FileText size={18} />}
-        accent="bg-indigo-50 text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-300"
+        icon={<FileText size={19} />}
+        tone="violet"
       />
     </div>
   );
@@ -82,31 +99,35 @@ function StatCard({
   value,
   subtitle,
   icon,
-  accent,
+  tone,
   progress
 }: {
   title: string;
   value: string;
   subtitle: string;
   icon: React.ReactElement;
-  accent: string;
+  tone: keyof typeof TONES;
   progress?: number;
 }) {
+  const palette = TONES[tone];
   return (
-    <div className="card p-5">
-      <div className="flex items-start justify-between gap-3">
+    <div className="profile-stat card group relative overflow-hidden p-5">
+      <div className={`pointer-events-none absolute -right-12 -top-12 h-32 w-32 rounded-full blur-3xl ${palette.glow}`} aria-hidden="true" />
+      <div className="relative flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-[10px] font-extrabold uppercase tracking-[0.1em] text-muted-foreground">{title}</p>
+          <p className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-muted-foreground">{title}</p>
           <p className="mt-2 text-2xl font-extrabold leading-none tracking-tight text-foreground tabular-nums">
             {value}
           </p>
         </div>
-        <div className={`grid h-11 w-11 shrink-0 place-items-center rounded-lg ${accent}`}>{icon}</div>
+        <div className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl ${palette.icon}`}>
+          <span className="transition-transform duration-300 group-hover:scale-110">{icon}</span>
+        </div>
       </div>
-      <p className="mt-3 text-xs font-medium text-muted-foreground">{subtitle}</p>
+      <p className="relative mt-3 text-xs font-medium text-muted-foreground">{subtitle}</p>
       {typeof progress === "number" && (
-        <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-muted" aria-hidden="true">
-          <div className="h-full rounded-full bg-emerald-500 transition-all" style={{ width: `${progress}%` }} />
+        <div className="profile-progress mt-4 h-2 w-full overflow-hidden rounded-full bg-muted" aria-hidden="true">
+          <span className={palette.bar} style={{ width: `${progress}%` }} />
         </div>
       )}
     </div>
