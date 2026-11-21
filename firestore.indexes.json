@@ -841,6 +841,22 @@
         { "fieldPath": "academicYearId", "order": "ASCENDING" },
         { "fieldPath": "dueAmount", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "online_exams",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "academicYearId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "online_exams",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "className", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

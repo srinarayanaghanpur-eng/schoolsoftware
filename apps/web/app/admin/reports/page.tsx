@@ -44,17 +44,18 @@ import type { ReportRow } from "@/components/reports/reportUtils";
 
 type FeeReportType = "class-wise" | "student-wise" | "attendance-fee" | "monthly-collection" | "user-wise" | "payment-mode";
 type BusReportType = "monthly" | "vehicle-wise" | "pending" | "overdue" | "yearly" | "company-wise";
-type CategoryKey = "fees" | "dues" | "accounting" | "payroll" | "transport";
+type AcademicReportType = "student-directory" | "attendance-summary" | "exam-results";
+type CategoryKey = "fees" | "dues" | "accounting" | "academics" | "payroll" | "transport";
 type FilterKey = "academic" | "classSection" | "period" | "attendance";
 type PeriodMode = "academic" | "month" | "range" | "year";
-type ReportKind = "fee" | "bus" | "attendance" | "link";
+type ReportKind = "fee" | "bus" | "academic" | "attendance" | "link";
 
 type ReportDefinition = {
   id: string;
   label: string;
   description: string;
   kind: ReportKind;
-  type?: FeeReportType | BusReportType;
+  type?: FeeReportType | BusReportType | AcademicReportType;
   href?: string;
   filters?: FilterKey[];
   icon: LucideIcon;
@@ -69,6 +70,7 @@ const CATEGORY_META: Record<CategoryKey, { label: string; description: string; i
   fees: { label: "Fee Collection", description: "Collection, student fee and attendance-linked reports.", icon: IndianRupee },
   dues: { label: "Dues & Ledgers", description: "Outstanding fees, defaulters, statements and receipt registers.", icon: Wallet },
   accounting: { label: "Accounting", description: "Cash, bank, expense, profit & loss and balance reports.", icon: BookOpen },
+  academics: { label: "Academics", description: "Student directory, attendance register and exam performance.", icon: BarChart3 },
   payroll: { label: "Attendance & Payroll", description: "Staff attendance and salary reports.", icon: Users },
   transport: { label: "Transport", description: "Bus EMI and vehicle finance reports.", icon: Bus }
 };
@@ -294,6 +296,36 @@ const ACCOUNTING_REPORTS: ReportDefinition[] = [
     kind: "link",
     href: "/admin/finance/vendors",
     icon: Users
+  }
+];
+
+const ACADEMIC_REPORTS: ReportDefinition[] = [
+  {
+    id: "student-directory",
+    label: "Student Directory",
+    description: "Class-wise student list with roll, parent, contact and address.",
+    kind: "academic",
+    type: "student-directory",
+    filters: ["academic", "classSection"],
+    icon: Users
+  },
+  {
+    id: "attendance-summary",
+    label: "Student Attendance Register",
+    description: "Present/absent/late/leave counts and attendance % for a date range.",
+    kind: "academic",
+    type: "attendance-summary",
+    filters: ["classSection", "period"],
+    icon: CalendarCheck
+  },
+  {
+    id: "exam-results",
+    label: "Exam Results",
+    description: "Subject-wise marks and percentage for the class across recent exams.",
+    kind: "academic",
+    type: "exam-results",
+    filters: ["academic", "classSection"],
+    icon: FileText
   }
 ];
 
@@ -807,6 +839,7 @@ export default function ReportsPage() {
       fees: feeReports,
       dues: canViewFees ? DUES_REPORTS : [],
       accounting: canViewFees ? ACCOUNTING_REPORTS : [],
+      academics: canViewReports ? ACADEMIC_REPORTS : [],
       payroll: canViewReports && canViewAttendance ? [ATTENDANCE_REPORT] : [],
       transport: canViewBus ? BUS_REPORTS : []
     };
@@ -915,6 +948,25 @@ export default function ReportsPage() {
           rows: (activeReport.type === "monthly-collection" ? response.months : response.data) ?? [],
           truncated: Boolean(response.truncated)
         });
+      }
+
+      if (activeReport.kind === "academic" && activeReport.type) {
+        const params = new URLSearchParams({ type: activeReport.type, academicYearId: selectedYear.id });
+        if (classId) {
+          params.set("class", classId);
+          params.set("classId", classId);
+        }
+        if (section) {
+          params.set("section", section);
+          params.set("sectionId", section);
+        }
+        if (range.from) params.set("from", range.from);
+        if (range.to) params.set("to", range.to);
+        params.set("pageSize", "5000");
+        const response = await adminApiRequest<{ ok: boolean; rows: ReportRow[]; truncated?: boolean }>(
+          `/api/admin/reports/academic?${params.toString()}`
+        );
+        setResult({ rows: response.rows ?? [], truncated: Boolean(response.truncated) });
       }
 
       if (activeReport.kind === "bus" && activeReport.type) {
@@ -1088,6 +1140,52 @@ export default function ReportsPage() {
             />
             <div className="flex flex-wrap items-center gap-3">
               <button type="button" className="btn-primary" onClick={() => void generateReport()} disabled={loading || !selectedYear?.id}>
+                {loading ? <Loader2 className="animate-spin" size={17} /> : <BarChart3 size={17} />}
+                {loading ? "Generating..." : "Generate Report"}
+              </button>
+              <span className="text-sm font-semibold text-[#7d86a8]">{reportMeta}</span>
+            </div>
+            <ReportTable
+              title={activeReport.label}
+              rows={result?.rows ?? []}
+              meta={reportMeta}
+              loading={loading}
+              error={error}
+              truncated={Boolean(result?.truncated)}
+              emptyText="Choose filters and generate the report."
+            />
+          </>
+        )}
+
+        {activeReport?.kind === "academic" && (
+          <>
+            <FeeFilterBar
+              report={activeReport}
+              selectedYear={selectedYear}
+              years={years}
+              onYearChange={setSelectedYear}
+              period={period}
+              setPeriod={setPeriod}
+              month={month}
+              setMonth={setMonth}
+              from={from}
+              setFrom={setFrom}
+              to={to}
+              setTo={setTo}
+              year={year}
+              setYear={setYear}
+              classId={classId}
+              setClassId={setClassId}
+              section={section}
+              setSection={setSection}
+              sectionOptions={sectionOptions}
+              minAttendance={minAttendance}
+              setMinAttendance={setMinAttendance}
+              maxAttendance={maxAttendance}
+              setMaxAttendance={setMaxAttendance}
+            />
+            <div className="flex flex-wrap items-center gap-3">
+              <button type="button" className="btn-primary" onClick={() => void generateReport()} disabled={loading}>
                 {loading ? <Loader2 className="animate-spin" size={17} /> : <BarChart3 size={17} />}
                 {loading ? "Generating..." : "Generate Report"}
               </button>

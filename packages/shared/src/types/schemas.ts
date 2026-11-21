@@ -533,3 +533,33 @@ export const certificateCreateSchema = z.object({
 });
 
 export const certificateUpdateSchema = certificateCreateSchema.partial();
+
+// ===== Online Exams =====
+export const onlineExamQuestionSchema = z.object({
+  id: z.string().trim().optional(),
+  prompt: z.string().trim().min(1, "Question text is required"),
+  options: z.array(z.string().trim()).min(2, "At least two options are required").max(6),
+  correctIndex: z.coerce.number().int().min(0),
+  marks: z.coerce.number().positive().optional().default(1)
+});
+
+export const onlineExamCreateSchema = z.object({
+  title: z.string().trim().min(1, "Title is required"),
+  description: z.string().trim().optional().default(""),
+  academicYearId: z.string().trim().min(1),
+  className: z.string().trim().min(1),
+  section: z.string().trim().optional().default(""),
+  subject: z.string().trim().optional().default(""),
+  durationMinutes: z.coerce.number().int().min(5).max(300).optional().default(30),
+  startAt: z.string().trim().optional().default(""),
+  endAt: z.string().trim().optional().default(""),
+  status: z.enum(["draft", "published", "closed"]).optional().default("draft"),
+  negativeMarking: z.coerce.number().min(0).max(1).optional().default(0),
+  questions: z.array(onlineExamQuestionSchema).min(1, "Add at least one question").max(100)
+});
+
+export const onlineExamUpdateSchema = onlineExamCreateSchema.partial();
+
+export const onlineExamSubmitSchema = z.object({
+  answers: z.record(z.coerce.number().int().min(0))
+});
