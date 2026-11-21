@@ -28,6 +28,7 @@ import {
   Gauge,
   GraduationCap,
   Grid2X2,
+  IdCard,
   IndianRupee,
   LayoutDashboard,
   Layers,
@@ -209,6 +210,7 @@ const secondaryNav: NavItem[] = [
   { href: "/admin/hostel", label: "Hostel", module: "hostel", icon: Hotel },
   { href: "/admin/inventory", label: "Inventory", module: "inventory", icon: Package },
   { href: "/admin/certificates", label: "Certificates", module: "certificates", icon: FileText },
+  { href: "/admin/id-cards", label: "ID Cards", module: "students", icon: IdCard },
   { href: "/admin/masters/exam-types", label: "Setup Masters", module: "exams", icon: Layers },
   { href: "/admin/settings", label: "Settings", module: "settings", icon: Settings }
 ];
@@ -455,6 +457,7 @@ const pageTitles: Record<string, string> = {
   "/admin/homework": "Homework",
   "/admin/timetable": "Timetable",
   "/admin/certificates": "Certificates",
+  "/admin/id-cards": "ID Cards",
   "/admin/ai-agent": "AI Agent",
   "/admin/ai-agent/settings": "AI Settings",
   "/admin/ai-agent/logs": "AI Logs",

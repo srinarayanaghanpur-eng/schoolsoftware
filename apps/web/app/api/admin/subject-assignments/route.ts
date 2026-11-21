@@ -7,7 +7,7 @@ import { getSchoolId } from "@/lib/schoolScope";
 
 const COLLECTION = "subject_assignments";
 
-export const assignmentSchema = z.object({
+const assignmentSchema = z.object({
   kind: z.enum(["subject", "elective", "class_teacher"]).default("subject"),
   className: z.string().trim().min(1).max(50),
   section: z.string().trim().max(10).optional().default(""),
