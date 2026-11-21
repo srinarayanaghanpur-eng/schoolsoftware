@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowLeft, Clipboard, Download, Link2, MessageCircle, Printer, Send } from "lucide-react";
 import type { DigitalFeeReceiptRecord } from "@/lib/receiptService";
 import { adminApiRequest } from "@/lib/adminApiClient";
+import { printCurrentPage } from "@/lib/desktopBridge";
 import { ReceiptA4Page } from "./ReceiptA4Page";
 
 function formatINR(value: number) {
@@ -115,7 +116,7 @@ export function ReceiptPreviewClient({
   const handlePrint = useCallback(async () => {
     if (!canPrint) return;
     await markPrinted().catch(() => undefined);
-    window.print();
+    await printCurrentPage();
   }, [canPrint, markPrinted]);
 
   useEffect(() => {

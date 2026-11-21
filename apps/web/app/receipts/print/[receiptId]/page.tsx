@@ -10,7 +10,7 @@ export default function ReceiptPrintPage() {
   const receiptId = params?.receiptId as string;
   return (
     <AuthGate roles={ROLES}>
-      <ReceiptPreviewClient receiptId={receiptId} autoPrint printOnly />
+      <ReceiptPreviewClient receiptId={receiptId} autoPrint showShareActions={false} />
     </AuthGate>
   );
 }

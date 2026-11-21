@@ -8,10 +8,13 @@ import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
 
 const today = new Date().toISOString().slice(0, 10);
+const DEMO_DATA_ENABLED = process.env.NODE_ENV !== "production";
 
 export function TeacherLeaveRequestPanel({ teacherId }: { teacherId: string }) {
   const [requests, setRequests] = useState<LeaveRequest[]>(
-    isFirebaseConfigured ? [] : demoLeaveRequests.filter((request) => request.teacherId === teacherId)
+    !isFirebaseConfigured && DEMO_DATA_ENABLED
+      ? demoLeaveRequests.filter((request) => request.teacherId === teacherId)
+      : []
   );
   const [form, setForm] = useState({ startDate: today, endDate: today, reason: "" });
   const [loading, setLoading] = useState(false);
@@ -53,6 +56,9 @@ export function TeacherLeaveRequestPanel({ teacherId }: { teacherId: string }) {
     setMessage(null);
     try {
       if (!isFirebaseConfigured) {
+        if (!DEMO_DATA_ENABLED) {
+          throw new Error("Firebase is not configured. Leave requests are unavailable.");
+        }
         const demoRequest: LeaveRequest = {
           id: `demo_leave_${Date.now()}`,
           teacherId,

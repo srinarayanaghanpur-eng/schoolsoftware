@@ -60,10 +60,15 @@ export function useAttendanceSummary(records: AttendanceRecord[]) {
   const monthKey = new Date().toISOString().slice(0, 7);
   return useMemo(() => {
     const monthRecords = records.filter((r) => r.date.slice(0, 7) === monthKey);
+    const todayKey = new Date().toISOString().slice(0, 10);
+    const today = records.find((r) => r.date === todayKey) ?? null;
     const present = monthRecords.filter((r) => r.status === "present" || r.status === "late").length;
     const late = monthRecords.filter((r) => r.status === "late").length;
     const absent = monthRecords.filter((r) => r.status === "absent").length;
-    const checkedIn = monthRecords.some((r) => r.status === "checked_in");
+    // Live state is today-only: a check-in from last week must not keep Home
+    // showing "Checked in", and check-out is recorded as checkOutTime.
+    const checkedIn = today?.status === "checked_in";
+    const checkedOut = Boolean(today?.checkOutTime);
     const halfDay = monthRecords.some((r) => r.status === "half_day");
     const shortHours = monthRecords.some((r) => r.status === "short_hours");
     return {
@@ -72,6 +77,8 @@ export function useAttendanceSummary(records: AttendanceRecord[]) {
       late,
       absent,
       checkedIn,
+      checkedOut,
+      today,
       halfDay,
       shortHours
     };

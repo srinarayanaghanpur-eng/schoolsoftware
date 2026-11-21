@@ -120,6 +120,12 @@ export type AttendanceRecord = {
   capturedAt?: string;
   syncedAt?: string;
   syncedLate?: boolean;
+  /** GPS accuracy was above the review threshold (flagged, never blocked). */
+  accuracyFlagged?: boolean;
+  /** Firebase Storage path of the attendance selfie, when captured. */
+  selfieStoragePath?: string;
+  /** Android mock-location flag (admin submissions only). */
+  isMockLocation?: boolean;
 };
 
 export type AttendanceLog = {
@@ -244,6 +250,8 @@ export type SchoolSettings = {
   timezone: string;
   /** School office contact shown on the Help & support page (remote-configurable). */
   supportPhone?: string;
+  /** Require a camera selfie when a teacher marks attendance (default false). */
+  requireSelfie?: boolean;
 };
 
 export type Holiday = {

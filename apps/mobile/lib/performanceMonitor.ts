@@ -174,17 +174,19 @@ class MobilePerformanceMonitor {
     const summaries = this.getAllSummaries();
     const health = this.getHealthScore();
 
-    console.log('\n[Perf] ═══════════════════════════════════════');
-    console.log(`[Perf] Performance Report (Health Score: ${health}/100)`);
-    console.log('[Perf] ───────────────────────────────────────');
+    if (__DEV__) {
+      console.log('\n[Perf] ═══════════════════════════════════════');
+      console.log(`[Perf] Performance Report (Health Score: ${health}/100)`);
+      console.log('[Perf] ───────────────────────────────────────');
 
-    Object.entries(summaries).forEach(([name, stats]) => {
-      console.log(
-        `[Perf] ${name.padEnd(25)} | Count: ${stats.count} | Avg: ${stats.average.toFixed(2)}ms | Min/Max: ${stats.min.toFixed(2)}/${stats.max.toFixed(2)}ms`
-      );
-    });
+      Object.entries(summaries).forEach(([name, stats]) => {
+        console.log(
+          `[Perf] ${name.padEnd(25)} | Count: ${stats.count} | Avg: ${stats.average.toFixed(2)}ms | Min/Max: ${stats.min.toFixed(2)}/${stats.max.toFixed(2)}ms`
+        );
+      });
 
-    console.log('[Perf] ═══════════════════════════════════════\n');
+      console.log('[Perf] ═══════════════════════════════════════\n');
+    }
   }
 
   /**
@@ -236,7 +238,7 @@ class MobilePerformanceMonitor {
         })
       });
 
-      console.log('[Perf] Metrics reported');
+      if (__DEV__) console.log('[Perf] Metrics reported');
     } catch (error) {
       console.error('[Perf] Failed to report metrics:', error);
     }

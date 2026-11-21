@@ -17,7 +17,6 @@ import {
   CalendarDays,
   CalendarRange,
   ChevronDown,
-  Clock,
   ChevronLeft,
   ChevronRight,
   Circle,
@@ -37,12 +36,14 @@ import {
   Megaphone,
   Menu,
   MessageSquare,
+  NotebookPen,
   Phone,
   ReceiptIndianRupee,
   RefreshCw,
   Settings,
   ShieldAlert,
   ShieldCheck,
+  Smartphone,
   ScrollText,
   User,
   UserPlus,
@@ -68,7 +69,8 @@ import {
   type Permission,
   type Role
 } from "@sri-narayana/shared";
-import { auth, isFirebaseConfigured } from "@sri-narayana/shared/firebase/client";
+import { auth, db, isFirebaseConfigured } from "@sri-narayana/shared/firebase/client";
+import { collection, getDocs, limit, orderBy, query } from "firebase/firestore";
 import { AcademicYearProvider, useAcademicYears } from "@/components/AcademicYearContext";
 import { useAuth } from "@/components/AuthProvider";
 import FloatingCalculator from "@/components/finance/FloatingCalculator";
@@ -82,6 +84,7 @@ import { KeyboardShortcuts, type ShortcutItem } from "@/components/KeyboardShort
 import { SectionTabs } from "@/components/SectionTabs";
 import { API_STATUS_EVENT } from "@/lib/adminApiClient";
 import { refreshClaims } from "@/lib/authClaims";
+import { isDesktopApp, onDesktopNotificationNavigate, showDesktopNotification } from "@/lib/desktopBridge";
 import { isRoleAllowedForPath } from "@/lib/routeAccess";
 import { lazyLoad } from "@/lib/lazyLoad";
 
@@ -124,6 +127,15 @@ function pauseApprovalBadgeAfterQuota() {
   }
 }
 
+function noticeTargetsRole(audienceRoles: unknown, role: Role): boolean {
+  if (!Array.isArray(audienceRoles) || audienceRoles.length === 0) return true;
+  const roles = audienceRoles.map((item) => String(item).toLowerCase());
+  const current = String(role).toLowerCase();
+  if (roles.includes(current)) return true;
+  if (current === "teacher" && roles.includes("teachers")) return true;
+  return false;
+}
+
 const CONTEXT_SUBNAV_COLLAPSED_KEY = "snhs-context-subnav-collapsed";
 const SUB_SIDEBAR_COMPACT_QUERY = "(max-width: 1023px)";
 const FallbackIcon = Circle;
@@ -134,7 +146,9 @@ const FINANCE_CALC_PREFIXES = [
   "/admin/payments",
   "/admin/fee-structures",
   "/admin/fee-concessions",
-  "/admin/fee-reminders"
+  "/admin/fee-reminders",
+  "/admin/fee-fine-rules",
+  "/admin/fee-challans"
 ];
 
 const primaryNav: NavItem[] = [
@@ -142,13 +156,15 @@ const primaryNav: NavItem[] = [
   { href: "/admin/students", label: "Students", module: "students", icon: Users, activePrefixes: ["/admin/students", "/admin/admission-form"] },
   { href: "/admin/parents", label: "Parents", module: "parents", icon: UserCircle, activePrefixes: ["/admin/parents"] },
   { href: "/admin/teachers", label: "Staff", module: "staff", icon: GraduationCap, activePrefixes: ["/admin/teachers"] },
-  { href: "/admin/attendance", label: "Attendance", module: "attendance", icon: ClipboardCheck, activePrefixes: ["/admin/attendance", "/admin/my-attendance"] },
+  { href: "/admin/attendance", label: "Staff Attendance", module: "attendance", icon: ClipboardCheck, activePrefixes: ["/admin/attendance", "/admin/my-attendance"] },
+  { href: "/admin/student-attendance", label: "Student Attendance", module: "students", icon: ClipboardCheck, activePrefixes: ["/admin/student-attendance"] },
+  { href: "/admin/academics", label: "Academics", module: "academics", icon: BookOpen, activePrefixes: ["/admin/academics"] },
   {
     href: "/admin/finance",
     label: "Fees & Finance",
     module: "fees",
     icon: IndianRupee,
-    activePrefixes: ["/admin/finance", "/admin/payments", "/admin/fee-structures", "/admin/fee-concessions", "/admin/fee-reminders"]
+    activePrefixes: ["/admin/finance", "/admin/payments", "/admin/fee-structures", "/admin/fee-concessions", "/admin/fee-reminders", "/admin/fee-fine-rules", "/admin/fee-challans"]
   },
   { href: "/admin/salary", label: "Salary & Payroll", module: "payroll", icon: Wallet, activePrefixes: ["/admin/salary"] },
   {
@@ -158,7 +174,7 @@ const primaryNav: NavItem[] = [
     icon: BookOpenCheck,
     activePrefixes: ["/admin/exams", "/admin/calendar", "/admin/holidays", "/admin/promotions", "/admin/homework", "/admin/timetable"]
   },
-  { href: "/admin/notices", label: "Communication", module: "communication", icon: Megaphone, activePrefixes: ["/admin/notices", "/admin/messages", "/admin/notifications"] },
+  { href: "/admin/notices", label: "Communication", module: "communication", icon: Megaphone, activePrefixes: ["/admin/notices", "/admin/messages", "/admin/notifications", "/admin/communications"] },
   { href: "/admin/reports", label: "Reports", module: "reports", icon: BarChart3, activePrefixes: ["/admin/reports"] },
   { href: "/admin/ai-agent", label: "AI Agent", module: "ai_agent", icon: Brain, activePrefixes: ["/admin/ai-agent"] },
   { href: "/admin/settings", label: "Settings", module: "settings", icon: Settings, activePrefixes: ["/admin/settings", "/admin/users", "/admin/approvals", "/admin/biometric", "/admin/backup"] }
@@ -169,7 +185,6 @@ const primaryNav: NavItem[] = [
 // primaryNav or they leak into the admin sidebar (duplicate Dashboard, etc.).
 const portalNav: NavItem[] = [
   { href: "/portal", label: "Dashboard", module: "portal", icon: LayoutDashboard },
-  { href: "/portal/attendance", label: "Attendance", module: "portal", icon: Clock, activePrefixes: ["/portal/attendance"] },
   { href: "/portal/homework", label: "Homework", module: "portal", icon: BookOpenCheck, activePrefixes: ["/portal/homework"] },
   { href: "/portal/fees", label: "Fees", module: "portal", icon: IndianRupee },
   { href: "/portal/exams", label: "Exams", module: "portal", icon: GraduationCap },
@@ -194,6 +209,7 @@ const secondaryNav: NavItem[] = [
   { href: "/admin/hostel", label: "Hostel", module: "hostel", icon: Hotel },
   { href: "/admin/inventory", label: "Inventory", module: "inventory", icon: Package },
   { href: "/admin/certificates", label: "Certificates", module: "certificates", icon: FileText },
+  { href: "/admin/masters/exam-types", label: "Setup Masters", module: "exams", icon: Layers },
   { href: "/admin/settings", label: "Settings", module: "settings", icon: Settings }
 ];
 
@@ -206,6 +222,8 @@ const desktopNavSections: Array<{ label: string; hrefs: string[] }> = [
       "/admin/parents",
       "/admin/teachers",
       "/admin/attendance",
+      "/admin/student-attendance",
+      "/admin/academics",
       "/admin/finance",
       "/admin/salary",
       "/admin/exams",
@@ -223,7 +241,8 @@ const desktopNavSections: Array<{ label: string; hrefs: string[] }> = [
       "/admin/library",
       "/admin/hostel",
       "/admin/inventory",
-      "/admin/certificates"
+      "/admin/certificates",
+      "/admin/masters/exam-types"
     ]
   }
 ];
@@ -232,11 +251,15 @@ const contextSubnavs: ContextSubnav[] = [
   {
     title: "Fees & Finance",
     eyebrow: "Accounts",
-    matchPrefixes: ["/admin/finance", "/admin/payments", "/admin/fee-structures", "/admin/fee-concessions", "/admin/fee-reminders"],
+    matchPrefixes: ["/admin/finance", "/admin/payments", "/admin/fee-structures", "/admin/fee-concessions", "/admin/fee-reminders", "/admin/fee-fine-rules", "/admin/fee-challans"],
     items: [
       { href: "/admin/finance", label: "Overview", icon: BarChart3, module: "fees" },
       { href: "/admin/payments", label: "Collect Fee", icon: ReceiptIndianRupee, module: "fees" },
       { href: "/admin/fee-structures", label: "Fee Structures", icon: Layers, module: "fees" },
+      { href: "/admin/fee-fine-rules", label: "Fine Rules", icon: ShieldAlert, module: "fees" },
+      { href: "/admin/fee-challans", label: "Challans", icon: ReceiptIndianRupee, module: "fees" },
+      { href: "/admin/finance/carry-forward", label: "Carry Forward", icon: RefreshCw, module: "fees" },
+      { href: "/admin/finance/due-slips", label: "Due Slips", icon: FileStack, module: "fees" },
       { href: "/admin/finance/expenses", label: "Expenses", icon: Wallet, module: "fees" },
       { href: "/admin/finance/dues", label: "Dues", icon: FileStack, module: "fees" },
       { href: "/admin/payments", label: "Receipts", icon: ScrollText, module: "fees", activePrefixes: ["/admin/finance/receipt"] },
@@ -246,10 +269,11 @@ const contextSubnavs: ContextSubnav[] = [
   {
     title: "Communication",
     eyebrow: "Messages",
-    matchPrefixes: ["/admin/notices", "/admin/messages", "/admin/notifications"],
+    matchPrefixes: ["/admin/notices", "/admin/messages", "/admin/notifications", "/admin/communications"],
     items: [
       { href: "/admin/notices", label: "Notices", icon: Megaphone, module: "communication" },
       { href: "/admin/messages", label: "Parent Messages", icon: MessageSquare, module: "communication" },
+      { href: "/admin/communications", label: "SMS & WhatsApp", icon: Smartphone, module: "communication" },
       { href: "/admin/notifications", label: "Requests & Logs", icon: Bell, module: "communication" }
     ]
   },
@@ -269,8 +293,10 @@ const contextSubnavs: ContextSubnav[] = [
   {
     title: "Exams & Marks",
     eyebrow: "Academics",
-    matchPrefixes: ["/admin/exams", "/admin/calendar", "/admin/holidays", "/admin/promotions", "/admin/homework", "/admin/timetable"],
+    matchPrefixes: ["/admin/exams", "/admin/calendar", "/admin/holidays", "/admin/promotions", "/admin/homework", "/admin/timetable", "/admin/academics"],
     items: [
+      { href: "/admin/academics", label: "Academics", icon: BookOpen, module: "academics" },
+      { href: "/admin/academics/assignments", label: "Subject Assignments", icon: Users, module: "academics" },
       { href: "/admin/exams", label: "Exams", icon: BookOpenCheck, module: "exams" },
       { href: "/admin/homework", label: "Homework", icon: BookOpen, module: "exams" },
       { href: "/admin/timetable", label: "Timetable", icon: CalendarDays, module: "academics" },
@@ -281,11 +307,12 @@ const contextSubnavs: ContextSubnav[] = [
   {
     title: "Students",
     eyebrow: "Admissions",
-    matchPrefixes: ["/admin/students", "/admin/admission-form"],
+    matchPrefixes: ["/admin/students", "/admin/admission-form", "/admin/student-records"],
     items: [
       { href: "/admin/students", label: "All Classes", icon: Users, module: "students" },
       // Admission form opens on a class page — pick the class there, then Add Student.
-      { href: "/admin/students/class-1?admission=1", label: "Admission Form", icon: UserPlus, module: "students" }
+      { href: "/admin/students/class-1?admission=1", label: "Admission Form", icon: UserPlus, module: "students" },
+      { href: "/admin/student-records", label: "Behavior / Health / TC", icon: ShieldAlert, module: "students" }
     ]
   },
   {
@@ -307,6 +334,50 @@ const contextSubnavs: ContextSubnav[] = [
       { href: "/admin/ai-agent/logs", label: "AI Logs", icon: FileText, module: "ai_agent" },
       { href: "/admin/ai-agent/quota", label: "Quota & Usage", icon: BarChart3, module: "ai_agent" }
     ]
+  },
+  {
+    title: "Setup & Masters",
+    eyebrow: "Configuration",
+    matchPrefixes: ["/admin/masters"],
+    items: [
+      { href: "/admin/masters/exam-types", label: "Exam Types", icon: BookOpenCheck, module: "exams" },
+      { href: "/admin/masters/grades", label: "Grade Scales", icon: GraduationCap, module: "exams" },
+      { href: "/admin/masters/cocurricular-areas", label: "Cocurricular Areas", icon: BookOpen, module: "exams" },
+      { href: "/admin/masters/assessment-types", label: "Assessment Types", icon: BarChart3, module: "exams" },
+      { href: "/admin/masters/departments", label: "Departments", icon: Building2, module: "staff" },
+      { href: "/admin/masters/designations", label: "Designations", icon: UserCog, module: "staff" },
+      { href: "/admin/masters/leave-types", label: "Leave Types", icon: CalendarDays, module: "staff" },
+      { href: "/admin/masters/salary-templates", label: "Salary Templates", icon: Wallet, module: "payroll" },
+      { href: "/admin/masters/appraisal-criteria", label: "Appraisal Criteria", icon: Gauge, module: "payroll" },
+      { href: "/admin/masters/fee-types", label: "Fee Types", icon: IndianRupee, module: "fees" },
+      { href: "/admin/masters/fee-groups", label: "Fee Groups", icon: Layers, module: "fees" },
+      { href: "/admin/masters/income-heads", label: "Income Heads", icon: ReceiptIndianRupee, module: "fees" },
+      { href: "/admin/masters/expense-heads", label: "Expense Heads", icon: Wallet, module: "fees" },
+      { href: "/admin/masters/bank-accounts", label: "Bank Accounts", icon: Building2, module: "fees" },
+      { href: "/admin/masters/student-houses", label: "Student Houses", icon: Users, module: "students" },
+      { href: "/admin/masters/student-categories", label: "Student Categories", icon: UserCircle, module: "students" },
+      { href: "/admin/masters/buildings", label: "Buildings & Blocks", icon: Building2, module: "academics" },
+      { href: "/admin/masters/id-card-designs", label: "ID Card Designs", icon: FileText, module: "students" },
+      { href: "/admin/masters/compliance-packs", label: "Compliance Packs", icon: ShieldCheck, module: "settings" },
+      { href: "/admin/masters/survey-templates", label: "Survey Templates", icon: MessageSquare, module: "communication" },
+      { href: "/admin/masters/staff-loans", label: "Staff Loans", icon: Wallet, module: "payroll" },
+      { href: "/admin/masters/appraisals", label: "Staff Appraisals", icon: ClipboardCheck, module: "payroll" },
+      { href: "/admin/masters/classrooms", label: "Classrooms", icon: Building2, module: "academics" },
+      { href: "/admin/masters/compliance-items", label: "Compliance Checklist", icon: ShieldCheck, module: "settings" },
+      { href: "/admin/masters/surveys", label: "Surveys", icon: MessageSquare, module: "communication" },
+      { href: "/admin/masters/assessments", label: "Assessments", icon: BookOpenCheck, module: "exams" },
+      { href: "/admin/masters/gallery-albums", label: "Photo Gallery", icon: Megaphone, module: "communication" },
+      { href: "/admin/masters/qr-sessions", label: "QR Sessions", icon: ClipboardCheck, module: "attendance" },
+      { href: "/admin/masters/ptm-meetings", label: "PTM Meetings", icon: CalendarDays, module: "communication" },
+      { href: "/admin/masters/ptm-records", label: "PTM Notes", icon: FileText, module: "communication" },
+      { href: "/admin/masters/lesson-plans", label: "Lesson Plans", icon: NotebookPen, module: "academics" },
+      { href: "/admin/masters/exam-schedules", label: "Exam Datesheet", icon: CalendarDays, module: "exams" },
+      { href: "/admin/masters/exam-remarks", label: "Exam Remarks", icon: FileText, module: "exams" },
+      { href: "/admin/masters/custom-fields", label: "Custom Fields", icon: Settings, module: "settings" },
+      { href: "/admin/masters/module-toggles", label: "Module Settings", icon: Settings, module: "settings" },
+      { href: "/admin/masters/payment-gateways", label: "Payment Gateways", icon: IndianRupee, module: "settings" },
+      { href: "/admin/masters/subscription-plans", label: "Subscription Plans", icon: ReceiptIndianRupee, module: "settings" }
+    ]
   }
 ];
 
@@ -316,7 +387,6 @@ type MobileNavItem = { href: string; label: string; short: string; icon: LucideI
 const mobileNav: MobileNavItem[] = [
   // Portal (parent) mobile nav
   { href: "/portal", label: "Dashboard", short: "Home", icon: LayoutDashboard, module: "portal" },
-  { href: "/portal/attendance", label: "Attendance", short: "Attendance", icon: Clock, module: "portal" },
   { href: "/portal/homework", label: "Homework", short: "HW", icon: BookOpenCheck, module: "portal" },
   { href: "/portal/fees", label: "Fees", short: "Fees", icon: IndianRupee, module: "portal" },
   { href: "/portal/exams", label: "Exams", short: "Exams", icon: GraduationCap, module: "portal" },
@@ -338,6 +408,8 @@ const pageTitles: Record<string, string> = {
   "/admin/my-attendance": "My Attendance",
   "/admin/notices": "Notices",
   "/admin/students": "Students",
+  "/admin/student-records": "Student Records",
+  "/admin/academics/assignments": "Subject Assignments",
   "/admin/parents": "Parents",
   "/admin/teachers": "Teachers",
   "/admin/attendance": "Attendance",
@@ -345,11 +417,17 @@ const pageTitles: Record<string, string> = {
   "/admin/payments": "Fees & Finance",
   "/admin/finance/income": "Other Income",
   "/admin/fee-structures": "Fee Structures",
+  "/admin/fee-fine-rules": "Fee Fine Rules",
+  "/admin/masters": "Setup & Masters",
+  "/admin/fee-challans": "Fee Challans",
+  "/admin/finance/carry-forward": "Fees Carry Forward",
+  "/admin/finance/due-slips": "Due Slips",
   "/admin/fee-reminders": "Fee Reminders",
   "/admin/fee-concessions": "Fee Concessions",
   "/admin/salary": "Salary & Payroll",
   "/admin/notifications": "Communication",
   "/admin/messages": "Parent Messages",
+  "/admin/communications": "SMS & WhatsApp",
   "/admin/calendar": "Timetable",
   "/admin/holidays": "Holidays",
   "/admin/settings/academic-years": "Academic Years",
@@ -387,6 +465,8 @@ const routeModules: Array<{ prefix: string; module: Module }> = [
   { prefix: "/admin/finance", module: "fees" },
   { prefix: "/admin/fee-concessions", module: "fees" },
   { prefix: "/admin/fee-structures", module: "fees" },
+  { prefix: "/admin/fee-fine-rules", module: "fees" },
+  { prefix: "/admin/fee-challans", module: "fees" },
   { prefix: "/admin/settings/academic-years", module: "academic_years" },
   { prefix: "/admin/teachers", module: "staff" },
   { prefix: "/admin/attendance", module: "attendance" },
@@ -402,8 +482,10 @@ const routeModules: Array<{ prefix: string; module: Module }> = [
   { prefix: "/admin/backup", module: "settings" },
   { prefix: "/admin/promotions", module: "promotions" },
   { prefix: "/admin/students", module: "students" },
+  { prefix: "/admin/student-records", module: "students" },
   { prefix: "/admin/parents", module: "parents" },
   { prefix: "/admin/messages", module: "communication" },
+  { prefix: "/admin/communications", module: "communication" },
   { prefix: "/admin/approvals", module: "settings" },
   { prefix: "/admin/users", module: "users" },
   { prefix: "/portal", module: "portal" },
@@ -921,6 +1003,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   // Pending approval count badge
   const [pendingApprovals, setPendingApprovals] = useState(0);
+  const previousApprovalsRef = useRef<number | null>(null);
+  useEffect(() => {
+    return onDesktopNotificationNavigate((route) => router.push(route));
+  }, [router]);
   useEffect(() => {
     if (!isFirebaseConfigured || !role || !canAccessModuleFromList(role, rolePermissions, "settings") || !isRoleAllowedForPath("/admin/approvals", role)) {
       setPendingApprovals(0);
@@ -954,7 +1040,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           return;
         }
         const count = Number(data?.count ?? 0);
-        setPendingApprovals(data?.ok && Number.isFinite(count) ? count : 0);
+        const next = data?.ok && Number.isFinite(count) ? count : 0;
+        setPendingApprovals(next);
+        const previous = previousApprovalsRef.current;
+        previousApprovalsRef.current = next;
+        if (previous !== null && next > previous) {
+          const added = next - previous;
+          void showDesktopNotification({
+            title: "New approval request",
+            body: added === 1 ? "A new request needs your approval." : `${added} new requests need your approval.`,
+            route: "/admin/approvals"
+          });
+        }
       } catch {
         setPendingApprovals(0);
       }
@@ -968,6 +1065,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, [role, rolePermissions]);
 
   const [pendingCommunicationRequests, setPendingCommunicationRequests] = useState(0);
+  const previousCommunicationRef = useRef<number | null>(null);
   useEffect(() => {
     const handlePendingCountUpdate = (event: Event) => {
       const count = Number((event as CustomEvent<{ pendingCount?: unknown }>).detail?.pendingCount ?? 0);
@@ -1011,7 +1109,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         }
 
         const count = Number(data?.pendingCount ?? 0);
-        setPendingCommunicationRequests(data?.ok && Number.isFinite(count) ? count : 0);
+        const next = data?.ok && Number.isFinite(count) ? count : 0;
+        setPendingCommunicationRequests(next);
+        const previous = previousCommunicationRef.current;
+        previousCommunicationRef.current = next;
+        if (previous !== null && next > previous) {
+          const added = next - previous;
+          void showDesktopNotification({
+            title: "New communication request",
+            body: added === 1 ? "A new request is waiting in Notifications." : `${added} new requests are waiting in Notifications.`,
+            route: "/admin/notifications"
+          });
+        }
       } catch {
         setPendingCommunicationRequests(0);
       }
@@ -1024,6 +1133,52 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       if (interval) clearInterval(interval);
     };
   }, [role, rolePermissions]);
+
+  useEffect(() => {
+    if (!isDesktopApp() || !isFirebaseConfigured || !role) return;
+    const noticesQuery = query(collection(db, "notices"), orderBy("createdAt", "desc"), limit(5));
+    const knownIds = new Set<string>();
+    let ready = false;
+    let stopped = false;
+
+    const check = async () => {
+      if (stopped) return;
+      try {
+        const snapshot = await getDocs(noticesQuery);
+        if (stopped) return;
+        const latest = snapshot.docs[0];
+        if (!ready) {
+          ready = true;
+          for (const doc of snapshot.docs) knownIds.add(doc.id);
+          return;
+        }
+        if (!latest) return;
+        const isNew = !knownIds.has(latest.id);
+        for (const doc of snapshot.docs) knownIds.add(doc.id);
+        if (!isNew) return;
+
+        const data = latest.data() as { title?: unknown; body?: unknown; audienceRoles?: unknown };
+        if (!noticeTargetsRole(data.audienceRoles, role)) return;
+        void showDesktopNotification({
+          title: typeof data.title === "string" && data.title.trim() ? data.title : "New school notice",
+          body:
+            typeof data.body === "string" && data.body.trim()
+              ? data.body.slice(0, 180)
+              : "A new notice has been published.",
+          route: "/admin/notices"
+        });
+      } catch {
+        // A failed poll must not affect the rest of the app.
+      }
+    };
+
+    void check();
+    const interval = setInterval(check, 60_000);
+    return () => {
+      stopped = true;
+      clearInterval(interval);
+    };
+  }, [role]);
 
   // Mobile slide-in nav drawer. Closes automatically on navigation.
   const [mobileNavOpen, setMobileNavOpen] = useState(false);

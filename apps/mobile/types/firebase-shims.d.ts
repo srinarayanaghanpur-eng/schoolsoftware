@@ -57,5 +57,15 @@ declare module "firebase/firestore" {
 
 declare module "firebase/storage" {
   export type FirebaseStorage = unknown;
+  export type StorageReference = import("@firebase/storage").StorageReference;
+  export type UploadMetadata = import("@firebase/storage").UploadMetadata;
+  export type UploadResult = import("@firebase/storage").UploadResult;
   export function getStorage(app?: unknown): FirebaseStorage;
+  export function ref(storage: FirebaseStorage, path: string): StorageReference;
+  export function uploadBytes(
+    reference: StorageReference,
+    data: Blob | Uint8Array | ArrayBuffer,
+    metadata?: UploadMetadata
+  ): Promise<UploadResult>;
+  export function getDownloadURL(reference: StorageReference): Promise<string>;
 }

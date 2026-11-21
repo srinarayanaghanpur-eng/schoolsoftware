@@ -14,9 +14,10 @@ describe("hasPermission", () => {
     assert.equal(hasPermission("ghost" as Role, "dashboard.view"), false);
   });
 
-  it("settings_manager holds every permission via ALL", () => {
-    assert.equal(hasPermission("settings_manager", "fees.create"), true);
-    assert.equal(hasPermission("settings_manager", "dashboard.view"), true);
+  it("settings_manager is limited to the settings module", () => {
+    assert.equal(hasPermission("settings_manager", "settings.view"), true);
+    assert.equal(hasPermission("settings_manager", "settings.edit"), true);
+    assert.equal(hasPermission("settings_manager", "fees.create"), false);
   });
 
   it("parent may use the portal but never fee write permissions", () => {

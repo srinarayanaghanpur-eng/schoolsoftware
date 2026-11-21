@@ -7,6 +7,7 @@ import { clearAdminApiCacheForSignOut } from "@/lib/adminApiClient";
 import { clearAuthStorage, markLogoutRedirect } from "@/lib/authStorage";
 import { clearPayrollSessionId } from "@/lib/payrollSessionClient";
 import { logSessionActivity } from "@/lib/sessionActivityClient";
+import { clearServerSession } from "@/lib/sessionCookieClient";
 
 const INACTIVITY_TIMEOUT = 30 * 60 * 1000; // 30 minutes
 
@@ -44,6 +45,7 @@ export function useAutoLogout() {
         }
       }
       clearAuthStorage();
+      await clearServerSession();
       window.location.href = "/login?reason=session-expired&loggedOut=1";
     }, INACTIVITY_TIMEOUT);
   }, [clearTimer]);

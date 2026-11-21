@@ -3,7 +3,7 @@
  * All business logic lives in features/teacher/useAttendanceMarking; this file
  * is presentation only.
  */
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { Linking, Platform, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import {
   Card, DSText, Hero, Icon, PillButton, ProgressBar,
@@ -15,7 +15,8 @@ import { MonthCalendar, ProgressRing, type DayMark } from "@/design-system/widge
 import { useMobileSession } from "@/lib/mobileSession";
 import { useTeacherAttendanceData } from "@/lib/useTeacherAttendanceData";
 import { TeacherShell } from "@/features/teacher/shell";
-import { useAttendanceMarking } from "@/features/teacher/useAttendanceMarking";
+import { useAttendanceMarking, type AttendanceEvent } from "@/features/teacher/useAttendanceMarking";
+import { SelfieCaptureModal } from "@/features/teacher/SelfieCaptureModal";
 import { proximityState } from "@/features/teacher/proximity";
 import { ATTENDANCE_BYPASS_GPS_AND_TIME } from "@sri-narayana/shared";
 import {
@@ -38,6 +39,7 @@ function TeacherAttendance() {
   const summary = useAttendanceSummary(records);
   const teacherId = teacher?.id ?? profile?.teacherId;
   const marking = useAttendanceMarking(teacherId);
+  const [selfieEvent, setSelfieEvent] = useState<AttendanceEvent | null>(null);
 
   // Plain-language location state. Raw metres/accuracy stay in the request
   // payload and server record — they are never rendered here.
@@ -126,9 +128,20 @@ function TeacherAttendance() {
     return result;
   }, [records, year, month]);
 
-  async function handle(event: "checkin" | "checkout") {
-    const result = await marking.mark(event);
+  async function submit(event: AttendanceEvent, selfieStoragePath?: string) {
+    const result = await marking.mark(
+      event,
+      selfieStoragePath ? { selfieStoragePath } : undefined
+    );
     toast.show(result.message);
+  }
+
+  async function handle(event: AttendanceEvent) {
+    if (marking.requireSelfie) {
+      setSelfieEvent(event);
+      return;
+    }
+    await submit(event);
   }
 
   return (
@@ -299,11 +312,29 @@ function TeacherAttendance() {
         <MonthCalendar year={year} month={month} marks={marks} today={now.getDate()} />
       </SectionCard>
 
+      {marking.requireSelfie ? (
+        <DSText variant="caption" style={{ textAlign: "center" }}>
+          Your school requires a selfie with each attendance mark.
+        </DSText>
+      ) : null}
+
       <DSText variant="caption" style={{ textAlign: "center" }}>
         {bypass
           ? "Temporary mode: GPS and time checks are off. This will be restored when the school asks."
           : "Your location is checked only at the moment you mark attendance. It is never tracked in the background."}
       </DSText>
+
+      <SelfieCaptureModal
+        visible={selfieEvent !== null}
+        teacherId={teacherId ?? ""}
+        event={selfieEvent ?? "checkin"}
+        onCancel={() => setSelfieEvent(null)}
+        onUploaded={(storagePath) => {
+          const event = selfieEvent;
+          setSelfieEvent(null);
+          if (event) void submit(event, storagePath);
+        }}
+      />
     </ScrollView>
   );
 }

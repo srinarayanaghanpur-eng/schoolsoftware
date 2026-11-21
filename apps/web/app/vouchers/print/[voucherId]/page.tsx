@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import type { DebitVoucher as DebitVoucherModel } from "@sri-narayana/shared";
 import { ArrowLeft, Printer } from "lucide-react";
 import { AuthGate } from "@/components/AuthGate";
 import { DebitVoucherA4Page } from "@/components/vouchers/DebitVoucherA4Page";
 import { AdminApiError, adminApiRequest } from "@/lib/adminApiClient";
+import { printCurrentPage } from "@/lib/desktopBridge";
 
 export default function VoucherPrintPage() {
   const params = useParams<{ voucherId: string }>();
@@ -46,7 +47,7 @@ export default function VoucherPrintPage() {
     };
   }, [ids]);
 
-  async function handlePrint() {
+  const handlePrint = useCallback(async () => {
     if (!vouchers.length) return;
     setPrinting(true);
     setError("");
@@ -55,20 +56,20 @@ export default function VoucherPrintPage() {
         method: "POST",
         body: JSON.stringify({ ids: vouchers.map((voucher) => voucher.id).filter(Boolean) })
       });
-      window.print();
+      await printCurrentPage();
     } catch (e) {
       setError(e instanceof AdminApiError ? e.message : "Unable to update print status");
     } finally {
       setPrinting(false);
     }
-  }
+  }, [voucherId, vouchers]);
 
   useEffect(() => {
     if (!autoPrint || autoPrintedRef.current || loading || !vouchers.length) return;
     autoPrintedRef.current = true;
     const timer = window.setTimeout(() => void handlePrint(), 300);
     return () => window.clearTimeout(timer);
-  }, [autoPrint, loading, vouchers.length]);
+  }, [autoPrint, handlePrint, loading, vouchers.length]);
 
   return (
     <AuthGate roles={["super_admin", "accountant"]}>

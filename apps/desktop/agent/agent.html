@@ -1,0 +1,345 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:"
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Bulk SMS Agent</title>
+    <link rel="stylesheet" href="agent.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <h1>Bulk SMS Agent</h1>
+        <p>Desktop-only campaign runner. Reads ERP data; sends through your local SMS gateway.</p>
+      </div>
+      <div class="top-actions">
+        <span id="erpPill" class="pill pill-warn">ERP: checking...</span>
+        <button id="openErpBtn" class="btn btn-ghost" type="button">Open ERP</button>
+        <button id="refreshBtn" class="btn btn-ghost" type="button">Refresh</button>
+      </div>
+    </header>
+
+    <div id="notice" class="notice hidden" role="status"></div>
+
+    <nav class="tabs" aria-label="Sections">
+      <button class="tab active" data-tab="campaign" type="button">Campaign</button>
+      <button class="tab" data-tab="queue" type="button">Queue</button>
+      <button class="tab" data-tab="settings" type="button">Gateway &amp; limits</button>
+    </nav>
+
+    <main>
+      <section id="tab-campaign" class="tab-panel active">
+        <div class="grid two">
+          <div class="card">
+            <div class="card-head">
+              <h2>1. Load recipients</h2>
+              <span id="loadedCount" class="muted">0 students</span>
+            </div>
+            <div class="form-grid">
+              <label>
+                Academic year
+                <select id="yearSelect"></select>
+              </label>
+              <label>
+                Class
+                <input id="classInput" placeholder="e.g. 10" />
+              </label>
+              <label>
+                Section
+                <input id="sectionInput" placeholder="e.g. A" />
+              </label>
+              <label>
+                Search
+                <input id="searchInput" placeholder="Name / admission / phone" />
+              </label>
+              <label class="check-row">
+                <input id="dueOnly" type="checkbox" checked />
+                Only students with fee due
+              </label>
+              <label>
+                Max students
+                <input id="maxStudents" type="number" min="1" max="500" value="500" />
+              </label>
+            </div>
+            <div class="row gap">
+              <button id="loadStudentsBtn" class="btn btn-primary" type="button">Load students</button>
+              <button id="selectAllBtn" class="btn btn-ghost" type="button">Select all</button>
+              <button id="clearSelectionBtn" class="btn btn-ghost" type="button">Clear</button>
+            </div>
+            <p class="hint">
+              Student attendance is not used: the ERP currently has staff attendance only. Filters are class, section,
+              search and fee due.
+            </p>
+          </div>
+
+          <div class="card">
+            <div class="card-head">
+              <h2>2. Message</h2>
+              <span class="muted">Placeholders: {{parentName}}, {{studentName}}, {{children}}, {{className}}, {{section}}, {{dueAmount}}, {{totalDue}}, {{admissionNumber}}, {{schoolName}}</span>
+            </div>
+            <label>
+              Campaign name
+              <input id="campaignName" placeholder="Fee reminder - October" />
+            </label>
+            <label>
+              SMS template
+              <textarea id="templateInput" rows="9"></textarea>
+            </label>
+            <div class="row gap wrap">
+              <button class="btn btn-ghost placeholder" data-placeholder="{{parentName}}" type="button">parentName</button>
+              <button class="btn btn-ghost placeholder" data-placeholder="{{children}}" type="button">children</button>
+              <button class="btn btn-ghost placeholder" data-placeholder="{{totalDue}}" type="button">totalDue</button>
+              <button class="btn btn-ghost placeholder" data-placeholder="{{schoolName}}" type="button">schoolName</button>
+            </div>
+            <div class="preview">
+              <span class="muted">Preview (first selected parent)</span>
+              <pre id="messagePreview">Select students to preview.</pre>
+            </div>
+            <div class="row gap">
+              <button id="createCampaignBtn" class="btn btn-primary" type="button">Create SMS campaign</button>
+              <span id="selectionCount" class="muted">0 selected</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card mt">
+          <div class="card-head">
+            <h2>Students</h2>
+            <span id="studentsMeta" class="muted">Load students to begin.</span>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th class="w-check"><input id="tableSelectAll" type="checkbox" /></th>
+                  <th>Student</th>
+                  <th>Class</th>
+                  <th>Parent</th>
+                  <th>Mobile</th>
+                  <th class="right">Due</th>
+                </tr>
+              </thead>
+              <tbody id="studentsBody">
+                <tr><td colspan="6" class="empty">No students loaded.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div id="campaignPanel" class="card mt hidden">
+          <div class="card-head">
+            <h2 id="campaignTitle">Campaign</h2>
+            <span id="campaignStatus" class="pill">ready</span>
+          </div>
+          <div class="stats" id="campaignStats"></div>
+          <div class="row gap wrap">
+            <button id="startBtn" class="btn btn-primary" type="button">Start sending</button>
+            <button id="pauseBtn" class="btn btn-warn" type="button">Pause</button>
+            <button id="resumeBtn" class="btn btn-primary" type="button">Resume</button>
+            <button id="retryBtn" class="btn btn-ghost" type="button">Retry failed</button>
+            <span id="capText" class="muted"></span>
+          </div>
+          <p id="pauseReason" class="hint"></p>
+          <p class="hint">
+            Sending is throttled by your daily cap, per-message delay and batch pause. Only one campaign runs at a time.
+          </p>
+        </div>
+      </section>
+
+      <section id="tab-queue" class="tab-panel">
+        <div class="card">
+          <div class="card-head">
+            <h2>Queue</h2>
+            <div class="row gap">
+              <select id="queueFilter">
+                <option value="">All statuses</option>
+                <option value="pending">Pending</option>
+                <option value="sending">Sending</option>
+                <option value="sent">Sent</option>
+                <option value="failed">Failed</option>
+                <option value="duplicate">Duplicate</option>
+                <option value="skipped">Skipped</option>
+              </select>
+              <button id="exportBtn" class="btn btn-ghost" type="button">Export CSV</button>
+            </div>
+          </div>
+          <div class="table-wrap tall">
+            <table>
+              <thead>
+                <tr>
+                  <th>Parent</th>
+                  <th>Mobile</th>
+                  <th>Student(s)</th>
+                  <th>Class</th>
+                  <th class="right">Due</th>
+                  <th>Status</th>
+                  <th>Attempts</th>
+                  <th>Last error</th>
+                  <th>Sent at</th>
+                </tr>
+              </thead>
+              <tbody id="queueBody">
+                <tr><td colspan="9" class="empty">No campaign selected.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section id="tab-settings" class="tab-panel">
+        <div class="grid two">
+          <div class="card">
+            <div class="card-head">
+              <h2>Android SMS gateway</h2>
+              <span id="gatewayTokenState" class="muted"></span>
+            </div>
+            <div class="form-grid">
+              <label class="span2">
+                Gateway type
+                <select id="gatewayPreset">
+                  <option value="sms-gate-app">SMS Gateway for Android (local server)</option>
+                  <option value="generic">Generic HTTP gateway</option>
+                </select>
+              </label>
+              <label class="span2">
+                Gateway URL
+                <input id="gatewayUrl" placeholder="http://192.168.1.13:8080/message" />
+              </label>
+              <label class="preset-generic">
+                Method
+                <select id="gatewayMethod">
+                  <option value="POST">POST</option>
+                  <option value="GET">GET</option>
+                </select>
+              </label>
+              <label class="preset-generic">
+                Body type
+                <select id="gatewayContentType">
+                  <option value="json">JSON</option>
+                  <option value="form">Form URL encoded</option>
+                </select>
+              </label>
+              <label>
+                Auth type
+                <select id="authMode">
+                  <option value="basic">Basic username/password</option>
+                  <option value="bearer">Bearer token</option>
+                  <option value="none">No auth</option>
+                </select>
+              </label>
+              <label class="preset-basic">
+                Gateway username
+                <input id="authUsername" placeholder="sms" autocomplete="off" />
+              </label>
+              <label class="preset-bearer">
+                Auth header
+                <input id="authHeader" placeholder="Authorization" />
+              </label>
+              <label class="preset-bearer">
+                Token prefix
+                <input id="authTokenPrefix" placeholder="Bearer " />
+              </label>
+              <label class="span2">
+                <span id="authTokenLabel">Gateway token</span>
+                <input id="authToken" type="password" placeholder="Leave blank to keep saved token" autocomplete="off" />
+              </label>
+              <label class="preset-generic">
+                To field
+                <input id="toField" placeholder="to" />
+              </label>
+              <label class="preset-generic">
+                Message field
+                <input id="messageField" placeholder="message" />
+              </label>
+              <label class="preset-generic">
+                Device field
+                <input id="deviceField" placeholder="deviceId (optional)" />
+              </label>
+              <label class="preset-generic">
+                Device ID
+                <input id="deviceId" placeholder="optional" />
+              </label>
+              <label class="preset-generic">
+                Sender field
+                <input id="senderField" placeholder="sender (optional)" />
+              </label>
+              <label class="preset-generic">
+                Sender ID
+                <input id="senderId" placeholder="optional" />
+              </label>
+            </div>
+            <p class="hint">
+              <strong>SMS Gateway for Android:</strong> start the local server, open
+              <code>http://&lt;phone-ip&gt;:8080/docs</code> on this PC, then enter the same local URL with
+              <code>/message</code>, the app username/password and Basic auth. The nested body and
+              <code>phoneNumbers</code> array are generated automatically. Keep both devices on the same Wi-Fi.
+              This app does not use Twilio, WhatsApp Cloud API or any paid service.
+            </p>
+            <div class="row gap">
+              <button id="saveSettingsBtn" class="btn btn-primary" type="button">Save settings</button>
+              <button id="clearTokenBtn" class="btn btn-ghost" type="button">Clear saved password/token</button>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-head"><h2>Limits &amp; safety</h2></div>
+            <div class="form-grid">
+              <label>
+                Daily cap
+                <input id="dailyCap" type="number" min="1" max="500" />
+              </label>
+              <label>
+                Delay between messages (ms)
+                <input id="delayMs" type="number" min="1000" max="120000" />
+              </label>
+              <label>
+                Batch size
+                <input id="batchSize" type="number" min="1" max="100" />
+              </label>
+              <label>
+                Batch pause (ms)
+                <input id="batchPauseMs" type="number" min="0" max="600000" />
+              </label>
+              <label>
+                Max attempts
+                <input id="maxAttempts" type="number" min="1" max="5" />
+              </label>
+              <label>
+                Duplicate cooldown (days)
+                <input id="cooldownDays" type="number" min="0" max="90" />
+              </label>
+              <label class="span2">
+                School name
+                <input id="schoolName" />
+              </label>
+              <label class="span2">
+                Default template
+                <textarea id="defaultTemplate" rows="5"></textarea>
+              </label>
+            </div>
+            <p class="hint">
+              Recommended for 50–100/day: cap 100, delay 5000 ms, batch 20, batch pause 60000 ms. Do not run multiple
+              campaigns at once.
+            </p>
+          </div>
+        </div>
+
+        <div class="card mt">
+          <div class="card-head"><h2>Test gateway</h2></div>
+          <div class="row gap wrap">
+            <input id="testTo" placeholder="Test mobile number, e.g. 9876543210" />
+            <input id="testMessage" class="grow" value="Sri Narayana ERP SMS gateway test" />
+            <button id="testGatewayBtn" class="btn btn-primary" type="button">Send test SMS</button>
+          </div>
+          <pre id="testResult" class="result">No test sent.</pre>
+        </div>
+      </section>
+    </main>
+
+    <script src="agent.js"></script>
+  </body>
+</html>

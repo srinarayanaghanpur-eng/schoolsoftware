@@ -103,6 +103,8 @@ export async function GET(request: NextRequest) {
       // filter+orderBy combination. Retry without orderBy and sort in memory
       // so the page keeps working while the index is created.
       if (queryError?.code === 9 || /FAILED_PRECONDITION|requires an index/i.test(String(queryError?.message))) {
+        // Keep every scope/filter (school, branch, year, class, section,
+        // status) — dropping them would silently show the wrong students.
         let fallback: any = applyScope(db.collection('students'));
         if (q) {
           const normalized = normalizeText(q);

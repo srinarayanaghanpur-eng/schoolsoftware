@@ -4,6 +4,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { useAdminSession } from "@/components/AdminSessionContext";
 import { useAcademicYears } from "@/components/AcademicYearContext";
 import { adminApiRequest, AdminApiError } from "@/lib/adminApiClient";
+import { openInternalRoute } from "@/lib/desktopBridge";
 import { hasPermission, formatLabel } from "@sri-narayana/shared";
 import { Plus, X, Search, Download, FileText, Eye, Printer, Trash2 } from "lucide-react";
 import Link from "next/link";
@@ -21,6 +22,7 @@ type Certificate = {
   status: string;
   issuedByName?: string;
   remarks?: string;
+  printCount?: number;
 };
 
 const CERT_TYPES = [
@@ -177,11 +179,23 @@ export default function CertificatesPage() {
               <option value="cancelled">Cancelled</option>
             </select>
           </div>
-          {hasPermission(role, "certificates.create") && (
-            <button className="btn-primary" onClick={() => setShowForm((v) => !v)}>
-              {showForm ? <X size={16} /> : <Plus size={16} />} Issue Certificate
-            </button>
-          )}
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              href="/admin/certificates/manual-template"
+              onClick={(event) => {
+                event.preventDefault();
+                openInternalRoute("/admin/certificates/manual-template");
+              }}
+              className="btn-secondary inline-flex items-center gap-1.5"
+            >
+              <Printer size={15} /> Manual Template
+            </Link>
+            {hasPermission(role, "certificates.create") && (
+              <button className="btn-primary" onClick={() => setShowForm((v) => !v)}>
+                {showForm ? <X size={16} /> : <Plus size={16} />} Issue Certificate
+              </button>
+            )}
+          </div>
         </div>
 
         {showForm && (
@@ -276,15 +290,26 @@ export default function CertificatesPage() {
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1">
-                        {c.studentId && (
+                        {c.studentId && !(c.certificateType === "bonafide" && Number(c.printCount || 0) > 0) && (
                           <Link
                             href={`/admin/student/${c.studentId}/certificate/${c.id}`}
-                            target="_blank"
+                            onClick={(event) => {
+                              event.preventDefault();
+                              openInternalRoute(`/admin/student/${c.studentId}/certificate/${c.id}`);
+                            }}
                             className="rounded-lg p-1.5 text-primary hover:bg-primary/10"
                             title="Print certificate"
                           >
                             <Printer size={14} />
                           </Link>
+                        )}
+                        {c.studentId && c.certificateType === "bonafide" && Number(c.printCount || 0) > 0 && (
+                          <span
+                            className="rounded-lg p-1.5 text-muted-foreground/40"
+                            title="Bonafide already printed — print link expired"
+                          >
+                            <Printer size={14} />
+                          </span>
                         )}
                         {c.status === "draft" && hasPermission(role, "certificates.edit") && (
                           <button

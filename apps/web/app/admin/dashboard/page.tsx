@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import {
   BellRing,
@@ -31,6 +32,7 @@ import { adminDb } from "@/lib/firebaseAdmin";
 import { getSchoolSettings } from "@/lib/firestoreServer";
 import { markSummaryClean } from "@/lib/markSummaryDirty";
 import { logFirestoreAggregateRead, logFirestoreRead } from "@/lib/firestoreReadLogger";
+import { BACK_OFFICE_ROLES, getServerSessionUser } from "@/lib/serverSession";
 
 export const dynamic = "force-dynamic";
 
@@ -449,6 +451,11 @@ function ModuleShortcut({ href, label, icon: Icon, tone }: { href: string; label
 }
 
 export default async function AdminDashboardPage() {
+  const session = await getServerSessionUser();
+  if (!session || (session.role && !BACK_OFFICE_ROLES.has(session.role))) {
+    redirect("/login");
+  }
+
   const data = await loadDashboard().catch(() => null);
 
   const d: DashboardData = data ?? {

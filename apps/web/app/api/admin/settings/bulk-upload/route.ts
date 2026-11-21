@@ -275,6 +275,13 @@ async function uploadStudents(
     const village = pick(row, ["village", "address", "place"]);
     const route = pick(row, ["route", "bus route"]);
     const phone = pick(row, ["phone", "mobile", "fatherphone", "father phone", "contact"]);
+    const fatherName = pick(row, ["father name", "fathername", "father"]);
+    const motherName = pick(row, ["mother name", "mothername", "mother"]);
+    const guardianName = pick(row, ["guardian name", "guardianname", "guardian"]);
+    const fatherPhone = pick(row, ["father phone", "fatherphone", "father mobile", "fathermobile"]) || phone;
+    const motherPhone = pick(row, ["mother phone", "motherphone", "mother mobile", "mothermobile"]);
+    const parentName = pick(row, ["parent name", "parentname"]) || fatherName || motherName || guardianName;
+    const parentMobile = pick(row, ["parent mobile", "parentmobile", "parent phone", "parentphone"]) || fatherPhone || phone;
     if (!name || !cls) {
       summary.skipped++;
       if (summary.errors.length < 10) summary.errors.push(`Row ${i + 2}: need Name and Class`);
@@ -294,7 +301,8 @@ async function uploadStudents(
       class: cls, classId: cls, section, sectionId: section,
       branchId: "default-branch", academicYearId, status: "active",
       rollNo: Number(admissionNumber.replace(/\D/g, "") || 0),
-      gender: "", fatherName: "", fatherPhone: phone, motherName: "", motherPhone: "",
+      gender: "", fatherName, fatherPhone, motherName, motherPhone,
+      guardianName, parentName, parentMobile,
       dateOfBirth: null, email: "", phone, address: village,
       photoURL: "", aadhaarNumber: "", documentURLs: [],
       previousSchool: null, siblingAdmissionNumbers: [], emergencyContact: null,
@@ -308,7 +316,7 @@ async function uploadStudents(
     });
     batch.set(db.collection("studentFeeSummaries").doc(`${ref.id}_${academicYearId || "default"}`), {
       studentId: ref.id, schoolId, branchId: "default-branch", academicYearId,
-      classId: cls, sectionId: section, studentName: name, admissionNumber, phone,
+      classId: cls, sectionId: section, studentName: name, admissionNumber, phone: parentMobile || phone,
       className: cls, sectionName: section,
       totalFee: 0, totalPaid: 0, totalConcession: 0, committedPayableFee: 0,
       originalFeeAmount: 0, dueAmount: 0, updatedAt: now

@@ -1,9 +1,11 @@
 "use client";
 
-import Link from "next/link";
-import { ArrowLeft, Printer } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { Download, Printer, X } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import QRCode from "qrcode";
+import { adminApiRequest, AdminApiError } from "@/lib/adminApiClient";
+import { getDesktopBridge, printCurrentPage, savePagePdf } from "@/lib/desktopBridge";
 
 const CERT_TITLES: Record<string, string> = {
   transfer: "Transfer Certificate",
@@ -64,13 +66,26 @@ function asString(value: unknown): string {
 
 export function CertificatePrintView({
   student,
-  certificate
+  certificate,
+  manual = false
 }: {
   student: Record<string, unknown>;
   certificate: Record<string, unknown>;
+  manual?: boolean;
 }) {
   const [qrDataUrl, setQrDataUrl] = useState("");
   const [duplicate, setDuplicate] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [consumeError, setConsumeError] = useState("");
+  const [mounted, setMounted] = useState(false);
+  const [desktopPdf, setDesktopPdf] = useState(false);
+  const exitRef = useRef(false);
+  const consumedRef = useRef(false);
+
+  useEffect(() => {
+    setMounted(true);
+    setDesktopPdf(Boolean(getDesktopBridge()?.print?.pdf));
+  }, []);
 
   const certData = useMemo(() => {
     const raw = certificate.data;
@@ -84,10 +99,12 @@ export function CertificatePrintView({
     return asRecord(raw) as Record<string, string>;
   }, [certificate.data]);
 
+  const certificateId = asString(certificate.id);
   const certificateNumber = asString(certificate.certificateNumber);
   const certificateType = asString(certificate.certificateType);
-  const title = CERT_TITLES[certificateType] || "Certificate";
+  const title = manual ? "Study, Conduct & Date of Birth Certificate" : CERT_TITLES[certificateType] || "Certificate";
   const studentId = asString(certificate.studentId) || asString(student.id);
+  const backHref = studentId ? `/admin/student/${studentId}?tab=certificates` : "/admin/certificates";
 
   const pick = (dataKey: string, studentKeys: string[], fallback = "") => {
     const fromData = asString(certData[dataKey]);
@@ -134,10 +151,101 @@ export function CertificatePrintView({
   const place = pick("place", [], "Ghanpur");
   const classSection = section ? `Class ${className}-${section}` : `Class ${className}`;
 
+  const closeViewer = useCallback(() => {
+    if (exitRef.current) return;
+    exitRef.current = true;
+    window.close();
+    window.setTimeout(() => {
+      if (!window.closed) window.location.replace(backHref);
+    }, 200);
+  }, [backHref]);
+
+  const consumePrint = useCallback(async () => {
+    if (manual || !certificateId || consumedRef.current) return;
+    consumedRef.current = true;
+    try {
+      await adminApiRequest(`/api/admin/certificates/${encodeURIComponent(certificateId)}/print`, {
+        method: "POST"
+      });
+      try {
+        window.localStorage.setItem(
+          "sriNarayana.certificatePrinted",
+          JSON.stringify({ certificateId, at: Date.now() })
+        );
+      } catch {
+        // Cross-tab refresh is a convenience; ignore storage failures.
+      }
+    } catch (error) {
+      consumedRef.current = false;
+      throw error;
+    }
+  }, [manual, certificateId]);
+
+  useEffect(() => {
+    const onAfterPrint = () => {
+      void (async () => {
+        try {
+          await consumePrint();
+        } catch {
+          // Closing after printing is the required outcome even if the
+          // server-side consume call cannot be confirmed.
+        }
+        closeViewer();
+      })();
+    };
+    window.addEventListener("afterprint", onAfterPrint);
+    return () => window.removeEventListener("afterprint", onAfterPrint);
+  }, [closeViewer, consumePrint]);
+
+  const handlePrint = async () => {
+    if (busy) return;
+    setBusy(true);
+    setConsumeError("");
+    try {
+      await consumePrint();
+      const printed = await printCurrentPage();
+      if (printed.native) closeViewer();
+    } catch (err) {
+      setConsumeError(
+        err instanceof AdminApiError ? err.message : "Could not prepare this certificate for printing. Please try again."
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handlePdf = async () => {
+    if (busy) return;
+    setBusy(true);
+    setConsumeError("");
+    try {
+      const result = await savePagePdf(`${certificateNumber || "certificate"}.pdf`);
+      if (!result) return;
+      if (!result.ok) {
+        if (!result.canceled) setConsumeError(result.error || "Could not save the PDF.");
+        return;
+      }
+      try {
+        await consumePrint();
+      } catch {
+        // The PDF was saved; close even if the consume call cannot be confirmed.
+      }
+      closeViewer();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleCancel = () => {
+    if (busy) return;
+    // Closing without printing must not consume the one-time print link.
+    closeViewer();
+  };
+
   const verifyUrl = useMemo(() => {
-    if (!certificateNumber || typeof window === "undefined") return "";
+    if (manual || !certificateNumber || typeof window === "undefined") return "";
     return `${window.location.origin}/verify/${certificateNumber.split("/").map(encodeURIComponent).join("/")}`;
-  }, [certificateNumber]);
+  }, [certificateNumber, manual]);
 
   useEffect(() => {
     let cancelled = false;
@@ -175,15 +283,19 @@ export function CertificatePrintView({
         </p>
         <p>Village &amp; Mandal : Ghanpur, Dist : Jayashankar Bhupalpally, T.S. &nbsp;Cell : 6300038389</p>
       </div>
-      <div className="cert-qrslot">
-        {qrDataUrl ? (
-          <>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={qrDataUrl} alt={`Verify ${certificateNumber}`} />
-            <div className="cert-qrcaption">Scan to verify</div>
-          </>
-        ) : null}
-      </div>
+      {manual ? (
+        <div className="cert-qrslot" aria-hidden="true" />
+      ) : (
+        <div className="cert-qrslot">
+          {qrDataUrl ? (
+            <>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={qrDataUrl} alt={`Verify ${certificateNumber}`} />
+              <div className="cert-qrcaption">Scan to verify</div>
+            </>
+          ) : null}
+        </div>
+      )}
     </div>
   );
 
@@ -191,15 +303,21 @@ export function CertificatePrintView({
     <div className="cert-foot">
       <div>Admn. In-charge</div>
       <div className="cert-foot-center">
-        SRI NARAYANA HIGH SCHOOL, Ghanpur (M)
-        <br />
-        DEO, Jayashankar Bhupalpally
-        <br />
-        RC. No. 1117/A1/2021 Dt. 03-11-2021
-        <br />
-        RJDSE Warangal, Telangana.
-        <br />
-        RC. No. JSK GHNM-003-0003 Dt. 11-01-2022
+        {manual ? (
+          "Sri Narayana High School, Ghanpur (M)"
+        ) : (
+          <>
+            SRI NARAYANA HIGH SCHOOL, Ghanpur (M)
+            <br />
+            DEO, Jayashankar Bhupalpally
+            <br />
+            RC. No. 1117/A1/2021 Dt. 03-11-2021
+            <br />
+            RJDSE Warangal, Telangana.
+            <br />
+            RC. No. JSK GHNM-003-0003 Dt. 11-01-2022
+          </>
+        )}
       </div>
       <div>Head Master</div>
     </div>
@@ -300,21 +418,68 @@ export function CertificatePrintView({
     </>
   );
 
-  return (
+  const manualBody = (
+    <>
+      <div className="cert-adm">
+        <div>
+          Admn. No. <span className="cert-box">&nbsp;</span>
+        </div>
+        <div>
+          Admn. Date : <span className="cert-box">&nbsp;</span>
+        </div>
+      </div>
+      <div className="cert-row">
+        This is to certify that the Kumari / Kumar <span className="cert-fill">&nbsp;</span>
+      </div>
+      <div className="cert-row">
+        D/o. / S/o. Sri <span className="cert-fill">&nbsp;</span>
+      </div>
+      <div className="cert-row">
+        in this School from <span className="cert-fill">&nbsp;</span> to <span className="cert-fill">&nbsp;</span> during
+        the year from <span className="cert-fill cert-fill-y">&nbsp;</span> to{" "}
+        <span className="cert-fill cert-fill-y">&nbsp;</span>
+      </div>
+      <div className="cert-row">
+        His / Her date of birth as per the record of this institution is <span className="cert-fill">&nbsp;</span>
+      </div>
+      <div className="cert-row">
+        (in words <span className="cert-fill">&nbsp;</span> )
+      </div>
+      <div className="cert-row">
+        His / Her conduct was <span className="cert-fill">&nbsp;</span> during this period.
+      </div>
+      <div className="cert-place-row">
+        <span>Place : Ghanpur</span>
+        <span>
+          Date of issue : <span className="cert-fill cert-fill-n">&nbsp;</span>
+        </span>
+      </div>
+    </>
+  );
+
+  if (!mounted) return null;
+
+  return createPortal(
     <div className="cert-overlay">
       <div className="cert-bar">
-        <Link href={studentId ? `/admin/student/${studentId}?tab=certificates` : "/admin/certificates"} className="cert-btn cert-btn-ghost">
-          <ArrowLeft size={14} /> Back
-        </Link>
+        <button type="button" className="cert-btn cert-btn-ghost" onClick={() => void handleCancel()} disabled={busy}>
+          <X size={14} /> {manual ? "Close" : "Cancel"}
+        </button>
         <span className="cert-bar-info">
           {title}
           {certificateNumber ? ` · ${certificateNumber}` : ""}
         </span>
+        {consumeError && <span className="cert-bar-error">{consumeError}</span>}
         <label className="cert-dup-toggle">
           <input type="checkbox" checked={duplicate} onChange={(e) => setDuplicate(e.target.checked)} /> Duplicate copy
         </label>
-        <button type="button" className="cert-btn" onClick={() => window.print()}>
-          <Printer size={14} /> Print
+        {desktopPdf && (
+          <button type="button" className="cert-btn" onClick={() => void handlePdf()} disabled={busy}>
+            <Download size={14} /> Save PDF
+          </button>
+        )}
+        <button type="button" className="cert-btn" onClick={() => void handlePrint()} disabled={busy}>
+          <Printer size={14} /> {busy ? "Preparing…" : "Print"}
         </button>
       </div>
 
@@ -329,7 +494,9 @@ export function CertificatePrintView({
             {header}
             <div className="cert-ribbon">{title}</div>
 
-            {isStudyDob && (
+            {manual && manualBody}
+
+            {!manual && isStudyDob && (
               <>
                 <div className="cert-adm">
                   <div>
@@ -343,16 +510,16 @@ export function CertificatePrintView({
               </>
             )}
 
-            {isBonafide && (
+            {!manual && isBonafide && (
               <>
                 <div className="cert-adm cert-adm-empty" />
                 {bonafideBody}
               </>
             )}
 
-            {!isStudyDob && !isBonafide && genericBody}
+            {!manual && !isStudyDob && !isBonafide && genericBody}
 
-            {metaRows}
+            {!manual && metaRows}
             {footer}
           </div>
         </div>
@@ -362,7 +529,9 @@ export function CertificatePrintView({
         .cert-overlay { position: fixed; inset: 0; z-index: 100; background: #e9ecf3; overflow: auto; }
         .cert-bar { display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap; padding: 12px; background: #fff; color: #222; font: 14px system-ui, sans-serif; position: sticky; top: 0; z-index: 2; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
         .cert-bar-info { font-weight: 700; }
+        .cert-bar-error { color: #c0392b; font-size: 12px; font-weight: 700; }
         .cert-btn { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; padding: 8px 14px; border-radius: 8px; border: 0; background: #222; color: #fff; cursor: pointer; text-decoration: none; }
+        .cert-btn:disabled { opacity: .6; cursor: wait; }
         .cert-btn-ghost { background: #eef0f7; color: #222; }
         .cert-dup-toggle { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer; }
         .cert-wrap { overflow-x: auto; padding: 20px 12px; }
@@ -411,6 +580,7 @@ export function CertificatePrintView({
           .cert-page { position: fixed; left: 0; top: 0; margin: 0; }
         }
       `}</style>
-    </div>
+    </div>,
+    document.body
   );
 }

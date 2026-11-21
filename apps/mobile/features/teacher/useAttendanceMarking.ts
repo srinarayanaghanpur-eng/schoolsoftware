@@ -16,7 +16,7 @@ import {
   getDistanceFromCampus,
   isInsideCampus
 } from "@sri-narayana/shared";
-import { AttendanceSubmitError, postAttendance } from "@/lib/api";
+import { AttendanceSubmitError, getAttendanceConfig, postAttendance } from "@/lib/api";
 import {
   buildQueuedPayload,
   capQueue,
@@ -57,11 +57,16 @@ const INITIAL: MarkingState = {
   syncing: false
 };
 
-const OFFLINE_QUEUE_KEY = `${ATTENDANCE_BYPASS_GPS_AND_TIME ? "bypassed" : "attendance_offline_queue"}:${teacherId}`;
+/** Per-teacher queue namespace so shared devices never replay another account's attempts. */
+function offlineQueueKey(teacherId: string) {
+  // Single stable prefix so sign-out and login cleanup can always find it.
+  return `attendance_offline_queue:${teacherId}`;
+}
 
-async function loadQueue(): Promise<QueuedAttempt[]> {
+async function loadQueue(teacherId?: string): Promise<QueuedAttempt[]> {
+  if (!teacherId) return [];
   try {
-    const raw = await AsyncStorage.getItem(OFFLINE_QUEUE_KEY);
+    const raw = await AsyncStorage.getItem(offlineQueueKey(teacherId));
     if (!raw) return [];
     const parsed = JSON.parse(raw) as unknown;
     if (!Array.isArray(parsed)) return [];
@@ -74,9 +79,12 @@ async function loadQueue(): Promise<QueuedAttempt[]> {
   }
 }
 
-async function saveQueue(queue: QueuedAttempt[]): Promise<void> {
+async function saveQueue(teacherId: string, queue: QueuedAttempt[]): Promise<void> {
   try {
-    await AsyncStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(capQueue(queue, OFFLINE_QUEUE_CAP)));
+    await AsyncStorage.setItem(
+      offlineQueueKey(teacherId),
+      JSON.stringify(capQueue(queue, OFFLINE_QUEUE_CAP))
+    );
   } catch {
     // Queue persistence is best-effort; the in-memory attempt already failed.
   }
@@ -89,6 +97,11 @@ function deviceInfo() {
 
 export function useAttendanceMarking(teacherId?: string) {
   const [state, setState] = useState<MarkingState>(INITIAL);
+  const [requireSelfie, setRequireSelfie] = useState(false);
+  const [allowedRadius, setAllowedRadius] = useState(DEFAULT_SETTINGS.geofenceRadiusMeters);
+  // School settings fetched from the server; the compiled default is only a
+  // fallback until the request lands. The server re-checks every value.
+  const geoRef = useRef(DEFAULT_SETTINGS);
   // Ref mirror of `submitting`: state updates are async, so a rapid
   // double-tap would otherwise fire two POSTs before the flag lands.
   const submittingRef = useRef(false);
@@ -106,7 +119,7 @@ export function useAttendanceMarking(teacherId?: string) {
         insideCampus: true,
         error: null
       }));
-      return { point: null, accuracy: undefined };
+      return { point: null, accuracy: undefined, isMockLocation: undefined };
     }
 
     setState((s) => ({ ...s, locating: true, error: null }));
@@ -122,7 +135,66 @@ export function useAttendanceMarking(teacherId?: string) {
         return null;
       }
 
-      
+      const position = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.High
+      });
+      const point = {
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude
+      };
+      const distance = getDistanceFromCampus(point, geoRef.current);
+
+      setState((s) => ({
+        ...s,
+        locating: false,
+        permission: "granted",
+        distance,
+        accuracy: position.coords.accuracy ?? null,
+        insideCampus: isInsideCampus(point, geoRef.current)
+      }));
+      return {
+        point,
+        accuracy: position.coords.accuracy ?? undefined,
+        isMockLocation: typeof position.mocked === "boolean" ? position.mocked : undefined
+      };
+    } catch {
+      setState((s) => ({
+        ...s,
+        locating: false,
+        error: "Couldn’t read your location. Move to an open area and try again."
+      }));
+      return null;
+    }
+  }, []);
+
+  useEffect(() => {
+    void locate();
+  }, [locate]);
+
+  // School-configurable requirement. Fetch once; absence of the config
+  // endpoint or a network error keeps the safe default (selfie off).
+  useEffect(() => {
+    let cancelled = false;
+    void getAttendanceConfig()
+      .then((config) => {
+        if (cancelled) return;
+        setRequireSelfie(Boolean(config.requireSelfie));
+        geoRef.current = {
+          ...DEFAULT_SETTINGS,
+          campusLatitude: config.campusLatitude ?? DEFAULT_SETTINGS.campusLatitude,
+          campusLongitude: config.campusLongitude ?? DEFAULT_SETTINGS.campusLongitude,
+          geofenceRadiusMeters: config.geofenceRadiusMeters ?? DEFAULT_SETTINGS.geofenceRadiusMeters
+        };
+        setAllowedRadius(geoRef.current.geofenceRadiusMeters);
+        // The initial locate() may have used the compiled defaults; refresh
+        // with the school's real campus once they are known.
+        if (!ATTENDANCE_BYPASS_GPS_AND_TIME) void locate();
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [locate]);
 
   /**
    * Flush the offline queue FIFO. Items leave only on 2xx or a definitive
@@ -130,7 +202,7 @@ export function useAttendanceMarking(teacherId?: string) {
    * drain and keeps the remainder queued.
    */
   const drainQueue = useCallback(async () => {
-    const queue = await loadQueue();
+    const queue = await loadQueue(teacherId);
     if (queue.length === 0) {
       setState((s) => (s.pending === 0 && !s.syncing ? s : { ...s, pending: 0, syncing: false }));
       return { synced: 0, rejected: [] as string[] };
@@ -159,7 +231,7 @@ export function useAttendanceMarking(teacherId?: string) {
         stopped = true;
       }
     }
-    await saveQueue(remaining);
+    if (teacherId) await saveQueue(teacherId, remaining);
     setState((s) => ({
       ...s,
       pending: remaining.length,
@@ -170,18 +242,18 @@ export function useAttendanceMarking(teacherId?: string) {
           : s.error
     }));
     return { synced: queue.length - remaining.length - rejected.length, rejected };
-  }, []);
+  }, [teacherId]);
 
   // Initial pending count + retry whenever the app returns to foreground.
   useEffect(() => {
-    void loadQueue().then((queue) => {
+    void loadQueue(teacherId).then((queue) => {
       if (queue.length > 0) setState((s) => ({ ...s, pending: queue.length }));
     });
     const subscription = AppState.addEventListener("change", (nextState) => {
       if (nextState === "active") void drainQueue();
     });
     return () => subscription.remove();
-  }, [drainQueue]);
+  }, [drainQueue, teacherId]);
 
   const retryPending = useCallback(async () => {
     const { synced, rejected } = await drainQueue();
@@ -192,13 +264,17 @@ export function useAttendanceMarking(teacherId?: string) {
   }, [drainQueue]);
 
   const mark = useCallback(
-    async (eventType: AttendanceEvent) => {
+    async (eventType: AttendanceEvent, opts?: { selfieStoragePath?: string }) => {
       if (!teacherId) {
         setState((s) => ({ ...s, error: "Your teacher profile isn’t linked yet. Contact the office." }));
         return { ok: false as const, message: "Teacher profile not linked" };
       }
       if (submittingRef.current) {
         return { ok: false as const, message: "Already submitting — please wait." };
+      }
+      if (requireSelfie && !opts?.selfieStoragePath) {
+        setState((s) => ({ ...s, error: "A selfie is required to mark attendance." }));
+        return { ok: false as const, message: "A selfie is required to mark attendance." };
       }
       submittingRef.current = true;
 
@@ -208,17 +284,22 @@ export function useAttendanceMarking(teacherId?: string) {
         return { ok: false as const, message: "Location unavailable" };
       }
 
+      const timestamp = new Date().toISOString();
       const payload = {
         teacherId,
         eventType,
-        timestamp: new Date().toISOString(),
+        timestamp,
         ...(fix?.point
           ? {
               latitude: fix.point.latitude,
               longitude: fix.point.longitude,
-              accuracyMeters: fix.accuracy
+              accuracyMeters: fix.accuracy,
+              ...(typeof fix.isMockLocation === "boolean"
+                ? { isMockLocation: fix.isMockLocation }
+                : {})
             }
           : {}),
+        ...(opts?.selfieStoragePath ? { selfieStoragePath: opts.selfieStoragePath } : {}),
         deviceInfo: deviceInfo()
       };
 
@@ -238,14 +319,14 @@ export function useAttendanceMarking(teacherId?: string) {
           const queued: QueuedAttempt = {
             clientRequestId: `${teacherId}:${eventType}:${timestamp}`,
             action: eventType,
-            capturedAt: new Date().toISOString(),
+            capturedAt: timestamp,
             lat: fix?.point?.latitude,
             lng: fix?.point?.longitude,
             accuracy: fix?.accuracy,
             payload
           };
-          const queue = capQueue([...(await loadQueue()), queued], OFFLINE_QUEUE_CAP);
-          await saveQueue(queue);
+          const queue = capQueue([...(await loadQueue(teacherId)), queued], OFFLINE_QUEUE_CAP);
+          await saveQueue(teacherId, queue);
           const message = "No connection — saved. It will sync during the next foreground session. Items older than 2 hours are rejected.";
           setState((s) => ({ ...s, submitting: false, error: message, pending: queue.length }));
           return { ok: false as const, message, queued: true as const };
@@ -257,13 +338,14 @@ export function useAttendanceMarking(teacherId?: string) {
         submittingRef.current = false;
       }
     },
-    [drainQueue, locate, teacherId]
+    [drainQueue, locate, requireSelfie, teacherId]
   );
 
   return {
     ...state,
     pendingCount: state.pending,
-    allowedRadius: DEFAULT_SETTINGS.geofenceRadiusMeters,
+    allowedRadius,
+    requireSelfie,
     refreshLocation: locate,
     retryPending,
     mark

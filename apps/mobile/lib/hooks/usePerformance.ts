@@ -27,7 +27,7 @@ export function useAppState() {
       setAppState(state);
 
       if (state === 'active') {
-        console.log('[AppState] App resumed - starting sync');
+        if (__DEV__) console.log('[AppState] App resumed - starting sync');
         mobileBackgroundSync.startSync();
       }
     }

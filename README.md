@@ -1,42 +1,137 @@
-# Sri Narayana Staff Attendance System
+# NarayanaOS — School ERP
 
-Full-stack school staff attendance ERP with a Next.js admin web app, Expo teacher mobile app, Firebase backend, ESSL biometric ingestion structure, salary calculation, calendar views, and Excel reports.
+NarayanaOS is a multi-platform school management system for Sri Narayana High School. It brings administration, academics, attendance, fees, payroll, communication, and school operations into one Firebase-backed application.
 
-## Apps
+The repository contains a Next.js web application, an Expo/React Native mobile app, an Electron desktop app for Windows, and a shared TypeScript package.
 
-- `apps/web`: Next.js, React, TypeScript, Tailwind CSS, Recharts, Firebase Auth, Firestore, xlsx
-- `apps/mobile`: Expo React Native, TypeScript, Firebase Auth, Firestore, Expo Location, Expo Device, optional Camera
-- `packages/shared`: shared types, schema validation, attendance logic, salary logic, biometric processing, report builders, demo data
+## Platforms
 
-## Install
+### Web ERP
+
+The Next.js application is the main administrative interface for school staff.
+
+- Role-based admin, accountant, teacher, parent, and student experiences
+- Student admission, profiles, classes, sections, academic years, and promotions
+- Staff and teacher management
+- Daily attendance, leave requests, holidays, biometric records, and reports
+- Fee structures, invoices, collections, concessions, dues, reminders, receipts, and vouchers
+- Accounting, expenses, vendors, banking, ledger, and financial reports
+- Salary and payroll generation with advances and deductions
+- Exams, marks, report cards, homework, timetable, and certificates
+- Transport, library, hostel, and inventory management
+- Notices, notifications, messages, AI assistance, approvals, and audit logs
+- Firebase authentication, Firestore data, storage, and server-side API routes
+
+### Mobile app
+
+The Expo application provides focused workflows for teachers and parents.
+
+- Teacher and accountant sign-in
+- Attendance and attendance history
+- GPS-assisted attendance with configurable school geofencing
+- Calendar, reports, marks, salary, notices, and profile screens
+- Parent and principal portal screens
+- Fee, payment, transport, and homework views
+- Expo push notification and background task support
+- Firebase data access and web API integration
+
+### Windows desktop app
+
+The Electron package wraps the web ERP for Windows.
+
+- NSIS installer and portable build support
+- Packaged Next.js standalone server
+- WhatsApp/Baileys messaging agent
+- Runtime environment configuration stored outside the installer
+
+## Technology
+
+| Area | Technology |
+| --- | --- |
+| Web | Next.js 14, React 18, TypeScript, Tailwind CSS |
+| Mobile | Expo, React Native, Expo Router |
+| Desktop | Electron 33, electron-builder |
+| Backend | Firebase Authentication, Firestore, Firebase Storage |
+| Admin/server | Firebase Admin SDK, Next.js API routes |
+| Shared logic | TypeScript, Zod |
+| Reports | XLSX, Recharts, `docx`, QR generation |
+| Testing | Playwright, Axe, Node test runner |
+
+## Repository structure
+
+```text
+apps/
+  web/      Next.js web ERP
+  mobile/   Expo teacher and parent applications
+  desktop/  Electron packaging and messaging agent
+packages/
+  shared/   Shared types, schemas, services, and seed utilities
+scripts/    Build, seed, test, and operational tooling
+docs/       Schema, API, implementation, and operations documentation
+tests/      Playwright and quality tests
+```
+
+## Prerequisites
+
+- Node.js 20 or newer
+- npm
+- A Firebase project
+- Firebase CLI for emulator and deployment workflows
+- Expo CLI tooling for mobile development
+- Windows and Electron tooling for desktop installers
+
+## Installation
+
+Install all npm workspaces:
 
 ```bash
 npm install
 ```
 
-## Configure Firebase
-
-1. Create a Firebase project.
-2. Enable Email/Password Auth.
-3. Create Firestore and Storage.
-4. Copy `.env.example` into `apps/web/.env.local`.
-5. Copy the Expo variables into `apps/mobile/.env`.
-6. Deploy `firestore.rules`, `storage.rules`, and `firestore.indexes.json`.
-
-For server API routes, configure either:
+For environments that require legacy dependency resolution:
 
 ```bash
-FIREBASE_SERVICE_ACCOUNT_KEY='{"project_id":"...","client_email":"...","private_key":"..."}'
+npm install --legacy-peer-deps
 ```
 
-or:
+## Firebase configuration
+
+Start by creating a Firebase project and enabling:
+
+- Email/password authentication
+- Cloud Firestore
+- Firebase Storage
+
+Copy the example web environment file:
 
 ```bash
+cp env.example apps/web/.env.local
+```
+
+Fill in the Firebase web configuration and, where needed, Firebase Admin credentials.
+
+For server-side Firebase access, provide either a complete service-account JSON string:
+
+```text
+FIREBASE_SERVICE_ACCOUNT_KEY={"project_id":"...","client_email":"...","private_key":"..."}
+```
+
+or the individual fields:
+
+```text
 FIREBASE_CLIENT_EMAIL=...
 FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
 ```
 
-## Run Web
+Deploy or review the configured rules and indexes:
+
+```bash
+firebase deploy --only firestore:rules,firestore:indexes,storage
+```
+
+The repository includes `firestore.rules`, `storage.rules`, and `firestore.indexes.json`.
+
+## Running the web app
 
 ```bash
 npm run dev:web
@@ -44,23 +139,123 @@ npm run dev:web
 
 Open `http://localhost:3000`.
 
-## Run Mobile
+## Running the mobile app
+
+Copy the mobile environment template:
+
+```bash
+cp apps/mobile/.env.example apps/mobile/.env.local
+```
+
+Set the Firebase variables and use the reachable web API URL:
+
+```text
+EXPO_PUBLIC_WEB_API_URL=http://192.168.1.11:3000
+EXPO_PUBLIC_SITE_URL=http://localhost:3000
+```
+
+On a physical device, `localhost` refers to the device itself. Use the computer's LAN IP address so the phone can reach the web API.
+
+Start Expo:
 
 ```bash
 npm run dev:mobile
 ```
 
-Set `EXPO_PUBLIC_WEB_API_URL` to the reachable web API URL. On a physical phone, `localhost` means the phone itself, so use your computer LAN IP.
+## Local Firebase emulators
 
-## Set Admin Account
+The web environment can be switched to local Firebase emulators.
 
-Create the first admin user in Firebase Auth, then set a custom claim using Firebase Admin SDK:
+Add the following to `apps/web/.env.local`:
 
-```ts
-await admin.auth().setCustomUserClaims(uid, { role: "admin" });
+```text
+NEXT_PUBLIC_USE_FIREBASE_EMULATOR=true
+FIRESTORE_EMULATOR_HOST=localhost:8080
+FIREBASE_AUTH_EMULATOR_HOST=localhost:9099
 ```
 
-Also create `users/{uid}`:
+Start the emulators:
+
+```bash
+npm run test:emulator:start
+```
+
+Then open `http://localhost:4000` for the emulator UI.
+
+Stop the emulators with:
+
+```bash
+npm run test:emulator:stop
+```
+
+Do not enable emulator mode in production.
+
+## Running the desktop app
+
+Development:
+
+```bash
+npm run dev:desktop
+```
+
+Create a Windows NSIS installer:
+
+```bash
+npm run dist:desktop
+```
+
+Create a portable build:
+
+```bash
+npm run dist:portable
+```
+
+Quickly reuse an existing web build:
+
+```bash
+npm run dist:desktop:quick
+```
+
+Desktop installers are written to `apps/desktop/dist`.
+
+## Builds and tests
+
+```bash
+npm run build:web
+npm run typecheck:web
+npm test
+npm run test:hydration
+npm run test:e2e
+```
+
+To start emulators and run the full Playwright suite:
+
+```bash
+npm run test:qa-full
+```
+
+## Demo data
+
+Generate demo Firestore-ready JSON:
+
+```bash
+npm run seed
+```
+
+The shared seed utility prints sample data to the terminal. Review and import it with appropriate school data and identifiers; do not treat it as a production migration.
+
+## Initial admin setup
+
+Create the first account in Firebase Authentication, then assign the admin role with Firebase Admin:
+
+```ts
+await admin.auth().setCustomUserClaims(uid, {
+  role: "admin",
+  school_id: "default-school",
+});
+```
+
+Create the corresponding user document, for example:
 
 ```json
 {
@@ -68,93 +263,75 @@ Also create `users/{uid}`:
   "role": "admin",
   "email": "admin@example.com",
   "displayName": "Admin",
-  "createdAt": "2026-05-19T00:00:00.000Z",
-  "updatedAt": "2026-05-19T00:00:00.000Z"
+  "status": "active"
 }
 ```
 
-## Campus GPS
+Keep Firebase custom claims, user documents, and school/branch scoping aligned with the rules in `apps/web/lib` and `firestore.rules`.
 
-Settings live in `settings/school` (edit at `/admin/settings` — that page is the
-source of truth; do NOT copy coordinates from docs):
+## Attendance and GPS
 
-```json
-{
-  "campusLatitude": 17.92015,
-  "campusLongitude": 79.895539,
-  "geofenceRadiusMeters": 150,
-  "schoolStartTime": "09:00",
-  "graceMinutes": 10,
-  "timezone": "Asia/Kolkata"
-}
-```
+Campus geofencing is configured in `settings/school` and managed from the web settings area.
 
-Mobile attendance checks distance before sending attendance. The backend checks again before writing.
+The mobile app reads the configured latitude, longitude, radius, school start time, grace period, and timezone. GPS is checked by the client and revalidated by the server before attendance is written.
 
-Admin GPS setup is available at:
+The attendance GPS/time enforcement is enabled by default. It can only be temporarily bypassed with the explicit environment flags documented in `env.example`.
+
+## Biometric integration
+
+The biometric webhook accepts device logs and merges them into the attendance records:
 
 ```text
-/admin/settings
+POST /api/biometric/ingest
+Header: x-biometric-secret: <secret>
 ```
 
-Use `Use current GPS` while standing at the school campus center, or manually enter latitude and longitude. The teacher mobile app reads `settings/school`, shows the school GPS, shows the teacher's current GPS, calculates distance, and blocks attendance outside the configured radius.
+Configure `BIOMETRIC_API_SECRET` and the matching secret in the school settings. The raw event is stored before it is correlated with staff or teacher records.
 
-## ESSL Biometric Integration
+## Backups and scheduled jobs
 
-Webhook endpoint:
+The web app includes:
 
-```text
-POST /api/biometric/log
-Header: x-biometric-secret: your_secret
-```
+- JSON backup and restore workflows
+- Backup audit logs and guarded data erase
+- Google Drive backups for selected Firestore collections
+- Scheduled reminder and backup API routes
 
-Payload:
+Vercel cron configuration is available in `vercel.json`. Google Drive OAuth fields and cron secrets are described in `env.example`.
 
-```json
-{
-  "deviceId": "ESSL-001",
-  "biometricUserId": "EMP001",
-  "timestamp": "2026-05-19T09:05:00+05:30",
-  "verificationType": "face",
-  "eventType": "checkin"
-}
-```
+## Deployment
 
-The API validates the secret, stores the raw log in `biometric_logs`, finds the teacher by `biometricUserId`, and merges the event into the daily attendance document. The placeholder `pollEsslDevicePlaceholder()` in the shared biometric service is where a model-specific ESSL SDK/TCP polling integration should be added later.
+### Vercel
 
-## Salary Calculation
+The included `vercel.json` configures:
 
-Salary is calculated from attendance, holidays, teacher salary settings, and global salary rules.
+- Next.js build through `npm run build:vercel`
+- Security response headers
+- Scheduled Google Drive collection backups
 
-- Present: paid full day
-- Holiday: paid full day
-- CL: paid up to teacher monthly CL limit
-- Extra CL: unpaid
-- Absent: unpaid day
-- Late: configurable as none, half day, fixed amount, or one-day deduction after a configured late count
+Configure all required Firebase, Admin, OAuth, cron, and public URL variables in the Vercel project before deployment.
 
-## Demo Data
+### Firebase rules
 
-Demo data is available from the shared package and used by the UI until Firebase collections are connected with live queries.
+Deploy Firestore and Storage rules after authentication and role claims are configured:
 
 ```bash
-npm run seed
+firebase deploy --only firestore:rules,firestore:indexes,storage
 ```
 
-This prints demo Firestore-ready JSON.
+### Desktop packaging
 
-## USB Backup Before Erase
+Desktop builds should receive runtime configuration through the per-user app-data environment mechanism implemented by `apps/desktop/main.js`. Secret environment files are deliberately excluded from packaged installers.
 
-Admin route:
+## Security
 
-```text
-/admin/backup
-```
+- Never commit `.env`, `.env.local`, service-account files, private keys, or access tokens.
+- Keep Firebase credentials and all `FIREBASE_*` values server-side.
+- Only expose public configuration through `NEXT_PUBLIC_*` or `EXPO_PUBLIC_*` variables.
+- Review Firestore and Storage rules before production use.
+- Restrict biometric webhooks and cron routes with strong secrets.
+- Use HTTPS and authorized domains for production authentication and reset links.
 
-The browser cannot reliably prove a selected folder is a USB drive, so the app uses a guarded workflow:
+## Documentation
 
-- Admin downloads a JSON Firestore backup.
-- Admin saves that file to the USB drive using the browser save dialog.
-- The backup checksum is stored in `backup_audit_logs`.
-- Data erase is enabled only after USB confirmation, checksum verification, and the exact phrase `ERASE SCHOOL DATA`.
-- Erase removes operational collections and keeps `backup_audit_logs` plus `admin_audit_logs`.
+Additional guides are available in [`docs/`](./docs) and [`USER_GUIDE.md`](./USER_GUIDE.md).

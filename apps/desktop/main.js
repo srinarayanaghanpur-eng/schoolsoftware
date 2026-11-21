@@ -1,17 +1,33 @@
-const { app, BrowserWindow, dialog, shell } = require("electron");
+const { app, BrowserWindow, dialog, ipcMain, Menu, Notification, safeStorage, session, shell } = require("electron");
 const { fork } = require("child_process");
 const fs = require("fs");
 const net = require("net");
 const path = require("path");
+const { pathToFileURL } = require("url");
+const { AgentService } = require("./messaging/agentService");
 
 const DEFAULT_PORT = Number(process.env.ERP_PORT || 3456);
 const HOST = "127.0.0.1";
 const PORT_SCAN_LIMIT = 50;
+// Hosted-first mode: packaged builds load the deployed web app by default so
+// office PCs never need the Firebase Admin service-account key. Set
+// ERP_APP_URL to override the URL, or ERP_APP_URL=local to force the bundled
+// local Next.js server (development / offline fallback).
+const DEFAULT_HOSTED_URL = "https://schoolsoftware-two.vercel.app";
+const ENV_APP_URL = String(process.env.ERP_APP_URL || "").trim();
+const REMOTE_APP_URL =
+  ENV_APP_URL === "local" ? "" : ENV_APP_URL || (app.isPackaged ? DEFAULT_HOSTED_URL : "");
+const USE_REMOTE_APP = Boolean(REMOTE_APP_URL);
 
 let isQuitting = false;
 let mainWindow = null;
 let serverPort = DEFAULT_PORT;
 let serverProcess = null;
+let agentWindow = null;
+let messagingService = null;
+let capturedBearerToken = "";
+let capturedBearerAt = 0;
+let tokenCaptureOrigin = "";
 
 const gotSingleInstanceLock = app.requestSingleInstanceLock();
 
@@ -24,12 +40,46 @@ if (process.platform === "win32") {
   app.setAppUserModelId("com.sri-narayana.high-school.erp");
 }
 
+function getAppOrigin() {
+  if (!USE_REMOTE_APP) return "";
+  try {
+    return new URL(REMOTE_APP_URL).origin;
+  } catch {
+    return "";
+  }
+}
+
+function isAllowedAppUrl(url) {
+  try {
+    const target = new URL(url);
+    if (USE_REMOTE_APP) return target.origin === getAppOrigin();
+    return (
+      (target.hostname === HOST || target.hostname === "localhost") &&
+      Number(target.port || serverPort) === serverPort
+    );
+  } catch {
+    return false;
+  }
+}
+
+function getAppUrl() {
+  return USE_REMOTE_APP ? REMOTE_APP_URL : `http://${HOST}:${serverPort}`;
+}
+
+function isTrustedSender(event) {
+  const url = event.senderFrame?.url || event.sender.getURL();
+  return isAllowedAppUrl(url);
+}
+
 function getServerScript() {
   if (app.isPackaged) {
     return path.join(process.resourcesPath, "web", "apps", "web", "server.js");
   }
 
-  return path.join(__dirname, "..", "web", ".next", "standalone", "apps", "web", "server.js");
+  // Dev/unpackaged runs use the fully assembled resources folder, which
+  // includes .next/static and public assets. The raw .next/standalone output
+  // does not contain those files, so serving from it leaves the UI unstyled.
+  return path.join(__dirname, "resources", "apps", "web", "server.js");
 }
 
 function getWebRoot() {
@@ -405,6 +455,7 @@ function createWindow() {
   const icon = getIconPath();
 
   mainWindow = new BrowserWindow({
+    autoHideMenuBar: true,
     backgroundColor: "#0f172a",
     height: 900,
     icon,
@@ -422,40 +473,296 @@ function createWindow() {
 
   loadSplashPage();
 
+  mainWindow.webContents.on("before-input-event", (event, input) => {
+    if (input.type === "keyDown" && input.key === "F12") {
+      mainWindow.webContents.toggleDevTools();
+      event.preventDefault();
+    }
+  });
+
   mainWindow.once("ready-to-show", () => {
     mainWindow.show();
     mainWindow.focus();
   });
 
-  mainWindow.webContents.on("did-fail-load", (_event, errorCode, errorDescription) => {
-    loadErrorPage("ERP Failed To Load", `${errorDescription} (${errorCode})\n\nLocal URL: http://${HOST}:${serverPort}`);
+  mainWindow.webContents.on("did-fail-load", (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
+    if (isMainFrame === false) return;
+    if (errorCode === -3 || String(validatedURL || "").startsWith("data:")) return;
+    loadErrorPage("ERP Failed To Load", `${errorDescription} (${errorCode})\n\nApp URL: ${getAppUrl()}`);
   });
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    try {
-      const target = new URL(url);
-      const isLocalErp =
-        (target.hostname === HOST || target.hostname === "localhost") &&
-        Number(target.port || serverPort) === serverPort;
+    if (isAllowedAppUrl(url)) return { action: "allow" };
+    void shell.openExternal(url);
+    return { action: "deny" };
+  });
 
-      if (isLocalErp) return { action: "allow" };
-
-      shell.openExternal(url);
-      return { action: "deny" };
-    } catch {
-      return { action: "deny" };
-    }
+  mainWindow.webContents.on("will-navigate", (event, url) => {
+    if (isAllowedAppUrl(url)) return;
+    event.preventDefault();
+    void shell.openExternal(url);
   });
 
   mainWindow.on("closed", () => {
     mainWindow = null;
+    if (agentWindow && !agentWindow.isDestroyed()) agentWindow.close();
     stopServer();
   });
 }
 
 function loadAppUrl() {
   if (!mainWindow || mainWindow.isDestroyed()) return;
-  mainWindow.loadURL(`http://${HOST}:${serverPort}`);
+  mainWindow.loadURL(getAppUrl());
+}
+
+function getErpOrigin() {
+  if (USE_REMOTE_APP) return getAppOrigin();
+  if (!serverPort) return "";
+  return `http://${HOST}:${serverPort}`;
+}
+
+function installTokenCapture(origin) {
+  if (!origin) return;
+  if (tokenCaptureOrigin === origin) return;
+  tokenCaptureOrigin = origin;
+
+  session.defaultSession.webRequest.onBeforeSendHeaders(
+    { urls: [`${origin}/api/*`] },
+    (details, callback) => {
+      const headers = details.requestHeaders || {};
+      const raw = headers.Authorization || headers.authorization;
+      const auth = Array.isArray(raw) ? raw[0] : raw;
+      if (typeof auth === "string" && auth.startsWith("Bearer ")) {
+        capturedBearerToken = auth.slice("Bearer ".length);
+        capturedBearerAt = Date.now();
+      }
+      callback({ requestHeaders: headers });
+    }
+  );
+}
+
+function currentErpToken() {
+  if (!capturedBearerToken) return "";
+  // ERP ID tokens are valid for about one hour. Force a refresh by asking the
+  // operator to interact with the ERP after 55 minutes instead of sending a
+  // token that will fail with 401.
+  if (Date.now() - capturedBearerAt > 55 * 60 * 1000) return "";
+  return capturedBearerToken;
+}
+
+function focusMainWindow() {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  if (mainWindow.isMinimized()) mainWindow.restore();
+  mainWindow.show();
+  mainWindow.focus();
+}
+
+function isTrustedAgentSender(event) {
+  if (!agentWindow || agentWindow.isDestroyed()) return false;
+  if (event.sender !== agentWindow.webContents) return false;
+  const expected = pathToFileURL(path.join(__dirname, "agent", "agent.html")).href;
+  const url = event.senderFrame?.url || event.sender.getURL();
+  return String(url).startsWith(expected);
+}
+
+function openMessagingAgent() {
+  if (agentWindow && !agentWindow.isDestroyed()) {
+    if (agentWindow.isMinimized()) agentWindow.restore();
+    agentWindow.show();
+    agentWindow.focus();
+    return;
+  }
+
+  agentWindow = new BrowserWindow({
+    width: 1280,
+    height: 900,
+    minWidth: 960,
+    minHeight: 680,
+    title: "Sri Narayana ERP - Bulk SMS Agent",
+    backgroundColor: "#0f172a",
+    show: false,
+    webPreferences: {
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+      preload: path.join(__dirname, "agent-preload.js")
+    }
+  });
+
+  agentWindow.once("ready-to-show", () => {
+    agentWindow.show();
+    agentWindow.focus();
+  });
+
+  agentWindow.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
+  agentWindow.webContents.on("will-navigate", (event) => event.preventDefault());
+  agentWindow.loadFile(path.join(__dirname, "agent", "agent.html")).catch((error) => {
+    dialog.showErrorBox("Messaging Agent", error instanceof Error ? error.message : String(error));
+  });
+  agentWindow.on("closed", () => {
+    agentWindow = null;
+  });
+}
+
+function registerMessagingIpc() {
+  const handle = (channel, handler) => {
+    ipcMain.handle(channel, async (event, payload) => {
+      if (!isTrustedAgentSender(event)) {
+        return { ok: false, code: "UNTRUSTED", error: "Untrusted sender" };
+      }
+      if (!messagingService) {
+        return { ok: false, code: "NOT_READY", error: "Messaging service is not ready" };
+      }
+      try {
+        return { ok: true, data: await handler(payload) };
+      } catch (error) {
+        return {
+          ok: false,
+          code: error?.code || "AGENT_ERROR",
+          error: error instanceof Error ? error.message : "Messaging agent failed"
+        };
+      }
+    });
+  };
+
+  handle("agent:bootstrap", () => messagingService.bootstrap());
+  handle("agent:open-erp", () => {
+    focusMainWindow();
+    return true;
+  });
+  handle("agent:academic-years", () => messagingService.academicYears());
+  handle("agent:students", (payload) => messagingService.students(payload));
+  handle("agent:save-settings", (payload) => {
+    const body = payload && typeof payload === "object" ? payload : {};
+    return messagingService.saveSettings(body.settings, body.authToken);
+  });
+  handle("agent:clear-token", () => messagingService.clearAuthToken());
+  handle("agent:test-gateway", (payload) => messagingService.testGateway(payload || {}));
+  handle("agent:create-campaign", (payload) => messagingService.createCampaign(payload));
+  handle("agent:start-campaign", (payload) => messagingService.start(payload));
+  handle("agent:pause-campaign", (payload) => messagingService.pause(payload));
+  handle("agent:resume-campaign", (payload) => messagingService.resume(payload));
+  handle("agent:retry-failed", (payload) => messagingService.retryFailed(payload));
+  handle("agent:state", (payload) => messagingService.state(payload));
+  handle("agent:export-campaign", (payload) => messagingService.exportCampaign(payload));
+}
+
+function installApplicationMenu() {
+  const template = [
+    {
+      label: "File",
+      submenu: [{ role: "quit" }]
+    },
+    {
+      label: "Tools",
+      submenu: [
+        {
+          label: "Bulk Messaging Agent",
+          accelerator: "CmdOrCtrl+Shift+M",
+          click: () => openMessagingAgent()
+        },
+        {
+          label: "Open ERP",
+          click: () => focusMainWindow()
+        }
+      ]
+    },
+    {
+      label: "View",
+      submenu: [{ role: "reload" }, { role: "toggleDevTools" }]
+    }
+  ];
+  Menu.setApplicationMenu(Menu.buildFromTemplate(template));
+}
+function registerIpcHandlers() {
+  ipcMain.handle("app:info", (event) => {
+    if (!isTrustedSender(event)) return null;
+    return {
+      version: app.getVersion(),
+      platform: process.platform,
+      isPackaged: app.isPackaged,
+      mode: USE_REMOTE_APP ? "hosted" : "local",
+    };
+  });
+
+  ipcMain.handle("app:capabilities", (event) => {
+    if (!isTrustedSender(event)) return null;
+    return {
+      nativePrint: true,
+      pdfExport: true,
+      offlineAttendance: false,
+      biometric: false,
+      updater: false,
+      hostedMode: USE_REMOTE_APP,
+    };
+  });
+
+  ipcMain.handle("notify:show", (event, options = {}) => {
+    if (!isTrustedSender(event)) return { ok: false, error: "Untrusted sender" };
+    if (!Notification.isSupported()) return { ok: false, error: "Notifications are not supported" };
+
+    const title = String(options?.title || "Sri Narayana ERP").slice(0, 120);
+    const body = String(options?.body || "").slice(0, 500);
+    const route = typeof options?.route === "string" && options.route.startsWith("/") ? options.route : "";
+
+    const notification = new Notification({
+      title,
+      body,
+      icon: getIconPath(),
+      silent: false,
+    });
+
+    notification.on("click", () => {
+      if (!mainWindow || mainWindow.isDestroyed()) return;
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.show();
+      mainWindow.focus();
+      if (route) mainWindow.webContents.send("notify:navigate", route);
+    });
+
+    notification.show();
+    return { ok: true };
+  });
+
+  ipcMain.handle("print:current", async (event) => {
+    if (!isTrustedSender(event)) return { ok: false, error: "Untrusted sender" };
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (!win) return { ok: false, error: "No window" };
+    return new Promise((resolve) => {
+      win.webContents.print({ silent: false, printBackground: true }, (success, failureReason) => {
+        resolve(success ? { ok: true } : { ok: false, error: failureReason || "Print canceled" });
+      });
+    });
+  });
+
+  ipcMain.handle("print:pdf", async (event, options = {}) => {
+    if (!isTrustedSender(event)) return { ok: false, error: "Untrusted sender" };
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (!win) return { ok: false, error: "No window" };
+
+    const rawName = String(options?.defaultName || "document.pdf");
+    const defaultName =
+      rawName.replace(/[\\/:*?"<>|]+/g, "-").slice(0, 120) || "document.pdf";
+    const { canceled, filePath } = await dialog.showSaveDialog(win, {
+      defaultPath: defaultName,
+      filters: [{ name: "PDF", extensions: ["pdf"] }],
+    });
+    if (canceled || !filePath) return { ok: false, canceled: true };
+
+    try {
+      const data = await win.webContents.printToPDF({
+        printBackground: true,
+        preferCSSPageSize: true,
+      });
+      fs.writeFileSync(filePath, data);
+      return { ok: true, path: filePath };
+    } catch (error) {
+      return {
+        ok: false,
+        error: error instanceof Error ? error.message : "Failed to save PDF",
+      };
+    }
+  });
 }
 
 app.on("second-instance", () => {
@@ -468,21 +775,61 @@ app.on("second-instance", () => {
 
 app.on("window-all-closed", () => {
   isQuitting = true;
+  messagingService?.stopAll();
   stopServer();
   app.quit();
 });
 
 app.on("before-quit", () => {
   isQuitting = true;
+  messagingService?.stopAll();
   stopServer();
 });
 
 app.whenReady().then(async () => {
   try {
+    installApplicationMenu();
+    session.defaultSession.setPermissionRequestHandler((webContents, permission, callback, details) => {
+      if (permission !== "notifications") {
+        callback(true);
+        return;
+      }
+      const url = details?.requestingUrl || webContents.getURL();
+      callback(isAllowedAppUrl(url));
+    });
+    session.defaultSession.setPermissionCheckHandler((webContents, permission, requestingOrigin) => {
+      if (permission !== "notifications") return true;
+      return isAllowedAppUrl(requestingOrigin || webContents.getURL());
+    });
+    registerIpcHandlers();
     createWindow();
+
+    try {
+      messagingService = new AgentService({
+        userDataDir: app.getPath("userData"),
+        safeStorage,
+        getOrigin: getErpOrigin,
+        getToken: currentErpToken,
+        focusErp: focusMainWindow
+      });
+      messagingService.init();
+      registerMessagingIpc();
+    } catch (error) {
+      console.error("[desktop] Messaging agent failed to initialize:", error);
+      messagingService = null;
+    }
+
+    if (USE_REMOTE_APP) {
+      console.log(`[desktop] Hosted mode: ${REMOTE_APP_URL}`);
+      installTokenCapture(getErpOrigin());
+      loadAppUrl();
+      return;
+    }
+
     console.log("[desktop] Starting ERP server...");
     await startServer();
     console.log(`[desktop] ERP server ready at http://${HOST}:${serverPort}`);
+    installTokenCapture(getErpOrigin());
     loadAppUrl();
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
@@ -492,3 +839,6 @@ app.whenReady().then(async () => {
     app.quit();
   }
 });
+
+
+

@@ -1,0 +1,2847 @@
+<!doctype html>
+<html lang="en-IN" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>NarayanaOS Mobile — Interactive Redesign Demo</title>
+<style>
+/* ============================================================
+   1. PRIMITIVES — raw palette. Components never use these.
+   ============================================================ */
+:root{
+  --indigo-50:#EFEDFB; --indigo-100:#E3DEF9; --indigo-200:#C8BEF3; --indigo-300:#A796EC;
+  --indigo-400:#876BE7; --indigo-500:#6D4AFF; --indigo-600:#5840D8; --indigo-700:#3B2FA3;
+  --indigo-800:#2C227C; --indigo-900:#1D1755; --indigo-950:#120D36;
+  --marigold-100:#FDECC6; --marigold-200:#FADB92; --marigold-300:#F7C95F;
+  --marigold-400:#F4B740; --marigold-500:#E2A32A; --marigold-700:#966313; --marigold-900:#432A07;
+  --mint-50:#E8F8F2; --mint-200:#97E2C9; --mint-500:#12A87A; --mint-700:#0B6B4E; --mint-900:#052F23;
+  --coral-50:#FDEDED; --coral-300:#F08084; --coral-500:#E5484D; --coral-700:#A02529; --coral-900:#4A1012;
+  --sky-50:#EBF3FE; --sky-300:#7FADF9; --sky-500:#2E7CF6; --sky-700:#154BA6; --sky-900:#0A224C;
+  --n0:#FFFFFF; --n25:#FBFAFE; --n50:#F6F5FB; --n75:#F1EFF9; --n100:#ECE9F6;
+  --n200:#DEDAF0; --n300:#C9C3E4; --n400:#A9A4C2; --n500:#757096; --n600:#4C4870;
+  --n700:#2E2A4D; --n800:#1D1A33; --n900:#12102A; --n950:#0A0818;
+
+  /* ============================================================
+     2. SEMANTIC — light theme
+     ============================================================ */
+  --bg:var(--n50); --surface:var(--n0); --surface-raised:var(--n0);
+  --surface-sunken:var(--n75); --surface-tint:#ECE8FF; --surface-inverse:var(--n900);
+  --scrim:rgba(18,16,42,.48); --scrim-strong:rgba(18,16,42,.72);
+  --skeleton:#ECE9F6; --skeleton-highlight:#F7F5FD;
+
+  --text:var(--n900); --text-secondary:var(--n600); --text-tertiary:var(--n500);
+  --text-disabled:var(--n400); --text-inverse:#FFFFFF; --text-on-primary:#FFFFFF;
+  --text-link:var(--indigo-700); --text-accent:#8A5A0A; --text-success:var(--mint-700);
+  --text-danger:#B3262B; --text-info:var(--sky-700);
+
+  --border-subtle:var(--n100); --border:var(--n200); --border-strong:var(--n300);
+  --border-focus:var(--indigo-500); --border-danger:var(--coral-500); --divider:var(--n100);
+  --nav-border:rgba(18,16,42,.06);
+
+  --primary:var(--indigo-700); --primary-pressed:var(--indigo-800); --primary-disabled:var(--indigo-200);
+  --on-primary:#FFFFFF; --primary-container:#ECE8FF; --on-primary-container:#1C1550;
+  --primary-subtle:#F4F1FF; --grad-a:var(--indigo-700); --grad-b:var(--indigo-500);
+  --accent:var(--marigold-400); --accent-pressed:var(--marigold-500); --accent-container:#FEF3D6;
+  --on-accent:var(--n900); --on-accent-container:#4A3208;
+
+  --success:var(--mint-500); --success-container:var(--mint-50); --on-success-container:#08402F;
+  --warning:var(--marigold-400); --warning-container:#FEF3D6; --on-warning-container:#4A3208;
+  --danger:var(--coral-500); --danger-container:var(--coral-50); --on-danger-container:#5C0F13;
+  --info:var(--sky-500); --info-container:var(--sky-50); --on-info-container:#0F3470;
+
+  --badge-neutral-bg:var(--n75); --badge-neutral-text:var(--n600);
+  --tile-lav:#ECE8FF; --tile-lav-fg:#3B2FA3; --tile-peach:#FFE9D6; --tile-peach-fg:#A34E0E;
+  --tile-mint:#DDF6EC; --tile-mint-fg:#0B6B4E; --tile-sky:#E3EFFE; --tile-sky-fg:#154BA6;
+  --tile-lemon:#FEF4D2; --tile-lemon-fg:#8A5A0A; --tile-rose:#FDE4E8; --tile-rose-fg:#A02529;
+
+  --shadow-xs:0 1px 2px rgba(18,16,42,.04);
+  --shadow-sm:0 2px 8px rgba(18,16,42,.06);
+  --shadow-md:0 8px 24px rgba(18,16,42,.08);
+  --shadow-lg:0 16px 40px rgba(18,16,42,.12);
+  --shadow-xl:0 24px 64px rgba(18,16,42,.18);
+  --shadow-primary:0 12px 28px rgba(59,47,163,.28);
+  --highlight:inset 0 1px 0 rgba(255,255,255,.60);
+
+  /* ============================================================
+     3. SYSTEM — spacing, radii, motion, controls
+     ============================================================ */
+  --s0:2px; --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:20px; --s6:24px;
+  --s7:32px; --s8:40px; --s9:48px; --s10:64px;
+  --r-xs:8px; --r-sm:12px; --r-md:16px; --r-lg:20px; --r-xl:24px; --r-hero:28px;
+  --r-pill:999px; --r-full:9999px;
+  --tap:44px; --control-h:48px; --control-h-lg:52px; --input-h:52px; --chip-h:34px;
+  --nav-h:64px; --header-h:56px;
+  --motion-press:.96; --motion-press-fast:140ms;
+  --motion-enter:240ms; --motion-enter-slow:280ms; --motion-exit:160ms;
+  --motion-push:260ms; --motion-pop:220ms; --motion-tab:180ms;
+  --ease-spring:cubic-bezier(.2,0,0,1); --ease-out:cubic-bezier(.16,1,.3,1);
+  --ease-in:cubic-bezier(.4,0,1,1); --ease-smooth:cubic-bezier(.22,1,.36,1);
+  --z-header:30; --z-nav:40; --z-scrim:50; --z-sheet:60; --z-toast:70; --z-confetti:80;
+  --font-head:"Plus Jakarta Sans","Segoe UI Variable Display","Segoe UI",system-ui,-apple-system,sans-serif;
+  --font-body:"DM Sans","Segoe UI Variable Text","Segoe UI",system-ui,-apple-system,sans-serif;
+}
+
+/* Dark theme — every semantic colour is overridden. */
+[data-theme="dark"]{
+  --bg:#0E0C1F; --surface:#16142E; --surface-raised:#1D1A3A;
+  --surface-sunken:#0A0818; --surface-tint:#221C46; --surface-inverse:#F4F3FA;
+  --scrim:rgba(0,0,0,.66); --scrim-strong:rgba(0,0,0,.82);
+  --skeleton:#242040; --skeleton-highlight:#2E2950;
+
+  --text:#F4F3FA; --text-secondary:#C3BFE0; --text-tertiary:#938DB8;
+  --text-disabled:#615C85; --text-inverse:#12102A;
+  --text-link:#B9A8FF; --text-accent:#F4B740; --text-success:#6DE7BE;
+  --text-danger:#FF9A9D; --text-info:#9CC0FF;
+
+  --border-subtle:#241F42; --border:#2E2950; --border-strong:#3E3866;
+  --border-focus:#A594EB; --border-danger:#F08A8D; --divider:#241F42;
+  --nav-border:rgba(255,255,255,.08);
+
+  --primary:#7C5CFF; --primary-pressed:#6A4BEB; --primary-disabled:#332C5C;
+  --primary-container:#241C4D; --on-primary-container:#DCD4FF; --primary-subtle:#1B1638;
+  --grad-a:#5B3FE0; --grad-b:#8B6CFF;
+  --accent-container:#3A2A0B; --on-accent-container:#FCE3A6;
+
+  --success:#2FD3A0; --success-container:#0E2F26; --on-success-container:#C9F7E6;
+  --warning:#F7C95F; --warning-container:#3A2A0B; --on-warning-container:#FCE3A6;
+  --danger:#FF7A7E; --danger-container:#3A1418; --on-danger-container:#FFD9DA;
+  --info:#5B9BFF; --info-container:#12294A; --on-info-container:#CDE0FF;
+
+  --badge-neutral-bg:#242040; --badge-neutral-text:#C3BFE0;
+  --tile-lav:#2A2350; --tile-lav-fg:#C3B4FF; --tile-peach:#3A2418; --tile-peach-fg:#FFC79B;
+  --tile-mint:#123528; --tile-mint-fg:#6DE7BE; --tile-sky:#172B47; --tile-sky-fg:#9CC0FF;
+  --tile-lemon:#372C0F; --tile-lemon-fg:#F7D77A; --tile-rose:#3A1E24; --tile-rose-fg:#FFA9AF;
+
+  --shadow-xs:0 1px 2px rgba(0,0,0,.32);
+  --shadow-sm:0 2px 8px rgba(0,0,0,.36);
+  --shadow-md:0 8px 24px rgba(0,0,0,.44);
+  --shadow-lg:0 16px 40px rgba(0,0,0,.50);
+  --shadow-xl:0 24px 64px rgba(0,0,0,.58);
+  --shadow-primary:0 12px 28px rgba(109,74,255,.32);
+  --highlight:inset 0 1px 0 rgba(255,255,255,.06);
+}
+
+/* ============================================================
+   4. BASE
+   ============================================================ */
+*,*::before,*::after{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;overflow-x:hidden;background:
+    radial-gradient(900px 500px at 12% -10%,rgba(109,74,255,.16),transparent 60%),
+    radial-gradient(700px 400px at 92% 8%,rgba(244,183,64,.12),transparent 55%),
+    #E9E7EF;
+  color:var(--text);font-family:var(--font-body);-webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+}
+button,input,textarea,select{font:inherit;color:inherit}
+button{cursor:pointer;background:none;border:0;padding:0}
+h1,h2,h3,p{margin:0}
+a{color:var(--text-link)}
+:focus-visible{outline:2px solid var(--border-focus);outline-offset:2px;border-radius:6px}
+:focus:not(:focus-visible){outline:none}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+.icon{width:22px;height:22px;flex:0 0 auto;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.icon-sm{width:18px;height:18px}
+.icon-lg{width:26px;height:26px}
+.tile-icon{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;flex:0 0 auto}
+.tile-icon .icon{width:20px;height:20px}
+.spin{display:inline-flex;align-items:center;justify-content:center;animation:spin 900ms linear infinite}
+.spin .icon{width:20px;height:20px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ============================================================
+   5. PAGE / STAGE / PHONE
+   ============================================================ */
+.page{min-height:100%;display:flex;flex-direction:column;align-items:center;padding:24px 16px 18px;gap:16px}
+.demo-head{width:100%;max-width:1180px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.demo-brand{display:flex;align-items:center;gap:10px}
+.demo-mark{
+  width:38px;height:38px;border-radius:12px;display:grid;place-items:center;
+  background:linear-gradient(135deg,var(--grad-a),var(--grad-b));color:#fff;
+  font:800 19px/1 var(--font-head);box-shadow:var(--shadow-primary)
+}
+.demo-brand strong{display:block;font:800 16px/1.2 var(--font-head);color:var(--n900);letter-spacing:-.2px}
+.demo-brand span{display:block;font-size:12px;color:var(--n500);margin-top:2px}
+.demo-actions{display:flex;gap:6px;flex-wrap:wrap}
+.demo-actions button{
+  min-height:34px;padding:0 12px;border-radius:999px;background:rgba(255,255,255,.72);
+  border:1px solid rgba(18,16,42,.10);color:#3B3555;font-size:12px;font-weight:600;
+  backdrop-filter:blur(8px);transition:background 160ms,transform 160ms,box-shadow 160ms
+}
+.demo-actions button:hover{background:#fff;box-shadow:0 4px 14px rgba(18,16,42,.08)}
+.demo-actions button:active{transform:scale(.96)}
+.demo-actions button[aria-pressed="true"]{background:var(--indigo-700);color:#fff;border-color:transparent}
+.stage-wrap{position:relative;display:grid;place-items:start center;width:100%}
+.stage{width:390px;height:844px;transform-origin:top center;will-change:transform}
+.stage-caption{font-size:11px;letter-spacing:.9px;text-transform:uppercase;color:#7A748F;text-align:center}
+.phone{
+  width:390px;height:844px;background:var(--bg);border-radius:44px;overflow:hidden;
+  display:flex;flex-direction:column;position:relative;isolation:isolate;
+  border:1px solid rgba(255,255,255,.65);
+  box-shadow:0 40px 90px rgba(24,16,60,.30),0 8px 24px rgba(24,16,60,.14),inset 0 0 0 1px rgba(18,16,42,.04);
+  transition:background 200ms ease,color 200ms ease
+}
+.phone::before{
+  content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:5;
+  background:linear-gradient(180deg,rgba(255,255,255,.10),transparent 18%);mix-blend-mode:screen
+}
+.statusbar{
+  flex:0 0 47px;height:47px;padding:0 24px 0 28px;display:flex;align-items:center;
+  justify-content:space-between;font:600 13.5px/1 var(--font-head);color:var(--text);
+  position:relative;z-index:var(--z-header);letter-spacing:.1px
+}
+.statusbar .sb-right{display:flex;align-items:center;gap:5px}
+.statusbar .icon{width:17px;height:17px;stroke-width:2}
+.appbar{
+  flex:0 0 auto;min-height:56px;padding:4px 12px 8px 8px;display:flex;align-items:center;gap:6px;
+  position:relative;z-index:var(--z-header);background:var(--bg);transition:background 200ms
+}
+.appbar[hidden]{display:none}
+.appbar .bar-title{min-width:0;flex:1;padding-left:2px}
+.appbar h1{font:800 17px/1.25 var(--font-head);letter-spacing:-.2px;color:var(--text);margin:0}
+.appbar .bar-sub{font-size:11.5px;color:var(--text-tertiary);margin-top:1px}
+.appbar .bar-actions{display:flex;align-items:center;gap:6px}
+#app{flex:1 1 auto;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:none;position:relative;background:var(--bg)}
+#app::-webkit-scrollbar{display:none}
+.screen{padding:0 20px 26px;min-height:100%;animation:enter var(--motion-enter) var(--ease-out) both}
+.screen.flush{padding-left:0;padding-right:0}
+.screen.anim-push{animation:pushIn var(--motion-push) var(--ease-smooth) both}
+.screen.anim-pop{animation:popIn var(--motion-pop) var(--ease-out) both}
+.screen.anim-fade{animation:fadeIn var(--motion-tab) ease-out both}
+.bottom-nav{
+  flex:0 0 auto;height:78px;padding:6px 10px 14px;display:flex;align-items:flex-start;justify-content:space-around;
+  background:var(--surface);
+  background:color-mix(in srgb,var(--surface) 96%,transparent);backdrop-filter:blur(18px) saturate(1.2);
+  border-top:1px solid var(--nav-border);position:relative;z-index:var(--z-nav);box-shadow:0 -2px 14px rgba(18,16,42,.04)
+}
+.bottom-nav:empty{display:none}
+.nav-item{
+  flex:0 0 auto;min-width:56px;min-height:56px;padding:5px 8px 4px;display:flex;flex-direction:column;
+  align-items:center;gap:3px;color:var(--text-tertiary);border-radius:16px;
+  transition:color 160ms,transform var(--motion-press-fast) var(--ease-spring),background 160ms
+}
+.nav-item .nav-icon{width:40px;height:28px;border-radius:999px;display:grid;place-items:center;transition:background 180ms,color 180ms}
+.nav-item .nav-icon .icon{width:21px;height:21px}
+.nav-item span{font-size:10.5px;font-weight:600;letter-spacing:.1px}
+.nav-item:active{transform:scale(.94)}
+.nav-item[aria-current="page"]{color:var(--primary)}
+.nav-item[aria-current="page"] .nav-icon{background:var(--primary-container);color:var(--primary)}
+.nav-badge{
+  position:absolute;transform:translate(13px,-9px);min-width:16px;height:16px;padding:0 4px;border-radius:999px;
+  background:var(--danger);color:#fff;font:700 10px/16px var(--font-body);text-align:center
+}
+
+/* ============================================================
+   6. TYPOGRAPHY & LAYOUT UTILITIES
+   ============================================================ */
+.display{font:800 28px/34px var(--font-head);letter-spacing:-.6px;color:var(--text)}
+.title{font:800 22px/28px var(--font-head);letter-spacing:-.3px;color:var(--text)}
+.section-title{font:700 17px/24px var(--font-head);letter-spacing:-.2px;color:var(--text)}
+.body{font:400 15px/22px var(--font-body);color:var(--text)}
+.body-med{font:500 15px/22px var(--font-body);color:var(--text)}
+.label{font:500 13px/18px var(--font-body);color:var(--text-tertiary)}
+.caption{font:500 11px/16px var(--font-body);letter-spacing:.2px;color:var(--text-tertiary)}
+.overline{font:700 11px/16px var(--font-head);letter-spacing:1px;text-transform:uppercase;color:var(--text-tertiary)}
+.num{font:800 22px/28px var(--font-head);letter-spacing:-.3px;font-variant-numeric:tabular-nums}
+.muted{color:var(--text-tertiary)}
+.accent{color:var(--text-accent)}
+.success-text{color:var(--text-success)}
+.danger-text{color:var(--text-danger)}
+.center{text-align:center}
+.stack{display:flex;flex-direction:column;gap:14px}
+.stack-sm{display:flex;flex-direction:column;gap:8px}
+.stack-lg{display:flex;flex-direction:column;gap:22px}
+.row{display:flex;align-items:center;gap:10px}
+.row-between{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.wrap{flex-wrap:wrap}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.grid-5{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.spacer{flex:1}
+.mt-2{margin-top:8px}.mt-3{margin-top:12px}.mt-4{margin-top:16px}.mt-5{margin-top:20px}.mt-6{margin-top:24px}
+.hidden{display:none!important}
+.text-right{text-align:right}
+.divider{height:1px;background:var(--divider);border:0;margin:0}
+
+/* ============================================================
+   7. CARDS, TILES, HERO
+   ============================================================ */
+.card{
+  background:var(--surface);border:1px solid var(--border-subtle);border-radius:var(--r-lg);
+  padding:16px;box-shadow:var(--shadow-sm);color:var(--text);position:relative;
+  transition:background 200ms,border-color 200ms,box-shadow 200ms
+}
+.card.tight{padding:12px}
+.card.sunken{background:var(--surface-sunken);box-shadow:none;border-color:transparent}
+.card.tinted{background:var(--surface-tint);border-color:transparent;box-shadow:none}
+.card.success-soft{background:var(--success-container);border-color:transparent;box-shadow:none}
+.card.warn-soft{background:var(--warning-container);border-color:transparent;box-shadow:none}
+.card.danger-soft{background:var(--danger-container);border-color:transparent;box-shadow:none}
+.pressable{cursor:pointer;transition:transform var(--motion-press-fast) var(--ease-spring),background 160ms,box-shadow 160ms}
+.pressable:active{transform:scale(.97)}
+.hero{
+  position:relative;overflow:hidden;border-radius:var(--r-hero);padding:20px;color:#fff;
+  background:linear-gradient(135deg,var(--grad-a),var(--grad-b));box-shadow:var(--shadow-primary);
+  transition:background 200ms
+}
+.hero::after{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(70% 80% at 88% 0%,rgba(255,255,255,.22),transparent 62%)
+}
+.hero > *{position:relative;z-index:1}
+.hero .overline{color:rgba(255,255,255,.78)}
+.hero .h-title{font:800 22px/28px var(--font-head);letter-spacing:-.3px;margin-top:6px}
+.hero .h-body{font-size:13px;line-height:19px;color:rgba(255,255,255,.82);margin-top:4px}
+.hero .h-amount{font:800 32px/38px var(--font-head);letter-spacing:-.8px;margin-top:6px;font-variant-numeric:tabular-nums}
+.btn-hero{
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;height:42px;padding:0 18px;
+  border-radius:999px;background:#fff;color:var(--indigo-700);font:600 14px/1 var(--font-body);
+  box-shadow:0 6px 16px rgba(18,16,42,.18);transition:transform var(--motion-press-fast) var(--ease-spring)
+}
+.btn-hero:active{transform:scale(.96)}
+.tile{
+  background:var(--surface);border:1px solid var(--border-subtle);border-radius:var(--r-lg);
+  padding:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;
+  min-height:96px;text-align:center;box-shadow:var(--shadow-sm);transition:transform var(--motion-press-fast) var(--ease-spring),background 160ms
+}
+.tile:active{transform:scale(.96)}
+.tile .tile-icon{width:40px;height:40px;border-radius:12px;display:grid;place-items:center}
+.tile .tile-icon .icon{width:22px;height:22px}
+.tile span{font:500 13px/17px var(--font-body);color:var(--text-secondary)}
+.tonal{background:var(--tile-lav);color:var(--tile-lav-fg)}
+.tonal.peach{background:var(--tile-peach);color:var(--tile-peach-fg)}
+.tonal.mint{background:var(--tile-mint);color:var(--tile-mint-fg)}
+.tonal.sky{background:var(--tile-sky);color:var(--tile-sky-fg)}
+.tonal.lemon{background:var(--tile-lemon);color:var(--tile-lemon-fg)}
+.tonal.rose{background:var(--tile-rose);color:var(--tile-rose-fg)}
+
+/* ============================================================
+   8. BUTTONS & CONTROLS
+   ============================================================ */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;height:var(--control-h);
+  padding:0 20px;border-radius:999px;font:500 15px/22px var(--font-body);white-space:nowrap;
+  transition:transform var(--motion-press-fast) var(--ease-spring),background 160ms,box-shadow 160ms,opacity 160ms
+}
+.btn .icon{width:20px;height:20px}
+.btn:active{transform:scale(.96)}
+.btn:disabled,.btn[aria-disabled="true"]{opacity:.38;cursor:not-allowed;box-shadow:none;transform:none}
+.btn-primary{
+  background:linear-gradient(135deg,var(--grad-a),var(--grad-b));color:#fff;box-shadow:var(--shadow-primary);
+  padding:0 22px
+}
+.btn-primary:hover{box-shadow:0 14px 32px rgba(59,47,163,.34)}
+.btn-secondary{background:var(--surface);color:var(--primary);border:1px solid var(--border-strong)}
+.btn-secondary:hover{background:var(--primary-subtle)}
+.btn-quiet{background:var(--surface-sunken);color:var(--text-secondary)}
+.btn-danger{background:var(--danger);color:#fff;box-shadow:0 8px 20px rgba(229,72,77,.24)}
+.btn-white{background:#fff;color:var(--indigo-700);box-shadow:0 8px 20px rgba(18,16,42,.16)}
+.btn-block{width:100%}
+.btn-lg{height:var(--control-h-lg);font-size:15.5px}
+.btn-sm{height:36px;padding:0 14px;font-size:13px}
+.btn-link{height:44px;padding:0 4px;color:var(--text-link);font-weight:600;font-size:14px}
+.btn-link:active{opacity:.7}
+.iconbtn{
+  width:var(--tap);height:var(--tap);border-radius:14px;display:inline-grid;place-items:center;
+  background:var(--surface);border:1px solid var(--border-subtle);color:var(--text-secondary);
+  position:relative;transition:transform var(--motion-press-fast) var(--ease-spring),background 160ms
+}
+.iconbtn:hover{background:var(--surface-sunken)}
+.iconbtn:active{transform:scale(.94)}
+.iconbtn.bare{background:transparent;border-color:transparent}
+.iconbtn .dot{position:absolute;top:9px;right:9px;width:7px;height:7px;border-radius:50%;background:var(--danger);box-shadow:0 0 0 2px var(--surface)}
+.field{display:flex;flex-direction:column;gap:6px}
+.field > .f-label{font:500 13px/18px var(--font-body);color:var(--text-secondary);padding-left:2px}
+.input-wrap{
+  display:flex;align-items:center;gap:10px;height:var(--input-h);padding:0 14px;background:var(--surface);
+  border:1px solid var(--border);border-radius:var(--r-md);transition:border-color 160ms,box-shadow 160ms,background 160ms
+}
+.input-wrap:focus-within{border-color:var(--border-focus);box-shadow:0 0 0 3px rgba(109,74,255,.12)}
+.input-wrap .icon{color:var(--text-tertiary);width:19px;height:19px}
+.input-wrap input,.input-wrap textarea{
+  border:0;outline:0;background:transparent;flex:1;min-width:0;font:500 15px/22px var(--font-body);
+  color:var(--text);height:100%
+}
+.input-wrap input::placeholder,.input-wrap textarea::placeholder{color:var(--text-tertiary);font-weight:400}
+.input-wrap textarea{resize:none;padding:12px 0;height:96px}
+.input-wrap.err{border-color:var(--border-danger)}
+.input-wrap[aria-disabled="true"]{background:var(--surface-sunken);opacity:.7}
+.search{height:48px;border-radius:999px;background:var(--surface-sunken);border-color:transparent}
+.search:focus-within{background:var(--surface)}
+.chips{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;padding:2px 0}
+.chips::-webkit-scrollbar{display:none}
+.chip{
+  height:var(--chip-h);padding:5px 12px 6px;border-radius:999px;border:1px solid var(--border);
+  background:var(--surface);color:var(--text-secondary);font:500 13px/18px var(--font-body);
+  display:inline-flex;align-items:center;gap:6px;white-space:nowrap;flex:0 0 auto;
+  transition:transform var(--motion-press-fast) var(--ease-spring),background 160ms,color 160ms,border-color 160ms
+}
+.chip .icon{width:14px;height:14px}
+.chip:active{transform:scale(.96)}
+.chip[aria-pressed="true"],.chip.is-selected{background:var(--primary);color:#fff;border-color:transparent}
+.seg{display:flex;gap:4px;padding:4px;background:var(--surface-sunken);border-radius:999px}
+.seg button{
+  flex:1;height:36px;border-radius:999px;font:500 13.5px/1 var(--font-body);color:var(--text-tertiary);
+  transition:background 180ms,color 180ms,box-shadow 180ms
+}
+.seg button[aria-selected="true"]{background:var(--surface);color:var(--primary);box-shadow:var(--shadow-xs);font-weight:600}
+.switch{
+  width:46px;height:28px;border-radius:999px;background:var(--border-strong);position:relative;
+  transition:background 180ms;flex:0 0 auto
+}
+.switch::after{
+  content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;
+  box-shadow:0 2px 6px rgba(18,16,42,.24);transition:transform 200ms var(--ease-spring)
+}
+.switch[aria-checked="true"]{background:var(--primary)}
+.switch[aria-checked="true"]::after{transform:translateX(18px)}
+.check{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-secondary);min-height:44px}
+.check input{width:18px;height:18px;accent-color:var(--primary)}
+
+/* ============================================================
+   9. LISTS, BADGES, AVATARS
+   ============================================================ */
+.list{display:flex;flex-direction:column}
+.list-row{
+  display:flex;align-items:center;gap:12px;min-height:64px;padding:11px 4px;text-align:left;width:100%;
+  border-bottom:1px solid var(--divider);transition:background 160ms,transform var(--motion-press-fast) var(--ease-spring)
+}
+.list-row:last-child{border-bottom:0}
+.list-row.pressable{border-radius:12px}
+.list-row.pressable:active{background:var(--surface-sunken);transform:scale(.985)}
+.list-row .lr-main{min-width:0;flex:1;overflow:hidden}
+.list-row .lr-title{display:block;font:500 15px/21px var(--font-body);color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.list-row .lr-sub{display:block;font:400 12.5px/18px var(--font-body);color:var(--text-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:1px}
+.list-row .lr-trail{white-space:nowrap}
+.list-row .lr-trail{font:600 12.5px/18px var(--font-body);color:var(--text-secondary);text-align:right;flex:0 0 auto}
+.list-row .lr-trail.due{color:var(--text-danger)}
+.list-row .lr-trail.paid{color:var(--text-success)}
+.list-row .chev{color:var(--text-tertiary);width:17px;height:17px;flex:0 0 auto}
+.avatar{
+  border-radius:50%;display:grid;place-items:center;font:700 13px/1 var(--font-head);
+  background:var(--tile-lav);color:var(--tile-lav-fg);flex:0 0 auto;overflow:hidden
+}
+.avatar.xs{width:28px;height:28px;font-size:10.5px}
+.avatar.sm{width:36px;height:36px;font-size:12px}
+.avatar.md{width:44px;height:44px;font-size:14px}
+.avatar.lg{width:56px;height:56px;font-size:17px}
+.avatar.mint{background:var(--tile-mint);color:var(--tile-mint-fg)}
+.avatar.peach{background:var(--tile-peach);color:var(--tile-peach-fg)}
+.avatar.sky{background:var(--tile-sky);color:var(--tile-sky-fg)}
+.avatar.rose{background:var(--tile-rose);color:var(--tile-rose-fg)}
+.avatar.lemon{background:var(--tile-lemon);color:var(--tile-lemon-fg)}
+.badge{
+  display:inline-flex;align-items:center;gap:4px;height:22px;padding:0 8px;border-radius:999px;
+  font:600 11px/16px var(--font-body);white-space:nowrap;background:var(--badge-neutral-bg);color:var(--badge-neutral-text)
+}
+.badge .icon{width:12px;height:12px}
+.badge.mint{background:var(--success-container);color:var(--on-success-container)}
+.badge.coral{background:var(--danger-container);color:var(--on-danger-container)}
+.badge.lemon{background:var(--warning-container);color:var(--on-warning-container)}
+.badge.sky{background:var(--info-container);color:var(--on-info-container)}
+.badge.lav{background:var(--primary-container);color:var(--on-primary-container)}
+.dotsep{width:3px;height:3px;border-radius:50%;background:var(--text-disabled);flex:0 0 auto}
+.unread-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--success);flex:0 0 auto}
+
+/* ============================================================
+   10. STATS, PROGRESS, CHART, CALENDAR
+   ============================================================ */
+.stat{
+  background:var(--surface);border:1px solid var(--border-subtle);border-radius:var(--r-md);
+  padding:12px 10px;display:flex;flex-direction:column;gap:5px;min-width:0
+}
+.stat .stat-icon{width:26px;height:26px;border-radius:9px;display:grid;place-items:center;margin-bottom:1px}
+.stat .stat-icon .icon{width:15px;height:15px}
+.stat .stat-value{font:800 19px/25px var(--font-head);letter-spacing:-.3px;font-variant-numeric:tabular-nums;color:var(--text)}
+.stat .stat-label{font:700 9.5px/13px var(--font-head);letter-spacing:.7px;text-transform:uppercase;color:var(--text-tertiary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stat .stat-delta{font-size:10.5px;font-weight:600}
+.progress{height:8px;border-radius:999px;background:var(--surface-sunken);overflow:hidden}
+.progress > span{display:block;height:100%;border-radius:999px;background:var(--success);transition:width 600ms var(--ease-smooth)}
+.progress.primary > span{background:linear-gradient(90deg,var(--grad-a),var(--grad-b))}
+.progress.lemon > span{background:var(--accent)}
+.bars{display:flex;align-items:flex-end;gap:9px;height:74px;padding-top:6px}
+.bar-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;height:100%;justify-content:flex-end}
+.bar-col i{display:block;width:14px;border-radius:999px;background:var(--primary-container);animation:growY 600ms var(--ease-smooth) both;transform-origin:bottom}
+.bar-col.today i{background:var(--accent)}
+.bar-col span{font-size:9.5px;color:var(--text-tertiary);font-weight:600}
+.hero .bar-col span{color:rgba(255,255,255,.82)}
+.ring-wrap{position:relative;width:144px;height:144px;flex:0 0 auto}
+.ring{width:144px;height:144px;transform:rotate(-90deg)}
+.ring circle{fill:none;stroke-width:10;stroke-linecap:round}
+.ring .ring-track{stroke:var(--border-subtle)}
+.ring .ring-fill{stroke:url(#ringGrad);transition:stroke-dashoffset 600ms var(--ease-smooth)}
+.ring-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+.ring-center strong{font:800 28px/32px var(--font-head);letter-spacing:-.6px;font-variant-numeric:tabular-nums}
+.ring-center span{font-size:11.5px;color:var(--text-tertiary);font-weight:500}
+.ring.small,.ring-wrap.small{width:112px;height:112px}
+.ring-wrap.small .ring{width:112px;height:112px}
+.ring-wrap.small circle{stroke-width:8}
+.ring-wrap.small strong{font-size:22px}
+.calendar{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.calendar .cal-head{font:600 10px/20px var(--font-body);color:var(--text-tertiary);text-align:center}
+.calendar .cal-day{
+  height:36px;min-width:0;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  font:500 11.5px/1.1 var(--font-body);color:var(--text-secondary);background:var(--surface-sunken);gap:1px
+}
+.calendar .cal-day em{font-style:normal;font-size:8.5px;font-weight:700}
+.calendar .cal-day.present{background:var(--success-container);color:var(--on-success-container)}
+.calendar .cal-day.absent{background:var(--danger-container);color:var(--on-danger-container)}
+.calendar .cal-day.leave{background:var(--warning-container);color:var(--on-warning-container)}
+.calendar .cal-day.empty{background:transparent;color:var(--text-disabled)}
+.class-row{display:flex;align-items:center;gap:10px;padding:7px 0}
+.class-row .cl-name{width:32px;font:600 12px/1 var(--font-body);color:var(--text-secondary)}
+.class-row .progress{flex:1}
+.class-row .cl-val{width:40px;text-align:right;font:700 11.5px/1 var(--font-body);font-variant-numeric:tabular-nums;color:var(--text)}
+
+/* ============================================================
+   11. SKELETON, EMPTY, BANNERS
+   ============================================================ */
+.skel{background:var(--skeleton);border-radius:8px;position:relative;overflow:hidden}
+.skel::after{
+  content:"";position:absolute;inset:0;transform:translateX(-100%);
+  background:linear-gradient(90deg,transparent,var(--skeleton-highlight),transparent);
+  animation:shimmer 1200ms linear infinite
+}
+.skel-line{height:12px;margin:6px 0}
+.skel-title{height:24px;width:180px;border-radius:8px}
+.skel-card{height:120px;border-radius:var(--r-lg)}
+.skel-row{height:64px;border-radius:12px}
+.empty{display:flex;flex-direction:column;align-items:center;text-align:center;gap:8px;padding:26px 16px;max-width:290px;margin:0 auto}
+.empty .empty-icon{width:64px;height:64px;border-radius:50%;background:var(--surface-sunken);display:grid;place-items:center;color:var(--text-tertiary);margin-bottom:2px}
+.empty .empty-icon .icon{width:28px;height:28px}
+.empty h3{font:700 16px/22px var(--font-head);color:var(--text)}
+.empty p{font:400 12.5px/18px var(--font-body);color:var(--text-secondary)}
+.banner{
+  display:flex;gap:9px;align-items:flex-start;padding:12px 13px;border-radius:14px;
+  font:500 12.5px/18px var(--font-body);border:1px solid transparent
+}
+.banner .icon{width:17px;height:17px;margin-top:1px}
+.banner.error{background:var(--danger-container);color:var(--on-danger-container)}
+.banner.info{background:var(--info-container);color:var(--on-info-container)}
+.banner.warn{background:var(--warning-container);color:var(--on-warning-container)}
+.banner.mint{background:var(--success-container);color:var(--on-success-container)}
+.pin{width:8px;height:8px;border-radius:50%;background:var(--accent);display:inline-block;margin-right:6px}
+
+/* ============================================================
+   12. SHEET, TOAST, CONFETTI
+   ============================================================ */
+#sheet-root{position:absolute;inset:0;z-index:var(--z-sheet);pointer-events:none}
+#sheet-root.open{pointer-events:auto}
+.scrim{
+  position:absolute;inset:0;background:var(--scrim);opacity:0;transition:opacity 200ms linear;
+  backdrop-filter:blur(2px);border:0;width:100%
+}
+#sheet-root.open .scrim{opacity:1}
+.sheet{
+  position:absolute;left:0;right:0;bottom:0;background:var(--surface-raised);border-radius:24px 24px 0 0;
+  box-shadow:var(--shadow-xl);max-height:78%;display:flex;flex-direction:column;
+  transform:translateY(100%);transition:transform 280ms var(--ease-smooth);border-top:1px solid var(--border-subtle)
+}
+#sheet-root.open .sheet{transform:translateY(0)}
+.sheet-grab{width:38px;height:4px;border-radius:999px;background:var(--border-strong);margin:9px auto 0;flex:0 0 auto}
+.sheet-head{padding:12px 20px 6px;display:flex;align-items:flex-start;gap:10px;flex:0 0 auto}
+.sheet-head .sh-title{font:800 18px/24px var(--font-head);letter-spacing:-.2px;flex:1}
+.sheet-head .sh-sub{font:400 12.5px/18px var(--font-body);color:var(--text-secondary);margin-top:2px}
+.sheet-body{padding:8px 20px 16px;overflow-y:auto;scrollbar-width:none}
+.sheet-body::-webkit-scrollbar{display:none}
+.sheet-foot{padding:12px 20px calc(16px + 10px);border-top:1px solid var(--divider);display:flex;flex-direction:column;gap:8px;flex:0 0 auto;background:var(--surface-raised)}
+.sheet-foot .row{gap:8px}
+#toast-root{position:absolute;left:0;right:0;bottom:96px;z-index:var(--z-toast);display:flex;justify-content:center;pointer-events:none;padding:0 20px;transition:bottom 200ms ease}
+.phone[data-nav="0"] #toast-root{bottom:26px}
+.phone.has-sheet #toast-root{bottom:204px}
+.phone.has-sheet[data-nav="0"] #toast-root{bottom:204px}
+.toast{
+  display:flex;align-items:center;gap:9px;min-height:48px;max-width:350px;padding:11px 15px;border-radius:14px;
+  background:var(--surface-inverse);color:var(--text-inverse);box-shadow:var(--shadow-lg);
+  font:500 12.5px/17px var(--font-body);animation:toastIn 220ms ease-out both;pointer-events:auto
+}
+.toast .icon{width:18px;height:18px;flex:0 0 auto}
+.toast.out{animation:toastOut 160ms ease-in both}
+#confetti-root{position:absolute;inset:0;pointer-events:none;z-index:var(--z-confetti);overflow:hidden}
+.confetti{position:absolute;top:22%;left:50%;width:7px;height:11px;border-radius:2px;animation:confetti 1200ms ease-out forwards}
+
+/* ============================================================
+   13. SCREEN-SPECIFIC
+   ============================================================ */
+.home-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:14px 0 18px}
+.home-head .eyebrow{font:500 12px/17px var(--font-body);color:var(--text-tertiary);margin-bottom:3px}
+.home-head h1{font:800 25px/31px var(--font-head);letter-spacing:-.6px;color:var(--text)}
+.home-head .row{gap:8px;align-items:center}
+.brand-mark{
+  width:64px;height:64px;border-radius:20px;display:grid;place-items:center;color:#fff;
+  font:800 30px/1 var(--font-head);background:linear-gradient(135deg,var(--grad-a),var(--grad-b));
+  box-shadow:var(--shadow-primary);margin:8px auto 18px
+}
+.login-head{display:flex;justify-content:flex-end;padding-top:4px}
+.login-footer{margin-top:22px;display:flex;flex-direction:column;gap:5px}
+.or{display:flex;align-items:center;gap:10px;color:var(--text-tertiary);font-size:11px;letter-spacing:.4px;text-transform:uppercase}
+.or::before,.or::after{content:"";height:1px;flex:1;background:var(--divider)}
+.success-hero{
+  display:flex;flex-direction:column;align-items:center;text-align:center;gap:10px;padding:34px 18px 24px;
+  animation:fadeIn 240ms ease-out both
+}
+.success-check{
+  width:72px;height:72px;border-radius:50%;display:grid;place-items:center;
+  background:var(--success-container);color:var(--text-success);animation:pop 320ms var(--ease-spring) both
+}
+.success-check .icon{width:36px;height:36px;stroke-width:2.4}
+.success-hero h2{font:800 21px/27px var(--font-head);letter-spacing:-.3px}
+.success-hero .amt{font:800 30px/36px var(--font-head);letter-spacing:-.6px;font-variant-numeric:tabular-nums}
+.route-line{display:flex;align-items:center;gap:0;margin:8px 0 2px}
+.route-line .rn{width:10px;height:10px;border-radius:50%;background:var(--primary);flex:0 0 auto}
+.route-line .rl{height:2px;flex:1;background:linear-gradient(90deg,var(--primary),var(--accent))}
+.route-line .rn.end{background:var(--accent)}
+.teacher-line{display:flex;align-items:center;gap:12px}
+.pay-method{
+  display:flex;align-items:center;gap:10px;padding:11px 12px;border:1px solid var(--border);border-radius:14px;
+  background:var(--surface);width:100%;text-align:left;transition:border-color 160ms,background 160ms,transform 140ms
+}
+.pay-method[aria-pressed="true"]{border-color:var(--primary);background:var(--primary-subtle);box-shadow:0 0 0 1px var(--primary)}
+.pay-method:active{transform:scale(.985)}
+.pay-method .tt{display:block;font:500 13.5px/18px var(--font-body)}
+.pay-method .ss{display:block;font:400 11.5px/16px var(--font-body);color:var(--text-tertiary)}
+.pay-method .spacer{min-width:0}
+.subject-row{display:flex;flex-direction:column;gap:5px;padding:8px 0}
+.subject-row .sr-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.subject-row .sr-name{font:500 13.5px/18px var(--font-body)}
+.subject-row .sr-mark{font:700 12.5px/18px var(--font-body);font-variant-numeric:tabular-nums}
+.marks-bar{height:5px;border-radius:999px;background:var(--surface-sunken);overflow:hidden}
+.marks-bar > span{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,var(--grad-a),var(--grad-b));animation:growX 600ms var(--ease-smooth) both}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--divider);margin:0 0 10px}
+.tabs button{height:38px;padding:0 12px;font:500 13px/1 var(--font-body);color:var(--text-tertiary);position:relative}
+.tabs button[aria-selected="true"]{color:var(--primary);font-weight:600}
+.tabs button[aria-selected="true"]::after{content:"";position:absolute;left:10px;right:10px;bottom:-1px;height:2px;border-radius:2px;background:var(--primary)}
+.notice-item{display:flex;gap:12px;padding:12px 0;border-bottom:1px solid var(--divider);text-align:left;width:100%}
+.notice-item:last-child{border-bottom:0}
+.notice-item .ni-body{min-width:0;flex:1;display:block;overflow:hidden}
+.notice-item .ni-title{display:block;font:500 14px/20px var(--font-body);color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.notice-item.unread .ni-title{font-weight:600}
+.notice-item .ni-sub{font:400 12px/17px var(--font-body);color:var(--text-secondary);margin-top:2px;display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}
+.notice-item .ni-time{font-size:10.5px;color:var(--text-tertiary);white-space:nowrap;flex:0 0 auto;padding-top:2px}
+.timeline{display:flex;flex-direction:column;gap:0}
+.timeline .tl-row{display:flex;gap:12px;min-height:56px}
+.timeline .tl-rail{width:20px;display:flex;flex-direction:column;align-items:center;flex:0 0 auto}
+.timeline .tl-dot{width:11px;height:11px;border-radius:50%;border:2px solid var(--primary);background:var(--surface);margin-top:5px}
+.timeline .tl-line{width:2px;flex:1;background:var(--divider)}
+.timeline .tl-row:last-child .tl-line{display:none}
+.timeline .tl-body{padding-bottom:12px;min-width:0}
+.timeline .tl-time{font:600 11.5px/16px var(--font-body);color:var(--primary)}
+.timeline .tl-name{font:500 13.5px/19px var(--font-body);color:var(--text)}
+.timeline .tl-meta{font:400 11.5px/16px var(--font-body);color:var(--text-tertiary)}
+.keypad-hint{display:flex;gap:6px;align-items:center;justify-content:center;font-size:10.5px;color:var(--text-tertiary)}
+kbd{font:600 10px/1 var(--font-body);padding:3px 5px;border-radius:5px;border:1px solid var(--border);background:var(--surface);color:var(--text-secondary)}
+
+/* ============================================================
+   14. ANIMATIONS
+   ============================================================ */
+@keyframes enter{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes pushIn{from{opacity:0;transform:translateX(26px)}to{opacity:1;transform:none}}
+@keyframes popIn{from{opacity:0;transform:translateX(-14px)}to{opacity:1;transform:none}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes toastIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes toastOut{to{opacity:0;transform:translateY(6px)}}
+@keyframes shimmer{100%{transform:translateX(100%)}}
+@keyframes growY{from{transform:scaleY(.05)}to{transform:scaleY(1)}}
+@keyframes growX{from{transform:scaleX(.05)}to{transform:scaleX(1)}}
+@keyframes pop{from{transform:scale(.8);opacity:0}to{transform:scale(1);opacity:1}}
+@keyframes ringDash{from{stroke-dashoffset:402}to{stroke-dashoffset:var(--ring-offset)}}
+@keyframes confetti{
+  0%{opacity:1;transform:translate(0,0) rotate(0)}
+  70%{opacity:1}
+  100%{opacity:0;transform:translate(var(--dx),var(--dy)) rotate(var(--rot))}
+}
+.reveal{animation:enter var(--motion-enter) var(--ease-out) both;animation-delay:calc(var(--i,0) * 30ms)}
+@media (max-width:520px){
+  .demo-head{align-items:flex-start}
+  .demo-brand span{display:none}
+  .demo-actions button{font-size:11px;min-height:32px;padding:0 10px}
+}
+html.reduce-motion *,html.reduce-motion *::before,html.reduce-motion *::after{
+  animation-duration:.01ms!important;animation-delay:0ms!important;transition-duration:.01ms!important
+}
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;animation-delay:0ms!important;transition-duration:.01ms!important}
+  .skel::after{display:none}
+}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <linearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#3B2FA3"/><stop offset="1" stop-color="#6D4AFF"/>
+    </linearGradient>
+  </defs>
+  <symbol id="i-home" viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h5v-6h4v6h5V9.5"/></symbol>
+  <symbol id="i-calendar-check" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4M16 3v4M3 10h18"/><path d="m8.5 15 2.2 2.2 4.3-4.4"/></symbol>
+  <symbol id="i-book" viewBox="0 0 24 24"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v16H6.5A2.5 2.5 0 0 0 4 21.5z"/><path d="M4 18.5V5.5M8 7h8M8 11h6"/></symbol>
+  <symbol id="i-inbox" viewBox="0 0 24 24"><path d="M4 4h16v16H4z"/><path d="M4 14h5l1.5 2h3L15 14h5"/></symbol>
+  <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6.5 8-6.5S20 17 20 21"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 21c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6"/><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18 15.2c2.2.6 3.5 2.3 3.5 5.8"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M18 9a6 6 0 1 0-12 0c0 5-2 6-2 6h16s-2-1-2-6"/><path d="M10 20a2.2 2.2 0 0 0 4 0"/></symbol>
+  <symbol id="i-chevron-right" viewBox="0 0 24 24"><path d="m9 5 7 7-7 7"/></symbol>
+  <symbol id="i-chevron-left" viewBox="0 0 24 24"><path d="m15 5-7 7 7 7"/></symbol>
+  <symbol id="i-arrow-left" viewBox="0 0 24 24"><path d="M20 12H4M10 6l-6 6 6 6"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="m4 12.5 5 5L20 6.5"/></symbol>
+  <symbol id="i-check-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m8 12.3 2.7 2.7L16.5 9"/></symbol>
+  <symbol id="i-alert-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5M12 16.8v.2"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5.5M12 7.2v.2"/></symbol>
+  <symbol id="i-map-pin" viewBox="0 0 24 24"><path d="M12 21s7-5.6 7-11a7 7 0 1 0-14 0c0 5.4 7 11 7 11Z"/><circle cx="12" cy="10" r="2.5"/></symbol>
+  <symbol id="i-navigation" viewBox="0 0 24 24"><path d="M3.5 11 21 3l-8 17.5-2.5-7z"/></symbol>
+  <symbol id="i-fingerprint" viewBox="0 0 24 24"><path d="M12 3a9 9 0 0 1 9 9M3 12a9 9 0 0 1 4-7.5M6.5 12a5.5 5.5 0 0 1 11 0c0 4-1.5 6.5-1.5 9M9 12a3 3 0 0 1 6 0c0 5-1 7-1 9M12 21c0-3.5 1-6 1-9"/></symbol>
+  <symbol id="i-log-out" viewBox="0 0 24 24"><path d="M10 4H5v16h5M14 8l4 4-4 4M8 12h10"/></symbol>
+  <symbol id="i-receipt" viewBox="0 0 24 24"><path d="M5 3h14v18l-2.3-1.6L14.4 21 12 19.4 9.6 21l-2.3-1.6L5 21z"/><path d="M9 7h6M9 11h6M9 15h4"/></symbol>
+  <symbol id="i-wallet" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="14" rx="3"/><path d="M3 10h18M16 14.5h2"/></symbol>
+  <symbol id="i-bar-chart" viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></symbol>
+  <symbol id="i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2 2 2 0 1 1-4 0 1.7 1.7 0 0 0-2.9-1.2l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.7 1.7 0 0 0 3 15a2 2 0 1 1 0-4 1.7 1.7 0 0 0 1.2-2.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.7 1.7 0 0 0 10 4.1a2 2 0 1 1 4 0 1.7 1.7 0 0 0 2.9 1.2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1A1.7 1.7 0 0 0 21 11a2 2 0 1 1 0 4z"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M21 13.2A8.5 8.5 0 0 1 10.8 3 9 9 0 1 0 21 13.2Z"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+  <symbol id="i-monitor" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></symbol>
+  <symbol id="i-credit-card" viewBox="0 0 24 24"><rect x="2.5" y="5" width="19" height="14" rx="3"/><path d="M2.5 10h19M6.5 15h3"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v12M7.5 10.5 12 15l4.5-4.5M4 20h16"/></symbol>
+  <symbol id="i-share" viewBox="0 0 24 24"><circle cx="18" cy="5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="19" r="2.5"/><path d="m8.3 10.7 7.4-4.4M8.3 13.3l7.4 4.4"/></symbol>
+  <symbol id="i-phone" viewBox="0 0 24 24"><path d="M21 16.5v3a2 2 0 0 1-2.2 2 19.6 19.6 0 0 1-8.5-3.1 19.3 19.3 0 0 1-6-6A19.6 19.6 0 0 1 1.2 4a2 2 0 0 1 2-2.2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.4 2.1L7.3 9.6a16 16 0 0 0 6 6l1.2-1.2a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.6 1.8Z"/></symbol>
+  <symbol id="i-message" viewBox="0 0 24 24"><path d="M21 12a8.5 8.5 0 0 1-12.3 7.6L3 21l1.4-5.7A8.5 8.5 0 1 1 21 12Z"/><path d="M8 11h8M8 14.5h5"/></symbol>
+  <symbol id="i-filter" viewBox="0 0 24 24"><path d="M3 5h18l-7 8v6l-4 2v-8z"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3 4.5 6v6c0 5 3.2 7.7 7.5 9 4.3-1.3 7.5-4 7.5-9V6z"/><path d="m8.8 12 2.2 2.2 4.2-4.4"/></symbol>
+  <symbol id="i-school" viewBox="0 0 24 24"><path d="m3 9 9-5 9 5-9 5z"/><path d="M6 11v6c0 1.5 2.7 3 6 3s6-1.5 6-3v-6M21 9v6"/></symbol>
+  <symbol id="i-task" viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="3"/><path d="m8 9 1.5 1.5L12 8M8 15l1.5 1.5L12 14M14.5 9.5H17M14.5 15.5H17"/></symbol>
+  <symbol id="i-camera" viewBox="0 0 24 24"><path d="M4 8h3l1.5-2h7L17 8h3a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2Z"/><circle cx="12" cy="13.5" r="3.5"/></symbol>
+  <symbol id="i-more-horizontal" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 6.3M20 4v7h-7"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></symbol>
+  <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="i-eye-off" viewBox="0 0 24 24"><path d="M4 4l16 16M10 5.9A9.7 9.7 0 0 1 12 5.5c6 0 9.5 6.5 9.5 6.5a17 17 0 0 1-3 3.7M6.2 7.4A17.6 17.6 0 0 0 2.5 12S6 18.5 12 18.5c1.3 0 2.5-.3 3.6-.8"/></symbol>
+  <symbol id="i-signal" viewBox="0 0 24 24"><path d="M4 18v2M9 14v6M14 10v10M19 5v15" stroke-width="2.4"/></symbol>
+  <symbol id="i-wifi" viewBox="0 0 24 24"><path d="M3 9a13.5 13.5 0 0 1 18 0M6.5 12.8a8.5 8.5 0 0 1 11 0M10 16.5a3.5 3.5 0 0 1 4 0"/><circle cx="12" cy="19.5" r="1" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-battery" viewBox="0 0 24 24"><rect x="2" y="7" width="17" height="10" rx="2.5"/><path d="M21.5 10.5v3" stroke-width="2.6"/><rect x="4" y="9" width="12" height="6" rx="1" fill="currentColor" stroke="none"/></symbol>
+</svg>
+
+<div class="page">
+  <header class="demo-head">
+    <div class="demo-brand">
+      <span class="demo-mark">N</span>
+      <div><strong>NarayanaOS Mobile</strong><span>Redesign concept · fully interactive demo</span></div>
+    </div>
+    <div class="demo-actions" role="group" aria-label="Demo controls">
+      <button id="dev-motion" aria-pressed="false">Reduce motion</button>
+      <button id="dev-gps">GPS: on campus</button>
+      <button id="dev-fail" aria-pressed="false">Fail next payment</button>
+      <button id="dev-reset">Reset demo</button>
+    </div>
+  </header>
+  <div class="stage-wrap" id="stage-wrap">
+    <div class="stage" id="stage">
+      <div class="phone" id="phone" data-nav="0">
+        <div class="statusbar" aria-hidden="true">
+          <span>9:41</span>
+          <span class="sb-right">
+            <svg class="icon"><use href="#i-signal"/></svg>
+            <svg class="icon"><use href="#i-wifi"/></svg>
+            <svg class="icon"><use href="#i-battery"/></svg>
+          </span>
+        </div>
+        <div class="appbar" id="appbar" hidden></div>
+        <main id="app" tabindex="-1"></main>
+        <nav id="nav" class="bottom-nav" aria-label="Primary"></nav>
+        <div id="sheet-root"></div>
+        <div id="toast-root" aria-live="polite"></div>
+        <div id="confetti-root" aria-hidden="true"></div>
+      </div>
+    </div>
+  </div>
+  <p class="stage-caption">390 × 844 · Sri Narayana High School · LEARN • GROW • ACHIEVE</p>
+</div>
+
+<script>
+"use strict";
+
+/* ============================================================
+   1. DATA — fixed demo content. No network, no live dates.
+   ============================================================ */
+const DATA = {
+  school: {
+    name: "Sri Narayana High School",
+    place: "Kukatpally, Hyderabad",
+    motto: "LEARN • GROW • ACHIEVE",
+    phone: "040 2300 1122"
+  },
+  teacher: {
+    name: "Priya Menon", initials: "PM", role: "Teacher",
+    subject: "Mathematics", classes: "VIII-A, IX-B", emp: "T-2041",
+    checkIn: "8:42 AM", checkOut: "4:36 PM", monthPct: 94,
+    present: 18, late: 2, absent: 1, leave: 2
+  },
+  parent: {
+    name: "Ramesh Reddy", initials: "RR", role: "Parent",
+    login: "parent.demo@narayana"
+  },
+  admin: {
+    name: "Kavitha Rao", initials: "KR", role: "Admin",
+    students: 1284, present: 1186, absent: 62, late: 36,
+    staff: 86, staffIn: 82, dues: 482000, collected: 1248500,
+    demand: 8640000, demandPct: 78, unread: 3
+  },
+  accountant: { name: "Suresh Babu", initials: "SB", role: "Accountant" },
+  children: [
+    {
+      id: "aarav", name: "Aarav Reddy", initials: "AR", tone: "lav",
+      cls: "VIII-A", adm: "SNH/2023/0184", teacher: "Mrs. Sharma",
+      transport: "Route 7 · Stop: KPHB Phase 3", joined: "12 Jun 2023",
+      parent: "Ramesh Reddy", phone: "+91 98490 12345",
+      total: 42000, paid: 23500, due: 18500, term: "Term 2", dueDate: "30 Nov",
+      attendance: 94, days: "178 of 190 days", absences: 7,
+      present: 18, absent: 1, leave: 2,
+      rows: [
+        { label: "Tuition", amount: 32000 },
+        { label: "Transport", amount: 8000 },
+        { label: "Examination fee", amount: 2000 }
+      ],
+      receipts: [
+        { id: "RCPT-2026-0184", amount: 21000, method: "UPI", date: "12 Jun 2026" },
+        { id: "RCPT-2026-0091", amount: 2500, method: "Cash", date: "05 Apr 2026" }
+      ],
+      homework: [
+        { title: "Trigonometry — Exercise 8.3", sub: "Mathematics · Due tomorrow", icon: "book", tone: "mint" },
+        { title: "French Revolution notes", sub: "Social · Due Fri, 20 Nov", icon: "book", tone: "peach" }
+      ]
+    },
+    {
+      id: "diya", name: "Diya Reddy", initials: "DR", tone: "rose",
+      cls: "VI-B", adm: "SNH/2024/0412", teacher: "Mrs. Iyer",
+      transport: "Route 4 · Stop: KPHB Phase 1", joined: "06 Jun 2024",
+      parent: "Ramesh Reddy", phone: "+91 98490 12345",
+      total: 38000, paid: 38000, due: 0, term: "Term 2", dueDate: "30 Nov",
+      attendance: 97, days: "184 of 190 days", absences: 4,
+      present: 20, absent: 0, leave: 1,
+      rows: [
+        { label: "Tuition", amount: 30000 },
+        { label: "Transport", amount: 8000 },
+        { label: "Examination fee", amount: 0 }
+      ],
+      receipts: [
+        { id: "RCPT-2026-0207", amount: 38000, method: "Card", date: "02 Jul 2026" }
+      ],
+      homework: [
+        { title: "Fractions worksheet", sub: "Mathematics · Due tomorrow", icon: "book", tone: "mint" },
+        { title: "Read Chapter 7 — Water", sub: "Science · Due Thu, 19 Nov", icon: "book", tone: "sky" }
+      ]
+    }
+  ],
+  students: [
+    { name: "Aarav Reddy", initials: "AR", tone: "lav", cls: "VIII", section: "VIII-A", adm: "SNH/2023/0184", parent: "Ramesh Reddy", phone: "+91 98490 12345", due: 18500, isNew: false, attendance: 92, absences: 7, teacher: "Mrs. Sharma", transport: "Route 7 · KPHB Phase 3", joined: "12 Jun 2023" },
+    { name: "Diya Sharma", initials: "DS", tone: "rose", cls: "VI", section: "VI-B", adm: "SNH/2024/0408", parent: "Anil Sharma", phone: "+91 98661 22110", due: 0, isNew: false, attendance: 96, absences: 4, teacher: "Mrs. Iyer", transport: "Route 2 · Balanagar", joined: "06 Jun 2024" },
+    { name: "Ishaan Gupta", initials: "IG", tone: "sky", cls: "IX", section: "IX-B", adm: "SNH/2022/0311", parent: "Pooja Gupta", phone: "+91 90000 44551", due: 6200, isNew: false, attendance: 89, absences: 11, teacher: "Mr. Rao", transport: "Route 5 · Moosapet", joined: "11 Jun 2022" },
+    { name: "Ananya Rao", initials: "AN", tone: "mint", cls: "X", section: "X-A", adm: "SNH/2021/0244", parent: "Sridevi Rao", phone: "+91 98850 77332", due: 0, isNew: false, attendance: 97, absences: 3, teacher: "Mrs. Das", transport: "Route 1 · Kukatpally", joined: "10 Jun 2021" },
+    { name: "Vihaan Kumar", initials: "VK", tone: "lemon", cls: "VII", section: "VII-C", adm: "SNH/2023/0199", parent: "Mahesh Kumar", phone: "+91 99630 81247", due: 12800, isNew: false, attendance: 90, absences: 9, teacher: "Mrs. Nair", transport: "Route 8 · Nizampet", joined: "12 Jun 2023" },
+    { name: "Sahasra Varma", initials: "SV", tone: "peach", cls: "VIII", section: "VIII-B", adm: "SNH/2023/0214", parent: "Latha Varma", phone: "+91 97010 55229", due: 0, isNew: false, attendance: 95, absences: 5, teacher: "Mr. Menon", transport: "Route 3 · Pragathi Nagar", joined: "12 Jun 2023" },
+    { name: "Arjun Naidu", initials: "AN", tone: "sky", cls: "IX", section: "IX-A", adm: "SNH/2022/0287", parent: "Ravi Naidu", phone: "+91 90000 12345", due: 2400, isNew: false, attendance: 86, absences: 14, teacher: "Mrs. Sharma", transport: "Route 6 · Miyapur", joined: "11 Jun 2022" },
+    { name: "Meera Iyer", initials: "MI", tone: "rose", cls: "VI", section: "VI-A", adm: "SNH/2025/0451", parent: "Ganesh Iyer", phone: "+91 98490 66778", due: 0, isNew: true, attendance: 98, absences: 2, teacher: "Mrs. Iyer", transport: "Route 2 · Balanagar", joined: "02 Jun 2025" },
+    { name: "Kabir Khan", initials: "KK", tone: "mint", cls: "X", section: "X-B", adm: "SNH/2021/0268", parent: "Imran Khan", phone: "+91 98661 30021", due: 7400, isNew: true, attendance: 91, absences: 8, teacher: "Mrs. Das", transport: "Route 9 · Bachupally", joined: "10 Jun 2021" }
+  ],
+  approvals: [
+    { id: "ap1", name: "Sneha Kulkarni", initials: "SK", tone: "rose", type: "Sick leave", date: "19 Nov" },
+    { id: "ap2", name: "Ravi Teja", initials: "RT", tone: "sky", type: "Casual leave", date: "21 Nov" },
+    { id: "ap3", name: "Anitha Rao", initials: "AN", tone: "mint", type: "Half-day", date: "today" }
+  ],
+  payments: [
+    { name: "Aarav Reddy", initials: "AR", tone: "lav", amount: 18500, method: "UPI", time: "9:12 AM" },
+    { name: "Diya Sharma", initials: "DS", tone: "rose", amount: 6200, method: "Card", time: "9:04 AM" },
+    { name: "Ishaan Gupta", initials: "IG", tone: "sky", amount: 2400, method: "Cash", time: "8:51 AM" }
+  ],
+  classAttendance: [
+    { name: "VI", pct: 96.2 }, { name: "VII", pct: 94.8 }, { name: "VIII", pct: 93.1 },
+    { name: "IX", pct: 90.4 }, { name: "X", pct: 88.0 }
+  ],
+  chart: [
+    { day: "Mon", v: 46 }, { day: "Tue", v: 62 }, { day: "Wed", v: 54 },
+    { day: "Thu", v: 78 }, { day: "Fri", v: 88 }, { day: "Sat", v: 40 }, { day: "Sun", v: 64 }
+  ],
+  teacherStats: { attendance: 94, present: 18, late: 2 },
+  notices: [
+    {
+      id: "n1", title: "Annual Sports Day", cat: "Notices", time: "2h ago", unread: true, pinned: true,
+      sender: "School office · Notice", date: "18 Nov 2026", attachment: "Sports_Day_Schedule.pdf · 240 KB",
+      snippet: "Track events begin at 8:00 AM. Students report to the main ground in house colours.",
+      body: "The Annual Sports Day will be held on Saturday, 29 November 2026 at the main ground. Track events begin at 8:00 AM and the march-past at 9:15 AM.\n\nStudents must report by 7:30 AM in house colours with their school ID. Parents are welcome from 9:00 AM; seating is available on the east stand.\n\nBuses will run on the regular morning schedule and depart at 2:30 PM. Please pack water and a light snack. In case of rain, the event moves to 6 December."
+    },
+    {
+      id: "n2", title: "Parent-Teacher Meeting", cat: "Notices", time: "Yesterday", unread: true,
+      sender: "School office · Notice", date: "17 Nov 2026", attachment: "",
+      snippet: "Slots open for 22 Nov, 9:00 AM–12:30 PM. Book with your class teacher.",
+      body: "The Term 2 Parent-Teacher Meeting is on Sunday, 22 November 2026 from 9:00 AM to 12:30 PM.\n\nSlots are 10 minutes each and can be booked with the class teacher at the front desk or by calling the school office. Please bring the student diary.\n\nReport cards will be handed over in person. If you cannot attend, request a phone slot before Friday, 20 November."
+    },
+    {
+      id: "n3", title: "Half-yearly exam timetable", cat: "Notices", time: "Mon", unread: true,
+      sender: "Examination cell · Notice", date: "16 Nov 2026", attachment: "Half_Yearly_Timetable.pdf · 180 KB",
+      snippet: "Classes VI–X · exams begin 20 Oct. Hall tickets available from the office.",
+      body: "The half-yearly examination timetable for Classes VI to X is published.\n\nExams begin on 20 October and run until 27 October. Morning sessions start at 9:30 AM; students should be seated by 9:15 AM.\n\nHall tickets can be collected from the school office from 15 October. The use of calculators is not permitted for Classes VI to VIII."
+    },
+    {
+      id: "n4", title: "Leave approved", cat: "Leave", time: "Sun", unread: false,
+      sender: "Principal's office · Approval", date: "16 Nov 2026", attachment: "",
+      snippet: "Your sick leave for 18 Nov is approved. Please inform your class teacher.",
+      body: "Your sick leave request for 18 November 2026 has been approved by the Principal's office.\n\nPlease inform your class teacher and share the substitution plan for periods 2 and 4. Attendance will be marked as approved leave.\n\nIf you need an additional day, submit a fresh request before 8:00 AM tomorrow."
+    },
+    {
+      id: "n5", title: "Mrs. Sharma", cat: "Messages", time: "Sat", unread: false,
+      sender: "Mrs. Sharma · Class teacher, VIII-A", date: "15 Nov 2026", attachment: "",
+      snippet: "Aarav's Science project is excellent. He explained the model very clearly.",
+      body: "Aarav's Science project on renewable energy was excellent. He explained the working model clearly and answered questions confidently.\n\nHe has also been helping classmates during the lab session. Please encourage him to keep this up.\n\nWe will display his model at the science corner during the PTM."
+    }
+  ],
+  homework: [
+    { id: "h1", title: "Trigonometry — Exercise 8.3 (Q1–Q10)", cls: "VIII-A", due: "Thu, 19 Nov", submitted: "38/42", subject: "Mathematics", instructions: "Solve all ten questions in the homework notebook. Show every step. Draw diagrams for Q6 and Q9.", notify: true },
+    { id: "h2", title: "Quadratic equations worksheet", cls: "IX-B", due: "Fri, 20 Nov", submitted: "31/42", subject: "Mathematics", instructions: "Complete the worksheet handed out in class. Attempt the challenge question for bonus marks.", notify: true },
+    { id: "h3", title: "French Revolution notes", cls: "VIII-A", due: "Fri, 20 Nov", submitted: "—", subject: "Social", instructions: "Write 10 key points on the causes of the French Revolution.", notify: false }
+  ],
+  exam: {
+    pct: 86.7, grade: "A2", rank: "4 of 42", published: "24 Nov 2026", total: "520/600",
+    subjects: [
+      { name: "English", mark: 88, grade: "A1" }, { name: "Hindi", mark: 82, grade: "A2" },
+      { name: "Mathematics", mark: 94, grade: "A1" }, { name: "Science", mark: 91, grade: "A1" },
+      { name: "Social", mark: 86, grade: "A1" }, { name: "Telugu", mark: 79, grade: "B1" }
+    ],
+    coscholastic: ["Art & Craft · A", "Physical Education · A", "Discipline · A"],
+    remark: "A consistent performer. Improve Telugu writing speed before Pre-Finals.",
+    remarkBy: "Class teacher, VIII-A"
+  }
+};
+
+/* ============================================================
+   2. STATE
+   ============================================================ */
+const $ = (sel, root = document) => root.querySelector(sel);
+const app = $("#app");
+const phone = $("#phone");
+const appbar = $("#appbar");
+const nav = $("#nav");
+const sheetRoot = $("#sheet-root");
+const toastRoot = $("#toast-root");
+const confettiRoot = $("#confetti-root");
+
+const store = {
+  get(k, fallback) { try { const v = localStorage.getItem("narayana." + k); return v === null ? fallback : v; } catch (e) { return fallback; } },
+  set(k, v) { try { localStorage.setItem("narayana." + k, v); } catch (e) {} },
+  clear() { try { Object.keys(localStorage).filter(k => k.indexOf("narayana.") === 0).forEach(k => localStorage.removeItem(k)); } catch (e) {} }
+};
+
+const state = {
+  screen: "login",
+  stack: [],
+  role: "teacher",
+  theme: store.get("theme", "light"),
+  childId: "aarav",
+  tab: "home",
+  section: null,
+  sheet: null,
+  lastFocus: null,
+  attendance: "not-checked-in",
+  gps: "on-campus",
+  homeworkTab: "homework",
+  examTerm: "midterm",
+  inboxFilter: "all",
+  studentsQuery: "",
+  studentFilter: "all",
+  studentId: null,
+  studentTab: "overview",
+  approvalsPending: 3,
+  unread: 3,
+  read: {},
+  paidAarav: store.get("paidAarav", "0") === "1",
+  extraReceipts: [],
+  failPayment: false,
+  paymentStep: "form",
+  paymentMethod: "upi",
+  checkoutBusy: false,
+  loading: false,
+  loginId: "",
+  password: "",
+  loginError: "",
+  showPassword: false,
+  composeText: "",
+  postedHomework: [],
+  reduceMotion: store.get("reduce", "0") === "1",
+  attendanceGps: "on-campus",
+  historyOpen: false
+};
+
+const ROLE_HOME = { teacher: "teacher-home", parent: "parent-home", admin: "admin-home", accountant: "admin-home" };
+const ROLES = [
+  { id: "parent", label: "Parent", login: "parent.demo@narayana" },
+  { id: "teacher", label: "Teacher", login: "priya.menon" },
+  { id: "admin", label: "Admin", login: "kavitha.rao" },
+  { id: "accountant", label: "Accountant", login: "accounts@narayana" }
+];
+const NAV = {
+  teacher: [
+    { label: "Home", icon: "home", screen: "teacher-home", tab: "home" },
+    { label: "Attend.", icon: "calendar-check", screen: "teacher-attendance", tab: "attendance" },
+    { label: "Academics", icon: "book", screen: "teacher-academics", tab: "academics" },
+    { label: "Inbox", icon: "inbox", screen: "inbox", tab: "inbox", badge: true },
+    { label: "Profile", icon: "user", screen: "profile", tab: "profile" }
+  ],
+  parent: [
+    { label: "Home", icon: "home", screen: "parent-home", tab: "home" },
+    { label: "Finance", icon: "wallet", screen: "parent-fees", tab: "fees" },
+    { label: "Attend.", icon: "calendar-check", sheet: "attendance-info", tab: "attendance" },
+    { label: "Homework", icon: "book", screen: "parent-home", section: "homework", tab: "homework" },
+    { label: "Profile", icon: "user", screen: "profile", tab: "profile" }
+  ],
+  admin: [
+    { label: "Home", icon: "home", screen: "admin-home", tab: "home" },
+    { label: "Students", icon: "users", screen: "admin-students", tab: "students" },
+    { label: "Attendance", icon: "calendar-check", screen: "admin-attendance", tab: "attendance" },
+    { label: "Notices", icon: "inbox", screen: "inbox", tab: "inbox", badge: true },
+    { label: "Profile", icon: "user", screen: "profile", tab: "profile" }
+  ],
+  accountant: [
+    { label: "Home", icon: "home", screen: "admin-home", tab: "home" },
+    { label: "Collections", icon: "wallet", screen: "admin-home", section: "collections", tab: "collections" },
+    { label: "Dues", icon: "receipt", screen: "admin-students", tab: "dues", filter: "defaulters" },
+    { label: "Notices", icon: "inbox", screen: "inbox", tab: "inbox", badge: true },
+    { label: "Profile", icon: "user", screen: "profile", tab: "profile" }
+  ]
+};
+
+/* ============================================================
+   3. HELPERS
+   ============================================================ */
+function icon(name, cls = "") {
+  return `<svg class="icon ${cls}" aria-hidden="true" focusable="false"><use href="#i-${name}"/></svg>`;
+}
+function money(n) { return "₹" + Number(n).toLocaleString("en-IN"); }
+function esc(s) { return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
+function child() { return DATA.children.find(c => c.id === state.childId) || DATA.children[0]; }
+function dueFor(c = child()) { return (c.id === "aarav" && state.paidAarav) ? 0 : c.due; }
+function receiptsFor(c = child()) {
+  return (c.id === "aarav" ? state.extraReceipts.concat(c.receipts) : c.receipts);
+}
+function avatar(nameOrInitials, size = "md", tone = "lav", label = "") {
+  const parts = nameOrInitials.trim().split(/\s+/);
+  const initials = parts.length > 1 ? parts[0][0] + parts[parts.length - 1][0] : nameOrInitials.slice(0, 2);
+  return `<span class="avatar ${size} ${tone}" ${label ? `role="img" aria-label="${esc(label)}"` : 'aria-hidden="true"'}>${esc(initials.toUpperCase())}</span>`;
+}
+function badge(text, tone = "", ic = "") {
+  return `<span class="badge ${tone}">${ic ? icon(ic) : ""}${esc(text)}</span>`;
+}
+function progress(pct, tone = "") {
+  return `<div class="progress ${tone}" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100"><span style="width:${Math.max(0, Math.min(100, pct))}%"></span></div>`;
+}
+function ring(pct, value, label, small = false) {
+  const c = 2 * Math.PI * 64;
+  const offset = c * (1 - Math.max(0, Math.min(100, pct)) / 100);
+  return `<div class="ring-wrap ${small ? "small" : ""}" role="img" aria-label="${esc(label)}">
+    <svg class="ring ${small ? "small" : ""}" viewBox="0 0 144 144" aria-hidden="true">
+      <circle class="ring-track" cx="72" cy="72" r="64"></circle>
+      <circle class="ring-fill" cx="72" cy="72" r="64" stroke-dasharray="${c.toFixed(1)}" stroke-dashoffset="${offset.toFixed(1)}"></circle>
+    </svg>
+    <div class="ring-center"><strong>${value}</strong><span>${esc(label)}</span></div>
+  </div>`;
+}
+function statTile(iconName, tone, value, label, delta = "") {
+  return `<div class="stat">
+    <span class="stat-icon tonal ${tone}">${icon(iconName)}</span>
+    <span class="stat-value">${esc(value)}</span>
+    <span class="stat-label">${esc(label)}</span>
+    ${delta ? `<span class="stat-delta ${delta.indexOf("-") === 0 ? "danger-text" : "success-text"}">${esc(delta)}</span>` : ""}
+  </div>`;
+}
+function bar(title, subtitle = "", back = true, actions = "") {
+  return `${back ? `<button class="iconbtn bare" data-action="back" aria-label="Back">${icon("arrow-left")}</button>` : ""}
+    <div class="bar-title"><h1 tabindex="-1" data-screen-title>${esc(title)}</h1>${subtitle ? `<div class="bar-sub">${esc(subtitle)}</div>` : ""}</div>
+    <div class="bar-actions">${actions}</div>`;
+}
+function homeHead(greeting, name, initials, tone) {
+  return `<header class="home-head">
+    <div><div class="eyebrow">${esc(greeting)}</div><h1 data-screen-title tabindex="-1">${esc(name)}</h1></div>
+    <div class="row">
+      <button class="iconbtn" data-action="go" data-screen="inbox" aria-label="Notifications" style="position:relative">${icon("bell")}${state.unread > 0 ? '<span class="dot"></span>' : ""}</button>
+      <button class="avatar md ${tone}" data-action="go" data-screen="profile" aria-label="Open profile">${initials}</button>
+    </div>
+  </header>`;
+}
+function quickTile(iconName, tone, label, attrs, badgeText = "") {
+  return `<button class="tile" ${attrs}>
+    <span class="tile-icon tonal ${tone}">${icon(iconName)}</span>
+    <span>${esc(label)}</span>
+    ${badgeText ? `<span class="badge coral" style="position:absolute;top:8px;right:8px">${esc(badgeText)}</span>` : ""}
+  </button>`;
+}
+function sectionHead(overline, linkLabel = "", attrs = "") {
+  return `<div class="row-between" style="margin-bottom:10px">
+    <div class="overline">${esc(overline)}</div>
+    ${linkLabel ? `<button class="btn-link" ${attrs} style="font-size:12px;height:28px">${esc(linkLabel)} ${icon("chevron-right", "icon-sm")}</button>` : ""}
+  </div>`;
+}
+function sosRow(iconName, tone, title, sub, trail = "", action = "") {
+  return `<button class="list-row pressable" ${action}>
+    <span class="avatar sm ${tone}">${icon(iconName)}</span>
+    <span class="lr-main"><span class="lr-title">${esc(title)}</span><span class="lr-sub">${esc(sub)}</span></span>
+    <span class="lr-trail">${trail}</span>
+  </button>`;
+}
+function emptyState(iconName, title, body, action = "") {
+  return `<div class="empty">
+    <span class="empty-icon">${icon(iconName)}</span>
+    <h3>${esc(title)}</h3><p>${esc(body)}</p>${action}
+  </div>`;
+}
+function skeletonHome(kind = "home") {
+  return `<div class="screen flush" style="padding:0 20px 26px">
+    <div class="stack" style="padding-top:16px">
+      <div class="skel" style="width:120px;height:12px"></div>
+      <div class="skel" style="width:210px;height:28px"></div>
+      <div class="skel skel-card" style="margin-top:8px"></div>
+      <div class="grid-3" style="margin-top:4px"><div class="skel" style="height:84px;border-radius:16px"></div><div class="skel" style="height:84px;border-radius:16px"></div><div class="skel" style="height:84px;border-radius:16px"></div></div>
+      <div class="skel skel-card" style="height:160px"></div>
+      <div class="skel skel-row"></div><div class="skel skel-row"></div>
+    </div>
+    <span class="sr-only" role="status">Loading ${kind}</span>
+  </div>`;
+}
+function monthCalendar() {
+  const marks = { 4: "absent", 10: "absent", 12: "leave", 18: "present" };
+  const days = ["S", "M", "T", "W", "T", "F", "S"].map(d => `<span class="cal-head">${d}</span>`).join("");
+  let cells = "";
+  for (let i = 0; i < 6; i++) cells += `<span class="cal-day empty" aria-hidden="true"></span>`;
+  for (let d = 1; d <= 30; d++) {
+    const mark = marks[d];
+    const dow = new Date(2026, 10, d).getDay();
+    const cls = mark || (dow === 0 ? "" : (d < 18 ? "present" : ""));
+    const label = mark ? `<em>${mark === "present" ? "P" : mark === "absent" ? "A" : "L"}</em>` : "";
+    cells += `<span class="cal-day ${cls}" ${mark ? `aria-label="18 November, ${mark}"` : ""}>${d}${label}</span>`;
+  }
+  return `<div class="calendar" role="grid" aria-label="November 2026 attendance">${days}${cells}</div>`;
+}
+function chartBars() {
+  const max = Math.max(...DATA.chart.map(d => d.v));
+  return `<div class="bars" role="img" aria-label="Fee collection trend over seven days">${DATA.chart.map(d => `<div class="bar-col ${d.day === "Fri" ? "today" : ""}"><i style="height:${Math.round(d.v / max * 100)}%"></i><span>${d.day}</span></div>`).join("")}</div>`;
+}
+
+/* ============================================================
+   4. NAVIGATION / CHROME
+   ============================================================ */
+function navHTML() {
+  const items = NAV[state.role] || NAV.teacher;
+  return items.map(it => {
+    const active = it.tab ? it.tab === state.tab : it.screen === state.screen;
+    const attrs = [
+      `class="nav-item"`,
+      it.sheet ? `data-action="nav-sheet" data-sheet="${it.sheet}"` : `data-action="nav" data-screen="${it.screen}"`,
+      it.section ? `data-section="${it.section}"` : "",
+      it.filter ? `data-filter="${it.filter}"` : "",
+      it.tab ? `data-tab="${it.tab}"` : "",
+      active ? `aria-current="page"` : ""
+    ].filter(Boolean).join(" ");
+    const showBadge = it.badge && state.unread > 0;
+    return `<button ${attrs}><span class="nav-icon">${icon(it.icon)}${showBadge ? `<span class="nav-badge">${state.unread}</span>` : ""}</span><span>${esc(it.label)}</span></button>`;
+  }).join("");
+}
+
+function render(dir = "fade", opts = {}) {
+  const view = SCREENS[state.screen] ? SCREENS[state.screen]() : SCREENS["teacher-home"]();
+  document.documentElement.dataset.role = state.role;
+  appbar.innerHTML = view.bar || "";
+  appbar.hidden = !view.bar;
+  appbar.style.display = view.bar ? "flex" : "none";
+  app.innerHTML = `<section class="screen ${view.flush ? "flush" : ""} anim-${dir}">${view.body}</section>`;
+  nav.innerHTML = view.nav === false ? "" : navHTML();
+  phone.dataset.nav = view.nav === false ? "0" : "1";
+  app.scrollTop = 0;
+  if (!opts.keepFocus) {
+    requestAnimationFrame(() => {
+      const h = app.querySelector("[data-screen-title]");
+      if (h) h.focus({ preventScroll: true });
+    });
+  }
+  if (state.section) {
+    const sec = document.getElementById("sec-" + state.section);
+    if (sec) requestAnimationFrame(() => setTimeout(() => sec.scrollIntoView({ block: "start", behavior: opts.instant ? "auto" : "smooth" }), 80));
+  }
+  if (view.after) view.after();
+}
+
+function go(screen, opts = {}) {
+  if (!SCREENS[screen]) return;
+  const prev = state.screen;
+  if (opts.push && prev !== screen && prev !== "login") state.stack.push(prev);
+  if (opts.reset) state.stack = [];
+  if (opts.tab) state.tab = opts.tab;
+  else if (!opts.keepTab) state.tab = (NAV[state.role] || []).find(i => i.screen === screen && !i.section)?.tab || state.tab;
+  state.screen = screen;
+  state.section = opts.section || null;
+  const dir = opts.dir || (opts.push || state.stack.length ? "push" : "fade");
+  render(dir, opts);
+  closeSheet(true);
+}
+function back() {
+  if (state.sheet) { closeSheet(); return; }
+  const prev = state.stack.pop();
+  if (prev) { state.screen = prev; state.section = null; render("pop"); }
+  else { go(ROLE_HOME[state.role], { reset: true, dir: "fade" }); }
+}
+function homeForRole(role) {
+  if (role === "accountant") return "admin-home";
+  return ROLE_HOME[role] || "teacher-home";
+}
+
+/* ============================================================
+   5. SHARED SCREEN PIECES
+   ============================================================ */
+function feesHero(c = child()) {
+  const due = dueFor(c);
+  if (due === 0) {
+    return `<div class="hero" style="background:linear-gradient(135deg,#0B6B4E,#12A87A)">
+      <div class="overline">FEES</div><div class="h-title">All clear</div>
+      <div class="h-body">No dues right now · ${esc(c.term)}</div>
+      <div style="margin-top:14px"><button class="btn-hero" data-action="go" data-screen="parent-fees">${icon("receipt")} View receipts</button></div>
+    </div>`;
+  }
+  return `<div class="hero">
+    <div class="row-between"><div class="overline">FEES DUE</div>${badge(c.term + " · " + c.dueDate, "lemon")}</div>
+    <div class="h-amount">${money(due)}</div>
+    <div class="h-body">${money(c.paid)} paid of ${money(c.total)} · ${esc(c.term)}</div>
+    <div style="margin-top:14px"><button class="btn-hero" data-action="pay-open">${icon("wallet")} Pay now</button></div>
+  </div>`;
+}
+
+function attendanceHero() {
+  const a = state.attendance;
+  if (a === "checked-in") {
+    return `<div class="card success-soft" style="padding:16px">
+      <div class="row" style="align-items:flex-start">
+        <span class="tile-icon tonal mint" style="width:44px;height:44px">${icon("check-circle")}</span>
+        <div class="spacer">
+          <div class="row-between"><div class="section-title">Checked in · ${esc(DATA.teacher.checkIn)}</div>${badge("Present today", "mint")}</div>
+          <div class="label mt-2">Location verified · ${esc(DATA.school.name)}</div>
+        </div>
+      </div>
+      <div class="row mt-3" style="gap:8px">
+        <button class="btn btn-secondary btn-sm" data-action="checkout-open" style="flex:1">Check out</button>
+        <button class="btn btn-quiet btn-sm" data-action="go" data-screen="teacher-attendance" style="flex:1">View</button>
+      </div>
+    </div>`;
+  }
+  if (a === "checked-out" || a === "day-complete") {
+    return `<div class="card sunken" style="padding:16px">
+      <div class="row"><span class="tile-icon tonal mint">${icon("check")}</span>
+      <div><div class="section-title">Day complete</div><div class="label">Checked out at ${esc(DATA.teacher.checkOut)}</div></div></div>
+      <button class="btn btn-secondary btn-sm btn-block mt-3" data-action="go" data-screen="teacher-attendance">View day</button>
+    </div>`;
+  }
+  return `<div class="hero">
+    <div class="overline">STAFF ATTENDANCE</div>
+    <div class="h-title">You haven’t checked in</div>
+    <div class="h-body">Location is verified before attendance is saved · Wed, 18 Nov</div>
+    <div style="margin-top:14px"><button class="btn-hero" data-action="go" data-screen="teacher-attendance" data-push="1">${icon("fingerprint")} Check in</button></div>
+  </div>`;
+}
+
+function childSwitcher() {
+  return `<div class="chips" role="group" aria-label="Select child">
+    ${DATA.children.map(c => `<button class="chip ${c.id === state.childId ? "is-selected" : ""}" data-action="select-child" data-child="${c.id}" aria-pressed="${c.id === state.childId}">${avatar(c.initials, "xs", c.tone)} ${esc(c.name.split(" ")[0])} · ${esc(c.cls)}</button>`).join("")}
+  </div>`;
+}
+
+/* ============================================================
+   6. SCREENS — auth, teacher
+   ============================================================ */
+function currentUser() {
+  if (state.role === "parent") return DATA.parent;
+  if (state.role === "admin") return DATA.admin;
+  if (state.role === "accountant") return DATA.accountant;
+  return DATA.teacher;
+}
+function spinner() { return `<span class="spin" aria-hidden="true">${icon("refresh")}</span>`; }
+
+function renderLogin() {
+  const role = ROLES.find(r => r.id === state.role) || ROLES[1];
+  const busy = !!state.signingIn;
+  return {
+    nav: false,
+    flush: true,
+    body: `<div style="padding:0 20px 26px;min-height:100%;display:flex;flex-direction:column">
+      <div class="login-head">
+        <button class="iconbtn" data-action="toggle-theme" aria-label="Switch to ${state.theme === "dark" ? "light" : "dark"} mode">${icon(state.theme === "dark" ? "sun" : "moon")}</button>
+      </div>
+      <div class="brand-mark" aria-hidden="true">N</div>
+      <div class="reveal" style="text-align:center;margin-bottom:22px;--i:0">
+        <h1 id="screen-title-login" data-screen-title tabindex="-1" class="title" style="font-size:24px">Welcome back</h1>
+        <p class="label mt-2">Sign in to Sri Narayana High School</p>
+      </div>
+      <div class="stack" style="gap:13px">
+        <div class="reveal" style="--i:1">
+          <div class="overline" style="margin-bottom:7px">DEMO WORKSPACE</div>
+          <div class="chips" role="radiogroup" aria-label="Demo workspace">
+            ${ROLES.map(r => `<button class="chip ${r.id === state.role ? "is-selected" : ""}" role="radio" aria-checked="${r.id === state.role}" data-action="set-role" data-role="${r.id}">${esc(r.label)}</button>`).join("")}
+          </div>
+        </div>
+        <div class="reveal" style="--i:2">
+          <label class="field"><span class="f-label">Login ID</span>
+            <span class="input-wrap">${icon("user")}<input data-field="loginId" value="${esc(state.loginId)}" placeholder="Username or email" autocomplete="username" aria-label="Login ID" ${busy ? "disabled" : ""}></span>
+          </label>
+        </div>
+        <div class="reveal" style="--i:3">
+          <label class="field"><span class="f-label">Password</span>
+            <span class="input-wrap">${icon("shield")}<input data-field="password" type="${state.showPassword ? "text" : "password"}" value="${esc(state.password)}" placeholder="Enter password" autocomplete="current-password" aria-label="Password" ${busy ? "disabled" : ""}>
+              <button class="iconbtn bare" data-action="toggle-password" aria-label="${state.showPassword ? "Hide" : "Show"} password" style="width:36px;height:36px;margin-right:-8px">${icon(state.showPassword ? "eye-off" : "eye", "icon-sm")}</button>
+            </span>
+          </label>
+        </div>
+        <div class="row-between reveal" style="--i:4">
+          <label class="check"><input type="checkbox" checked> Remember me</label>
+          <button class="btn-link" data-action="sheet" data-sheet="forgot" style="height:36px">Forgot password?</button>
+        </div>
+        ${state.loginError ? `<div class="banner error" role="alert">${icon("alert-circle")}<span>${esc(state.loginError)}</span></div>` : ""}
+        <button class="btn btn-primary btn-block btn-lg reveal" style="--i:5" data-action="login" ${busy ? 'aria-disabled="true"' : ""}>${busy ? spinner() + "Signing in…" : "Sign in"}</button>
+        <div class="or reveal" style="--i:6">or</div>
+        <button class="btn btn-secondary btn-block reveal" style="--i:7" data-action="demo-login">Use demo account</button>
+      </div>
+      <div class="login-footer">
+        <p class="caption center" style="letter-spacing:1.4px">${esc(DATA.school.motto)}</p>
+        <p class="caption center">Need help? Call the school office · ${esc(DATA.school.phone)}</p>
+      </div>
+      <div class="spacer"></div>
+      <p class="keypad-hint" style="margin-top:14px"><kbd>Tab</kbd> to move · <kbd>Enter</kbd> to sign in</p>
+    </div>`
+  };
+}
+
+function renderTeacherHome() {
+  if (state.loading) return { nav: true, body: skeletonHome("your day") };
+  const t = DATA.teacher;
+  return {
+    nav: true,
+    body: `${homeHead("Good morning · Wed, 18 Nov", t.name, t.initials, "peach")}
+      <div class="stack">
+        <div class="reveal" style="--i:0">${attendanceHero()}</div>
+        <div class="reveal" style="--i:1">
+          <div class="card" style="padding:14px">
+            <div class="row-between" style="margin-bottom:4px"><div class="overline">TODAY’S CLASSES</div><button class="btn-link" style="height:26px;font-size:12px" data-action="toast" data-message="Your timetable will appear once the school publishes it.">Timetable</button></div>
+            <div class="row" style="gap:12px;padding:8px 0 2px">
+              <span class="tile-icon tonal lavender" style="width:38px;height:38px">${icon("clock")}</span>
+              <div><div class="body-med">No classes published yet</div><div class="label">The school office will publish your timetable here.</div></div>
+            </div>
+          </div>
+        </div>
+        <div class="reveal" style="--i:2">
+          <div class="card">
+            ${sectionHead("OPEN TASKS", "View all", 'data-action="toast" data-message="All 2 tasks are shown here for today."')}
+            <div class="list">
+              ${sosRow("task", "lemon", "Upload Class X internal marks", "Due Fri, 21 Nov", badge("Due", "lemon"), 'data-action="toast" data-message="Marks upload opens in the office console."')}
+              ${sosRow("task", "rose", "Submit Unit 5 lesson plan", "Due today", badge("Today", "coral"), 'data-action="toast" data-message="Lesson plan marked as submitted."')}
+            </div>
+          </div>
+        </div>
+        <div class="reveal" style="--i:3">
+          ${sectionHead("QUICK ACTIONS")}
+          <div class="grid-2">
+            ${quickTile("fingerprint", "mint", "Attendance", 'data-action="go" data-screen="teacher-attendance"')}
+            ${quickTile("book", "lavender", "Academics", 'data-action="go" data-screen="teacher-academics"')}
+            ${quickTile("task", "lemon", "Tasks", 'data-action="toast" data-message="You have 2 open tasks."')}
+            ${quickTile("inbox", "rose", "Inbox", 'data-action="go" data-screen="inbox"', state.unread ? String(state.unread) : "")}
+          </div>
+        </div>
+        <div class="reveal" style="--i:4">
+          ${sectionHead("THIS MONTH")}
+          <div class="grid-3">
+            ${statTile("calendar-check", "lavender", "94%", "Attendance")}
+            ${statTile("check", "mint", "18", "Present days")}
+            ${statTile("clock", "lemon", "2", "Late marks")}
+          </div>
+        </div>
+        <div class="reveal" style="--i:5">
+          <div class="card">
+            ${sectionHead("NOTICES & EVENTS", "Inbox", 'data-action="go" data-screen="inbox"')}
+            <div class="list">
+              ${sosRow("calendar-check", "lavender", "Annual Sports Day", "Saturday, 29 November", "", 'data-action="open-notice" data-id="n1"')}
+              ${sosRow("users", "sky", "Parent-Teacher Meeting", "Sunday, 22 November · 9:00 AM", "", 'data-action="open-notice" data-id="n2"')}
+            </div>
+            <button class="btn-link btn-block mt-2" data-action="toast" data-message="Opening the full school calendar.">View full school calendar</button>
+          </div>
+        </div>
+        <button class="btn btn-secondary btn-block reveal" style="--i:6" data-action="sheet" data-sheet="history">View full history</button>
+      </div>`
+  };
+}
+
+function renderTeacherAttendance() {
+  const a = state.attendance;
+  const gps = state.gps;
+  if (a === "success-in" || a === "success-out") {
+    const isIn = a === "success-in";
+    return {
+      nav: false,
+      bar: bar("Attendance", "Wed, 18 Nov", true),
+      body: `<div class="success-hero">
+        <span class="success-check">${icon("check")}</span>
+        <h2>${isIn ? "Checked in at 8:42 AM" : "Checked out at 4:36 PM"}</h2>
+        <p class="body muted">${isIn ? "Location verified · Sri Narayana High School" : "7h 54m on campus · Have a good evening"}</p>
+        <div class="card success-soft mt-3" style="width:100%;text-align:left;padding:14px">
+          <div class="row-between"><span class="label">Staff</span><span class="body-med">Priya Menon · T-2041</span></div>
+          <div class="row-between mt-2"><span class="label">Date</span><span class="body-med">Wed, 18 Nov 2026</span></div>
+          <div class="row-between mt-2"><span class="label">Status</span>${badge(isIn ? "Present" : "Day complete", "mint")}</div>
+        </div>
+        <button class="btn btn-primary btn-block mt-4" data-action="attendance-done">Done</button>
+        <button class="btn btn-secondary btn-block" data-action="sheet" data-sheet="history">View month</button>
+      </div>`
+    };
+  }
+  const busy = a === "saving-in" || a === "saving-out";
+  const checkedIn = a === "checked-in";
+  const checkedOut = a === "checked-out";
+  const canMark = gps === "on-campus";
+  const locationCard = () => {
+    if (gps === "locating") return `<div class="card warn-soft" style="padding:13px"><div class="row">${icon("navigation")}<div><div class="body-med">Getting your location…</div><div class="label">This usually takes a few seconds.</div></div></div></div>`;
+    if (gps === "off-campus") return `<div class="card warn-soft" style="padding:13px"><div class="row">${icon("map-pin")}<div><div class="body-med">You’re about 1 km from campus</div><div class="label">Move closer to check in. Location is verified on the server.</div></div></div></div>`;
+    if (gps === "denied") return `<div class="card danger-soft" style="padding:13px"><div class="row">${icon("alert-circle")}<div class="spacer"><div class="body-med">Location permission is off</div><div class="label">Attendance can’t be marked without it.</div></div><button class="btn btn-sm btn-secondary" data-action="toast" data-message="Open Settings → Location to allow access.">Settings</button></div></div>`;
+    return `<div class="card success-soft" style="padding:13px"><div class="row">${icon("check-circle")}<div><div class="body-med">You’re on campus</div><div class="label">Location verified just now · inside the campus geofence</div></div></div></div>`;
+  };
+  return {
+    nav: false,
+    bar: bar("Attendance", "Wed, 18 Nov", true, `<button class="iconbtn bare" data-action="toast" data-message="Attendance history for November loaded." aria-label="Attendance history">${icon("clock")}</button>`),
+    body: `<div class="stack" style="padding-top:6px">
+      <div class="card reveal" style="--i:0;display:flex;flex-direction:column;align-items:center;gap:12px;padding:22px 16px 18px">
+        ${ring(94, checkedIn || checkedOut ? (checkedIn ? "8:42" : "4:36") : "— —", checkedIn ? "Checked in" : checkedOut ? "Checked out" : "Not checked in")}
+        <div class="row" style="gap:7px;flex-wrap:wrap;justify-content:center">
+          <span class="label">Check in 8:42 AM</span><span class="dotsep"></span>
+          <span class="label">Check out ${checkedOut ? "4:36 PM" : "—"}</span><span class="dotsep"></span>
+          <span class="label">Month 94%</span>
+        </div>
+        <div class="row" style="gap:6px">${badge(checkedIn ? "Present today" : checkedOut ? "Day complete" : "Not marked", checkedIn || checkedOut ? "mint" : "lemon", checkedIn || checkedOut ? "check" : "clock")}${badge("Wed, 18 Nov", "lav")}</div>
+      </div>
+      <div class="reveal" style="--i:1">${locationCard()}</div>
+      ${gps === "locating" || gps === "off-campus" ? `<div class="card tight reveal" style="--i:2">
+        <div class="row-between"><span class="label">${gps === "off-campus" ? "Almost there" : "Checking proximity"}</span><span class="caption">${gps === "off-campus" ? "1 km away" : "…"}</span></div>
+        <div class="progress mt-2 ${gps === "off-campus" ? "lemon" : "primary"}"><span style="width:${gps === "off-campus" ? 62 : 30}%"></span></div>
+      </div>` : ""}
+      <div class="stack-sm reveal" style="--i:3">
+        ${!checkedIn && !checkedOut ? `<button class="btn btn-primary btn-lg btn-block" data-action="check-in" ${!canMark || busy ? 'aria-disabled="true"' : ""}>${busy ? spinner() + "Saving…" : icon("fingerprint") + "Check in"}</button>` : ""}
+        ${checkedIn ? `<button class="btn btn-secondary btn-lg btn-block" data-action="checkout-open">${icon("log-out")} Check out</button>` : ""}
+        ${checkedOut ? `<button class="btn btn-secondary btn-block" data-action="toast" data-message="Your day is already complete.">Day complete</button>` : ""}
+        <button class="btn-link btn-block" data-action="refresh-location">${icon("refresh", "icon-sm")} Refresh location</button>
+      </div>
+      <div class="grid-3 reveal" style="--i:4">
+        ${statTile("check", "mint", "18", "Present")}
+        ${statTile("x", "coral", "1", "Absent")}
+        ${statTile("clock", "lemon", "2", "Leave")}
+      </div>
+      <div class="card reveal" style="--i:5">
+        <div class="row-between" style="margin-bottom:10px"><div class="section-title">This month</div><span class="caption">November 2026</span></div>
+        ${monthCalendar()}
+        <div class="row wrap mt-3" style="gap:10px">
+          <span class="row" style="gap:5px"><i class="pin" style="background:var(--success)"></i><span class="caption">Present</span></span>
+          <span class="row" style="gap:5px"><i class="pin" style="background:var(--danger)"></i><span class="caption">Absent</span></span>
+          <span class="row" style="gap:5px"><i class="pin" style="background:var(--accent)"></i><span class="caption">Leave</span></span>
+        </div>
+      </div>
+      <p class="caption center" style="padding:0 14px">Your location is checked only when you mark attendance. It is never tracked in the background.</p>
+    </div>`
+  };
+}
+
+function renderTeacherAcademics() {
+  const tab = state.homeworkTab;
+  const homework = state.postedHomework.concat(DATA.homework);
+  return {
+    nav: true,
+    bar: bar("Academics", "Mathematics · T-2041", true),
+    body: `<div class="stack" style="padding-top:4px">
+      <div class="seg" role="tablist" aria-label="Academics view">
+        <button role="tab" aria-selected="${tab === "timetable"}" data-action="academics-tab" data-tab="timetable">Timetable</button>
+        <button role="tab" aria-selected="${tab === "homework"}" data-action="academics-tab" data-tab="homework">Homework</button>
+      </div>
+      <div class="card reveal" style="--i:0">
+        <div class="teacher-line">
+          <span class="tile-icon tonal lavender" style="width:44px;height:44px">${icon("book")}</span>
+          <div class="spacer"><div class="section-title">Mathematics</div><div class="label">Classes VIII-A, IX-B · Employee T-2041</div></div>
+        </div>
+        <div class="row-between mt-3" style="margin-bottom:6px"><span class="label">Attendance this month</span><span class="body-med">94%</span></div>
+        ${progress(94, "primary")}
+        <div class="row-between mt-2"><span class="caption">Days recorded</span><span class="caption">18 of 22</span></div>
+      </div>
+      ${tab === "homework" ? `
+        <div class="row-between reveal" style="--i:1">
+          <div class="overline">HOMEWORK</div>
+          <button class="btn btn-primary btn-sm" data-action="sheet" data-sheet="homework">${icon("plus", "icon-sm")} Post homework</button>
+        </div>
+        <div class="card reveal" style="--i:2">
+          <div class="list">
+            ${homework.map(h => `<button class="list-row pressable" data-action="toast" data-message="${esc(h.title)} · ${esc(h.submitted)} submitted">
+              <span class="avatar sm mint">${icon("book")}</span>
+              <span class="lr-main"><span class="lr-title">${esc(h.title)}</span><span class="lr-sub">${esc(h.cls)} · Due ${esc(h.due)} · ${esc(h.submitted)} submitted</span></span>
+              ${icon("chevron-right", "chev")}
+            </button>`).join("")}
+          </div>
+        </div>
+        <div class="card tinted reveal" style="--i:3">
+          <div class="row" style="align-items:flex-start">${icon("info")}<div><div class="body-med">Homework to review is not available yet</div><div class="label">Submission review and grading will arrive in a later release. Posted homework is visible to parents now.</div></div></div>
+        </div>` : `
+        <div class="card reveal" style="--i:1">
+          <div class="overline" style="margin-bottom:8px">THIS WEEK</div>
+          <div class="chips">${["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(d => `<span class="chip ${d === "Wed" ? "is-selected" : ""}" aria-pressed="${d === "Wed"}">${d}</span>`).join("")}</div>
+        </div>
+        <div class="card reveal" style="--i:2">
+          ${emptyState("calendar-check", "Timetable not published yet", "Your timetable will appear here once the school publishes it in the office console.", `<button class="btn btn-secondary btn-sm" data-action="toast" data-message="We’ll notify you when the timetable is published.">Notify me</button>`)}
+        </div>`}
+      <div class="card reveal" style="--i:4">
+        ${sectionHead("EXAMS", "", "")}
+        <div class="list">
+          ${sosRow("calendar-check", "sky", "Mid-Term examination", "20–27 Oct · published by the exam cell", badge("Published", "sky"), 'data-action="toast" data-message="Exam schedules are managed by the school office."')}
+          ${sosRow("shield", "lemon", "Pre-Final examination", "12–19 Jan · draft", badge("Draft", "lemon"), 'data-action="toast" data-message="Pre-Final dates are still in draft."')}
+        </div>
+        <p class="caption mt-2">Exam schedules and result publication are managed in the school office console.</p>
+      </div>
+      <div class="card reveal" style="--i:5">
+        ${sectionHead("SCHOOL CALENDAR", "Inbox", 'data-action="go" data-screen="inbox"')}
+        <div class="list">
+          ${sosRow("calendar-check", "lavender", "Annual Sports Day", "Saturday, 29 November", "", 'data-action="open-notice" data-id="n1"')}
+          ${sosRow("users", "mint", "Parent-Teacher Meeting", "Sunday, 22 November · 9:00 AM", "", 'data-action="open-notice" data-id="n2"')}
+          ${sosRow("school", "lemon", "Winter break", "24 December – 1 January", "", 'data-action="toast" data-message="Winter break: 24 Dec – 1 Jan. School reopens 2 Jan."')}
+        </div>
+      </div>
+    </div>`
+  };
+}
+
+/* ============================================================
+   7. SCREENS — parent
+   ============================================================ */
+function renderParentHome() {
+  if (state.loading) return { nav: true, body: skeletonHome("your children") };
+  const c = child();
+  const due = dueFor(c);
+  return {
+    nav: true,
+    body: `${homeHead("Welcome · Good morning", DATA.parent.name, DATA.parent.initials, "rose")}
+      <div class="stack">
+        <div class="reveal" style="--i:0">${childSwitcher()}</div>
+        <div class="card reveal" style="--i:1;padding:14px">
+          <div class="row">
+            ${avatar(c.initials, "lg", c.tone, c.name)}
+            <div class="spacer" style="min-width:0">
+              <div class="section-title">${esc(c.name)}</div>
+              <div class="label">Class ${esc(c.cls)} · Adm ${esc(c.adm)}</div>
+              <div class="mt-2">${badge("Class " + c.cls, "lav")} ${due ? badge("Fees due", "coral") : badge("All clear", "mint")}</div>
+            </div>
+          </div>
+        </div>
+        <div class="reveal" style="--i:2">${feesHero(c)}</div>
+        <div class="reveal" style="--i:3">
+          ${sectionHead("SERVICES")}
+          <div class="grid-5">
+            ${quickTile("receipt", "lavender", "Receipts", 'data-action="go" data-screen="parent-fees"')}
+            ${quickTile("bar-chart", "mint", "Report card", 'data-action="go" data-screen="parent-exams"')}
+            ${quickTile("calendar-check", "lemon", "Timetable", 'data-action="toast" data-message="Timetable opens on the school website for now."')}
+            ${quickTile("message", "rose", "Message", 'data-action="sheet" data-sheet="compose"')}
+            ${quickTile("shield", "sky", "Hall ticket", 'data-action="go" data-screen="parent-exams"')}
+          </div>
+        </div>
+        <div class="reveal" style="--i:4">
+          <div class="card">
+            ${sectionHead("RECENT RECEIPTS", "View all", 'data-action="go" data-screen="parent-fees"')}
+            <div class="list">
+              ${receiptsFor(c).slice(0, 2).map(r => `<button class="list-row pressable" data-action="receipt" data-id="${esc(r.id)}">
+                <span class="avatar sm lavender">${icon("receipt")}</span>
+                <span class="lr-main"><span class="lr-title">${money(r.amount)} · ${esc(r.method)}</span><span class="lr-sub">${esc(r.date)} · ${esc(r.id)}</span></span>
+                ${icon("chevron-right", "chev")}
+              </button>`).join("")}
+            </div>
+          </div>
+        </div>
+        <div class="reveal" id="sec-homework" style="--i:5">
+          <div class="card">
+            ${sectionHead("HOMEWORK", "View all", 'data-action="go" data-screen="parent-home" data-section="homework"')}
+            <div class="list">
+              ${c.homework.map(h => `<button class="list-row pressable" data-action="toast" data-message="${esc(h.title)} · ${esc(h.sub)}">
+                <span class="avatar sm ${h.tone === "peach" ? "peach" : h.tone}">${icon(h.icon)}</span>
+                <span class="lr-main"><span class="lr-title">${esc(h.title)}</span><span class="lr-sub">${esc(h.sub)}</span></span>
+                ${badge("Due", "lemon")}
+              </button>`).join("")}
+            </div>
+          </div>
+        </div>
+        <div class="reveal" style="--i:6">
+          <div class="card">
+            ${sectionHead("SCHOOL NOTICES", "Inbox", 'data-action="go" data-screen="inbox"')}
+            <div class="list">
+              ${sosRow("calendar-check", "lavender", "Annual Sports Day — 29 November", "Track events begin at 8:00 AM", "", 'data-action="open-notice" data-id="n1"')}
+              ${sosRow("users", "mint", "PTM — 22 November, 9:00 AM", "Slots open with the class teacher", "", 'data-action="open-notice" data-id="n2"')}
+            </div>
+          </div>
+        </div>
+        <button class="btn btn-primary btn-block reveal" style="--i:7" data-action="sheet" data-sheet="compose">${icon("message")} Message the school</button>
+      </div>`
+  };
+}
+
+function renderParentFees() {
+  const c = child();
+  const due = dueFor(c);
+  const filter = state.paymentFilter || "all";
+  const receipts = receiptsFor(c).filter(r => filter === "all" || r.method === filter);
+  return {
+    nav: true,
+    bar: bar("Finance", "Fees, payments and receipts", true),
+    body: `<div class="stack" style="padding-top:4px">
+      <div class="reveal" style="--i:0">${childSwitcher()}</div>
+      <div class="card reveal" style="--i:1;padding:12px">
+        <div class="row">${avatar(c.initials, "sm", c.tone, c.name)}<div class="spacer"><div class="body-med">${esc(c.name)}</div><div class="caption">Class ${esc(c.cls)} · Adm ${esc(c.adm)}</div></div>${due ? badge("Due", "coral") : badge("Paid", "mint")}</div>
+      </div>
+      <div class="reveal" style="--i:2">${feesHero(c)}</div>
+      <div class="card reveal" style="--i:3">
+        ${sectionHead("FEE BREAKDOWN")}
+        <div class="list">
+          ${c.rows.map(r => `<div class="row-between" style="padding:8px 0;border-bottom:1px solid var(--divider)"><span class="body">${esc(r.label)}</span><span class="body-med">${money(r.amount)}</span></div>`).join("")}
+        </div>
+        <div class="row-between mt-3"><span class="label">Total</span><span class="body-med">${money(c.total)}</span></div>
+        <div class="row-between mt-2"><span class="label">Paid</span><span class="body-med success-text">${money(c.paid + (due === 0 && c.id === "aarav" ? c.due : 0))}</span></div>
+        <div class="row-between mt-2"><span class="body-med">Balance</span><span class="title" style="font-size:18px;${due ? "color:var(--text-danger)" : "color:var(--text-success)"}">${money(due)}</span></div>
+      </div>
+      <div class="reveal" style="--i:4">
+        <div class="row-between" style="margin-bottom:8px"><div class="overline">PAYMENT HISTORY</div><span class="caption">${receipts.length} record${receipts.length === 1 ? "" : "s"}</span></div>
+        <div class="chips" role="group" aria-label="Filter payments" style="margin-bottom:8px">
+          ${["all", "UPI", "Cash", "Card"].map(f => `<button class="chip ${filter === f ? "is-selected" : ""}" aria-pressed="${filter === f}" data-action="payment-filter" data-filter="${f}">${f === "all" ? "All" : f}</button>`).join("")}
+        </div>
+        ${receipts.length ? `<div class="card" style="padding:6px 14px">
+          <div class="list">
+            ${receipts.map(r => `<button class="list-row pressable" data-action="receipt" data-id="${esc(r.id)}">
+              <span class="avatar sm lavender">${icon("receipt")}</span>
+              <span class="lr-main"><span class="lr-title">${money(r.amount)} · ${esc(r.method)}</span><span class="lr-sub">Receipt ${esc(r.id)}</span></span>
+              <span class="lr-trail">${esc(r.date)}${icon("chevron-right", "chev")}</span>
+            </button>`).join("")}
+          </div>
+        </div>` : `<div class="card">${emptyState("receipt", "No payments recorded yet", "Payments you make will appear here with a shareable receipt.")}</div>`}
+        <p class="caption center mt-2">Tap a payment to share its receipt.</p>
+      </div>
+    </div>`
+  };
+}
+
+function renderParentExams() {
+  const c = child();
+  const term = state.examTerm;
+  const labels = { fa2: "FA-2", midterm: "Mid-Term", prefinal: "Pre-Final" };
+  return {
+    nav: true,
+    bar: bar("Exams", "Results and report card", true),
+    body: `<div class="stack" style="padding-top:4px">
+      <div class="reveal" style="--i:0">${childSwitcher()}</div>
+      <div class="chips" role="group" aria-label="Exam term">
+        ${Object.keys(labels).map(k => `<button class="chip ${term === k ? "is-selected" : ""}" aria-pressed="${term === k}" data-action="exam-term" data-term="${k}">${labels[k]}</button>`).join("")}
+      </div>
+      ${term === "midterm" ? `
+        <div class="hero reveal" style="--i:1">
+          <div class="row-between"><div class="overline">MID-TERM 2026</div>${badge("Published 24 Nov", "mint")}</div>
+          <div class="row" style="align-items:flex-end;gap:10px;margin-top:4px">
+            <span class="h-amount" style="font-size:36px">86.7%</span>
+            <span class="badge lav" style="margin-bottom:8px">Grade A2</span>
+          </div>
+          <div class="h-body">Rank 4 of 42 · ${esc(c.name)} · Class ${esc(c.cls)}</div>
+        </div>
+        <div class="card reveal" style="--i:2">
+          ${sectionHead("SUBJECT PERFORMANCE")}
+          <div class="list">
+            ${DATA.exam.subjects.map(s => `<div class="subject-row">
+              <div class="sr-top"><span class="sr-name">${esc(s.name)}</span><span class="row" style="gap:7px"><span class="sr-mark">${s.mark}/100</span>${badge(s.grade, s.grade === "A1" ? "mint" : "sky")}</span></div>
+              ${`<div class="marks-bar"><span style="width:${s.mark}%"></span></div>`}
+            </div>`).join("")}
+          </div>
+          <div class="row-between mt-3" style="padding-top:10px;border-top:1px solid var(--divider)"><span class="body-med">Total</span><span class="title" style="font-size:18px">${esc(DATA.exam.total)}</span></div>
+        </div>
+        <div class="card reveal" style="--i:3">
+          ${sectionHead("CO-SCHOLASTIC")}
+          <div class="row wrap" style="gap:6px">${DATA.exam.coscholastic.map(x => badge(x, "lav")).join("")}</div>
+          <div class="row-between mt-4" style="padding-top:10px;border-top:1px solid var(--divider)"><span class="body-med">Attendance</span><span class="row" style="gap:6px"><span class="body-med">${c.days}</span>${badge(c.attendance + "%", "mint")}</span></div>
+        </div>
+        <div class="card tinted reveal" style="--i:4">
+          <div class="row" style="align-items:flex-start"><span class="avatar sm lavender">${icon("message")}</span><div><div class="body-med">Teacher remark</div><p class="body mt-2" style="font-size:13.5px">“${esc(DATA.exam.remark)}”</p><p class="caption mt-2">${esc(DATA.exam.remarkBy)}</p></div></div>
+        </div>
+        <div class="stack-sm reveal" style="--i:5">
+          <button class="btn btn-primary btn-block" data-action="download">${icon("download")} Download report card</button>
+          <button class="btn btn-secondary btn-block" data-action="share">${icon("share")} Share</button>
+        </div>
+        <div class="card reveal" style="--i:6">
+          ${sosRow("shield", "sky", "Pre-Final hall ticket", "Available from 5 Jan", badge("Soon", "lemon"), 'data-action="toast" data-message="Hall tickets will be available from 5 January."')}
+        </div>` : `
+        <div class="card reveal" style="--i:1">
+          ${emptyState("calendar-check", "Results not published", term === "prefinal" ? "Pre-Final exams run 12–19 Jan. Results are published by the exam cell within two weeks." : "Results for FA-2 will be published on 12 Dec. You’ll get a notice when they are ready.", `<button class="btn btn-secondary btn-sm" data-action="toast" data-message="We’ll notify you when ${labels[term]} results are published.">Notify me</button>`)}
+        </div>`}
+    </div>`
+  };
+}
+
+/* ============================================================
+   8. SCREENS — admin / shared
+   ============================================================ */
+function pendingApprovals() {
+  const done = state.approvalsDone || {};
+  return DATA.approvals.filter(a => !done[a.id]);
+}
+
+function renderAdminHome() {
+  if (state.loading) return { nav: true, body: skeletonHome("the school dashboard") };
+  const u = state.role === "accountant" ? DATA.accountant : DATA.admin;
+  const pending = pendingApprovals();
+  return {
+    nav: true,
+    body: `${homeHead("Good morning · Wed, 18 Nov", u.name, u.initials, state.role === "accountant" ? "lemon" : "sky")}
+      <div class="stack">
+        <div class="hero reveal" style="--i:0" id="sec-collections">
+          <div class="row-between"><div class="overline">COLLECTED THIS MONTH</div><button class="btn-hero" style="height:32px;padding:0 13px;font-size:12px" data-action="toast" data-message="Fee collection report for November is ready.">Details</button></div>
+          <div class="h-amount">${money(DATA.admin.collected)}</div>
+          <div class="h-body">1–18 November · 186 students with dues</div>
+          ${chartBars()}
+        </div>
+        <div class="grid-3 reveal" style="--i:1">
+          ${statTile("users", "lavender", "1,284", "Students")}
+          ${statTile("check", "mint", "1,186", "Present today")}
+          ${statTile("receipt", "coral", "₹4.82L", "Fee dues")}
+        </div>
+        <div class="card reveal" style="--i:2">
+          ${sectionHead("FEE COLLECTION")}
+          <div class="row-between" style="margin-bottom:6px"><span class="label">Collected against demand</span><span class="body-med">${DATA.admin.demandPct}%</span></div>
+          ${progress(DATA.admin.demandPct, "primary")}
+          <div class="list mt-3">
+            ${sosRow("wallet", "mint", "Total collected", "Against current demand", `<span class="body-med">${money(DATA.admin.demand)}</span>`, 'data-action="toast" data-message="Opening the full collection ledger."')}
+            ${sosRow("users", "coral", "Students with dues", "186 students", `<span class="body-med danger-text">${money(DATA.admin.dues)}</span>`, 'data-action="go" data-screen="admin-students" data-filter="defaulters"')}
+            ${sosRow("bar-chart", "sky", "Expenses & cashflow", "November summary", "", 'data-action="toast" data-message="Expenses and cashflow live in the office console."')}
+          </div>
+        </div>
+        <div class="card reveal" style="--i:3" id="sec-approvals">
+          <div class="row-between" style="margin-bottom:8px"><div class="overline">PENDING APPROVALS</div>${pending.length ? badge(String(pending.length), "coral") : ""}</div>
+          ${pending.length ? `<div class="list">
+            ${pending.map(a => `<div class="list-row" style="border-bottom:1px solid var(--divider)">
+              ${avatar(a.initials, "sm", a.tone, a.name)}
+              <span class="lr-main"><span class="lr-title">${esc(a.name)}</span><span class="lr-sub">${esc(a.type)} · ${esc(a.date)}</span></span>
+              <span class="row" style="gap:4px">
+                <button class="iconbtn bare" style="width:34px;height:34px;color:var(--text-success)" data-action="approval" data-id="${a.id}" data-decision="approve" aria-label="Approve ${esc(a.name)}">${icon("check", "icon-sm")}</button>
+                <button class="iconbtn bare" style="width:34px;height:34px;color:var(--text-danger)" data-action="approval" data-id="${a.id}" data-decision="decline" aria-label="Decline ${esc(a.name)}">${icon("x", "icon-sm")}</button>
+              </span>
+            </div>`).join("")}
+          </div>` : emptyState("check-circle", "Nothing waiting on you", "All leave requests are reviewed. New requests will appear here.", "")}
+          <button class="btn-link btn-block mt-2" data-action="toast" data-message="Approval history is available in the office console.">View approval history</button>
+        </div>
+        <div class="reveal" style="--i:4">
+          ${sectionHead("QUICK ACTIONS")}
+          <div class="grid-2">
+            ${quickTile("wallet", "mint", "Finance", 'data-action="go" data-screen="admin-home" data-section="collections"')}
+            ${quickTile("users", "sky", "Staff", 'data-action="go" data-screen="admin-attendance" data-segment="staff"')}
+            ${quickTile("task", "lemon", "Approvals", 'data-action="go" data-screen="admin-home" data-section="approvals"', pending.length ? String(pending.length) : "")}
+            ${quickTile("inbox", "lavender", "Notices", 'data-action="go" data-screen="inbox"')}
+          </div>
+        </div>
+        <div class="card reveal" style="--i:5">
+          ${sectionHead("RECENT PAYMENTS", "View all", 'data-action="toast" data-message="Opening all payments received today."')}
+          <div class="list">
+            ${DATA.payments.map(p => `<button class="list-row pressable" data-action="toast" data-message="${esc(p.name)} · ${money(p.amount)} · ${esc(p.method)}">
+              ${avatar(p.initials, "sm", p.tone, p.name)}
+              <span class="lr-main"><span class="lr-title">${esc(p.name)}</span><span class="lr-sub">${esc(p.method)} · ${esc(p.time)}</span></span>
+              <span class="lr-trail paid">${money(p.amount)}</span>
+            </button>`).join("")}
+          </div>
+        </div>
+      </div>`
+  };
+}
+
+function studentFilterList() {
+  const f = state.studentFilter || "all";
+  return DATA.students.filter(s => f === "defaulters" ? s.due > 0 : f === "new" ? s.isNew : true);
+}
+function renderAdminStudents() {
+  const list = studentFilterList();
+  const q = state.studentsQuery.trim().toLowerCase();
+  const count = list.length;
+  const filterLabel = state.studentFilter === "defaulters" ? "Students with dues" : state.studentFilter === "new" ? "New admissions" : "Demo subset · 1,284 on roll";
+  return {
+    nav: true,
+    bar: bar(state.role === "accountant" ? "Dues" : "Students", filterLabel, true, `<button class="iconbtn bare" data-action="toast" data-message="Filters: class, section, dues and transport." aria-label="Filter students">${icon("filter")}</button>`),
+    body: `<div class="stack" style="padding-top:2px">
+      <div class="input-wrap search reveal" style="--i:0">
+        ${icon("search")}<input data-field="studentQuery" value="${esc(state.studentsQuery)}" placeholder="Name, admission no. or phone" aria-label="Search students" inputmode="search">
+        <button class="iconbtn bare" data-action="clear-search" aria-label="Clear search" style="width:36px;height:36px;margin-right:-8px">${icon("x", "icon-sm")}</button>
+      </div>
+      <div class="chips reveal" role="group" aria-label="Student filter" style="--i:1">
+        ${[["all", "All"], ["defaulters", "Defaulters"], ["new", "New"]].map(([k, l]) => `<button class="chip ${(state.studentFilter || "all") === k ? "is-selected" : ""}" aria-pressed="${(state.studentFilter || "all") === k}" data-action="student-filter" data-filter="${k}">${l}</button>`).join("")}
+      </div>
+      <div class="row-between"><span class="caption" id="student-count">${count} student${count === 1 ? "" : "s"}${q ? ` matching “${esc(state.studentsQuery)}”` : ""}</span><span class="caption">Demo records</span></div>
+      <div class="card reveal" style="--i:2;padding:2px 14px" id="student-list">
+        <div class="list">
+          ${list.map(s => {
+            const hay = (s.name + " " + s.adm + " " + s.parent + " " + s.phone).toLowerCase();
+            const show = !q || hay.indexOf(q) >= 0;
+            return `<button class="list-row pressable student-row" data-action="open-student" data-id="${esc(s.adm)}" data-hay="${esc(hay)}" ${show ? "" : "hidden"}>
+              ${avatar(s.initials, "md", s.tone, s.name)}
+              <span class="lr-main"><span class="lr-title">${esc(s.name)}</span><span class="lr-sub">${esc(s.section)} · ${esc(s.adm)} · ${esc(s.parent)}</span></span>
+              ${s.due ? `<span class="lr-trail due">${money(s.due)}<br><span class="caption">due</span></span>` : badge("Paid", "mint")}
+              ${icon("chevron-right", "chev")}
+            </button>`;
+          }).join("")}
+        </div>
+      </div>
+      <div class="empty hidden" id="students-empty">
+        <span class="empty-icon">${icon("search")}</span>
+        <h3>No students match</h3><p>Try a different name, admission number or phone.</p>
+        <button class="btn btn-secondary btn-sm" data-action="clear-search">Clear search</button>
+      </div>
+      <button class="btn btn-secondary btn-block" data-action="toast" data-message="Loading the next 20 students…">Load more students</button>
+      <p class="caption center">Student records are scoped to your role by the server.</p>
+    </div>`
+  };
+}
+
+function renderAdminAttendance() {
+  const seg = state.attendanceSegment || "students";
+  const present = DATA.admin.present, total = DATA.admin.students;
+  const pct = (present / total * 100).toFixed(1);
+  return {
+    nav: true,
+    bar: bar("Attendance", "Today · Wed, 18 Nov", true, `<button class="iconbtn bare" data-action="toast" data-message="Choose another date to view attendance." aria-label="Change date">${icon("calendar-check")}</button>`),
+    body: `<div class="stack" style="padding-top:4px">
+      <div class="seg reveal" style="--i:0" role="tablist" aria-label="Attendance group">
+        <button role="tab" aria-selected="${seg === "students"}" data-action="attendance-segment" data-segment="students">Students</button>
+        <button role="tab" aria-selected="${seg === "staff"}" data-action="attendance-segment" data-segment="staff">Staff</button>
+      </div>
+      ${seg === "students" ? `
+        <div class="card reveal" style="--i:1;display:flex;align-items:center;gap:16px;padding:16px">
+          ${ring(pct, pct + "%", "present today")}
+          <div class="spacer">
+            <div class="section-title">${present.toLocaleString("en-IN")} present</div>
+            <div class="label">of ${total.toLocaleString("en-IN")} students</div>
+            <div class="mt-2">${badge("On track", "mint", "check")}</div>
+            <p class="caption mt-2">Report generated at 10:05 AM</p>
+          </div>
+        </div>
+        <div class="grid-2 reveal" style="--i:2">
+          ${statTile("check", "mint", "1,186", "Present")}
+          ${statTile("x", "coral", "62", "Absent")}
+          ${statTile("clock", "lemon", "36", "Late")}
+          ${statTile("calendar-check", "lavender", "0", "Leave")}
+        </div>
+        <div class="card reveal" style="--i:3">
+          ${sectionHead("CLASS-WISE", "", "")}
+          ${DATA.classAttendance.map(c => `<div class="class-row"><span class="cl-name">${c.name}</span>${progress(c.pct, c.pct < 90 ? "lemon" : "")}<span class="cl-val">${c.pct}%</span></div>`).join("")}
+        </div>
+        <div class="card reveal" style="--i:4">
+          ${sectionHead("ABSENT TODAY", "View all 62", 'data-action="toast" data-message="Showing all 62 absent students."')}
+          <div class="list">
+            ${["Ishaan Gupta · IX-B", "Vihaan Kumar · VII-C", "Arjun Naidu · IX-A"].map(x => `<div class="list-row">${avatar(x.slice(0, 2), "sm", "rose")}<span class="lr-main"><span class="lr-title">${esc(x.split(" · ")[0])}</span><span class="lr-sub">${esc(x.split(" · ")[1])} · Unmarked</span></span>${badge("Absent", "coral")}</div>`).join("")}
+          </div>
+        </div>
+        <button class="btn btn-secondary btn-block reveal" style="--i:5" data-action="share">${icon("share")} Share today’s report</button>` : `
+        <div class="card reveal" style="--i:1;display:flex;align-items:center;gap:16px;padding:16px">
+          ${ring(95.3, "82/86", "staff checked in")}
+          <div class="spacer">
+            <div class="section-title">Staff attendance</div>
+            <div class="label">4 yet to check in</div>
+            <div class="row mt-2" style="gap:-6px">${["SK", "RT", "AN", "PM"].map((x, i) => `<span class="avatar xs ${["rose", "sky", "mint", "peach"][i]}" style="margin-right:-6px;box-shadow:0 0 0 2px var(--surface)">${x}</span>`).join("")}</div>
+          </div>
+        </div>
+        <div class="card reveal" style="--i:2">
+          ${sectionHead("STAFF TODAY", "View all", 'data-action="toast" data-message="Showing the full staff directory."')}
+          <div class="list">
+            ${sosRow("user", "rose", "Sneha Kulkarni", "Science · Not checked in", badge("Pending", "lemon"), 'data-action="toast" data-message="Reminder sent to Sneha Kulkarni."')}
+            ${sosRow("user", "sky", "Ravi Teja", "Mathematics · Checked in 8:38 AM", badge("Present", "mint"), 'data-action="toast" data-message="Ravi Teja checked in at 8:38 AM."')}
+            ${sosRow("user", "mint", "Anitha Rao", "English · Half-day approved", badge("Leave", "lav"), 'data-action="toast" data-message="Anitha Rao is on approved half-day leave."')}
+          </div>
+        </div>
+        <div class="card tinted reveal" style="--i:3"><div class="row" style="align-items:flex-start">${icon("info")}<div><div class="body-med">Staff-only attendance</div><div class="label">Daily student roll call is not part of this release. Student attendance shows the latest records published by the school office.</div></div></div></div>
+        <button class="btn btn-secondary btn-block reveal" style="--i:4" data-action="share">${icon("share")} Share staff report</button>`}
+      <p class="caption center">Attendance is verified on the server. Corrections stay in the office web console.</p>
+    </div>`
+  };
+}
+
+function renderInbox() {
+  const filter = state.inboxFilter || "all";
+  const list = DATA.notices.filter(n => filter === "all" || n.cat === filter);
+  const unread = DATA.notices.filter(n => n.unread && !state.read[n.id]).length;
+  return {
+    nav: true,
+    bar: bar("Inbox", `${unread} unread`, true, `<button class="btn-link" style="font-size:12px;height:34px" data-action="mark-all-read" ${unread ? "" : 'aria-disabled="true"'}>Mark all read</button><button class="iconbtn bare" data-action="sheet" data-sheet="compose" aria-label="New message">${icon("message")}</button>`),
+    body: `<div class="stack" style="padding-top:4px">
+      <div class="chips reveal" style="--i:0" role="group" aria-label="Filter inbox">
+        ${[["all", "All"], ["Notices", "Notices"], ["Leave", "Leave"], ["Messages", "Messages"]].map(([k, l]) => `<button class="chip ${filter === k ? "is-selected" : ""}" aria-pressed="${filter === k}" data-action="inbox-filter" data-filter="${k}">${l}</button>`).join("")}
+      </div>
+      ${(filter === "all" || filter === "Notices") ? `<button class="card tinted reveal pressable" style="--i:1;text-align:left;border:0" data-action="open-notice" data-id="n1">
+        <div class="row-between"><span class="overline" style="color:var(--on-primary-container)">PINNED · NOTICE</span><span class="caption">2h ago</span></div>
+        <div class="section-title mt-2">Annual Sports Day — 29 November</div>
+        <p class="body mt-2" style="font-size:13px">Track events begin at 8:00 AM. Students report to the main ground in house colours.</p>
+        <div class="row mt-2" style="gap:6px">${badge("29 Nov", "lav")}${badge("Read more", "sky")}</div>
+      </button>` : ""}
+      ${list.length ? `<div class="card reveal" style="--i:2;padding:4px 14px">
+        <div class="list">
+          ${list.map(n => {
+            const isUnread = n.unread && !state.read[n.id];
+            return `<button class="notice-item ${isUnread ? "unread" : ""}" style="border-bottom:1px solid var(--divider)" data-action="open-notice" data-id="${n.id}">
+              <span style="width:8px;padding-top:7px">${isUnread ? '<span class="unread-dot"></span>' : ""}</span>
+              <span class="ni-body"><span class="ni-title">${esc(n.title)}</span><span class="ni-sub">${esc(n.snippet)}</span></span>
+              <span class="ni-time">${esc(n.time)}</span>
+            </button>`;
+          }).join("")}
+        </div>
+      </div>` : `<div class="card reveal" style="--i:2">${emptyState("inbox", "You’re all caught up", "There are no " + (filter === "all" ? "notices" : filter.toLowerCase()) + " right now.", `<button class="btn btn-secondary btn-sm" data-action="inbox-filter" data-filter="all">Show all</button>`)}</div>`}
+      <div class="card reveal" style="--i:3">
+        <div class="row" style="align-items:flex-start">${icon("info")}<div><div class="body-med">Read-only notices and messages</div><div class="label">Parents can message the school office. Two-way message threads are not part of this release.</div></div></div>
+      </div>
+    </div>`
+  };
+}
+
+function renderProfile() {
+  const u = currentUser();
+  const tone = state.role === "parent" ? "rose" : state.role === "admin" ? "sky" : state.role === "accountant" ? "lemon" : "peach";
+  const sub = state.role === "parent" ? `${child().name} · ${child().cls}` : state.role === "teacher" ? `Mathematics · T-2041` : state.role === "admin" ? "School administration" : "Accounts & collections";
+  const login = state.role === "parent" ? DATA.parent.login : state.role === "teacher" ? "priya.menon" : state.role === "admin" ? "kavitha.rao" : "accounts@narayana";
+  const notifs = state.notifs || { fees: true, attendance: true, notices: true };
+  return {
+    nav: true,
+    bar: bar("Profile", "", false),
+    body: `<div class="stack" style="padding-top:6px">
+      <div class="card reveal" style="--i:0">
+        <div class="row">${avatar(u.initials, "lg", tone, u.name)}<div class="spacer" style="min-width:0"><div class="section-title">${esc(u.name)}</div><div class="row mt-2" style="gap:6px">${badge(u.role, "lav")}${badge("Demo", "sky")}</div><div class="caption mt-2">${esc(sub)}</div></div></div>
+        <button class="row-between mt-4" style="width:100%;padding-top:12px;border-top:1px solid var(--divider)" data-action="copy-login" data-value="${esc(login)}">
+          <span style="text-align:left"><span class="caption">Login ID</span><span class="body-med" style="display:block">${esc(login)}</span></span>
+          <span class="iconbtn bare" style="width:36px;height:36px">${icon("copy", "icon-sm")}</span>
+        </button>
+      </div>
+      <div class="card reveal" style="--i:1">
+        ${sectionHead("PREFERENCES")}
+        <div class="row-between" style="padding:6px 0 10px"><span class="body-med">Appearance</span></div>
+        <div class="seg" role="group" aria-label="Appearance">
+          ${[["light", "Light", "sun"], ["dark", "Dark", "moon"], ["system", "System", "monitor"]].map(([k, l, ic]) => `<button aria-selected="${state.theme === k}" data-action="set-theme" data-theme="${k}" style="display:flex;align-items:center;justify-content:center;gap:5px">${icon(ic, "icon-sm")} ${l}</button>`).join("")}
+        </div>
+        <div class="row-between" style="padding:14px 0 6px"><span class="body-med">Reduce motion</span><button class="switch" role="switch" aria-checked="${state.reduceMotion}" aria-label="Reduce motion" data-action="toggle-motion"></button></div>
+        <div class="row-between" style="padding:10px 0 6px;border-top:1px solid var(--divider);margin-top:8px"><span class="body-med">Language</span><button class="btn-link" style="height:32px;font-size:13px" data-action="toast" data-message="Language options: English, తెలుగు, हिन्दी.">English ${icon("chevron-right", "icon-sm")}</button></div>
+        <div class="row-between" style="padding:10px 0 6px;border-top:1px solid var(--divider);margin-top:2px"><span class="body-med">Fee reminders</span><button class="switch" role="switch" aria-checked="${notifs.fees}" aria-label="Fee reminders" data-action="toggle-notif" data-key="fees"></button></div>
+        <div class="row-between" style="padding:10px 0 6px"><span class="body-med">Attendance alerts</span><button class="switch" role="switch" aria-checked="${notifs.attendance}" aria-label="Attendance alerts" data-action="toggle-notif" data-key="attendance"></button></div>
+        <div class="row-between" style="padding:10px 0 2px"><span class="body-med">School notices</span><button class="switch" role="switch" aria-checked="${notifs.notices}" aria-label="School notices" data-action="toggle-notif" data-key="notices"></button></div>
+      </div>
+      <div class="card reveal" style="--i:2">
+        ${sectionHead("SWITCH WORKSPACE")}
+        <div class="grid-2">
+          ${ROLES.map(r => `<button class="tile" style="min-height:76px;padding:10px" data-action="role-switch" data-role="${r.id}">
+            <span class="tile-icon tonal ${r.id === "parent" ? "rose" : r.id === "teacher" ? "peach" : r.id === "admin" ? "sky" : "lemon"}" style="width:34px;height:34px">${icon(r.id === "parent" ? "users" : r.id === "teacher" ? "book" : r.id === "admin" ? "school" : "wallet")}</span>
+            <span style="font-weight:600;color:var(--text)">${r.label}</span>
+            ${r.id === state.role ? `<span class="badge mint" style="position:absolute;top:6px;right:6px">Current</span>` : ""}
+          </button>`).join("")}
+        </div>
+        <p class="caption mt-2">Demo only — real workspaces follow your login and role.</p>
+      </div>
+      <div class="card reveal" style="--i:3">
+        <div class="list">
+          ${sosRow("message", "sky", "Help & support", "School office · 040 2300 1122", "", 'data-action="toast" data-message="Call the school office on 040 2300 1122."')}
+          ${sosRow("shield", "lavender", "Privacy policy", "How your data is used", "", 'data-action="toast" data-message="Opening the privacy policy."')}
+          ${sosRow("info", "lemon", "About NarayanaOS", "Version 2.4.0 · demo build", "", 'data-action="toast" data-message="NarayanaOS mobile · v2.4.0 demo."')}
+        </div>
+      </div>
+      <button class="btn btn-secondary btn-block reveal" style="--i:4;color:var(--text-danger)" data-action="signout-open">${icon("log-out")} Sign out</button>
+      <p class="caption center" style="margin-top:2px">${esc(DATA.school.name)}<br>${esc(DATA.school.place)}</p>
+    </div>`
+  };
+}
+
+/* ============================================================
+   9. SCREEN REGISTRY
+   ============================================================ */
+const SCREENS = {
+  login: renderLogin,
+  "teacher-home": renderTeacherHome,
+  "teacher-attendance": renderTeacherAttendance,
+  "teacher-academics": renderTeacherAcademics,
+  "parent-home": renderParentHome,
+  "parent-fees": renderParentFees,
+  "parent-exams": renderParentExams,
+  "admin-home": renderAdminHome,
+  "admin-students": renderAdminStudents,
+  "admin-attendance": renderAdminAttendance,
+  inbox: renderInbox,
+  profile: renderProfile
+};
+
+
+/* ============================================================
+   10. FEEDBACK — toast, confetti, unread
+   ============================================================ */
+let toastTimer = null;
+function positionToast() {
+  const sheet = sheetRoot.querySelector(".sheet");
+  if (state.sheet && sheet) {
+    const pr = phone.getBoundingClientRect(), sr = sheet.getBoundingClientRect();
+    toastRoot.style.bottom = Math.max(24, Math.round(pr.bottom - sr.top + 12)) + "px";
+  } else {
+    toastRoot.style.bottom = "";
+  }
+}
+function toast(message, tone = "success") {
+  const ic = tone === "error" ? "alert-circle" : tone === "info" ? "info" : "check-circle";
+  positionToast();
+  toastRoot.innerHTML = `<div class="toast" role="status">${icon(ic)}<span>${esc(message)}</span></div>`;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => {
+    const t = toastRoot.firstElementChild;
+    if (!t) return;
+    t.classList.add("out");
+    setTimeout(() => { if (toastRoot.firstElementChild === t) toastRoot.innerHTML = ""; }, 180);
+  }, 2600);
+}
+function confetti() {
+  if (state.reduceMotion || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const colors = ["#3B2FA3", "#6D4AFF", "#F4B740", "#12A87A", "#2E7CF6", "#E5484D", "#A796EC"];
+  for (let i = 0; i < 26; i++) {
+    const s = document.createElement("span");
+    s.className = "confetti";
+    s.style.left = (30 + Math.random() * 40) + "%";
+    s.style.background = colors[i % colors.length];
+    s.style.setProperty("--dx", (Math.random() * 280 - 140).toFixed(0) + "px");
+    s.style.setProperty("--dy", (120 + Math.random() * 320).toFixed(0) + "px");
+    s.style.setProperty("--rot", (Math.random() * 720 - 360).toFixed(0) + "deg");
+    s.style.animationDelay = (Math.random() * 120).toFixed(0) + "ms";
+    s.style.width = (5 + Math.random() * 5).toFixed(0) + "px";
+    confettiRoot.appendChild(s);
+    setTimeout(() => s.remove(), 1600);
+  }
+}
+function recalcUnread() {
+  state.unread = DATA.notices.filter(n => n.unread && !state.read[n.id]).length;
+}
+function resolvedTheme() {
+  if (state.theme === "system") return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  return state.theme;
+}
+function applyTheme() {
+  document.documentElement.dataset.theme = resolvedTheme();
+  try { store.set("theme", state.theme); } catch (e) {}
+}
+
+/* ============================================================
+   11. SHEETS
+   ============================================================ */
+function openSheet(type, payload = {}) {
+  state.sheet = { type, payload };
+  state.lastFocus = document.activeElement;
+  if (type === "payment") { state.paymentStep = "form"; state.paymentError = ""; }
+  if (type === "student") { state.studentId = payload.id || null; state.studentTab = "overview"; }
+  if (type === "notice" && payload.id) {
+    const id = payload.id;
+    setTimeout(() => {
+      if (state.sheet && state.sheet.type === "notice" && state.sheet.payload.id === id && !state.read[id]) {
+        state.read[id] = true;
+        recalcUnread();
+        render("fade", { keepFocus: true });
+        renderSheet();
+      }
+    }, 600);
+  }
+  renderSheet();
+}
+function closeSheet(silent = false) {
+  state.sheet = null;
+  phone.classList.remove("has-sheet");
+  toastRoot.style.bottom = "";
+  sheetRoot.classList.remove("open");
+  sheetRoot.innerHTML = "";
+  app.style.overflow = "";
+  app.inert = false; nav.inert = false; appbar.inert = false;
+  if (!silent && state.lastFocus && state.lastFocus.focus) {
+    try { state.lastFocus.focus({ preventScroll: true }); } catch (e) {}
+  }
+}
+function sheetShell({ title, sub = "", body = "", foot = "" }) {
+  return `<button class="scrim" data-action="close-sheet" aria-label="Close dialog" tabindex="-1"></button>
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
+      <div class="sheet-grab" aria-hidden="true"></div>
+      <div class="sheet-head">
+        <div style="flex:1;min-width:0"><h2 class="sh-title" id="sheet-title">${title}</h2>${sub ? `<div class="sh-sub">${sub}</div>` : ""}</div>
+        <button class="iconbtn bare" data-action="close-sheet" aria-label="Close">${icon("x")}</button>
+      </div>
+      <div class="sheet-body">${body}</div>
+      ${foot ? `<div class="sheet-foot">${foot}</div>` : ""}
+    </div>`;
+}
+function renderSheet() {
+  if (!state.sheet) return;
+  const t = state.sheet.type;
+  let html = "";
+  if (t === "forgot") {
+    html = sheetShell({
+      title: "Reset password",
+      sub: "The school office verifies your identity before resetting.",
+      body: `<div class="stack">
+        <button class="card pressable" style="text-align:left" data-action="toast" data-message="Calling the school office on 040 2300 1122.">
+          <div class="row">${icon("phone")}<div class="spacer"><div class="body-med">Call the school office</div><div class="label">040 2300 1122 · 8:30 AM–4:30 PM</div></div>${icon("chevron-right", "chev")}</div>
+        </button>
+        <button class="card pressable" style="text-align:left" data-action="toast" data-message="Password reset link sent to your registered email.">
+          <div class="row">${icon("message")}<div class="spacer"><div class="body-med">Email the office</div><div class="label">office@narayana.edu.in</div></div>${icon("chevron-right", "chev")}</div>
+        </button>
+        <p class="caption">For security, passwords are never reset from inside the app.</p>
+      </div>`,
+      foot: `<button class="btn btn-secondary btn-block" data-action="close-sheet">Close</button>`
+    });
+  } else if (t === "history") {
+    const rows = [
+      { d: "Wed, 18 Nov", s: "Present", in: "8:42 AM", out: "—", tone: "mint" },
+      { d: "Tue, 17 Nov", s: "Present", in: "8:38 AM", out: "4:31 PM", tone: "mint" },
+      { d: "Mon, 16 Nov", s: "Present", in: "8:45 AM", out: "4:28 PM", tone: "mint" },
+      { d: "Fri, 13 Nov", s: "Late", in: "9:12 AM", out: "4:30 PM", tone: "lemon" },
+      { d: "Thu, 12 Nov", s: "Leave", in: "—", out: "—", tone: "lav" }
+    ];
+    html = sheetShell({
+      title: "Attendance history",
+      sub: "November 2026 · Priya Menon",
+      body: `<div class="grid-3" style="margin-bottom:14px">
+        ${statTile("check", "mint", "18", "Present")}
+        ${statTile("x", "coral", "1", "Absent")}
+        ${statTile("clock", "lemon", "2", "Leave")}
+      </div>
+      ${monthCalendar()}
+      <div class="card mt-4" style="padding:2px 12px">
+        <div class="list">
+          ${rows.map(r => `<div class="list-row">${avatar(r.s.slice(0, 2), "sm", r.tone)}<span class="lr-main"><span class="lr-title">${r.d}</span><span class="lr-sub">In ${r.in} · Out ${r.out}</span></span>${badge(r.s, r.tone === "lemon" ? "lemon" : r.tone === "coral" ? "coral" : r.tone === "lav" ? "lav" : "mint")}</div>`).join("")}
+        </div>
+      </div>`,
+      foot: `<button class="btn btn-secondary btn-block" data-action="toast" data-message="November attendance report saved to Downloads.">${icon("download")} Download month report</button>`
+    });
+  } else if (t === "checkout") {
+    html = sheetShell({
+      title: "Finish your day?",
+      sub: "Wed, 18 Nov · Priya Menon",
+      body: `<p class="body">You’ll check out at <strong>4:36 PM</strong>. You can still view today’s record afterwards.</p>
+      <div class="card success-soft mt-4"><div class="row-between"><span class="label">Checked in</span><span class="body-med">8:42 AM</span></div><div class="row-between mt-2"><span class="label">Time on campus</span><span class="body-med">7h 54m</span></div></div>`,
+      foot: `<button class="btn btn-secondary btn-block" data-action="close-sheet">Not yet</button><button class="btn btn-primary btn-block" data-action="confirm-checkout">${icon("log-out")} Check out</button>`
+    });
+  } else if (t === "homework") {
+    const f = state.hwForm;
+    html = sheetShell({
+      title: "Post homework",
+      sub: "Visible to parents immediately",
+      body: `<div class="stack">
+        ${f.error ? `<div class="banner error" role="alert">${icon("alert-circle")}<span>${esc(f.error)}</span></div>` : ""}
+        <div><div class="overline" style="margin-bottom:6px">CLASS</div><div class="chips">${["VIII-A", "IX-B"].map(c => `<button class="chip ${f.cls === c ? "is-selected" : ""}" aria-pressed="${f.cls === c}" data-action="hw-class" data-value="${c}">${c}</button>`).join("")}</div></div>
+        <label class="field"><span class="f-label">Title</span><span class="input-wrap"><input data-field="hwTitle" value="${esc(f.title)}" placeholder="e.g. Trigonometry — Exercise 8.4" aria-label="Homework title"></span></label>
+        <label class="field"><span class="f-label">Due date</span><span class="input-wrap"><input data-field="hwDue" type="date" value="${esc(f.due)}" aria-label="Due date"></span></label>
+        <label class="field"><span class="f-label">Instructions</span><span class="input-wrap" style="height:auto">${""}<textarea data-field="hwInstructions" placeholder="What should students do?" aria-label="Instructions">${esc(f.instructions)}</textarea></span></label>
+        <div class="row-between"><span class="body-med">Notify parents</span><button class="switch" role="switch" aria-checked="${f.notify}" aria-label="Notify parents" data-action="hw-notify"></button></div>
+        <p class="caption">Parents see the class, title and due date. They are notified once.</p>
+      </div>`,
+      foot: `<button class="btn btn-secondary btn-block" data-action="close-sheet">Cancel</button><button class="btn btn-primary btn-block" data-action="homework-submit">${icon("plus")} Post homework</button>`
+    });
+  } else if (t === "payment") {
+    const c = child();
+    const due = state.paymentStep === "success" ? (state.paidAmount || 0) : dueFor(c);
+    if (state.paymentStep === "processing") {
+      html = sheetShell({
+        title: "Pay fees",
+        sub: `${c.name} · Class ${c.cls}`,
+        body: `<div class="success-hero" style="padding:30px 0 10px"><span class="success-check" style="background:var(--primary-container);color:var(--primary)">${spinner()}</span><h2>Processing payment</h2><p class="body muted">Please don’t close this screen.</p></div>`
+      });
+    } else if (state.paymentStep === "failure") {
+      html = sheetShell({
+        title: "Pay fees",
+        sub: `${c.name} · Class ${c.cls}`,
+        body: `<div class="banner error" role="alert">${icon("alert-circle")}<span>Payment didn’t go through. No money was deducted.</span></div>
+        <div class="card mt-4"><div class="row-between"><span class="label">Amount</span><span class="body-med">${money(due)}</span></div><div class="row-between mt-2"><span class="label">Method</span><span class="body-med">${esc(state.paymentMethod === "card" ? "Card" : state.paymentMethod === "netbanking" ? "Netbanking" : "UPI")}</span></div></div>`,
+        foot: `<button class="btn btn-secondary btn-block" data-action="close-sheet">Cancel</button><button class="btn btn-primary btn-block" data-action="pay">Try again</button>`
+      });
+    } else if (state.paymentStep === "success") {
+      const method = state.paymentMethod === "card" ? "Card" : state.paymentMethod === "netbanking" ? "Netbanking" : "UPI";
+      html = sheetShell({
+        title: "Pay fees",
+        sub: "Payment complete",
+        body: `<div class="success-hero">
+          <span class="success-check">${icon("check")}</span>
+          <h2>Payment successful</h2>
+          <div class="amt">${money(due)}</div>
+          <p class="body muted">Receipt RCPT-2026-0412 · 18 Nov 2026 · ${method}</p>
+        </div>
+        <div class="card mt-2">
+          <div class="row-between"><span class="label">Student</span><span class="body-med">${esc(c.name)}</span></div>
+          <div class="row-between mt-2"><span class="label">Class</span><span class="body-med">${esc(c.cls)} · ${esc(c.adm)}</span></div>
+          <div class="row-between mt-2"><span class="label">Paid</span><span class="body-med">${money(c.paid + due)} of ${money(c.total)}</span></div>
+          <div class="row-between mt-2"><span class="label">Receipt</span><span class="body-med">RCPT-2026-0412</span></div>
+        </div>`,
+        foot: `<button class="btn btn-secondary btn-block" data-action="toast" data-message="Receipt saved to Downloads.">${icon("download")} Download receipt</button><button class="btn btn-primary btn-block" data-action="pay-done">Done</button>`
+      });
+    } else {
+      const methods = [
+        { id: "upi", label: "UPI", sub: "GPay, PhonePe, Paytm", ic: "navigation" },
+        { id: "card", label: "Card", sub: "Debit or credit card", ic: "credit-card" },
+        { id: "netbanking", label: "Netbanking", sub: "All major banks", ic: "school" }
+      ];
+      html = sheetShell({
+        title: "Pay fees",
+        sub: `${c.name} · Class ${c.cls}`,
+        body: `<div style="display:flex;align-items:flex-end;gap:8px"><span class="display">${money(due)}</span>${badge(c.term, "lemon")}</div>
+        <div class="card sunken mt-3" style="padding:12px"><div class="row-between"><span class="label">Term 2 balance</span><span class="body-med">${money(due)}</span></div><div class="row-between mt-2"><span class="label">Fee head</span><span class="body-med">Tuition, transport, exam</span></div></div>
+        <div class="overline mt-4" style="margin-bottom:8px">PAYMENT METHOD</div>
+        <div class="stack-sm">
+          ${methods.map(m => `<button class="pay-method" aria-pressed="${state.paymentMethod === m.id}" data-action="pay-method" data-method="${m.id}">
+            <span class="tile-icon tonal ${m.id === "upi" ? "mint" : m.id === "card" ? "lavender" : "sky"}" style="width:34px;height:34px">${icon(m.ic, "icon-sm")}</span>
+            <span class="spacer"><span class="tt">${m.label}</span><br><span class="ss">${m.sub}</span></span>
+            ${state.paymentMethod === m.id ? `<span style="color:var(--primary)">${icon("check-circle")}</span>` : ""}
+          </button>`).join("")}
+        </div>
+        ${state.paymentMethod === "upi" ? `<div class="row wrap mt-3" style="gap:6px">${["GPay", "PhonePe", "Paytm"].map(a => `<span class="chip">${a}</span>`).join("")}</div>` : ""}
+        <p class="caption mt-4">${icon("shield", "icon-sm")} Payments are processed securely by the school. Demo only — no money is charged.</p>`,
+        foot: `<button class="btn btn-primary btn-block" data-action="pay">${icon("wallet")} Pay ${money(due)}</button><button class="btn btn-secondary btn-block" data-action="close-sheet">Cancel</button>`
+      });
+    }
+  } else if (t === "student") {
+    const s = DATA.students.find(x => x.adm === state.studentId) || DATA.students[0];
+    const tab = state.studentTab;
+    const body = tab === "overview" ? `
+      <div class="row wrap" style="gap:6px">${s.due ? badge("Fees due", "coral") : badge("Paid", "mint")} ${badge("Attendance " + s.attendance + "%", s.attendance < 90 ? "lemon" : "sky")} ${badge(s.section, "lav")}</div>
+      <div class="card sunken mt-3" style="padding:12px">
+        <div class="row-between"><span class="label">Parent</span><span class="body-med">${esc(s.parent)}</span></div>
+        <div class="row-between mt-2"><span class="label">Phone</span><span class="body-med">${esc(s.phone)}</span></div>
+      </div>
+      <div class="row mt-3" style="gap:8px"><button class="btn btn-secondary btn-sm" style="flex:1" data-action="call" data-name="${esc(s.parent)}" data-phone="${esc(s.phone)}">${icon("phone", "icon-sm")} Call</button><button class="btn btn-primary btn-sm" style="flex:1" data-action="message" data-name="${esc(s.parent)}">${icon("message", "icon-sm")} Message</button></div>
+      <div class="list mt-3">
+        ${sosRow("book", "lavender", "Class teacher", s.teacher, "", "")}
+        ${sosRow("school", "sky", "Transport", s.transport, "", "")}
+        ${sosRow("calendar-check", "mint", "Joined", s.joined, "", "")}
+      </div>` : tab === "fees" ? `
+      <div class="row wrap" style="gap:6px">${s.due ? badge("Fees due", "coral") : badge("Paid", "mint")} ${badge(s.section, "lav")} ${badge(s.adm, "sky")}</div>
+      <div class="grid-3 mt-3">
+        ${statTile("receipt", "lavender", s.due ? money(s.due) : "₹0", "Balance")}
+        ${statTile("wallet", "mint", "₹42,000", "Total")}
+        ${statTile("check", "sky", s.due ? "Term 2" : "Paid", "Status")}
+      </div>
+      <div class="card mt-3">
+        <div class="row-between"><span class="label">Last payment</span><span class="body-med">₹21,000 · UPI</span></div>
+        <div class="row-between mt-2"><span class="label">Date</span><span class="body-med">12 Jun 2026</span></div>
+      </div>
+      <button class="btn btn-secondary btn-block mt-3" data-action="toast" data-message="Opening the full fee ledger for ${esc(s.name)}.">View full fee ledger</button>` : `
+      <div class="row wrap" style="gap:6px">${badge(s.section, "lav")} ${badge("Attendance " + s.attendance + "%", s.attendance < 90 ? "lemon" : "sky")}</div>
+      <div class="card mt-3" style="display:flex;align-items:center;gap:16px">${ring(s.attendance, s.attendance + "%", "this term", true)}<div><div class="section-title">${s.attendance}% attendance</div><div class="label">${s.absences} absences this term</div><div class="mt-2">${badge("Published by office", "sky")}</div></div></div>
+      <div class="banner info mt-3">${icon("info")}<span>Daily student attendance is not part of this release. This summary is published by the school office.</span></div>
+      <button class="btn btn-secondary btn-block mt-3" data-action="toast" data-message="Attendance detail is available in the office console.">Open attendance</button>`;
+    html = sheetShell({
+      title: esc(s.name),
+      sub: `Class ${s.section} · Adm ${s.adm}`,
+      body: `<div class="tabs" role="tablist" aria-label="Student detail">
+        ${[["overview", "Overview"], ["fees", "Fees"], ["attendance", "Attendance"]].map(([k, l]) => `<button role="tab" aria-selected="${tab === k}" data-action="student-tab" data-tab="${k}">${l}</button>`).join("")}
+      </div>${body}`,
+      foot: `<button class="btn btn-secondary btn-block" data-action="toast" data-message="Opening the full student profile.">Open full profile</button>`
+    });
+  } else if (t === "notice") {
+    const n = DATA.notices.find(x => x.id === state.sheet.payload.id) || DATA.notices[0];
+    const isUnread = n.unread && !state.read[n.id];
+    html = sheetShell({
+      title: esc(n.title),
+      sub: `${esc(n.sender)} · ${esc(n.date)}`,
+      body: `<div class="row-between" style="margin-bottom:10px">${badge(n.cat, n.cat === "Notices" ? "lav" : n.cat === "Leave" ? "lemon" : "sky")}<span class="caption">${esc(n.time)}</span></div>
+      ${n.body.split("\n\n").map(p => `<p class="body" style="margin-bottom:12px">${esc(p)}</p>`).join("")}
+      ${n.attachment ? `<button class="card sunken row-between" style="width:100%;padding:12px;text-align:left" data-action="toast" data-message="Opening ${esc(n.attachment)}."><span class="row" style="gap:10px">${icon("receipt")}<span><span class="body-med" style="display:block">${esc(n.attachment.split(" · ")[0])}</span><span class="caption">${esc(n.attachment.split(" · ")[1] || "")}</span></span></span>${icon("download", "icon-sm")}</button>` : ""}`,
+      foot: `<button class="btn btn-secondary btn-block" data-action="share">${icon("share")} Share</button><button class="btn btn-primary btn-block" data-action="${isUnread ? "mark-read" : "close-sheet"}">${isUnread ? "Mark as read" : "Done"}</button>`
+    });
+  } else if (t === "compose") {
+    html = sheetShell({
+      title: "Message the school",
+      sub: "Replies arrive in your inbox within one working day.",
+      body: `<div class="stack">
+        <div class="row wrap" style="gap:6px">${["Fee receipt", "Attendance", "Transport", "Other"].map(x => `<button class="chip" data-action="compose-chip" data-value="${x}">${x}</button>`).join("")}</div>
+        <label class="field"><span class="f-label">To</span><span class="input-wrap" aria-disabled="true">${icon("school")}<input value="School office" readonly aria-label="Recipient"></span></label>
+        <label class="field"><span class="f-label">Message</span><span class="input-wrap" style="height:auto"><textarea data-field="composeText" placeholder="Type your message…" aria-label="Message">${esc(state.composeText)}</textarea></span></label>
+        <p class="caption">For urgent matters call ${esc(DATA.school.phone)}. Do not share passwords.</p>
+      </div>`,
+      foot: `<button class="btn btn-primary btn-block" data-action="compose-send">${icon("message")} Send message</button><button class="btn btn-secondary btn-block" data-action="close-sheet">Cancel</button>`
+    });
+  } else if (t === "role-switch") {
+    const r = ROLES.find(x => x.id === state.pendingRole) || ROLES[1];
+    html = sheetShell({
+      title: `Switch to ${r.label}?`,
+      sub: "Demo workspace",
+      body: `<p class="body">You’ll leave the ${(currentUser().role || "").toLowerCase()} workspace. Your data stays safe.</p><div class="card sunken mt-4"><div class="row">${icon("info")}<span class="label">In the real app, workspaces follow your login and role.</span></div></div>`,
+      foot: `<button class="btn btn-secondary btn-block" data-action="close-sheet">Stay</button><button class="btn btn-primary btn-block" data-action="confirm-role">Switch</button>`
+    });
+  } else if (t === "signout") {
+    html = sheetShell({
+      title: "Sign out of this device?",
+      sub: "",
+      body: `<p class="body">You’ll need your login ID to return. Any unsent message will be lost.</p>`,
+      foot: `<button class="btn btn-secondary btn-block" data-action="close-sheet">Stay</button><button class="btn btn-danger btn-block" data-action="confirm-signout">${icon("log-out")} Sign out</button>`
+    });
+  } else if (t === "attendance-info") {
+    const c = child();
+    html = sheetShell({
+      title: "Student attendance",
+      sub: `${c.name} · Class ${c.cls}`,
+      body: `<div class="banner info">${icon("info")}<span>Daily student roll call is not part of this release. Monthly summaries are published by the school office.</span></div>
+      <div class="card mt-4" style="display:flex;align-items:center;gap:16px">${ring(c.attendance, c.attendance + "%", "this term", true)}<div><div class="section-title">${esc(c.days)}</div><div class="label">${c.absences} absences this term</div><div class="mt-2">${badge("Published by office", "sky")}</div></div></div>
+      <div class="list mt-3">
+        ${sosRow("calendar-check", "mint", "Present", "Latest published month", `<span class="body-med">${c.present} days</span>`, "")}
+        ${sosRow("x", "coral", "Absent", "Latest published month", `<span class="body-med">${c.absent} day</span>`, "")}
+        ${sosRow("clock", "lemon", "Leave", "Latest published month", `<span class="body-med">${c.leave} days</span>`, "")}
+      </div>
+      <p class="caption mt-3">If something looks wrong, message the school office with the date in question.</p>`,
+      foot: `<button class="btn btn-primary btn-block" data-action="sheet" data-sheet="compose">${icon("message")} Message the school office</button><button class="btn btn-secondary btn-block" data-action="close-sheet">Close</button>`
+    });
+  }
+  app.inert = true; nav.inert = true; appbar.inert = true;
+  app.style.overflow = "hidden";
+  phone.classList.add("has-sheet");
+  sheetRoot.innerHTML = html;
+  sheetRoot.classList.add("open");
+  requestAnimationFrame(() => {
+    positionToast();
+    const target = sheetRoot.querySelector(".sheet-body button, .sheet-foot button, .sheet-head button");
+    if (target) target.focus({ preventScroll: true });
+  });
+  setTimeout(positionToast, 320);
+}
+
+/* ============================================================
+   12. ACTIONS
+   ============================================================ */
+function applyStudentFilter() {
+  const q = state.studentsQuery.trim().toLowerCase();
+  const rows = document.querySelectorAll("#student-list .student-row");
+  let visible = 0;
+  rows.forEach(row => {
+    const hay = row.dataset.hay || "";
+    const show = !q || hay.indexOf(q) >= 0;
+    row.hidden = !show;
+    if (show) visible++;
+  });
+  const empty = document.getElementById("students-empty");
+  const list = document.getElementById("student-list");
+  if (empty) empty.classList.toggle("hidden", visible > 0);
+  if (list) list.classList.toggle("hidden", visible === 0);
+  const count = document.getElementById("student-count");
+  if (count) count.textContent = visible + " student" + (visible === 1 ? "" : "s") + (q ? ` matching “${state.studentsQuery}”` : "");
+}
+
+function doLogin() {
+  if (!state.loginId.trim() || !state.password) {
+    state.loginError = "Please enter your Login ID and password.";
+    render("fade", { keepFocus: true });
+    return;
+  }
+  if (state.password.length < 4) {
+    state.loginError = "Wrong login ID or password. Please try again.";
+    render("fade", { keepFocus: true });
+    return;
+  }
+  state.loginError = "";
+  state.signingIn = true;
+  render("fade", { keepFocus: true });
+  setTimeout(() => {
+    state.signingIn = false;
+    state.stack = [];
+    state.screen = homeForRole(state.role);
+    state.tab = "home";
+    state.section = null;
+    render("fade", { keepFocus: true });
+    toast("Signed in as " + currentUser().name);
+  }, 900);
+}
+
+function payNow() {
+  if (state.paymentStep === "processing") return;
+  state.paymentStep = "processing";
+  renderSheet();
+  setTimeout(() => {
+    if (state.failPayment) {
+      state.paymentStep = "failure";
+      state.failPayment = false;
+      updateDevButtons();
+      renderSheet();
+    } else {
+      const c = child();
+      const amount = dueFor(c);
+      const method = state.paymentMethod === "card" ? "Card" : state.paymentMethod === "netbanking" ? "Netbanking" : "UPI";
+      state.paidAmount = amount;
+      state.paidAarav = true;
+      store.set("paidAarav", "1");
+      state.extraReceipts.unshift({ id: "RCPT-2026-0412", amount, method, date: "18 Nov 2026" });
+      state.paymentStep = "success";
+      renderSheet();
+      confetti();
+      recalcUnread();
+    }
+  }, 1200);
+}
+
+document.addEventListener("click", (e) => {
+  const el = e.target.closest("[data-action]");
+  if (!el) return;
+  const action = el.dataset.action;
+  if (action === "close-sheet") { closeSheet(); return; }
+  if (el.getAttribute("aria-disabled") === "true" && action !== "close-sheet") {
+    if (action === "check-in") toast("Move closer to campus or enable location to check in.", "error");
+    return;
+  }
+  switch (action) {
+    case "go": {
+      const screen = el.dataset.screen;
+      const section = el.dataset.section || null;
+      let tab = el.dataset.tab;
+      if (el.dataset.segment) { state.attendanceSegment = el.dataset.segment; tab = "attendance"; }
+      if (el.dataset.filter) state.studentFilter = el.dataset.filter;
+      if (tab) state.tab = tab;
+      go(screen, { push: el.dataset.push === "1", section, tab, dir: "push" });
+      break;
+    }
+    case "nav": {
+      const screen = el.dataset.screen;
+      const section = el.dataset.section || null;
+      const tab = el.dataset.tab || null;
+      if (el.dataset.filter) state.studentFilter = el.dataset.filter;
+      if (tab) state.tab = tab;
+      go(screen, { reset: true, section, tab, dir: "fade" });
+      break;
+    }
+    case "nav-sheet":
+      openSheet(el.dataset.sheet);
+      break;
+    case "sheet":
+      openSheet(el.dataset.sheet);
+      break;
+    case "back": back(); break;
+    case "set-role": {
+      state.role = el.dataset.role;
+      const r = ROLES.find(x => x.id === state.role);
+      state.loginId = r ? r.login : "";
+      state.loginError = "";
+      render("fade", { keepFocus: true });
+      break;
+    }
+    case "login": doLogin(); break;
+    case "demo-login": {
+      const r = ROLES.find(x => x.id === state.role) || ROLES[1];
+      state.loginId = r.login;
+      state.password = "demo1234";
+      state.loginError = "";
+      render("fade", { keepFocus: true });
+      toast("Demo credentials filled. Press Sign in.", "info");
+      break;
+    }
+    case "toggle-password":
+      state.showPassword = !state.showPassword;
+      render("fade", { keepFocus: true });
+      break;
+    case "toggle-theme": {
+      const next = resolvedTheme() === "dark" ? "light" : "dark";
+      state.theme = next;
+      applyTheme();
+      render("fade", { keepFocus: true });
+      toast(next === "dark" ? "Dark mode on" : "Light mode on", "info");
+      break;
+    }
+    case "set-theme":
+      state.theme = el.dataset.theme;
+      applyTheme();
+      render("fade", { keepFocus: true });
+      break;
+    case "toggle-motion": {
+      state.reduceMotion = !state.reduceMotion;
+      store.set("reduce", state.reduceMotion ? "1" : "0");
+      document.documentElement.classList.toggle("reduce-motion", state.reduceMotion);
+      updateDevButtons();
+      render("fade", { keepFocus: true });
+      toast(state.reduceMotion ? "Reduced motion on" : "Reduced motion off", "info");
+      break;
+    }
+    case "toggle-notif": {
+      state.notifs = state.notifs || { fees: true, attendance: true, notices: true };
+      const k = el.dataset.key;
+      state.notifs[k] = !state.notifs[k];
+      render("fade", { keepFocus: true });
+      toast("Notification preference saved.", "success");
+      break;
+    }
+    case "check-in": {
+      if (state.gps !== "on-campus") { toast("Move closer to campus or enable location to check in.", "error"); return; }
+      state.attendance = "saving-in";
+      render("fade", { keepFocus: true });
+      setTimeout(() => {
+        state.attendance = "success-in";
+        render("pop", { keepFocus: true });
+        confetti();
+      }, 900);
+      break;
+    }
+    case "checkout-open":
+      openSheet("checkout");
+      break;
+    case "confirm-checkout":
+      closeSheet(true);
+      state.attendance = "saving-out";
+      render("fade", { keepFocus: true });
+      setTimeout(() => {
+        state.attendance = "success-out";
+        render("pop", { keepFocus: true });
+        confetti();
+      }, 700);
+      break;
+    case "attendance-done":
+      state.attendance = state.attendance === "success-out" ? "checked-out" : "checked-in";
+      state.screen = "teacher-home";
+      state.stack = [];
+      state.tab = "home";
+      render("fade");
+      toast(state.attendance === "checked-out" ? "Day complete. See you tomorrow." : "Attendance saved for today.");
+      break;
+    case "refresh-location": {
+      if (state.gps === "denied") { toast("Location permission is off. Open Settings to allow access.", "error"); return; }
+      state.gps = "locating";
+      render("fade", { keepFocus: true });
+      setTimeout(() => {
+        state.gps = "on-campus";
+        if (state.screen === "teacher-attendance") render("fade", { keepFocus: true });
+        toast("Location verified · you’re on campus.");
+      }, 900);
+      break;
+    }
+    case "academics-tab":
+      state.homeworkTab = el.dataset.tab;
+      render("fade", { keepFocus: true });
+      break;
+    case "select-child":
+      state.childId = el.dataset.child;
+      store.set("child", state.childId);
+      render("fade", { keepFocus: true });
+      toast("Showing " + child().name, "info");
+      break;
+    case "pay-open":
+      if (dueFor() === 0) { toast("No dues right now.", "info"); return; }
+      openSheet("payment");
+      break;
+    case "pay-method":
+      state.paymentMethod = el.dataset.method;
+      renderSheet();
+      break;
+    case "pay":
+      payNow();
+      break;
+    case "pay-done":
+      closeSheet(true);
+      render("fade", { keepFocus: true });
+      toast("Payment recorded. Receipt RCPT-2026-0412 is ready.");
+      break;
+    case "payment-filter":
+      state.paymentFilter = el.dataset.filter;
+      render("fade", { keepFocus: true });
+      break;
+    case "receipt":
+      toast("Receipt " + el.dataset.id + " shared.");
+      break;
+    case "exam-term":
+      state.examTerm = el.dataset.term;
+      render("fade", { keepFocus: true });
+      break;
+    case "download":
+      toast("PDF saved to Downloads.", "success");
+      break;
+    case "share":
+      toast("Report shared with your family.", "success");
+      break;
+    case "open-notice":
+      openSheet("notice", { id: el.dataset.id });
+      break;
+    case "mark-read": {
+      const id = state.sheet && state.sheet.payload ? state.sheet.payload.id : null;
+      if (id) { state.read[id] = true; recalcUnread(); }
+      render("fade", { keepFocus: true });
+      renderSheet();
+      toast("Marked as read.");
+      break;
+    }
+    case "mark-all-read":
+      DATA.notices.forEach(n => { if (n.unread) state.read[n.id] = true; });
+      recalcUnread();
+      render("fade", { keepFocus: true });
+      toast("All caught up.");
+      break;
+    case "inbox-filter":
+      state.inboxFilter = el.dataset.filter;
+      render("fade", { keepFocus: true });
+      break;
+    case "open-student":
+      openSheet("student", { id: el.dataset.id });
+      break;
+    case "student-tab":
+      state.studentTab = el.dataset.tab;
+      renderSheet();
+      break;
+    case "student-filter":
+      state.studentFilter = el.dataset.filter;
+      render("fade", { keepFocus: true });
+      break;
+    case "clear-search":
+      state.studentsQuery = "";
+      render("fade", { keepFocus: true });
+      break;
+    case "approval": {
+      state.approvalsDone = state.approvalsDone || {};
+      state.approvalsDone[el.dataset.id] = el.dataset.decision;
+      render("fade", { keepFocus: true });
+      toast(el.dataset.decision === "approve" ? "Leave approved and staff notified." : "Request declined and staff notified.", el.dataset.decision === "approve" ? "success" : "info");
+      break;
+    }
+    case "attendance-segment":
+      state.attendanceSegment = el.dataset.segment;
+      render("fade", { keepFocus: true });
+      break;
+    case "role-switch":
+      state.pendingRole = el.dataset.role;
+      if (state.pendingRole === state.role) { toast("You’re already in this workspace.", "info"); return; }
+      openSheet("role-switch");
+      break;
+    case "confirm-role": {
+      const role = state.pendingRole;
+      state.role = role;
+      closeSheet(true);
+      state.stack = [];
+      state.tab = "home";
+      state.screen = homeForRole(role);
+      state.section = null;
+      render("fade");
+      const r = ROLES.find(x => x.id === role);
+      toast("Switched to " + (r ? r.label : "workspace") + ".");
+      break;
+    }
+    case "signout-open":
+      openSheet("signout");
+      break;
+    case "confirm-signout":
+      closeSheet(true);
+      state.stack = [];
+      state.screen = "login";
+      state.tab = "home";
+      state.loginId = "";
+      state.password = "";
+      state.loginError = "";
+      state.showPassword = false;
+      render("fade");
+      toast("Signed out.", "info");
+      break;
+    case "copy-login": {
+      const v = el.dataset.value;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(v).catch(() => {});
+      }
+      toast("Login ID copied.");
+      break;
+    }
+    case "compose-chip": {
+      state.composeText = (state.composeText ? state.composeText + " " : "") + el.dataset.value + ": ";
+      renderSheet();
+      const ta = sheetRoot.querySelector('[data-field="composeText"]');
+      if (ta) { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); }
+      break;
+    }
+    case "compose-send": {
+      if (!state.composeText.trim()) { toast("Write a message before sending.", "error"); return; }
+      state.composeText = "";
+      closeSheet(true);
+      toast("Message sent to the school office.");
+      break;
+    }
+    case "hw-class":
+      state.hwForm.cls = el.dataset.value;
+      renderSheet();
+      break;
+    case "hw-notify":
+      state.hwForm.notify = !state.hwForm.notify;
+      renderSheet();
+      break;
+    case "homework-submit": {
+      const f = state.hwForm;
+      if (f.title.trim().length < 5) { f.error = "Add a title of at least 5 characters."; renderSheet(); return; }
+      if (!f.due) { f.error = "Choose a due date."; renderSheet(); return; }
+      f.error = "";
+      const dueDate = new Date(f.due + "T12:00:00");
+      const label = dueDate.toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short" });
+      state.postedHomework.unshift({
+        id: "h" + Date.now(), title: f.title.trim(), cls: f.cls, due: label,
+        submitted: "0/42", subject: "Mathematics", instructions: f.instructions, notify: f.notify
+      });
+      state.hwForm = { cls: f.cls, title: "", due: "2026-11-19", instructions: "", notify: true, error: "" };
+      closeSheet(true);
+      render("fade", { keepFocus: true });
+      toast("Homework posted" + (f.notify ? " · 28 parents notified" : "") + ".");
+      break;
+    }
+    case "call":
+      toast("Calling " + el.dataset.name + " · " + el.dataset.phone + "…", "info");
+      break;
+    case "message":
+      toast("Opening a message to " + el.dataset.name + "…", "info");
+      break;
+    case "refresh": {
+      state.loading = true;
+      render("fade", { keepFocus: true });
+      setTimeout(() => {
+        state.loading = false;
+        render("fade", { keepFocus: true });
+        toast("Updated just now.");
+      }, 800);
+      break;
+    }
+    case "toast":
+      toast(el.dataset.message || "Done.");
+      break;
+    case "noop":
+      break;
+  }
+});
+
+/* ============================================================
+   13. INPUTS, KEYBOARD, FOCUS
+   ============================================================ */
+document.addEventListener("input", (e) => {
+  const field = e.target.dataset.field;
+  if (!field) return;
+  if (field === "studentQuery") {
+    state.studentsQuery = e.target.value;
+    applyStudentFilter();
+    return;
+  }
+  if (field === "hwTitle" || field === "hwDue" || field === "hwInstructions") {
+    state.hwForm[field.replace("hw", "").toLowerCase()] = e.target.value;
+    return;
+  }
+  state[field] = e.target.value;
+  if (field === "loginId" || field === "password") state.loginError = "";
+});
+
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") {
+    if (state.sheet) { e.preventDefault(); closeSheet(); return; }
+    if (state.screen !== "login") { e.preventDefault(); back(); }
+  }
+  if (e.key === "/" && !state.sheet) {
+    const search = document.querySelector('[data-field="studentQuery"]');
+    if (search) { e.preventDefault(); search.focus(); }
+  }
+  if (e.key === "Tab" && state.sheet) {
+    const sheet = sheetRoot.querySelector(".sheet");
+    if (!sheet) return;
+    const focusables = Array.from(sheet.querySelectorAll('button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])')).filter(n => n.offsetParent !== null);
+    if (!focusables.length) return;
+    const first = focusables[0], last = focusables[focusables.length - 1];
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+  }
+});
+
+/* ============================================================
+   14. DEV CONTROLS / SCALING / INIT
+   ============================================================ */
+const devGps = document.getElementById("dev-gps");
+const devFail = document.getElementById("dev-fail");
+const devMotion = document.getElementById("dev-motion");
+function updateDevButtons() {
+  const gpsLabel = { "on-campus": "GPS: on campus", "off-campus": "GPS: off campus", "denied": "GPS: permission off" };
+  if (devGps) devGps.textContent = gpsLabel[state.gps] || "GPS: on campus";
+  if (devFail) devFail.setAttribute("aria-pressed", state.failPayment ? "true" : "false");
+  if (devMotion) devMotion.setAttribute("aria-pressed", state.reduceMotion ? "true" : "false");
+  if (devMotion) devMotion.textContent = state.reduceMotion ? "Motion reduced" : "Reduce motion";
+}
+if (devGps) devGps.addEventListener("click", () => {
+  state.gps = state.gps === "on-campus" ? "off-campus" : state.gps === "off-campus" ? "denied" : "on-campus";
+  updateDevButtons();
+  if (state.screen === "teacher-attendance") render("fade", { keepFocus: true });
+  toast("Demo GPS: " + state.gps.replace("-", " "), "info");
+});
+if (devFail) devFail.addEventListener("click", () => {
+  state.failPayment = !state.failPayment;
+  updateDevButtons();
+  toast(state.failPayment ? "Next payment will fail." : "Next payment will succeed.", "info");
+});
+if (devMotion) devMotion.addEventListener("click", () => {
+  state.reduceMotion = !state.reduceMotion;
+  store.set("reduce", state.reduceMotion ? "1" : "0");
+  document.documentElement.classList.toggle("reduce-motion", state.reduceMotion);
+  updateDevButtons();
+  if (state.screen === "profile") render("fade", { keepFocus: true });
+});
+const devReset = document.getElementById("dev-reset");
+if (devReset) devReset.addEventListener("click", () => {
+  store.clear();
+  state.read = {};
+  state.paidAarav = false;
+  state.extraReceipts = [];
+  state.postedHomework = [];
+  location.reload();
+});
+
+function fitStage() {
+  const head = document.querySelector(".demo-head");
+  const headH = head ? head.offsetHeight : 60;
+  const availW = window.innerWidth - 32;
+  const availH = window.innerHeight - headH - 110;
+  const scale = Math.max(0.4, Math.min(1, availW / 390, availH / 844));
+  const stage = document.getElementById("stage");
+  const wrap = document.getElementById("stage-wrap");
+  if (stage) stage.style.transform = "scale(" + scale + ")";
+  if (wrap) wrap.style.height = Math.ceil(844 * scale) + "px";
+}
+window.addEventListener("resize", fitStage);
+
+state.notifs = { fees: true, attendance: true, notices: true };
+state.approvalsDone = {};
+state.hwForm = { cls: "VIII-A", title: "", due: "2026-11-19", instructions: "", notify: true, error: "" };
+state.paymentFilter = "all";
+state.attendanceSegment = "students";
+state.loginId = "";
+state.password = "";
+
+/* Deep links for review: ?role=parent&screen=parent-fees&theme=dark&paid=1 */
+(function applyParams() {
+  try {
+    const p = new URLSearchParams(location.search);
+    const wanted = p.get("screen");
+    if (wanted && SCREENS[wanted]) {
+      if (!p.get("role")) {
+        if (wanted.indexOf("parent") === 0) state.role = "parent";
+        else if (wanted.indexOf("teacher") === 0) state.role = "teacher";
+        else if (wanted.indexOf("admin") === 0) state.role = "admin";
+      }
+      state.screen = wanted;
+      const item = (NAV[state.role] || []).find(i => i.screen === wanted);
+      state.tab = item ? item.tab : "home";
+    }
+    const role = p.get("role");
+    if (role && ROLES.some(r => r.id === role)) {
+      state.role = role;
+      if (!wanted) { state.screen = homeForRole(role); state.tab = "home"; }
+    }
+    const theme = p.get("theme");
+    if (theme && ["light", "dark", "system"].indexOf(theme) >= 0) state.theme = theme;
+    const c = p.get("child");
+    if (c && DATA.children.some(x => x.id === c)) state.childId = c;
+    if (p.get("paid") === "1") state.paidAarav = true;
+    if (p.get("paid") === "0") state.paidAarav = false;
+    if (p.get("unread") === "0") DATA.notices.forEach(n => { state.read[n.id] = true; });
+    state.unread = DATA.notices.filter(n => n.unread && !state.read[n.id]).length;
+  } catch (e) {}
+})();
+
+applyTheme();
+document.documentElement.classList.toggle("reduce-motion", state.reduceMotion);
+updateDevButtons();
+fitStage();
+render("fade", { keepFocus: true });
+
+/* Keep system theme live when the OS changes. */
+try {
+  window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
+    if (state.theme === "system") { applyTheme(); render("fade", { keepFocus: true }); }
+  });
+} catch (e) {}
+
+</script>
+</body>
+</html>

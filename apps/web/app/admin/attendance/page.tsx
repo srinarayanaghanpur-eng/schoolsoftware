@@ -7,7 +7,8 @@ import { usePopup } from "@/components/CenterPopup";
 import RowContextMenu, { type ContextMenuItem } from "@/components/RowContextMenu";
 import { DateRangeFilter, formatDateForDisplay } from "@/components/DateRangeFilter";
 import { StatusBadge } from "@/components/StatusBadge";
-import { auth } from "@sri-narayana/shared/firebase/client";
+import { auth, storage } from "@sri-narayana/shared/firebase/client";
+import { getDownloadURL, ref } from "firebase/storage";
 import {
   createAttendanceDocumentId,
   isHolidayActive,
@@ -40,6 +41,8 @@ type EditForm = {
   lateMinutes: string;
   remarks: string;
   reason: string;
+  selfieStoragePath?: string;
+  accuracyFlagged?: boolean;
 };
 
 const statuses: AttendanceStatus[] = ["present", "late", "cl", "holiday", "absent", "not_marked"];
@@ -63,8 +66,45 @@ function createEditForm(record: AttendanceRecord): EditForm {
     checkOutTime: toDatetimeLocal(record.checkOutTime),
     lateMinutes: String(record.lateMinutes ?? 0),
     remarks: record.remarks ?? "",
-    reason: ""
+    reason: "",
+    selfieStoragePath: record.selfieStoragePath,
+    accuracyFlagged: record.accuracyFlagged
   };
+}
+
+function AttendanceSelfie({ path }: { path: string }) {
+  const [url, setUrl] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    setUrl(null);
+    setFailed(false);
+    getDownloadURL(ref(storage, path))
+      .then((value) => {
+        if (!cancelled) setUrl(value);
+      })
+      .catch(() => {
+        if (!cancelled) setFailed(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [path]);
+
+  if (failed) {
+    return <p className="text-sm font-medium text-stone-500">Selfie could not be loaded.</p>;
+  }
+  if (!url) {
+    return <p className="text-sm font-medium text-stone-500">Loading selfie…</p>;
+  }
+  return (
+    <img
+      src={url}
+      alt="Attendance selfie"
+      className="max-h-72 rounded-xl border border-stone-200 object-cover"
+    />
+  );
 }
 
 export default function AttendancePage() {
@@ -404,6 +444,17 @@ export default function AttendancePage() {
                 <X size={18} />
               </button>
             </div>
+            {editing.accuracyFlagged ? (
+              <p className="mb-4 rounded-xl border border-[#ffe1a6] bg-[#fff8e8] px-4 py-3 text-sm font-semibold text-[#a76e08]">
+                GPS accuracy was above the review threshold for this mark.
+              </p>
+            ) : null}
+            {editing.selfieStoragePath ? (
+              <div className="mb-4 space-y-2">
+                <p className="text-xs font-bold uppercase tracking-wide text-[#8490b9]">Attendance selfie</p>
+                <AttendanceSelfie path={editing.selfieStoragePath} />
+              </div>
+            ) : null}
             <div className="grid gap-3 md:grid-cols-3">
               <select className="field" value={editing.status} onChange={(event) => setEditing({ ...editing, status: event.target.value as AttendanceStatus })}>
                 {statuses.map((status) => <option key={status} value={status}>{status}</option>)}

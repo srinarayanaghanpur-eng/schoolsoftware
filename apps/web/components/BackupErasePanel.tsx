@@ -33,6 +33,8 @@ function downloadJson(fileName: string, data: unknown) {
   URL.revokeObjectURL(url);
 }
 
+const DEMO_DATA_ENABLED = process.env.NODE_ENV !== "production";
+
 function createDemoBackup() {
   return {
     appName: "SRI NARAYANA HIGH SCHOOL",
@@ -73,6 +75,9 @@ export function BackupErasePanel() {
     setMessage(null);
     try {
       if (!isFirebaseConfigured) {
+        if (!DEMO_DATA_ENABLED) {
+          throw new Error("Firebase is not configured. A production backup cannot be generated.");
+        }
         const backup = createDemoBackup();
         const payload = JSON.stringify(backup, null, 2);
         const checksum = await sha256Hex(payload);
@@ -188,6 +193,9 @@ export function BackupErasePanel() {
     try {
       if (!restoreBackup) throw new Error("Choose a backup JSON file first.");
       if (!isFirebaseConfigured) {
+        if (!DEMO_DATA_ENABLED) {
+          throw new Error("Firebase is not configured. Restore is unavailable.");
+        }
         setMessage("Demo restore checked the backup file. Firebase is not configured, so no data was written.");
         return;
       }

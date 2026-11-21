@@ -9,6 +9,7 @@ import { useAdminSession } from "@/components/AdminSessionContext";
 import { useAcademicYears } from "@/components/AcademicYearContext";
 import { hasPermission } from "@sri-narayana/shared";
 import { adminApiRequest, AdminApiError } from "@/lib/adminApiClient";
+import { printCurrentPage } from "@/lib/desktopBridge";
 
 type ReportType = "monthly" | "vehicle-wise" | "pending" | "overdue" | "yearly" | "company-wise";
 
@@ -137,7 +138,7 @@ export default function BusFinanceReportsPage() {
           <div className="ml-auto flex gap-2">
             <button onClick={exportExcel} disabled={rows.length === 0} className="btn-secondary disabled:opacity-50"><FileDown size={16} /> Excel</button>
             <button onClick={exportCsv} disabled={rows.length === 0} className="btn-secondary disabled:opacity-50"><FileDown size={16} /> CSV</button>
-            <button onClick={() => window.print()} disabled={rows.length === 0} className="btn-secondary disabled:opacity-50"><Printer size={16} /> Print / PDF</button>
+            <button onClick={() => void printCurrentPage()} disabled={rows.length === 0} className="btn-secondary disabled:opacity-50"><Printer size={16} /> Print / PDF</button>
           </div>
         </div>
 

@@ -1,6 +1,8 @@
 import { PageHeader } from "@/components/PageHeader";
 import { Fingerprint, Server } from "lucide-react";
+import { redirect } from "next/navigation";
 import { adminDb } from "@/lib/firebaseAdmin";
+import { getServerSessionUser } from "@/lib/serverSession";
 
 export const dynamic = "force-dynamic";
 
@@ -45,6 +47,11 @@ function formatTime(iso: string) {
 }
 
 export default async function BiometricPage() {
+  const session = await getServerSessionUser();
+  if (!session || !["super_admin", "admin"].includes(session.role ?? "")) {
+    redirect("/login");
+  }
+
   const logs = await loadLogs().catch(() => []);
 
   return (

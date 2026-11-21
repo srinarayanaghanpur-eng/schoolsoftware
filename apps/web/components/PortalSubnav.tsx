@@ -4,17 +4,20 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, IndianRupee, BookOpenCheck, Circle, Megaphone,
-  MessageSquare, UserCircle, CalendarDays, Clock, Bus, Download, GraduationCap,
+  MessageSquare, UserCircle, CalendarDays, Bus, Download, GraduationCap,
+  Images, CalendarCheck,
 } from "lucide-react";
 
 const TABS = [
   { href: "/portal", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/portal/attendance", label: "Attendance", icon: Clock },
   { href: "/portal/homework", label: "Homework", icon: BookOpenCheck },
   { href: "/portal/fees", label: "Fees", icon: IndianRupee },
   { href: "/portal/exams", label: "Exams", icon: GraduationCap },
   { href: "/portal/notices", label: "Notices", icon: Megaphone },
+  { href: "/portal/exams", label: "Exams", icon: GraduationCap },
   { href: "/portal/calendar", label: "Calendar", icon: CalendarDays },
+  { href: "/portal/gallery", label: "Gallery", icon: Images },
+  { href: "/portal/ptm", label: "PTM", icon: CalendarCheck },
   { href: "/portal/transport", label: "Transport", icon: Bus },
   { href: "/portal/downloads", label: "Downloads", icon: Download },
   { href: "/portal/contact", label: "Contact", icon: MessageSquare },

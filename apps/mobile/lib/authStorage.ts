@@ -29,7 +29,11 @@ export async function clearMobileAuthStorage() {
     key.includes("firebase:authUser") ||
     key.includes("sriNarayana") ||
     key.includes("rememberedSession") ||
-    key.includes("mobileSession")
+    key.includes("mobileSession") ||
+    // Queued attendance carries teacher/student PII and must not survive a
+    // sign-out on a shared device. "bypassed:" is the legacy prefix.
+    key.startsWith("attendance_offline_queue:") ||
+    key.startsWith("bypassed:")
   ));
 
   if (staleKeys.length > 0) {

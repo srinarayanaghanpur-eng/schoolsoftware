@@ -14,6 +14,12 @@ export const mobileAttendancePayloadSchema = z.object({
   latitude: z.number().optional(),
   longitude: z.number().optional(),
   accuracyMeters: z.number().optional(),
+  // Android reports whether the OS location fix was mocked. Admins may still
+  // submit test records; non-admin marks with this flag are rejected.
+  isMockLocation: z.boolean().optional(),
+  // Firebase Storage path for the optional attendance selfie. The server
+  // stores the path only — never a public URL.
+  selfieStoragePath: z.string().trim().max(500).optional(),
   deviceInfo: z.string().min(1),
   // Deterministic idempotency key minted by the mobile client
   // (teacherId:eventType:timestamp). Retries carry the same key so the
@@ -329,13 +335,18 @@ export const driverCreateSchema = z.object({ name: z.string().trim().min(1), pho
 export const driverUpdateSchema = driverCreateSchema.partial();
 
 export const bookCreateSchema = z.object({ title: z.string().trim().min(1), author: z.string().trim().optional().default(""), isbn: z.string().trim().optional().default(""), category: z.string().trim().optional().default(""), copies: z.coerce.number().int().positive() });
+export const bookUpdateSchema = bookCreateSchema.partial();
 export const libraryIssueSchema = z.object({ bookId: z.string().trim().min(1), memberType: z.enum(["student", "staff"]), memberId: z.string().trim().min(1), memberName: z.string().trim().optional().default(""), dueDate: z.string().trim().min(8) });
 export const libraryReturnSchema = z.object({ fine: z.coerce.number().nonnegative().optional().default(0) });
 
 export const hostelRoomCreateSchema = z.object({ number: z.string().trim().min(1), type: z.string().trim().optional().default(""), capacity: z.coerce.number().int().positive() });
+export const hostelRoomUpdateSchema = hostelRoomCreateSchema.partial();
 export const hostelAllotmentSchema = z.object({ studentId: z.string().trim().min(1), roomId: z.string().trim().min(1), fromDate: z.string().trim().min(8) });
+export const hostelAllotmentTransferSchema = z.object({ roomId: z.string().trim().min(1), fromDate: z.string().trim().optional().default("") });
 
-export const inventoryItemCreateSchema = z.object({ name: z.string().trim().min(1), category: z.string().trim().optional().default(""), stock: z.coerce.number().int().nonnegative(), unitPrice: z.coerce.number().nonnegative() });
+export const inventoryItemCreateSchema = z.object({ name: z.string().trim().min(1), category: z.string().trim().optional().default(""), stock: z.coerce.number().int().nonnegative(), unitPrice: z.coerce.number().nonnegative(), minStock: z.coerce.number().int().nonnegative().optional().default(5) });
+export const inventoryItemUpdateSchema = inventoryItemCreateSchema.partial();
+export const inventoryStockAdjustSchema = z.object({ delta: z.coerce.number().int().refine((value) => value !== 0, "Adjustment cannot be zero"), reason: z.string().trim().optional().default("") });
 export const inventorySaleSchema = z.object({ itemId: z.string().trim().min(1), qty: z.coerce.number().int().positive(), buyer: z.string().trim().optional().default(""), date: z.string().trim().optional().default("") });
 
 // ===== Phase 4: Promotion =====

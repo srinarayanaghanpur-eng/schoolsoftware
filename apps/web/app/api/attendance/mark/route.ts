@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import {
+  ATTENDANCE_BYPASS_GPS_AND_TIME,
   createAttendanceDocumentId,
+  getDistanceFromCampus,
+  isWithinCheckInWindow,
+  isWithinCheckOutWindow,
   mergeAttendanceEvent,
   mobileAttendancePayloadSchema,
   nowIso,
@@ -12,6 +16,7 @@ import { adminDb, verifyBearerToken } from "@/lib/firebaseAdmin";
 import { enforceBodyLimit, resolveRole } from "@/lib/apiUtils";
 import { checkRateLimit } from "@/lib/quota/rateLimiter";
 import { validateCapturedAt } from "./capturedAt";
+import { shouldFlagAccuracy, shouldRejectMockLocation } from "./risk";
 import { removeUndefinedFields } from "@/lib/firestoreSanitize";
 import { getAttendanceRecord, getHolidayByDate, getSchoolSettings, getTeacherById } from "@/lib/firestoreServer";
 import { getSchoolId } from "@/lib/schoolScope";
@@ -21,7 +26,7 @@ function getEffectiveGpsSettings(
   settings: Awaited<ReturnType<typeof getSchoolSettings>>
 ) {
   return {
-    gpsRequired: false,
+    gpsRequired: !ATTENDANCE_BYPASS_GPS_AND_TIME,
     settings: {
       ...settings,
       campusLatitude: teacher.gpsLatitude ?? settings.campusLatitude,
@@ -85,6 +90,40 @@ export async function POST(req: Request) {
     const effectiveTimestamp = payload.capturedAt ?? payload.timestamp;
     const offlineSync = Boolean(payload.capturedAt);
 
+    // A selfie path must live in the caller's own Storage namespace; never
+    // trust a client-supplied path that points at another teacher.
+    if (
+      payload.selfieStoragePath &&
+      !payload.selfieStoragePath.startsWith(`attendance-selfies/${payload.teacherId}/`)
+    ) {
+      return NextResponse.json(
+        { ok: false, error: "Selfie path does not belong to this teacher" },
+        { status: 403 }
+      );
+    }
+
+    // Device-reported mock location: non-admin marks are rejected and surfaced
+    // to admins. Admins keep the ability to submit test records.
+    if (shouldRejectMockLocation(isAdmin, payload.isMockLocation)) {
+      await adminDb()
+        .collection("admin_notifications")
+        .add({
+          type: "mock_location_attendance",
+          title: "Mock location blocked",
+          message: `A ${payload.eventType} attempt from teacher ${payload.teacherId} used a mock location and was rejected.`,
+          relatedCollection: "attendance_logs",
+          teacherId: payload.teacherId,
+          eventType: payload.eventType,
+          status: "open",
+          createdAt: nowIso()
+        })
+        .catch(() => {});
+      return NextResponse.json(
+        { ok: false, error: "Mock location detected. Attendance was not recorded." },
+        { status: 403 }
+      );
+    }
+
     const schoolSettings = await getSchoolSettings();
 
     // ===== Management-declared holiday: no check-in or check-out required =====
@@ -108,7 +147,52 @@ export async function POST(req: Request) {
       : undefined;
 
     const employmentType = teacher.employmentType ?? "full_time";
-    
+
+    // Server-side geofence: the mobile/web client check is only a fast-fail UX
+    // guard. Without this, location is advisory and can be omitted entirely.
+    let distanceFromCampus = 0;
+    if (gpsRequired) {
+      if (!gps) {
+        return NextResponse.json(
+          { ok: false, error: "Location is required to mark attendance." },
+          { status: 400 }
+        );
+      }
+      distanceFromCampus = getDistanceFromCampus(gps, settings);
+      if (distanceFromCampus > settings.geofenceRadiusMeters) {
+        return NextResponse.json(
+          {
+            ok: false,
+            error: `You are ${distanceFromCampus} m from campus. Attendance can only be marked within ${settings.geofenceRadiusMeters} m.`
+          },
+          { status: 403 }
+        );
+      }
+    }
+
+    // Server-side time windows (previously enforced only in the web UI).
+    if (!ATTENDANCE_BYPASS_GPS_AND_TIME) {
+      const inWindow =
+        payload.eventType === "checkin"
+          ? isWithinCheckInWindow(effectiveTimestamp, settings, employmentType)
+          : isWithinCheckOutWindow(effectiveTimestamp, settings, employmentType);
+      if (!inWindow) {
+        return NextResponse.json(
+          {
+            ok: false,
+            error:
+              payload.eventType === "checkin"
+                ? "Check-in is not open right now. Please mark attendance during the check-in window."
+                : "Check-out is not open right now. Please mark attendance during the check-out window."
+          },
+          { status: 403 }
+        );
+      }
+    }
+
+    // Low accuracy is a review signal, not a rejection: venue Wi-Fi and
+    // indoor fixes can legitimately exceed 100 m.
+    const accuracyFlagged = shouldFlagAccuracy(payload.accuracyMeters);
 
     const date = toDateKey(effectiveTimestamp, settings.timezone);
     const attendanceDocumentId = createAttendanceDocumentId(payload.teacherId, date);
@@ -137,7 +221,7 @@ export async function POST(req: Request) {
         source: "mobile",
         eventType: payload.eventType,
         gps,
-        distanceFromCampus: 0,
+        distanceFromCampus,
         deviceInfo: payload.deviceInfo
       },
       settings,
@@ -156,7 +240,11 @@ export async function POST(req: Request) {
       // Offline-sync provenance for admin review (live marks omit these).
       capturedAt: payload.capturedAt,
       syncedAt: offlineSync ? nowIso() : undefined,
-      syncedLate: offlineSync ? true : undefined
+      syncedLate: offlineSync ? true : undefined,
+      // Anti-fraud review signals (flag, never block).
+      accuracyFlagged: accuracyFlagged || undefined,
+      selfieStoragePath: payload.selfieStoragePath,
+      isMockLocation: payload.isMockLocation
     });
 
     // Use a transaction so the CL deduction reads the freshest late-entry count atomically
@@ -204,7 +292,11 @@ export async function POST(req: Request) {
       academicYearId,
       latitude: payload.latitude,
       longitude: payload.longitude,
-      distanceFromCampus: 0,
+      accuracyMeters: payload.accuracyMeters,
+      accuracyFlagged: accuracyFlagged || undefined,
+      isMockLocation: payload.isMockLocation,
+      selfieStoragePath: payload.selfieStoragePath,
+      distanceFromCampus,
       gpsRequired,
       deviceInfo: payload.deviceInfo,
       rawData: payload,

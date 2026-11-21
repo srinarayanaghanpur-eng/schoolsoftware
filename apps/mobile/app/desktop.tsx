@@ -3,14 +3,14 @@
  * than dropping the user on a dead-end profile screen (the old behaviour),
  * the app says so plainly and offers a logout.
  */
-import React, { useContext } from "react";
+import React from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import {
   Avatar, DSText, Icon, PillButton, SectionCard, ListRow, ToastProvider, useToast
 } from "@/design-system/components";
-import { useTheme } from "@/lib/Theme";
+import { color, space } from "@/design-system/tokens";
 import { useMobileSession } from "@/lib/mobileSession";
 import { openWebsite } from "@/lib/openWebsite";
 import { workspaceLabel } from "@/lib/roleRouting";
@@ -30,7 +30,6 @@ function DesktopOnly() {
   const toast = useToast();
   const session = useMobileSession();
   const name = session.profile?.displayName ?? "User";
-  const { t: { color } } = useTheme();
 
   const logout = async () => {
     try {
@@ -75,6 +74,6 @@ function DesktopOnly() {
 }
 
 const styles = StyleSheet.create({
-  page: { paddingHorizontal: space.xl, paddingBottom: space.xl, gap: 14, backgroundColor: color.background, flexGrow: 1 },
+  page: { paddingHorizontal: space.xl, paddingBottom: space.xl, gap: 14, backgroundColor: color.light.background, flexGrow: 1 },
   identityRow: { flexDirection: "row", alignItems: "center", gap: 14 }
 });

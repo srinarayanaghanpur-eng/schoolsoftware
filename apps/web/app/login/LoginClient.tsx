@@ -6,6 +6,7 @@ import { DarkModeToggle } from "@/components/DarkModeToggle";
 import { useAuth } from "@/components/AuthProvider";
 import { clearAuthStorage } from "@/lib/authStorage";
 import { destinationForRole, resolveAuthSessionUser } from "@/lib/authSession";
+import { clearServerSession, establishServerSession } from "@/lib/sessionCookieClient";
 import type { Role } from "@sri-narayana/shared";
 import { employeeIdToInternalEmail, normalizeEmployeeId } from "@sri-narayana/shared/utils/employeeAuth";
 import { useRouter } from "next/navigation";
@@ -195,8 +196,13 @@ async function signInAndResolveRole(loginId: string, password: string, rememberM
   try {
     const session = await resolveAuthSessionUser(credential.user);
     role = session.role;
+    const established = await establishServerSession();
+    if (!established) {
+      throw new Error("Unable to start a secure server session. Please contact your administrator.");
+    }
   } catch (error) {
     await signOut(auth);
+    await clearServerSession();
     clearAuthStorage();
     throw error;
   }
@@ -588,7 +594,18 @@ function useTeacherLoginController() {
     }
 
     redirectedRef.current = true;
-    router.replace(destinationForRole(resolvedRole));
+    const destination = destinationForRole(resolvedRole);
+    void (async () => {
+      if (destination.startsWith("/admin")) {
+        const established = await establishServerSession();
+        if (!established) {
+          redirectedRef.current = false;
+          setError("Unable to start a secure server session. Please sign in again.");
+          return;
+        }
+      }
+      router.replace(destination);
+    })();
   }, [
     academicYears,
     authError,

@@ -1,4 +1,5 @@
 import { AuthGate } from "@/components/AuthGate";
+import { CommunicationShortcut } from "@/components/CommunicationShortcut";
 import { OptimizedAppLayout } from "@/components/OptimizedAppLayout";
 import SyncStatusBanner from "@/components/SyncStatusBanner";
 import { PopupProvider } from "@/components/CenterPopup";
@@ -13,6 +14,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     <AuthGate>
       <PopupProvider>
         <OptimizedAppLayout>
+          <CommunicationShortcut />
           {children}
           <SyncStatusBanner />
         </OptimizedAppLayout>

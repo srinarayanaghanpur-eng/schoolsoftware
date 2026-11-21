@@ -23,7 +23,7 @@ let backgroundTaskRegistered = false;
 
 // Define background task once at module level
 TaskManager.defineTask(TASK_PREFIX + 'sync', async () => {
-  console.log('[MobileSync] Background task executing');
+  if (__DEV__) console.log('[MobileSync] Background task executing');
   await mobileBackgroundSync.startSync();
   return BackgroundFetch.BackgroundFetchResult.NewData;
 });
@@ -45,10 +45,10 @@ class MobileBackgroundSyncManager {
     this.appState = state;
 
     if (state === 'active') {
-      console.log('[MobileSync] App resumed - starting sync');
+      if (__DEV__) console.log('[MobileSync] App resumed - starting sync');
       this.startSync();
     } else if (state === 'background') {
-      console.log('[MobileSync] App backgrounded');
+      if (__DEV__) console.log('[MobileSync] App backgrounded');
       // Only register background task once
       if (!backgroundTaskRegistered) {
         this.registerBackgroundTask();
@@ -61,7 +61,7 @@ class MobileBackgroundSyncManager {
    */
   registerTask(task: MobileBackgroundTask): void {
     this.tasks.set(task.id, task);
-    console.log(`[MobileSync] Task registered: ${task.id}`);
+    if (__DEV__) console.log(`[MobileSync] Task registered: ${task.id}`);
   }
 
   /**
@@ -69,7 +69,7 @@ class MobileBackgroundSyncManager {
    */
   unregisterTask(id: string): void {
     this.tasks.delete(id);
-    console.log(`[MobileSync] Task unregistered: ${id}`);
+    if (__DEV__) console.log(`[MobileSync] Task unregistered: ${id}`);
   }
 
   /**
@@ -101,7 +101,7 @@ class MobileBackgroundSyncManager {
             }
           }
 
-          console.log(`[MobileSync] Executing: ${task.name}`);
+          if (__DEV__) console.log(`[MobileSync] Executing: ${task.name}`);
           await task.fn();
           task.lastSync = Date.now();
         } catch (error) {
@@ -138,7 +138,7 @@ class MobileBackgroundSyncManager {
         startOnBoot: true
       });
       backgroundTaskRegistered = true;
-      console.log('[MobileSync] Background task registered');
+      if (__DEV__) console.log('[MobileSync] Background task registered');
     } catch (error) {
       console.error('[MobileSync] Failed to register background task:', error);
     }
@@ -208,7 +208,7 @@ export const mobileBackgroundSync = new MobileBackgroundSyncManager();
  * Initialize background sync with auto-start
  */
 export async function initializeMobileBackgroundSync(): Promise<() => void> {
-  console.log('[MobileSync] Initializing...');
+  if (__DEV__) console.log('[MobileSync] Initializing...');
 
   // Start sync on init
   mobileBackgroundSync.startSync();

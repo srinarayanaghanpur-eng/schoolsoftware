@@ -1,13 +1,26 @@
 import type { EmploymentType, SchoolSettings } from "./types/models";
 
 /**
- * TEMPORARY switch requested by the school: attendance marking no longer
- * requires a GPS fix or the normal check-in/check-out time window.
- * Set back to `false` to restore GPS + time enforcement.
+ * Attendance GPS + time enforcement.
  *
- * This lives in the shared package so the mobile app and the API always agree.
+ * Enforcement is ON by default. The school's temporary bypass can only be
+ * enabled deliberately with an explicit public env flag so it can never be
+ * left on by accident:
+ *
+ *   NEXT_PUBLIC_ATTENDANCE_BYPASS_GPS_AND_TIME=true   (web)
+ *   EXPO_PUBLIC_ATTENDANCE_BYPASS_GPS_AND_TIME=true   (mobile)
+ *
+ * The server also reads the flag, so client and API always agree.
  */
-export const ATTENDANCE_BYPASS_GPS_AND_TIME = true;
+function readAttendanceBypassFlag(): boolean {
+  const env = typeof process !== "undefined" ? process.env : undefined;
+  return (
+    env?.NEXT_PUBLIC_ATTENDANCE_BYPASS_GPS_AND_TIME === "true" ||
+    env?.EXPO_PUBLIC_ATTENDANCE_BYPASS_GPS_AND_TIME === "true"
+  );
+}
+
+export const ATTENDANCE_BYPASS_GPS_AND_TIME = readAttendanceBypassFlag();
 
 /**
  * Check-in / check-out time windows per employment type (24h "HH:MM", IST).
@@ -76,5 +89,6 @@ export const DEFAULT_SETTINGS: SchoolSettings = {
     manualDeductionDefault: 0,
     bonusDefault: 0
   },
-  timezone: "Asia/Kolkata"
+  timezone: "Asia/Kolkata",
+  requireSelfie: false
 };

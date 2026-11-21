@@ -8,6 +8,7 @@ import { clearAdminApiCacheForSignOut } from "@/lib/adminApiClient";
 import { clearAuthStorage, markLogoutRedirect } from "@/lib/authStorage";
 import { clearPayrollSessionId } from "@/lib/payrollSessionClient";
 import { resolveAuthSessionUser, type AuthProfile } from "@/lib/authSession";
+import { clearServerSession, establishServerSession } from "@/lib/sessionCookieClient";
 
 export type AuthStatus = "checking" | "unauthenticated" | "authenticated" | "error";
 
@@ -60,6 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Storage cleanup below must still run even if Firebase sign-out rejects.
     } finally {
       clearAuthStorage();
+      await clearServerSession();
       setState({
         status: "unauthenticated",
         profile: null,
@@ -115,6 +117,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         permissions: session.permissions,
         error: null
       });
+      // Keep the httpOnly cookie fresh for server components (dashboard,
+      // biometric page) on hard navigations and long-lived sessions.
+      void establishServerSession();
     } catch (error) {
       const message = messageFromError(error);
       forcedErrorRef.current = message;
@@ -126,6 +131,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         clearAuthStorage();
         clearAdminApiCacheForSignOut();
         clearPayrollSessionId();
+        await clearServerSession();
       }
       if (resolveId !== resolveIdRef.current) return;
       setState({

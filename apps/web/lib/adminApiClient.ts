@@ -1,6 +1,7 @@
 "use client";
 
 import { auth } from "@sri-narayana/shared/firebase/client";
+import { isDesktopApp } from "@/lib/desktopBridge";
 
 export class AdminApiError extends Error {
   status: number;
@@ -153,6 +154,7 @@ async function rawRequest<T>(path: string, init?: RequestInit, forceRefresh = fa
       headers: {
         "content-type": "application/json",
         authorization: `Bearer ${token}`,
+        ...(isDesktopApp() ? { "x-erp-desktop": "1" } : {}),
         ...(init?.headers ?? {})
       }
     });
@@ -171,6 +173,7 @@ async function rawRequest<T>(path: string, init?: RequestInit, forceRefresh = fa
         headers: {
           "content-type": "application/json",
           authorization: `Bearer ${refreshed}`,
+          ...(isDesktopApp() ? { "x-erp-desktop": "1" } : {}),
           ...(init?.headers ?? {})
         }
       });

@@ -3,13 +3,15 @@
   "private": true,
   "version": "1.0.0",
   "description": "Sri Narayana High School ERP – Desktop App",
-  "author": "Sri Narayana High School",
+  "author": "Ananth Technologies",
   "main": "main.js",
   "scripts": {
     "dev": "node scripts/run-electron.js .",
     "build:web": "node scripts/build-web.js",
-    "dist": "npm run build:web && node scripts/run-electron-builder.js --win",
-    "dist:portable": "npm run build:web && node scripts/run-electron-builder.js --win portable"
+    "dist": "node scripts/build-installer.js",
+    "dist:quick": "node scripts/build-installer.js --skip-web",
+    "dist:portable": "node scripts/build-installer.js --portable",
+    "test": "node --test messaging/*.test.js"
   },
   "build": {
     "appId": "com.sri-narayana.high-school.erp",
@@ -22,35 +24,50 @@
     "files": [
       "assets/icon.ico",
       "main.js",
-      "preload.js"
+      "preload.js",
+      "agent-preload.js",
+      "agent/**/*",
+      "messaging/**/*"
     ],
     "extraResources": [
       {
         "from": "resources/",
         "to": "web",
-        "filter": ["**/*"]
+        "filter": [
+          "**/*"
+        ]
       }
     ],
     "win": {
       "icon": "assets/icon.ico",
+      "publisherName": "Ananth Technologies",
       "target": [
         {
           "target": "nsis",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ]
     },
     "nsis": {
       "oneClick": false,
+      "perMachine": true,
+      "allowElevation": true,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "Sri Narayana ERP",
-      "uninstallDisplayName": "Sri Narayana ERP"
+      "uninstallDisplayName": "Sri Narayana ERP",
+      "deleteAppDataOnUninstall": false
     }
   },
   "devDependencies": {
     "electron": "^33.0.0",
     "electron-builder": "^25.0.0"
+  },
+  "dependencies": {
+    "baileys": "^6.7.24",
+    "qrcode": "^1.5.4"
   }
 }

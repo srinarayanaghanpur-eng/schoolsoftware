@@ -4,7 +4,14 @@
  * client reads in the parent workspace.
  */
 import { auth } from "@/lib/firebase";
-import { API_BASE_URL, API_REQUESTS_AVAILABLE } from "@/lib/api";
+import {
+  API_BASE_URL,
+  API_REQUESTS_AVAILABLE,
+  ApiRequestError,
+  apiFetch,
+  readJson,
+  responseError
+} from "@/lib/api";
 import { deduped } from "@/lib/fetchDedupe";
 
 export type PortalStudent = { id: string; name: string; className: string; section: string; admissionNo: string };
@@ -87,12 +94,15 @@ async function portalGet<T>(path: string): Promise<T> {
   // Screens mount together and ask for the same URLs — share one request.
   return deduped(`GET ${path}`, async () => {
     const token = await user.getIdToken();
-    const response = await fetch(`${API_BASE_URL}${path}`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    const result = (await response.json()) as { ok?: boolean; error?: string } & Record<string, unknown>;
-    if (!response.ok || result.ok === false) {
-      throw new Error(result.error ?? "Request failed. Please try again.");
+    const response = await apiFetch(
+      `${API_BASE_URL}${path}`,
+      { headers: { Authorization: `Bearer ${token}` } },
+      { retry: true }
+    );
+    if (!response.ok) throw await responseError(response);
+    const result = await readJson<{ ok?: boolean; error?: string } & Record<string, unknown>>(response);
+    if (result.ok === false) {
+      throw new ApiRequestError(result.error ?? "Request failed. Please try again.", "server");
     }
     return result as T;
   });
@@ -103,14 +113,15 @@ async function portalPut<T>(path: string, body: Record<string, unknown>): Promis
   if (!user) throw new Error("Please sign in again.");
   if (!API_REQUESTS_AVAILABLE) throw new Error("API URL not configured. Please set EXPO_PUBLIC_WEB_API_URL.");
   const token = await user.getIdToken();
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const response = await apiFetch(`${API_BASE_URL}${path}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
     body: JSON.stringify(body)
   });
-  const result = (await response.json()) as { ok?: boolean; error?: string } & Record<string, unknown>;
-  if (!response.ok || result.ok === false) {
-    throw new Error(result.error ?? "Request failed. Please try again.");
+  if (!response.ok) throw await responseError(response);
+  const result = await readJson<{ ok?: boolean; error?: string } & Record<string, unknown>>(response);
+  if (result.ok === false) {
+    throw new ApiRequestError(result.error ?? "Request failed. Please try again.", "server");
   }
   return result as T;
 }
@@ -206,12 +217,15 @@ export async function sendParentMessage(input: { studentId?: string; type: strin
   const user = auth.currentUser;
   if (!user) throw new Error("Please sign in again.");
   const token = await user.getIdToken();
-  const response = await fetch(`${API_BASE_URL}/api/portal/messages`, {
+  const response = await apiFetch(`${API_BASE_URL}/api/portal/messages`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
     body: JSON.stringify({ parentUid: user.uid, ...input })
   });
-  const result = (await response.json()) as { ok?: boolean; error?: string };
-  if (!response.ok || result.ok === false) throw new Error(result.error ?? "Unable to send message");
+  if (!response.ok) throw await responseError(response, "Unable to send message");
+  const result = await readJson<{ ok?: boolean; error?: string }>(response);
+  if (result.ok === false) {
+    throw new ApiRequestError(result.error ?? "Unable to send message", "server");
+  }
   return result;
 }

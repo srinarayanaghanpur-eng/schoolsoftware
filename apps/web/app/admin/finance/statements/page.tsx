@@ -4,6 +4,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { useAcademicYears } from "@/components/AcademicYearContext";
 import { useAdminSession } from "@/components/AdminSessionContext";
 import { AdminApiError, adminApiRequest } from "@/lib/adminApiClient";
+import { printCurrentPage } from "@/lib/desktopBridge";
 import { hasPermission } from "@sri-narayana/shared";
 import { Download, Printer } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -68,7 +69,9 @@ export default function StatementsPage() {
     })();
   }, [selectedId, selectedYear?.id]);
 
-  const handlePrint = () => window.print();
+  const handlePrint = () => {
+    void printCurrentPage();
+  };
 
   const handleExportCSV = () => {
     if (!student || payments.length === 0) return;

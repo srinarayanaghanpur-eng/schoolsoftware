@@ -9,6 +9,7 @@ import { AdmissionPrintSheet } from "./AdmissionPrintSheet";
 import AdmissionPrintStyles from "./AdmissionPrintStyles";
 import { resolveValue } from "./formatters";
 import { classIdToSlug } from "@/lib/studentClasses";
+import { printCurrentPage, savePagePdf } from "@/lib/desktopBridge";
 
 export default function AdmissionFormPage() {
   const params = useParams();
@@ -48,13 +49,18 @@ export default function AdmissionFormPage() {
 
 
   const handlePrint = () => {
-    window.print();
+    void printCurrentPage();
   };
 
-  const handleDownloadPDF = () => {
+  const handleDownloadPDF = async () => {
+    const admissionNo = resolveValue(student?.admissionNumber) || params.id;
+    const pdf = await savePagePdf(`Admission-${admissionNo}.pdf`);
+    if (pdf) {
+      if (!pdf.ok && !pdf.canceled) alert(pdf.error || "Could not save the PDF.");
+      return;
+    }
     // Browser print-to-PDF: set a meaningful filename, then restore.
     const previousTitle = document.title;
-    const admissionNo = resolveValue(student?.admissionNumber) || params.id;
     document.title = `Admission-${admissionNo}`;
     try {
       window.print();

@@ -64,6 +64,19 @@ service cloud.firestore {
       return signedIn() && effectiveRole() == "teacher" && effectiveStatus() == "active";
     }
 
+    // Every back-office role, including teachers. Used to keep finance,
+    // transport, library and inventory collections out of the parent portal.
+    function isStaff() {
+      return signedIn() && (
+        effectiveRole() == "super_admin" ||
+        effectiveRole() == "admin" ||
+        effectiveRole() == "settings_manager" ||
+        effectiveRole() == "principal" ||
+        effectiveRole() == "accountant" ||
+        effectiveRole() == "teacher"
+      );
+    }
+
     function isOwnTeacherProfile() {
       return isActiveTeacher() && resource.data.uid == request.auth.uid;
     }
@@ -87,27 +100,211 @@ service cloud.firestore {
 
     match /attendance/{attendanceId} {
       allow read: if isAdmin() || isOwnTeacherId(resource.data.teacherId);
-      allow create: if isAdmin();
-      allow update, delete: if isAdmin();
+      // Server-only: geofence/time-window enforcement lives in
+      // POST /api/attendance/mark, which writes via the Admin SDK.
+      allow write: if false;
+    }
+
+    // Student daily attendance. Read-only for staff; all writes go through
+    // POST /api/admin/student-attendance (Admin SDK) so the roster, school,
+    // and academic-year scope are enforced server-side.
+    match /student_attendance/{recordId} {
+      allow read: if isAdmin() || isPrincipal();
+      allow write: if false;
+    }
+
+    // Academic master data (subjects, periods). Read-only for staff; writes go
+    // through the /api/admin/subjects and /api/admin/periods routes.
+    match /subjects/{subjectId} {
+      allow read: if isAdmin() || isPrincipal() || isActiveTeacher();
+      allow write: if false;
+    }
+
+    match /periods/{periodId} {
+      allow read: if isAdmin() || isPrincipal() || isActiveTeacher();
+      allow write: if false;
+    }
+
+    // ===== Setup masters (managed via /api/admin/masters/*) =====
+    function isMasterReader() {
+      return isAdmin() || isPrincipal() || isAccountant() || isActiveTeacher();
+    }
+
+    match /exam_types/{id} {
+      allow read: if isMasterReader();
+      allow write: if false;
+    }
+    match /grades/{id} {
+      allow read: if isMasterReader();
+      allow write: if false;
+    }
+    match /cocurricular_areas/{id} {
+      allow read: if isMasterReader();
+      allow write: if false;
+    }
+    match /assessment_types/{id} {
+      allow read: if isMasterReader();
+      allow write: if false;
+    }
+    match /departments/{id} {
+      allow read: if isAdmin() || isPrincipal() || isActiveTeacher();
+      allow write: if false;
+    }
+    match /designations/{id} {
+      allow read: if isAdmin() || isPrincipal() || isActiveTeacher();
+      allow write: if false;
+    }
+    match /leave_types/{id} {
+      allow read: if isAdmin() || isPrincipal() || isActiveTeacher();
+      allow write: if false;
+    }
+    match /salary_templates/{id} {
+      allow read: if isAdmin() || isPrincipal();
+      allow write: if false;
+    }
+    match /appraisal_criteria/{id} {
+      allow read: if isAdmin() || isPrincipal();
+      allow write: if false;
+    }
+    match /fee_types/{id} {
+      allow read: if isAdmin() || isAccountant() || isPrincipal();
+      allow write: if false;
+    }
+    match /fee_groups/{id} {
+      allow read: if isAdmin() || isAccountant() || isPrincipal();
+      allow write: if false;
+    }
+    match /income_heads/{id} {
+      allow read: if isAdmin() || isAccountant() || isPrincipal();
+      allow write: if false;
+    }
+    match /expense_heads/{id} {
+      allow read: if isAdmin() || isAccountant() || isPrincipal();
+      allow write: if false;
+    }
+    match /bank_accounts/{id} {
+      allow read: if isAdmin() || isAccountant() || isPrincipal();
+      allow write: if false;
+    }
+    match /student_houses/{id} {
+      allow read: if isMasterReader();
+      allow write: if false;
+    }
+    match /student_categories/{id} {
+      allow read: if isMasterReader();
+      allow write: if false;
+    }
+    match /buildings/{id} {
+      allow read: if isMasterReader();
+      allow write: if false;
+    }
+    match /id_card_designs/{id} {
+      allow read: if isMasterReader();
+      allow write: if false;
+    }
+    match /compliance_packs/{id} {
+      allow read: if isAdmin() || isPrincipal();
+      allow write: if false;
+    }
+    match /survey_templates/{id} {
+      allow read: if isAdmin() || isPrincipal() || isActiveTeacher();
+      allow write: if false;
+    }
+    match /staff_loans/{id} {
+      allow read: if isAdmin() || isPrincipal() || isAccountant();
+      allow write: if false;
+    }
+    match /appraisals/{id} {
+      allow read: if isAdmin() || isPrincipal() || isAccountant();
+      allow write: if false;
+    }
+    match /classrooms/{id} {
+      allow read: if isMasterReader();
+      allow write: if false;
+    }
+    match /compliance_items/{id} {
+      allow read: if isAdmin() || isPrincipal();
+      allow write: if false;
+    }
+    match /surveys/{id} {
+      allow read: if isAdmin() || isPrincipal() || isActiveTeacher() || request.auth != null;
+      allow write: if false;
+    }
+    match /assessments/{id} {
+      allow read: if isMasterReader();
+      allow write: if false;
+    }
+    match /gallery_albums/{id} {
+      allow read: if isAdmin() || isPrincipal() || isActiveTeacher() || request.auth != null;
+      allow write: if false;
+    }
+    match /qr_sessions/{id} {
+      allow read: if isAdmin() || isPrincipal() || isActiveTeacher();
+      allow write: if false;
+    }
+    match /ptm_meetings/{id} {
+      allow read: if isAdmin() || isPrincipal() || isActiveTeacher() || request.auth != null;
+      allow write: if false;
+    }
+    match /ptm_records/{id} {
+      allow read: if isAdmin() || isPrincipal() || isActiveTeacher();
+      allow write: if false;
+    }
+    match /lesson_plans/{id} {
+      allow read: if isAdmin() || isPrincipal() || isActiveTeacher();
+      allow write: if false;
+    }
+    match /exam_schedules/{id} {
+      allow read: if isMasterReader();
+      allow write: if false;
+    }
+    match /exam_remarks/{id} {
+      allow read: if isAdmin() || isPrincipal() || isActiveTeacher();
+      allow write: if false;
+    }
+    match /custom_fields/{id} {
+      allow read: if isAdmin() || isPrincipal();
+      allow write: if false;
+    }
+    match /module_toggles/{id} {
+      allow read: if isAdmin() || isPrincipal() || isActiveTeacher();
+      allow write: if false;
+    }
+    match /payment_gateways/{id} {
+      allow read: if isAdmin() || isAccountant();
+      allow write: if false;
+    }
+    match /subscription_plans/{id} {
+      allow read: if isAdmin() || isPrincipal();
+      allow write: if false;
+    }
+
+    // Communication gateway settings and send logs — server-only writes.
+    match /communication_settings/{id} {
+      allow read: if isAdmin() || isPrincipal();
+      allow write: if false;
+    }
+    match /communication_logs/{id} {
+      allow read: if isAdmin() || isPrincipal();
+      allow write: if false;
     }
 
     match /attendance_logs/{logId} {
       allow read: if isAdmin() || isOwnTeacherId(resource.data.teacherId);
-      allow create: if isAdmin() ||
-        (
-          signedIn() &&
-          isOwnTeacherId(request.resource.data.teacherId) &&
-          request.resource.data.source == "mobile"
-        );
-      allow update, delete: if isAdmin();
+      // Audit log is written exclusively by the Admin SDK through
+      // POST /api/attendance/mark (and the biometric ingest route).
+      allow write: if false;
     }
 
     match /biometric_logs/{logId} {
-      allow read, write: if isAdmin();
+      allow read: if isAdmin();
+      // Ingested by the Admin SDK (biometric webhook route) only.
+      allow write: if false;
     }
 
     match /salary_reports/{reportId} {
-      allow read, write: if isAdmin();
+      allow read: if isAdmin();
+      allow write: if false;
     }
 
     // Password reset requests: admins review/approve/reject/archive; a teacher
@@ -147,8 +344,8 @@ service cloud.firestore {
     // and append/annotate (archive/soft-hide), but NEVER delete from a client.
     match /attendance_edit_audit_logs/{auditId} {
       allow read: if isAdmin();
-      allow create, update: if isAdmin();
-      allow delete: if false;
+      // Server-only: appended by the attendance edit API route.
+      allow write: if false;
     }
 
     match /admin_notifications/{notificationId} {
@@ -162,12 +359,12 @@ service cloud.firestore {
 
     // Settings documents (school, payment, admissions, class-sections, ...).
     // SECURITY: teachers/parents/students must never read these — settings/school
-    // stores the biometric webhook secret, which was previously readable by ANY
-    // signed-in user. Reads are back-office staff only; writes are restricted to
-    // admin/settings_manager (principal/accountant are read-only here; the API
-    // layer enforces per-permission checks for all server-side writes).
+    // stores the biometric webhook secret. Principal/accountant may read the
+    // non-secret settings docs, but `settings/school` is admin/settings_manager
+    // only. Writes stay limited to admin/settings_manager.
     match /settings/{settingsId} {
-      allow read: if isAdmin() || isSettingsManager() || isPrincipal() || isAccountant();
+      allow read: if isAdmin() || isSettingsManager() ||
+        ((isPrincipal() || isAccountant()) && settingsId != "school");
       allow write: if isAdmin() || isSettingsManager();
     }
 
@@ -205,7 +402,7 @@ service cloud.firestore {
 
     // Phase 3: fee structures + online payment orders. Writes/orders go via admin SDK.
     match /fee_structures/{id} {
-      allow read: if signedIn();
+      allow read: if isStaff();
       allow write: if isAdmin();
     }
     match /payment_orders/{id} {
@@ -225,8 +422,9 @@ service cloud.firestore {
       allow read, write: if false;
     }
     match /debitVouchers/{id} {
-      allow read, create, update: if isFinanceRole();
-      allow delete: if isSuperAdmin();
+      allow read: if isFinanceRole();
+      // Server-only: written by the finance API routes (Admin SDK).
+      allow write: if false;
     }
     match /incomes/{id} {
       allow read, write: if isAdmin();
@@ -240,41 +438,51 @@ service cloud.firestore {
     match /bank_transactions/{id} { allow read, write: if isAdmin(); }
     match /invoices/{id} { allow read, write: if isAdmin(); }
     match /fee_reminders/{id} { allow read, write: if isAdmin(); }
-    // Reminder provider keys (smsApiKey, whatsappApiKey) live here — staff only.
-    match /fee_reminder_settings/{id} { allow read: if isAdmin() || isAccountant(); allow write: if isAdmin(); }
-    match /fee_reminder_queue/{id} { allow read: if isAdmin() || isAccountant(); allow write: if isAdmin() || isAccountant(); }
-    match /fee_reminder_logs/{id} { allow read: if isAdmin() || isAccountant(); allow write: if isAdmin() || isAccountant(); }
+    // Reminder provider keys (smsApiKey, whatsappApiKey) live here — admin only.
+    match /fee_reminder_settings/{id} { allow read: if isAdmin(); allow write: if false; }
+    match /fee_reminder_queue/{id} { allow read: if isAdmin() || isAccountant(); allow write: if false; }
+    match /fee_reminder_logs/{id} { allow read: if isAdmin() || isAccountant(); allow write: if false; }
     match /student_reminder_consent/{id} { allow read: if isAdmin() || isAccountant(); allow write: if isAdmin(); }
-    match /counters/{id} { allow read, write: if isFinanceRole(); }
+    match /counters/{id} {
+      allow read: if isFinanceRole();
+      // Receipt-number allocation must be atomic on the server.
+      allow write: if false;
+    }
 
-    // Phase 4: transport, library, hostel, inventory. Reads for signed-in users;
-    // writes via admin SDK (API enforces per-role permissions).
-    match /vehicles/{id} { allow read: if signedIn(); allow write: if isAdmin(); }
+    // Phase 4: transport, library, hostel, inventory. Reads are staff-only;
+    // writes via admin SDK (API enforces per-role permissions). Parent portal
+    // reads go through /api/portal/* with a server-side student-link check.
+    match /vehicles/{id} { allow read: if isStaff(); allow write: if isAdmin(); }
     match /transport_routes/{id} { allow read: if signedIn(); allow write: if isAdmin(); }
     match /transport_assignments/{id} { allow read: if isAdmin(); allow write: if isAdmin(); }
-    match /books/{id} { allow read: if signedIn(); allow write: if isAdmin(); }
+    match /books/{id} { allow read: if isStaff(); allow write: if isAdmin(); }
     match /library_issues/{id} { allow read: if isAdmin(); allow write: if isAdmin(); }
-    match /hostel_rooms/{id} { allow read: if signedIn(); allow write: if isAdmin(); }
+    match /hostel_rooms/{id} { allow read: if isStaff(); allow write: if isAdmin(); }
     match /hostel_allotments/{id} { allow read: if isAdmin(); allow write: if isAdmin(); }
-    match /inventory_items/{id} { allow read: if signedIn(); allow write: if isAdmin(); }
-    match /inventory_sales/{id} { allow read: if signedIn(); allow write: if isAdmin(); }
+    match /inventory_items/{id} { allow read: if isStaff(); allow write: if isAdmin(); }
+    match /inventory_sales/{id} { allow read: if isStaff(); allow write: if isAdmin(); }
+    match /inventory_movements/{id} { allow read: if isAdmin(); allow write: if isAdmin(); }
 
     // Bus EMI / Vehicle Finance — admin/accountant only. All writes go via the
     // admin SDK (API routes enforce bus_finance.* permissions); delete is
     // admin-only at the API layer. Separate from the student transport module.
     match /bus_finance/{id} {
-      allow read, write: if isAdmin() || isAccountant();
+      allow read: if isAdmin() || isAccountant();
+      allow write: if false;
     }
     match /bus_emi_payments/{id} {
-      allow read, write: if isAdmin() || isAccountant();
+      allow read: if isAdmin() || isAccountant();
+      allow write: if false;
     }
 
     match /backup_audit_logs/{logId} {
-      allow read, write: if isAdmin();
+      allow read: if isAdmin();
+      allow write: if false;
     }
 
     match /admin_audit_logs/{logId} {
-      allow read, write: if isAdmin();
+      allow read: if isAdmin();
+      allow write: if false;
     }
 
     // Fee Concession Management Rules
@@ -297,33 +505,62 @@ service cloud.firestore {
     // NOTE: Fee structures use the canonical snake_case collection `fee_structures`
     // (defined above). The legacy camelCase `feeStructures` rule block was removed
     // to eliminate the split-brain collection naming. Accountant/Principal retain
-    // read access to `fee_structures` because that rule allows any signed-in user
-    // to read; writes remain admin-only.
+    // read access to `fee_structures` through the staff role set; writes remain
+    // admin-only.
 
     // Payments collection
     match /payments/{paymentId} {
       allow read: if isAdmin() || isAccountant() || isPrincipal();
-      allow create: if isAdmin() || isAccountant();
-      allow update: if isAdmin() || (isAccountant() && request.resource.data.status == resource.data.status);
-      allow delete: if isAdmin();
+      // Server-only: fee collection writes via the admin API (amount checks,
+      // receipt numbering, audit logging).
+      allow write: if false;
     }
 
     // Receipts collection
     match /receipts/{receiptId} {
       allow read: if isAdmin() || isAccountant() || isPrincipal();
-      allow create: if isAdmin() || isAccountant();
-      allow update: if isAdmin() || isAccountant();
-      allow delete: if isAdmin();
+      allow write: if false;
     }
 
     match /receipt_counters/{counterId} {
-      allow read, write: if isAdmin() || isAccountant();
+      allow read: if isAdmin() || isAccountant();
+      allow write: if false;
+    }
+
+    // Late-fee policy master. Server-only writes via /api/admin/fee-fine-rules.
+    match /fee_fine_rules/{ruleId} {
+      allow read: if isAdmin() || isAccountant() || isPrincipal();
+      allow write: if false;
+    }
+
+    // Offline fee challans and due slips — server writes via admin API only.
+    match /fee_challans/{challanId} {
+      allow read: if isAdmin() || isAccountant() || isPrincipal();
+      allow write: if false;
+    }
+    match /due_slips/{slipId} {
+      allow read: if isAdmin() || isAccountant() || isPrincipal();
+      allow write: if false;
+    }
+
+    // Student behavior, health and exit records — read for staff, server writes only.
+    match /student_behavior/{recordId} {
+      allow read: if isAdmin() || isPrincipal() || isTeacher();
+      allow write: if false;
+    }
+    match /student_health/{recordId} {
+      allow read: if isAdmin() || isPrincipal() || isTeacher();
+      allow write: if false;
+    }
+    match /student_exits/{recordId} {
+      allow read: if isAdmin() || isPrincipal() || isTeacher();
+      allow write: if false;
     }
 
     // Audit logs for fee operations
     match /feeAuditLogs/{auditId} {
       allow read: if isAdmin();
-      allow write: if isAdmin();
+      allow write: if false;
     }
 
     // ===== Students & Parent Portal =====

@@ -13,6 +13,7 @@ type CampusForm = {
   geofenceRadiusMeters: string;
   schoolStartTime: string;
   graceMinutes: string;
+  requireSelfie: boolean;
 };
 
 function toForm(settings: SchoolSettings): CampusForm {
@@ -22,7 +23,8 @@ function toForm(settings: SchoolSettings): CampusForm {
     campusLongitude: String(settings.campusLongitude),
     geofenceRadiusMeters: String(settings.geofenceRadiusMeters),
     schoolStartTime: settings.schoolStartTime,
-    graceMinutes: String(settings.graceMinutes)
+    graceMinutes: String(settings.graceMinutes),
+    requireSelfie: settings.requireSelfie === true
   };
 }
 
@@ -34,6 +36,7 @@ function toSettings(form: CampusForm) {
     geofenceRadiusMeters: Number(form.geofenceRadiusMeters),
     schoolStartTime: form.schoolStartTime,
     graceMinutes: Number(form.graceMinutes),
+    requireSelfie: form.requireSelfie,
     timezone: "Asia/Kolkata"
   };
 }
@@ -71,7 +74,7 @@ export function CampusGpsSettings() {
       .catch(() => setMessage("Could not load GPS settings from Firebase."));
   }, []);
 
-  const update = (key: keyof CampusForm, value: string) => {
+  const update = (key: keyof CampusForm, value: string | boolean) => {
     setForm((current) => ({ ...current, [key]: value }));
   };
 
@@ -158,6 +161,18 @@ export function CampusGpsSettings() {
           <input className="field mt-1" value={form.graceMinutes} onChange={(event) => update("graceMinutes", event.target.value)} />
         </label>
       </div>
+
+      <label className="flex items-center gap-2 text-sm font-medium">
+        <input
+          type="checkbox"
+          checked={form.requireSelfie}
+          onChange={(event) => update("requireSelfie", event.target.checked)}
+        />
+        Require an attendance selfie
+        <span className="text-xs font-medium text-[#7d86a8]">
+          (teachers using the updated app will be asked to take a selfie)
+        </span>
+      </label>
 
       <div className="flex flex-wrap gap-2">
         <button className="btn-secondary" disabled={loading} onClick={useCurrentLocation}>

@@ -11,6 +11,7 @@ import { useAdminSession } from "@/components/AdminSessionContext";
 import { useAcademicYears } from "@/components/AcademicYearContext";
 import { hasPermission } from "@sri-narayana/shared";
 import { adminApiRequest } from "@/lib/adminApiClient";
+import { openInternalRoute } from "@/lib/desktopBridge";
 import { UpiQr, DEFAULT_UPI_ID, DEFAULT_UPI_PAYEE_NAME } from "@/components/UpiQr";
 import { useRefreshOnFocus } from "@/lib/useRefreshOnFocus";
 import { useClassSections } from "@/lib/useClassSections";
@@ -98,10 +99,7 @@ export default function PaymentsPage() {
   const [filterClass, setFilterClass] = useState("");
   const [filterSection, setFilterSection] = useState("");
   const [filterMethod, setFilterMethod] = useState("");
-  const [filterStudentId, setFilterStudentId] = useState(() => {
-    if (typeof window === "undefined") return "";
-    return new URLSearchParams(window.location.search).get("studentId") || "";
-  });
+  const [filterStudentId, setFilterStudentId] = useState("");
   const [filterDateFrom, setFilterDateFrom] = useState("");
   const [filterDateTo, setFilterDateTo] = useState("");
   const { sectionsByClass, sectionsFor } = useClassSections();
@@ -113,6 +111,17 @@ export default function PaymentsPage() {
   const toast = usePopup();
   const [showForm, setShowForm] = useState(false);
   const [cancelTarget, setCancelTarget] = useState<Payment | null>(null);
+
+  useEffect(() => {
+    const studentId = new URLSearchParams(window.location.search).get("studentId") || "";
+    if (studentId) setFilterStudentId(studentId);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !selectedYear?.id) return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("collect") === "1") setShowForm(true);
+  }, [selectedYear?.id]);
   const [cancelReason, setCancelReason] = useState("");
   const [cancelling, setCancelling] = useState(false);
 
@@ -247,6 +256,7 @@ export default function PaymentsPage() {
             <h3 className="mb-4 text-lg font-bold text-[#1f2136]">Record New Payment</h3>
             <PaymentForm
               academicYearId={selectedYear?.id ?? ""}
+              initialStudentId={filterStudentId || undefined}
               onSuccess={() => {
                 fetchPayments({ page: 0, cursor: null });
               }}
@@ -421,10 +431,12 @@ export default function PaymentsPage() {
 
 function PaymentForm({
   academicYearId,
+  initialStudentId,
   onSuccess,
   onCancel
 }: {
   academicYearId: string;
+  initialStudentId?: string;
   onSuccess: (receipt: PaymentSuccessReceipt) => void;
   onCancel: () => void;
 }) {
@@ -444,6 +456,36 @@ function PaymentForm({
   const [studentSearch, setStudentSearch] = useState("");
   const [studentsLoading, setStudentsLoading] = useState(false);
   const [studentFeeHeads, setStudentFeeHeads] = useState<FeeHeadOption[] | null>(null);
+
+  useEffect(() => {
+    if (!initialStudentId) return;
+    setStudentId(initialStudentId);
+    adminApiRequest<{ success?: boolean; data?: Record<string, unknown> }>(
+      `/api/admin/students/${encodeURIComponent(initialStudentId)}`
+    )
+      .then((result) => {
+        const data = result.data;
+        if (!data) return;
+        const option: StudentOption = {
+          id: initialStudentId,
+          admissionNumber: String(data.admissionNumber || data.admissionNo || ""),
+          studentName: String(data.studentName || ""),
+          class: String(data.class || ""),
+          section: String(data.section || ""),
+          fatherName: String(data.fatherName || ""),
+          fatherPhone: String(data.fatherPhone || ""),
+          phone: String(data.phone || ""),
+          totalFeesDue: Number(data.totalFeesDue || 0),
+          totalFeeAmount: Number(data.totalFeeAmount || 0),
+          totalFeesPaid: Number(data.totalFeesPaid || 0),
+          feeHeads: Array.isArray(data.feeHeads) ? (data.feeHeads as FeeHeadOption[]) : undefined
+        };
+        setStudents((prev) => (prev.some((student) => student.id === option.id) ? prev : [option, ...prev]));
+        if (option.class) setStudentClass(option.class);
+        if (option.section) setStudentSection(option.section);
+      })
+      .catch(() => undefined);
+  }, [initialStudentId]);
   const [amount, setAmount] = useState("");
   const [paymentType, setPaymentType] = useState("tuition");
   const [method, setMethod] = useState<PaymentMethod>("cash");
@@ -495,7 +537,14 @@ function PaymentForm({
     if (studentSearch.trim()) params.set("q", studentSearch.trim());
     adminApiRequest<{ success?: boolean; data?: StudentOption[] }>(`/api/admin/students?${params}`)
       .then((result) => {
-        setStudents(result.data ?? []);
+        setStudents((prev) => {
+          const incoming = result.data ?? [];
+          const pinned = initialStudentId ? prev.find((student) => student.id === initialStudentId) : undefined;
+          if (pinned && !incoming.some((student) => student.id === pinned.id)) {
+            return [pinned, ...incoming];
+          }
+          return incoming;
+        });
       })
       .catch(() => toast.error("Unable to load students."))
       .finally(() => setStudentsLoading(false));
@@ -675,10 +724,24 @@ function PaymentForm({
             Receipt {receipt.receiptNumber} generated for ₹{receipt.amount.toLocaleString("en-IN")} via {PAYMENT_METHODS.find((m) => m.value === method)?.label || method}.
           </span>
           <div className="mt-3 flex flex-wrap gap-2">
-            <a href={`/receipts/print/${receiptTargetId}`} target="_blank" rel="noreferrer" className="btn-primary text-xs">
+            <a
+              href={`/receipts/print/${receiptTargetId}`}
+              onClick={(event) => {
+                event.preventDefault();
+                openInternalRoute(`/receipts/print/${receiptTargetId}`);
+              }}
+              className="btn-primary text-xs"
+            >
               <Printer size={14} /> Print Receipt
             </a>
-            <a href={`/receipts/print/${receiptTargetId}`} target="_blank" rel="noreferrer" className="btn-secondary text-xs">
+            <a
+              href={`/receipts/print/${receiptTargetId}`}
+              onClick={(event) => {
+                event.preventDefault();
+                openInternalRoute(`/receipts/print/${receiptTargetId}`);
+              }}
+              className="btn-secondary text-xs"
+            >
               Download PDF
             </a>
             {receiptMobile && (

@@ -4,32 +4,33 @@
  * requirePermission() RBAC layer is enforced. No Firestore client reads.
  */
 import { auth } from "@/lib/firebase";
-import { API_BASE_URL, API_REQUESTS_AVAILABLE } from "@/lib/api";
+import {
+  API_BASE_URL,
+  API_REQUESTS_AVAILABLE,
+  ApiRequestError,
+  apiFetch,
+  readJson,
+  responseError
+} from "@/lib/api";
 
 async function adminGet<T>(path: string): Promise<T> {
   const user = auth.currentUser;
   if (!user) throw new Error("Please sign in again.");
   if (!API_REQUESTS_AVAILABLE) throw new Error("API URL not configured. Please set EXPO_PUBLIC_WEB_API_URL.");
   const token = await user.getIdToken();
-  const response = await Promise.race([
-    fetch(`${API_BASE_URL}${path}`, {
-      headers: { Authorization: `Bearer ${token}` }
-    }),
-    new Promise<T>((_, reject) =>
-      setTimeout(() => reject(new Error("API request timed out")), 15000)
-    )
-  ]);
-  if (!response.ok) {
-    const text = await response.text().catch(() => "Unknown error");
-    throw new Error(`API error ${response.status}: ${text}`);
-  }
-  const result = (await response.json()) as {
+  const response = await apiFetch(
+    `${API_BASE_URL}${path}`,
+    { headers: { Authorization: `Bearer ${token}` } },
+    { retry: true }
+  );
+  if (!response.ok) throw await responseError(response);
+  const result = await readJson<{
     ok?: boolean;
     success?: boolean;
     error?: string;
-  } & Record<string, unknown>;
-  if (!response.ok || result.ok === false || result.success === false) {
-    throw new Error(result.error ?? "Request failed. Please try again.");
+  } & Record<string, unknown>>(response);
+  if (result.ok === false || result.success === false) {
+    throw new ApiRequestError(result.error ?? "Request failed. Please try again.", "server");
   }
   return result as T;
 }
@@ -39,14 +40,15 @@ async function adminPost<T>(path: string, body: unknown): Promise<T> {
   if (!user) throw new Error("Please sign in again.");
   if (!API_REQUESTS_AVAILABLE) throw new Error("API URL not configured. Please set EXPO_PUBLIC_WEB_API_URL.");
   const token = await user.getIdToken();
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const response = await apiFetch(`${API_BASE_URL}${path}`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
     body: JSON.stringify(body)
   });
-  const result = (await response.json()) as { ok?: boolean; error?: string } & Record<string, unknown>;
-  if (!response.ok || result.ok === false) {
-    throw new Error(result.error ?? "Request failed. Please try again.");
+  if (!response.ok) throw await responseError(response);
+  const result = await readJson<{ ok?: boolean; error?: string } & Record<string, unknown>>(response);
+  if (result.ok === false) {
+    throw new ApiRequestError(result.error ?? "Request failed. Please try again.", "server");
   }
   return result as T;
 }
@@ -54,27 +56,31 @@ async function adminPost<T>(path: string, body: unknown): Promise<T> {
 async function adminPatch<T>(path: string, body: unknown): Promise<T> {
   const user = auth.currentUser;
   if (!user) throw new Error("Please sign in again.");
+  if (!API_REQUESTS_AVAILABLE) throw new Error("API URL not configured. Please set EXPO_PUBLIC_WEB_API_URL.");
   const token = await user.getIdToken();
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const response = await apiFetch(`${API_BASE_URL}${path}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
     body: JSON.stringify(body)
   });
-  const result = (await response.json()) as { ok?: boolean; error?: string };
-  if (!response.ok || result.ok === false) throw new Error(result.error ?? "Update failed.");
+  if (!response.ok) throw await responseError(response, "Update failed.");
+  const result = await readJson<{ ok?: boolean; error?: string }>(response);
+  if (result.ok === false) throw new ApiRequestError(result.error ?? "Update failed.", "server");
   return result as T;
 }
 
 async function adminDelete<T>(path: string): Promise<T> {
   const user = auth.currentUser;
   if (!user) throw new Error("Please sign in again.");
+  if (!API_REQUESTS_AVAILABLE) throw new Error("API URL not configured. Please set EXPO_PUBLIC_WEB_API_URL.");
   const token = await user.getIdToken();
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const response = await apiFetch(`${API_BASE_URL}${path}`, {
     method: "DELETE",
     headers: { Authorization: `Bearer ${token}` }
   });
-  const result = (await response.json()) as { ok?: boolean; error?: string };
-  if (!response.ok || result.ok === false) throw new Error(result.error ?? "Delete failed.");
+  if (!response.ok) throw await responseError(response, "Delete failed.");
+  const result = await readJson<{ ok?: boolean; error?: string }>(response);
+  if (result.ok === false) throw new ApiRequestError(result.error ?? "Delete failed.", "server");
   return result as T;
 }
 
@@ -637,10 +643,11 @@ export async function fetchVouchersByCategory(category: string, limit = 3) {
 /** Academic years are public (year labels only) — no auth token needed. */
 export async function fetchAcademicYears() {
   if (!API_REQUESTS_AVAILABLE) throw new Error("API URL not configured. Please set EXPO_PUBLIC_WEB_API_URL.");
-  const response = await fetch(`${API_BASE_URL}/api/academic-years/public`);
-  const result = (await response.json()) as { ok?: boolean; years?: AcademicYear[]; error?: string };
-  if (!response.ok || result.ok === false) {
-    throw new Error(result.error ?? "Unable to load academic years.");
+  const response = await apiFetch(`${API_BASE_URL}/api/academic-years/public`, {}, { retry: true });
+  if (!response.ok) throw await responseError(response, "Unable to load academic years.");
+  const result = await readJson<{ ok?: boolean; years?: AcademicYear[]; error?: string }>(response);
+  if (result.ok === false) {
+    throw new ApiRequestError(result.error ?? "Unable to load academic years.", "server");
   }
   return result.years ?? [];
 }

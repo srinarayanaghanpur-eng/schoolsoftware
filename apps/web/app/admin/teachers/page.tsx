@@ -71,13 +71,15 @@ function teacherPayload(form: TeacherFormState, isCreate: boolean) {
     : base;
 }
 
+const DEMO_DATA_ENABLED = process.env.NODE_ENV !== "production";
+
 export default function TeachersPage() {
   const { role } = useAdminSession();
   const toast = usePopup();
   const canManageTeachers = role === "super_admin";
   const hideSalary = role === "accountant" || role === "principal";
   const [query, setQuery] = useState("");
-  const [teachers, setTeachers] = useState<Teacher[]>(isFirebaseConfigured ? [] : demoTeachers);
+  const [teachers, setTeachers] = useState<Teacher[]>(!isFirebaseConfigured && DEMO_DATA_ENABLED ? demoTeachers : []);
   const [form, setForm] = useState<TeacherFormState>(blankForm);
   const [editingTeacher, setEditingTeacher] = useState<Teacher | null>(null);
   const [showForm, setShowForm] = useState(false);

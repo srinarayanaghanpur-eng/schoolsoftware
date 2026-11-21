@@ -26,6 +26,12 @@
           "color": "#3033a1"
         }
       ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow NarayanaOS to take an attendance selfie for verification."
+        }
+      ],
       "expo-splash-screen"
     ],
     "ios": {
@@ -43,9 +49,7 @@
       },
       "permissions": [
         "ACCESS_FINE_LOCATION",
-        "ACCESS_COARSE_LOCATION",
-        "android.permission.ACCESS_COARSE_LOCATION",
-        "android.permission.ACCESS_FINE_LOCATION"
+        "ACCESS_COARSE_LOCATION"
       ]
     },
     "extra": {
