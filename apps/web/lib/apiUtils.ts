@@ -20,21 +20,29 @@ export async function resolveRole(decodedToken: DecodedIdToken): Promise<Role | 
   // Short TTL cache: every authenticated API call otherwise costs a users/{uid}
   // doc read. 60s keeps admin role edits effective within a minute.
   const cached = readCachedRole(decodedToken.uid);
-  if (cached !== null) {
-    if (cached !== undefined) {
-      (decodedToken as { role?: string }).role = cached;
-      return cached;
+  if (cached) {
+    if (!cached.active) return undefined;
+    if (cached.role !== undefined) {
+      (decodedToken as { role?: string }).role = cached.role;
+      return cached.role;
     }
   }
   try {
     const snapshot = await adminDb().collection("users").doc(decodedToken.uid).get();
-    const docRole = snapshot.exists ? (snapshot.data() as { role?: unknown })?.role : undefined;
+    const data = snapshot.exists ? (snapshot.data() as { role?: unknown; status?: unknown }) : undefined;
+    // Deactivated accounts lose API access immediately (the client login gate
+    // also blocks them). Cache the inactive state so each request is not a read.
+    if (data && typeof data.status === "string" && data.status !== "active") {
+      cacheRole(decodedToken.uid, undefined, false);
+      return undefined;
+    }
+    const docRole = data?.role;
     if (isValidRole(docRole)) {
       (decodedToken as { role?: string }).role = docRole;
-      cacheRole(decodedToken.uid, docRole);
+      cacheRole(decodedToken.uid, docRole, true);
       return docRole;
     }
-    cacheRole(decodedToken.uid, undefined);
+    cacheRole(decodedToken.uid, undefined, true);
   } catch {
     // Firestore unavailable — fall back to the refreshed token claim.
   }
@@ -44,24 +52,24 @@ export async function resolveRole(decodedToken: DecodedIdToken): Promise<Role | 
   return fallbackRole;
 }
 
-// uid → { role (undefined = doc had no valid role), expiresAt }. Module-level
-// memory only: each server instance holds its own small map; entries die in 60s.
+// uid → cached role + active flag. Module-level memory only: each server
+// instance holds its own small map; entries die in 60s.
 const ROLE_CACHE_TTL_MS = 60_000;
-const roleCache = new Map<string, { role: Role | undefined; expiresAt: number }>();
+const roleCache = new Map<string, { role: Role | undefined; active: boolean; expiresAt: number }>();
 
-function readCachedRole(uid: string): Role | undefined | null {
+function readCachedRole(uid: string): { role: Role | undefined; active: boolean } | null {
   const entry = roleCache.get(uid);
   if (!entry) return null;
   if (entry.expiresAt <= Date.now()) {
     roleCache.delete(uid);
     return null;
   }
-  return entry.role;
+  return entry;
 }
 
-function cacheRole(uid: string, role: Role | undefined): void {
+function cacheRole(uid: string, role: Role | undefined, active: boolean): void {
   if (roleCache.size > 2000) roleCache.clear();
-  roleCache.set(uid, { role, expiresAt: Date.now() + ROLE_CACHE_TTL_MS });
+  roleCache.set(uid, { role, active, expiresAt: Date.now() + ROLE_CACHE_TTL_MS });
 }
 
 /** Clears the in-memory role cache (tests, or after an admin edits roles). */

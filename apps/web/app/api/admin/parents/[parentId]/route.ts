@@ -1,7 +1,7 @@
 import { FieldValue } from "firebase-admin/firestore";
 import { parentUpdateSchema } from "@sri-narayana/shared";
 import { adminAuth, adminDb } from "@/lib/firebaseAdmin";
-import { requirePermission, json } from "@/lib/apiUtils";
+import { invalidateRoleCache, requirePermission, json } from "@/lib/apiUtils";
 import { writeAuditLog } from "@/lib/auditLog";
 
 export async function PATCH(req: Request, { params }: { params: { parentId: string } }) {
@@ -39,9 +39,24 @@ export async function PATCH(req: Request, { params }: { params: { parentId: stri
     }
 
     await userRef.set(updatedData, { merge: true });
+    if (updatedData.status) invalidateRoleCache(params.parentId);
 
-    if (parsed.fullName) {
-      await adminAuth().updateUser(params.parentId, { displayName: parsed.fullName });
+    const authUpdate: { displayName?: string; disabled?: boolean } = {};
+    if (parsed.fullName) authUpdate.displayName = parsed.fullName;
+    if (updatedData.status === "active") authUpdate.disabled = false;
+    if (updatedData.status === "inactive") authUpdate.disabled = true;
+
+    if (Object.keys(authUpdate).length > 0) {
+      try {
+        await adminAuth().updateUser(params.parentId, authUpdate);
+        // Refresh tokens fail immediately for deactivated accounts; existing
+        // ID tokens still expire normally, while API status checks block them.
+        if (authUpdate.disabled === true) await adminAuth().revokeRefreshTokens(params.parentId);
+      } catch (authError) {
+        const code = (authError as { code?: string })?.code;
+        if (code !== "auth/user-not-found") throw authError;
+        console.warn(`[ParentsAPI] parent ${params.parentId} has no Firebase Auth user to update`);
+      }
     }
 
     await writeAuditLog({
@@ -50,7 +65,7 @@ export async function PATCH(req: Request, { params }: { params: { parentId: stri
       entityId: params.parentId,
       actorId: decodedToken.uid,
       actorRole: decodedToken.role as string,
-      oldValues: { displayName: existing.displayName, phone: existing.phone },
+      oldValues: { displayName: existing.displayName, phone: existing.phone, status: existing.status },
       newValues: updatedData as Record<string, unknown>
     });
 

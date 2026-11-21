@@ -180,6 +180,7 @@ export async function POST(req: Request) {
       displayName: parsed.fullName.trim(),
       phone: parsed.phone.trim(),
       email: parsed.email?.trim() || "",
+      status: "active",
       createdAt: timestamp,
       updatedAt: timestamp
     });

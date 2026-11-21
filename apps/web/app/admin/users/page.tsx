@@ -1,6 +1,7 @@
 "use client";
 
 import { PageHeader } from "@/components/PageHeader";
+import { usePopup } from "@/components/CenterPopup";
 import { useAdminSession } from "@/components/AdminSessionContext";
 import { AdminApiError, adminApiRequest } from "@/lib/adminApiClient";
 import { refreshClaims } from "@/lib/authClaims";
@@ -15,7 +16,7 @@ import {
   type Permission,
   type Role
 } from "@sri-narayana/shared";
-import { AlertCircle, Check, Link2, Loader2, Search, ShieldCheck, X } from "lucide-react";
+import { AlertCircle, Check, Link2, Loader2, Search, ShieldCheck, UserCheck, UserX, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 type UserRow = {
@@ -73,12 +74,14 @@ function roleCellKey(role: Role, permission: Permission) {
 
 export default function UsersRolesPage() {
   const { role, hasPermission: sessionHasPermission, loading: sessionLoading } = useAdminSession();
+  const popup = usePopup();
   const [users, setUsers] = useState<UserRow[]>([]);
   const [roles, setRoles] = useState<RoleRecord[]>([]);
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [rolesLoading, setRolesLoading] = useState(true);
   const [pendingUid, setPendingUid] = useState<string | null>(null);
+  const [pendingStatusUid, setPendingStatusUid] = useState<string | null>(null);
   const [pendingCell, setPendingCell] = useState<string | null>(null);
   const [students, setStudents] = useState<StudentOption[]>([]);
   const [linkingUser, setLinkingUser] = useState<UserRow | null>(null);
@@ -173,6 +176,33 @@ export default function UsersRolesPage() {
       setError(message);
     } finally {
       setPendingUid(null);
+    }
+  };
+
+  const changeStatus = async (user: UserRow, nextStatus: "active" | "inactive") => {
+    if (nextStatus === "inactive" && !(await popup.confirm(
+      `Deactivate ${user.displayName}?`,
+      "They will be signed out and cannot sign in until reactivated.",
+      { okLabel: "Deactivate", danger: true }
+    ))) return;
+
+    setPendingStatusUid(user.uid);
+    setError(null);
+    setMessage(null);
+    try {
+      await adminApiRequest<{ ok: true; status: string }>(`/api/admin/users/${user.uid}/status`, {
+        method: "PATCH",
+        body: JSON.stringify({ status: nextStatus })
+      });
+      setUsers((current) => current.map((item) => (item.uid === user.uid ? { ...item, status: nextStatus } : item)));
+      setMessage(nextStatus === "inactive" ? "Account deactivated." : "Account activated.");
+      if (user.uid === auth.currentUser?.uid) {
+        await refreshClaims(auth.currentUser).catch(() => undefined);
+      }
+    } catch (err) {
+      setError(err instanceof AdminApiError ? err.message : "Unable to update account status.");
+    } finally {
+      setPendingStatusUid(null);
     }
   };
 
@@ -452,9 +482,23 @@ export default function UsersRolesPage() {
                       </td>
                       <td className="px-5 py-4 font-medium text-[#7d86a8]">{user.employeeId ?? user.internalEmail ?? "--"}</td>
                       <td className="px-5 py-4">
-                        <span className={user.status === "inactive" ? "rounded-full bg-[#ffebed] px-3 py-1 text-xs font-extrabold text-[#c83f4d]" : "rounded-full bg-[#e6f8ef] px-3 py-1 text-xs font-extrabold text-[#0f8d52]"}>
-                          {user.status ?? "active"}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className={user.status === "inactive" ? "rounded-full bg-[#ffebed] px-3 py-1 text-xs font-extrabold text-[#c83f4d]" : "rounded-full bg-[#e6f8ef] px-3 py-1 text-xs font-extrabold text-[#0f8d52]"}>
+                            {user.status ?? "active"}
+                          </span>
+                          <button
+                            type="button"
+                            className="inline-flex items-center gap-1 rounded-lg border border-[#e3e6f0] px-2 py-1 text-[11px] font-extrabold text-[#5f6888] hover:bg-[#f4f5fb] disabled:cursor-not-allowed disabled:opacity-50"
+                            disabled={pendingStatusUid === user.uid || !sessionHasPermission("users.edit") || user.uid === auth.currentUser?.uid}
+                            title={user.uid === auth.currentUser?.uid ? "You cannot deactivate your own account" : user.status === "inactive" ? "Activate account" : "Deactivate account"}
+                            onClick={() => void changeStatus(user, user.status === "inactive" ? "active" : "inactive")}
+                          >
+                            {pendingStatusUid === user.uid
+                              ? <Loader2 size={12} className="animate-spin" />
+                              : user.status === "inactive" ? <UserCheck size={12} /> : <UserX size={12} />}
+                            {user.status === "inactive" ? "Activate" : "Deactivate"}
+                          </button>
+                        </div>
                       </td>
                       <td className="px-5 py-4">
                         <div className="relative max-w-[220px]">

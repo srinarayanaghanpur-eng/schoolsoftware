@@ -39,10 +39,15 @@ export async function PATCH(req: Request, { params }: { params: { uid: string } 
 
     await auth.setCustomUserClaims(params.uid, { ...existingClaims, role });
 
-    await adminDb()
-      .collection("users")
-      .doc(params.uid)
-      .set({ uid: params.uid, role, status: "active", updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+    // Role changes must never reactivate a deactivated account.
+    const userRef = adminDb().collection("users").doc(params.uid);
+    const userSnap = await userRef.get();
+    const existingStatus = userSnap.exists
+      ? (userSnap.data() as { status?: unknown })?.status
+      : undefined;
+    const status = existingStatus === "active" || existingStatus === "inactive" ? existingStatus : "active";
+
+    await userRef.set({ uid: params.uid, role, status, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
 
     invalidateRoleCache(params.uid);
 
