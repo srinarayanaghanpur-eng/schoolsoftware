@@ -3,6 +3,7 @@ import { FieldValue } from "firebase-admin/firestore";
 import { onlineExamCreateSchema } from "@sri-narayana/shared";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { enforceBodyLimit, errorMessage, json, requirePermission, serializeDoc } from "@/lib/apiUtils";
+import { examWindowState } from "@/lib/examSchedule";
 import { readLimit } from "@/lib/firestoreReadLogger";
 import { getSchoolId } from "@/lib/schoolScope";
 
@@ -54,7 +55,8 @@ export async function GET(req: Request) {
       .map((exam) => ({
         ...exam,
         questionCount: Array.isArray(exam.questions) ? exam.questions.length : 0,
-        totalMarks: Array.isArray(exam.questions) ? totalMarks(exam.questions as { marks?: number }[]) : 0
+        totalMarks: Array.isArray(exam.questions) ? totalMarks(exam.questions as { marks?: number }[]) : 0,
+        window: examWindowState(String(exam.startAt ?? ""), String(exam.endAt ?? ""))
       }));
     return json({ ok: true, exams });
   } catch (error) {

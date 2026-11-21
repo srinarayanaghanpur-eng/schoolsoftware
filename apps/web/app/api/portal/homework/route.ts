@@ -26,13 +26,29 @@ export async function GET(req: Request) {
   const student = studentSnap.data() as Record<string, unknown>;
   const className = String(student.class || "");
 
-  const homeworkSnap = await db.collection("homework")
-    .where("className", "==", className)
-    .orderBy("createdAt", "desc")
-    .limit(50)
-    .get();
+  let homeworkSnap;
+  try {
+    homeworkSnap = await db.collection("homework")
+      .where("className", "==", className)
+      .orderBy("createdAt", "desc")
+      .limit(50)
+      .get();
+  } catch (error) {
+    const code = String((error as { code?: unknown })?.code ?? "");
+    const message = error instanceof Error ? error.message : String(error);
+    if (code !== "9" && !/FAILED_PRECONDITION|requires an index/i.test(message)) throw error;
+    console.error(`[PortalHomework] Missing Firestore index — using unordered fallback:\n${message}`);
+    homeworkSnap = await db.collection("homework").where("className", "==", className).limit(200).get();
+  }
 
-  const homework = homeworkSnap.docs.map((d) => {
+  const homework = [...homeworkSnap.docs]
+    .sort((a, b) => {
+      const left = (a.data().createdAt as FirebaseFirestore.Timestamp | undefined)?.toMillis?.() ?? 0;
+      const right = (b.data().createdAt as FirebaseFirestore.Timestamp | undefined)?.toMillis?.() ?? 0;
+      return right - left;
+    })
+    .slice(0, 50)
+    .map((d) => {
     const data = d.data() as Record<string, unknown>;
     return {
       id: d.id,

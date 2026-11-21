@@ -461,9 +461,6 @@ export default function SalaryPage() {
                 onChange={(e) => setMonth(e.target.value)}
               />
             </div>
-            <span className="text-xs font-semibold text-[#64748b]">
-              {monthLabel(month)}
-            </span>
             {isFutureMonth && (
               <span className="rounded-full bg-[#fef2f2] px-2 py-0.5 text-xs font-bold text-[#dc2626]">
                 Future month

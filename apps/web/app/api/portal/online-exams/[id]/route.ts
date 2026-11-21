@@ -2,18 +2,12 @@ import { NextResponse } from "next/server";
 import { FieldValue } from "firebase-admin/firestore";
 import { onlineExamSubmitSchema } from "@sri-narayana/shared";
 import { adminDb } from "@/lib/firebaseAdmin";
+import { examWindowState as examWindow } from "@/lib/examSchedule";
 import { authorizePortalRequest, getPortalLinkedStudents, resolveLinkedStudentId } from "@/lib/portalHelpers";
 
 export const dynamic = "force-dynamic";
 
 type Question = { id?: string; prompt?: string; options?: string[]; correctIndex?: number; marks?: number };
-
-function examWindow(open: string, close: string) {
-  const now = Date.now();
-  if (open && new Date(open).getTime() > now) return "not_started";
-  if (close && new Date(close).getTime() < now) return "closed";
-  return "open";
-}
 
 // GET /api/portal/online-exams/[id]?studentId= — question paper without answer keys.
 export async function GET(req: Request, { params }: { params: { id: string } }) {

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebaseAdmin";
+import { examWindowState } from "@/lib/examSchedule";
 import { authorizePortalRequest, getPortalLinkedStudents, resolveLinkedStudentId } from "@/lib/portalHelpers";
 
 export const dynamic = "force-dynamic";
@@ -32,6 +33,8 @@ export async function GET(req: Request) {
     const exams = examsSnap.docs
       .map((doc) => {
         const data = doc.data() as Record<string, unknown>;
+        const startAt = String(data.startAt || "");
+        const endAt = String(data.endAt || "");
         return {
           id: doc.id,
           title: String(data.title || ""),
@@ -41,8 +44,9 @@ export async function GET(req: Request) {
           durationMinutes: Number(data.durationMinutes || 0),
           totalMarks: Number(data.totalMarks || 0),
           questionCount: Array.isArray(data.questions) ? data.questions.length : 0,
-          startAt: String(data.startAt || ""),
-          endAt: String(data.endAt || "")
+          startAt,
+          endAt,
+          window: examWindowState(startAt, endAt)
         };
       })
       .filter((exam) => !exam.section || !section || exam.section === section);

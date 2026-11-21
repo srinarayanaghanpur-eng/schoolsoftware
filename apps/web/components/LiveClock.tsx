@@ -19,26 +19,19 @@ export function LiveClock({ className = "", tone = "light" }: { className?: stri
   const time = now
     ? now.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: true })
     : "--:--:--";
-  const date = now
-    ? now.toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short", year: "numeric" })
-    : "";
 
   const wrap =
     tone === "dark"
       ? "border-white/15 bg-white/10 text-white"
       : "border-border bg-card text-foreground";
   const iconTone = tone === "dark" ? "bg-[#f7c548] text-[#282a79]" : "bg-accent text-accent-foreground";
-  const sub = tone === "dark" ? "text-[#d7dcff]" : "text-muted-foreground";
 
   return (
     <div className={`inline-flex items-center gap-3 rounded-2xl border px-4 py-2.5 ${wrap} ${className}`}>
       <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl ${iconTone}`}>
         <Clock3 size={18} />
       </span>
-      <span className="leading-tight">
-        <span className="block font-mono text-base font-extrabold tabular-nums tracking-tight">{time}</span>
-        <span className={`block text-xs font-semibold ${sub}`}>{date}</span>
-      </span>
+      <span className="block font-mono text-base font-extrabold tabular-nums tracking-tight">{time}</span>
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { AppShell } from "@/components/AppShell";
 import { useAdminSession } from "@/components/AdminSessionContext";
 import { PageHeader } from "@/components/PageHeader";
 import { LiveClock } from "@/components/LiveClock";
+import { useAcademicYears } from "@/components/AcademicYearContext";
 import { usePortalChild } from "@/components/PortalChildContext";
 import { adminApiRequest } from "@/lib/adminApiClient";
 import {
@@ -65,6 +66,7 @@ type QuickAction = { label: string; icon: LucideIcon; href?: string; onClick?: (
 function PortalDashboard() {
   const { children, selectedChildId, selectedChild, switchChild, loading: childrenLoading } = usePortalChild();
   const { profile } = useAdminSession();
+  const { selectedYear } = useAcademicYears();
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -152,6 +154,12 @@ function PortalDashboard() {
                 {selectedChild.name} · Class {selectedChild.className}{selectedChild.section ? ` - ${selectedChild.section}` : ""}
               </span>
             ) : null}
+            {selectedYear && (
+              <span className="inline-flex items-center gap-2 rounded-2xl border border-[#e3e6f0] bg-white px-4 py-2.5 text-sm font-bold text-[#1b1d32]">
+                <span className="grid h-7 w-7 place-items-center rounded-lg bg-[#eef0ff] text-[#3033a1]"><CalendarDays size={15} /></span>
+                AY {selectedYear.name}
+              </span>
+            )}
             <LiveClock className="hidden sm:inline-flex" />
           </div>
         </div>

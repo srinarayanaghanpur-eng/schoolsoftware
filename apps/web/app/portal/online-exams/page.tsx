@@ -17,6 +17,7 @@ type ExamSummary = {
   questionCount: number;
   startAt: string;
   endAt: string;
+  window: "not_started" | "open" | "closed";
 };
 type AttemptSummary = { examId: string; obtainedMarks: number; totalMarks: number; percent: number };
 type Question = { id: string; prompt: string; options: string[]; marks: number };
@@ -204,13 +205,23 @@ function OnlineExams() {
                       <h3 className="text-base font-extrabold text-[#1f2136]">{exam.title}</h3>
                       <p className="text-xs font-semibold text-muted-foreground">{exam.subject || "General"} · {exam.questionCount} questions · {exam.durationMinutes} min</p>
                     </div>
-                    {attempt ? <span className="rounded-full bg-[#e6f8ef] px-2.5 py-1 text-xs font-bold text-[#14a762]">Completed</span> : <span className="rounded-full bg-[#eef0ff] px-2.5 py-1 text-xs font-bold text-[#3033a1]">Available</span>}
+                    {attempt ? (
+                      <span className="rounded-full bg-[#e6f8ef] px-2.5 py-1 text-xs font-bold text-[#14a762]">Completed</span>
+                    ) : exam.window === "open" ? (
+                      <span className="rounded-full bg-[#eef0ff] px-2.5 py-1 text-xs font-bold text-[#3033a1]">Available</span>
+                    ) : (
+                      <span className="rounded-full bg-stone-100 px-2.5 py-1 text-xs font-bold text-stone-500">{exam.window === "not_started" ? "Not started" : "Closed"}</span>
+                    )}
                   </div>
                   {exam.description && <p className="text-xs font-medium text-muted-foreground">{exam.description}</p>}
                   {attempt ? (
                     <p className="text-sm font-bold text-[#3033a1]"><CheckCircle2 className="inline" size={15} /> Score {attempt.obtainedMarks}/{attempt.totalMarks} ({attempt.percent}%)</p>
-                  ) : (
+                  ) : exam.window === "open" ? (
                     <button type="button" className="btn-primary self-start" onClick={() => void start(exam)}><PlayCircle size={16} /> Start test</button>
+                  ) : (
+                    <button type="button" className="btn-secondary self-start" disabled>
+                      {exam.window === "not_started" ? "Opens later" : "Window closed"}
+                    </button>
                   )}
                 </div>
               );

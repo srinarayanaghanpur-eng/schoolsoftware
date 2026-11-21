@@ -156,7 +156,11 @@ export function AcademicYearProvider({ children }: { children: ReactNode }) {
     setError(null);
     setAccessDenied(false);
     try {
-      const path = options?.force ? "/api/admin/academic-years?refresh=1" : "/api/admin/academic-years";
+      const path = role === "parent"
+        ? "/api/portal/academic-years"
+        : options?.force
+          ? "/api/admin/academic-years?refresh=1"
+          : "/api/admin/academic-years";
       const result = await adminApiRequest<{ ok: true; years: AcademicYear[] }>(path, { signal: controller.signal });
       setYears(result.years);
       cacheAcademicYears(result.years);
@@ -176,7 +180,7 @@ export function AcademicYearProvider({ children }: { children: ReactNode }) {
       markFetchedYearsThisSession();
       setLoading(false);
     }
-  }, []);
+  }, [role]);
 
   const activateYear = useCallback(
     async (id: string) => {
@@ -187,7 +191,7 @@ export function AcademicYearProvider({ children }: { children: ReactNode }) {
   );
 
   useEffect(() => {
-    if (role && hasPermission(role, "academic_years.view")) {
+    if (role && (hasPermission(role, "academic_years.view") || role === "parent")) {
       void refreshYears();
     } else {
       setYears([]);

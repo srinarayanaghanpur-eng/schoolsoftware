@@ -26,6 +26,7 @@ type OnlineExam = {
   negativeMarking?: number;
   questionCount: number;
   totalMarks: number;
+  window?: "not_started" | "open" | "closed";
   questions?: Question[];
 };
 type Attempt = { id: string; studentName: string; admissionNumber: string; className: string; section: string; obtainedMarks: number; totalMarks: number; percent: number; correct: number; wrong: number; unanswered: number };
@@ -319,7 +320,14 @@ export default function OnlineExamsPage() {
                   <td className="px-4 py-3">{exam.questionCount}</td>
                   <td className="px-4 py-3">{exam.totalMarks}</td>
                   <td className="px-4 py-3">{exam.durationMinutes} min</td>
-                  <td className="px-4 py-3"><span className={`rounded-full px-2.5 py-1 text-xs font-bold ${statusTone[exam.status] ?? statusTone.draft}`}>{formatLabel(exam.status)}</span></td>
+                  <td className="px-4 py-3">
+                    <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${statusTone[exam.status] ?? statusTone.draft}`}>{formatLabel(exam.status)}</span>
+                    {exam.status === "published" && exam.window && (
+                      <span className="mt-1 block text-[11px] font-semibold text-muted-foreground">
+                        {exam.window === "open" ? "Open now" : exam.window === "not_started" ? "Scheduled" : "Closed"}
+                      </span>
+                    )}
+                  </td>
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap gap-2">
                       {canEdit && <button type="button" onClick={() => openEdit(exam)} className="inline-flex items-center gap-1 rounded-lg bg-[#eef0ff] px-2.5 py-1 text-xs font-bold text-[#3033a1] hover:bg-[#e0e3ff]"><Pencil size={13} /> Edit</button>}
