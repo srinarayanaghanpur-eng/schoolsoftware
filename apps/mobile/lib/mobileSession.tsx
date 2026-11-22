@@ -20,6 +20,8 @@ export type MobileUserProfile = {
   employeeId?: string;
   internalEmail?: string;
   teacherId?: string;
+  driverId?: string;
+  vehicleId?: string;
   status?: string;
 };
 
@@ -65,7 +67,9 @@ export async function resolveMobileSession(user: User): Promise<MobileUserProfil
   const userData = userSnapshot.exists() ? asRecord(userSnapshot.data()) : {};
   const claimRole = token.claims.role;
   const docRole = userData.role;
-  const role = isValidRole(claimRole) ? claimRole : isValidRole(docRole) ? docRole : undefined;
+  // The Firestore users doc is authoritative (matches the web API); the token
+  // claim is only a fallback while a role change propagates.
+  const role = isValidRole(docRole) ? docRole : isValidRole(claimRole) ? claimRole : undefined;
 
   if (!role) {
     throw new Error("Your login role is missing. Please contact admin.");
@@ -80,6 +84,17 @@ export async function resolveMobileSession(user: User): Promise<MobileUserProfil
     ? await resolveTeacherId(user, userData, token.claims.teacherId)
     : asString(userData.teacherId) ?? asString(token.claims.teacherId);
 
+  const driverId = role === "driver"
+    ? asString(userData.driverId) ?? asString(token.claims.driverId)
+    : undefined;
+  let vehicleId = role === "driver"
+    ? asString(userData.vehicleId) ?? asString(token.claims.vehicleId)
+    : undefined;
+  if (role === "driver" && driverId && !vehicleId) {
+    const driverSnapshot = await getDoc(doc(db, "drivers", driverId)).catch(() => null);
+    if (driverSnapshot?.exists()) vehicleId = asString(driverSnapshot.data().vehicleId);
+  }
+
   return {
     uid: user.uid,
     role,
@@ -88,6 +103,8 @@ export async function resolveMobileSession(user: User): Promise<MobileUserProfil
     employeeId: asString(userData.employeeId) ?? asString(token.claims.employeeId),
     internalEmail: asString(userData.internalEmail),
     teacherId,
+    driverId,
+    vehicleId,
     status
   };
 }

@@ -45,7 +45,7 @@ function trapTab(event: KeyboardEvent, container: HTMLElement | null) {
   }
 }
 
-export function KeyboardShortcuts({ items }: { items: ShortcutItem[] }) {
+export function KeyboardShortcuts({ items, variant = "icon" }: { items: ShortcutItem[]; variant?: "icon" | "bar" }) {
   const router = useRouter();
   const [dialog, setDialog] = useState<DialogKind>(null);
   const [query, setQuery] = useState("");
@@ -172,11 +172,25 @@ export function KeyboardShortcuts({ items }: { items: ShortcutItem[] }) {
         data-testid="keyboard-shortcuts-trigger"
         onClick={() => openDialog("palette")}
         aria-haspopup="dialog"
-        aria-label="Open quick navigation (Ctrl+K)"
-        title="Quick navigation (Ctrl+K)"
-        className="hidden h-10 w-10 shrink-0 place-items-center rounded-lg bg-accent text-accent-foreground transition hover:bg-muted sm:grid md:h-11 md:w-11"
+        aria-label="Search modules and pages (Ctrl+K)"
+        title="Search modules and pages (Ctrl+K)"
+        className={
+          variant === "bar"
+            ? "hidden h-10 shrink-0 items-center gap-2 rounded-xl border border-border bg-card px-3 text-left text-muted-foreground shadow-sm transition hover:border-primary/30 hover:text-foreground md:flex md:h-11"
+            : "hidden h-10 w-10 shrink-0 place-items-center rounded-lg bg-accent text-accent-foreground transition hover:bg-muted sm:grid md:h-11 md:w-11"
+        }
       >
-        <Keyboard size={19} />
+        {variant === "bar" ? (
+          <>
+            <Search size={17} className="shrink-0" />
+            <span className="hidden min-w-[116px] text-[13px] font-semibold xl:inline">Search modules…</span>
+            <kbd className="hidden rounded-md border border-border bg-muted px-1.5 py-0.5 text-[10px] font-bold text-muted-foreground xl:inline">
+              Ctrl K
+            </kbd>
+          </>
+        ) : (
+          <Keyboard size={19} />
+        )}
       </button>
 
       {dialog && (

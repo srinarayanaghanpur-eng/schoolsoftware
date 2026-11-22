@@ -28,14 +28,17 @@ export async function GET(req: Request) {
   if (!token) return json({ ok: false, error: "Access denied" }, { status: 403 });
 
   const db = adminDb();
-  const [teachersSnap, driversSnap, officeSnap, teacherUsersSnap] = await Promise.all([
+  const [teachersSnap, driversSnap, officeSnap, teacherUsersSnap, driverUsersSnap] = await Promise.all([
     // No orderBy: legacy teacher docs without `fullName` must still be listed.
     db.collection("teachers").limit(300).get(),
     db.collection("drivers").limit(150).get(),
     db.collection("users").where("role", "in", OFFICE_ROLES).limit(150).get(),
     // Teacher login profiles live in `users`; any that lack a matching
     // `teachers` master record surface under Other/Unassigned.
-    db.collection("users").where("role", "==", "teacher").limit(250).get()
+    db.collection("users").where("role", "==", "teacher").limit(250).get(),
+    // Driver logins are merged into the transport `drivers` group so the same
+    // person appears once, with their linked account state.
+    db.collection("users").where("role", "==", "driver").limit(250).get()
   ]);
 
   const teachers = sortByName(
@@ -45,13 +48,46 @@ export async function GET(req: Request) {
     "displayName",
     "employeeId"
   );
-  const drivers = sortByName(
-    driversSnap.docs.map((d) => ({ id: d.id, ...(d.data() as Record<string, unknown>) })),
-    "name",
-    "fullName",
-    "phone",
-    "mobile"
-  );
+  const drivers: Record<string, unknown>[] = driversSnap.docs.map((d) => ({
+    id: d.id,
+    ...(d.data() as Record<string, unknown>),
+    loginLinked: Boolean(text(d.data().uid))
+  }));
+
+  // Merge driver logins from `users` into the transport driver rows so the
+  // staff directory shows one person, not a transport copy and a login copy.
+  driverUsersSnap.docs.forEach((doc) => {
+    const user: Record<string, unknown> = { id: doc.id, ...(doc.data() as Record<string, unknown>) };
+    const uid = text(user.uid) || doc.id;
+    const driverId = text(user.driverId);
+    const existing = drivers.find(
+      (driver) => text(driver.uid) === uid || (driverId && driver.id === driverId)
+    );
+
+    if (existing) {
+      existing.uid = uid;
+      existing.loginLinked = true;
+      existing.role = "driver";
+      existing.userStatus = text(user.status) || "active";
+      if (!text(existing.name)) existing.name = text(user.displayName);
+      if (!text(existing.phone)) existing.phone = text(user.phone);
+      return;
+    }
+
+    drivers.push({
+      id: driverId || uid,
+      uid,
+      name: text(user.displayName) || "Driver",
+      phone: text(user.phone),
+      vehicleId: text(user.vehicleId),
+      status: text(user.status) || "active",
+      loginLinked: true,
+      role: "driver",
+      noDriverRecord: true
+    });
+  });
+
+  sortByName(drivers, "name", "fullName", "phone", "mobile");
 
   const teacherKeys = new Set(teachers.flatMap(userKeys));
   const office: Record<string, unknown>[] = officeSnap.docs.map(

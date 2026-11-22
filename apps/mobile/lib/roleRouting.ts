@@ -11,15 +11,19 @@ export type WorkspaceKind =
   | "admin"
   | "principal"
   | "accountant"
-  | "desktop";
+  | "driver"
+  | "desktop"
+  | "blocked";
 
 export function workspaceForRole(role?: Role): WorkspaceKind {
   if (role === "parent") return "parent";
   if (role === "accountant") return "accountant";
   if (role === "principal") return "principal";
   if (role === "admin" || role === "super_admin") return "admin";
+  if (role === "driver") return "driver";
   if (role === "settings_manager") return "desktop";
-  return "teacher";
+  if (role === "teacher") return "teacher";
+  return "blocked";
 }
 
 export function dashboardPathForRole(role?: Role): string {
@@ -32,10 +36,14 @@ export function dashboardPathForRole(role?: Role): string {
       return "/principal";
     case "accountant":
       return "/accountant";
+    case "driver":
+      return "/driver";
     case "desktop":
       return "/desktop";
-    default:
+    case "teacher":
       return "/teacher";
+    default:
+      return "/login";
   }
 }
 
@@ -50,9 +58,13 @@ export function workspaceLabel(role?: Role): string {
       return "Principal";
     case "accountant":
       return "Accounts";
+    case "driver":
+      return "Driver";
     case "desktop":
       return "Desktop only";
-    default:
+    case "teacher":
       return "Teacher";
+    default:
+      return "No workspace";
   }
 }

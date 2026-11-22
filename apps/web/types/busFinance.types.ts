@@ -125,6 +125,9 @@ export interface InsuranceRecord {
 }
 
 // ===== Drivers =====
+export type DriverMode = "first_day" | "daily" | "combined";
+export type DriverStatus = "active" | "inactive";
+
 export interface Driver {
   id: string;
   name: string;
@@ -133,6 +136,10 @@ export interface Driver {
   licenseExpiry?: string;
   vehicleId?: string;
   vehicleRegNo?: string;
+  routeId?: string;
+  mode?: DriverMode;
+  status?: DriverStatus;
+  uid?: string;
   notes?: string;
   createdAt?: string;
   updatedAt?: string;

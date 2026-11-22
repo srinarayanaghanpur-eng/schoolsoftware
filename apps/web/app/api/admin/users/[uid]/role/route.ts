@@ -49,6 +49,7 @@ export async function PATCH(req: Request, { params }: { params: { uid: string } 
 
     await userRef.set({ uid: params.uid, role, status, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
 
+    await auth.revokeRefreshTokens(params.uid);
     invalidateRoleCache(params.uid);
 
     if (previousRole !== role) {

@@ -44,6 +44,11 @@ service cloud.firestore {
       return signedIn() && (effectiveRole() == "admin" || effectiveRole() == "super_admin");
     }
 
+    // Shared read gate for transport master data and driver records.
+    function isAdminOrPrincipal() {
+      return isAdmin() || isPrincipal();
+    }
+
     function isSettingsManager() {
       return signedIn() && effectiveRole() == "settings_manager";
     }
@@ -62,6 +67,14 @@ service cloud.firestore {
 
     function isActiveTeacher() {
       return signedIn() && effectiveRole() == "teacher" && effectiveStatus() == "active";
+    }
+
+    function isTeacher() {
+      return isActiveTeacher();
+    }
+
+    function isDriver() {
+      return signedIn() && effectiveRole() == "driver" && effectiveStatus() == "active";
     }
 
     // Every back-office role, including teachers. Used to keep finance,
@@ -452,9 +465,29 @@ service cloud.firestore {
     // Phase 4: transport, library, hostel, inventory. Reads are staff-only;
     // writes via admin SDK (API enforces per-role permissions). Parent portal
     // reads go through /api/portal/* with a server-side student-link check.
-    match /vehicles/{id} { allow read: if isStaff(); allow write: if isAdmin(); }
-    match /transport_routes/{id} { allow read: if signedIn(); allow write: if isAdmin(); }
+    match /vehicles/{id} { allow read: if isAdmin() || isPrincipal(); allow write: if isAdmin(); }
+    match /transport_routes/{id} { allow read: if isAdmin() || isPrincipal(); allow write: if isAdmin(); }
     match /transport_assignments/{id} { allow read: if isAdmin(); allow write: if isAdmin(); }
+
+    // Driver portal collections. Drivers may read only their own driver profile,
+    // trips and trip stops; every write goes through the Admin SDK (driver /
+    // transport API routes), so client writes are denied outright.
+    match /drivers/{driverId} {
+      allow read: if isAdminOrPrincipal() || (isDriver() && resource.data.uid == request.auth.uid);
+      allow write: if false;
+    }
+    match /transport_trips/{tripId} {
+      allow read: if isAdminOrPrincipal() || (isDriver() && resource.data.driverUid == request.auth.uid);
+      allow write: if false;
+    }
+    match /transport_trip_stops/{stopId} {
+      allow read: if isAdminOrPrincipal() || (isDriver() && resource.data.driverUid == request.auth.uid);
+      allow write: if false;
+    }
+    match /transport_baselines/{routeId} {
+      allow read: if isAdminOrPrincipal();
+      allow write: if false;
+    }
     match /books/{id} { allow read: if isStaff(); allow write: if isAdmin(); }
     match /library_issues/{id} { allow read: if isAdmin(); allow write: if isAdmin(); }
     match /hostel_rooms/{id} { allow read: if isStaff(); allow write: if isAdmin(); }

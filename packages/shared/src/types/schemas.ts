@@ -331,8 +331,30 @@ export const fuelLogCreateSchema = z.object({ vehicleId: z.string().trim().min(1
 export const dailyKmLogCreateSchema = z.object({ vehicleId: z.string().trim().min(1), date: z.string().trim().min(1), startOdometer: z.coerce.number().int().nonnegative(), endOdometer: z.coerce.number().int().nonnegative(), notes: z.string().trim().optional().default("") });
 export const maintenanceLogCreateSchema = z.object({ vehicleId: z.string().trim().min(1), date: z.string().trim().min(1), type: z.enum(["service", "repair", "parts", "other"]), description: z.string().trim().optional().default(""), cost: z.coerce.number().nonnegative(), mechanic: z.string().trim().optional().default(""), notes: z.string().trim().optional().default("") });
 export const insuranceRecordCreateSchema = z.object({ vehicleId: z.string().trim().min(1), provider: z.string().trim().min(1), policyNo: z.string().trim().optional().default(""), premium: z.coerce.number().nonnegative(), startDate: z.string().trim().min(1), renewalDate: z.string().trim().min(1), notes: z.string().trim().optional().default("") });
-export const driverCreateSchema = z.object({ name: z.string().trim().min(1), phone: z.string().trim().optional().default(""), salary: z.coerce.number().nonnegative().optional(), licenseExpiry: z.string().trim().optional().default(""), vehicleId: z.string().trim().optional().default(""), notes: z.string().trim().optional().default("") });
+export const driverCreateSchema = z.object({ name: z.string().trim().min(1), phone: z.string().trim().optional().default(""), salary: z.coerce.number().nonnegative().optional(), licenseExpiry: z.string().trim().optional().default(""), vehicleId: z.string().trim().optional().default(""), routeId: z.string().trim().optional().default(""), mode: z.enum(["first_day", "daily", "combined"]).optional().default("daily"), uid: z.string().trim().optional().default(""), status: z.enum(["active", "inactive"]).optional().default("active"), notes: z.string().trim().optional().default("") });
 export const driverUpdateSchema = driverCreateSchema.partial();
+
+export const transportTripModeSchema = z.enum(["first_day", "daily", "combined"]);
+export const transportTripCreateSchema = z.object({
+  direction: z.enum(["pickup", "drop"]),
+  date: z.string().trim().min(8).optional()
+});
+export const transportTripStopSchema = z.object({
+  stopIndex: z.coerce.number().int().nonnegative(),
+  stopName: z.string().trim().min(1),
+  boarded: z.coerce.number().int().nonnegative().default(0),
+  alighted: z.coerce.number().int().nonnegative().default(0)
+});
+export const transportBaselineStopSchema = z.object({
+  stopIndex: z.coerce.number().int().nonnegative(),
+  stopName: z.string().trim().min(1),
+  count: z.coerce.number().int().nonnegative()
+});
+export const transportBaselineSchema = z.object({
+  routeId: z.string().trim().min(1),
+  baselineDate: z.string().trim().min(8),
+  stopCounts: z.array(transportBaselineStopSchema).min(1)
+});
 
 export const bookCreateSchema = z.object({ title: z.string().trim().min(1), author: z.string().trim().optional().default(""), isbn: z.string().trim().optional().default(""), category: z.string().trim().optional().default(""), copies: z.coerce.number().int().positive() });
 export const bookUpdateSchema = bookCreateSchema.partial();

@@ -33,6 +33,7 @@ const ALLOWED_ROUTE_ROOTS: ReadonlySet<string> = new Set([
   "admin",
   "accountant",
   "principal",
+  "driver",
   "attendance",
   "calendar",
   "desktop",

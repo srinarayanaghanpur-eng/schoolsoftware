@@ -44,6 +44,8 @@ export type AppUser = {
   uid: string;
   role: UserRole;
   teacherId?: string;
+  driverId?: string;
+  vehicleId?: string;
   email?: string;
   employeeId?: string;
   internalEmail?: string;
@@ -776,6 +778,62 @@ export type Vehicle = { id?: string; regNo: string; model?: string; capacity: nu
 export type RouteStop = { name: string; fee: number };
 export type TransportRoute = { id?: string; name: string; vehicleId?: string; stops: RouteStop[]; createdAt: FirestoreDate; updatedAt: FirestoreDate };
 export type TransportAssignment = { id?: string; studentId: string; studentName?: string; routeId: string; stopName: string; fee: number; createdAt: FirestoreDate };
+
+export type DriverStatus = "active" | "inactive";
+export type Driver = {
+  id?: string;
+  uid?: string;
+  name: string;
+  phone?: string;
+  salary?: number;
+  licenseExpiry?: string;
+  vehicleId?: string;
+  routeId?: string;
+  mode?: TransportTripMode;
+  status?: DriverStatus;
+  notes?: string;
+  createdAt?: FirestoreDate;
+  updatedAt?: FirestoreDate;
+};
+
+export type TransportTripDirection = "pickup" | "drop";
+export type TransportTripMode = "first_day" | "daily" | "combined";
+export type TransportTripStatus = "active" | "completed";
+export type TransportTrip = {
+  id?: string;
+  driverId: string;
+  driverUid: string;
+  vehicleId: string;
+  routeId: string;
+  date: string;
+  direction: TransportTripDirection;
+  mode: TransportTripMode;
+  status: TransportTripStatus;
+  startedAt: FirestoreDate;
+  completedAt?: FirestoreDate;
+  totalBoarded: number;
+  totalAlighted: number;
+};
+export type TransportTripStop = {
+  id?: string;
+  tripId: string;
+  driverUid: string;
+  routeId: string;
+  stopIndex: number;
+  stopName: string;
+  boarded: number;
+  alighted: number;
+  recordedAt: FirestoreDate;
+};
+export type TransportBaselineStop = { stopIndex: number; stopName: string; count: number };
+export type TransportBaseline = {
+  id?: string;
+  routeId: string;
+  baselineDate: string;
+  stopCounts: TransportBaselineStop[];
+  setBy: string;
+  updatedAt: FirestoreDate;
+};
 
 // ===== Phase 4: Library =====
 export type Book = { id?: string; title: string; author?: string; isbn?: string; category?: string; copies: number; available: number; createdAt: FirestoreDate; updatedAt: FirestoreDate };

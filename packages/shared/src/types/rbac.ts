@@ -4,7 +4,7 @@
  * frontend nav/route gating.
  */
 
-export const ROLES = ["super_admin", "admin", "principal", "accountant", "teacher", "parent", "settings_manager"] as const;
+export const ROLES = ["super_admin", "admin", "principal", "accountant", "teacher", "driver", "parent", "settings_manager"] as const;
 export type Role = (typeof ROLES)[number];
 
 export const ROLE_LABELS: Record<Role, string> = {
@@ -13,6 +13,7 @@ export const ROLE_LABELS: Record<Role, string> = {
   principal: "Principal",
   accountant: "Accountant",
   teacher: "Teacher",
+  driver: "Driver",
   parent: "Parent",
   settings_manager: "Settings Manager"
 };
@@ -31,6 +32,7 @@ export const MODULES = [
   "salary",
   "payroll",
   "transport",
+  "driver",
   "bus_finance",
   "communication",
   "library",
@@ -73,6 +75,7 @@ export const PERMISSION_MATRIX: readonly PermissionGroup[] = [
   { key: "fees", label: "Fees & Finance", permissions: ["fees.view", "fees.create", "fees.edit", "fees.delete", "fees.approve", "fees.export"] },
   { key: "fee_reminders", label: "Fee Reminders", permissions: ["fee_reminders.view", "fee_reminders.manage_settings", "fee_reminders.send_test", "fee_reminders.retry_failed", "fee_reminders.export_logs"] },
   { key: "salary", label: "Salary & Payroll", permissions: ["salary.view", "salary.create", "salary.edit", "salary.delete", "payroll.view", "payroll.create", "payroll.edit", "payroll.approve"] },
+  { key: "driver", label: "Driver", permissions: ["driver.view", "driver.dashboard", "driver.profile.view", "driver.vehicle.view_own", "driver.trip.create", "driver.trip.view_own"] },
   { key: "exams", label: "Exams & Marks", permissions: ["exams.view", "exams.create", "exams.edit", "exams.delete", "exams.approve", "exams.export"] },
   { key: "communication", label: "Communication", permissions: ["communication.view", "communication.create", "communication.edit", "communication.delete"] },
   { key: "reports", label: "Reports", permissions: ["reports.view", "reports.export"] },
@@ -188,6 +191,14 @@ export const ROLE_PERMISSIONS: Record<Role, readonly (Permission | typeof ALL)[]
     "communication.view",
     "certificates.view",
     "academic_years.view"
+  ],
+  driver: [
+    "driver.view",
+    "driver.dashboard",
+    "driver.profile.view",
+    "driver.vehicle.view_own",
+    "driver.trip.create",
+    "driver.trip.view_own"
   ],
   settings_manager: [
     "settings.view", "settings.create", "settings.edit", "settings.delete", "settings.bulk_upload"

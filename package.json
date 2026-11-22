@@ -15,6 +15,7 @@
     "test": "node scripts/run-tests.mjs",
     "test:hydration": "node scripts/hydration-guard.mjs",
     "check:admin-api-auth": "node scripts/check-admin-api-auth.js",
+    "driver:migrate": "node scripts/driver-migration.mjs",
     "seed": "npm --workspace @sri-narayana/shared run seed",
     "dev:desktop": "npm --workspace @sri-narayana/desktop run dev",
     "build:desktop": "npm --workspace @sri-narayana/desktop run build:web",

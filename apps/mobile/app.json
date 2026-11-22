@@ -17,7 +17,11 @@
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "Allow NarayanaOS to use your location for campus attendance."
+          "locationAlwaysAndWhenInUsePermission": "Allow NarayanaOS to use your location for campus attendance.",
+          "locationAlwaysPermission": "Allow NarayanaOS to track the school bus during active driver journeys, even when the screen is off.",
+          "isIosBackgroundLocationEnabled": true,
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true
         }
       ],
       [
@@ -49,7 +53,11 @@
       },
       "permissions": [
         "ACCESS_FINE_LOCATION",
-        "ACCESS_COARSE_LOCATION"
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_LOCATION",
+        "POST_NOTIFICATIONS"
       ]
     },
     "extra": {

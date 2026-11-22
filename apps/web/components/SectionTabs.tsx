@@ -22,6 +22,11 @@ const GROUPS: { href: string; label: string }[][] = [
   [
     { href: "/admin/notices", label: "Notices" },
     { href: "/admin/notifications", label: "Requests & Logs" }
+  ],
+  [
+    { href: "/admin/transport", label: "Overview" },
+    { href: "/admin/transport/drivers", label: "Drivers" },
+    { href: "/admin/transport/trips", label: "Driver Trips" }
   ]
 ];
 

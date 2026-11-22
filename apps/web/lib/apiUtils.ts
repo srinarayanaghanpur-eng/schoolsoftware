@@ -1,5 +1,5 @@
 import type { DecodedIdToken } from "firebase-admin/auth";
-import type { QueryDocumentSnapshot } from "firebase-admin/firestore";
+import type { DocumentSnapshot } from "firebase-admin/firestore";
 import { NextResponse } from "next/server";
 import { isValidRole, type Permission, type Role } from "@sri-narayana/shared";
 import { adminDb, verifyBearerToken } from "./firebaseAdmin";
@@ -125,6 +125,16 @@ export async function requireTeacher(req: Request): Promise<DecodedIdToken | nul
   return decodedToken;
 }
 
+/** Allow the request only for an active account whose role resolves to driver. */
+export async function requireDriver(req: Request): Promise<DecodedIdToken | null> {
+  const decodedToken = await verifyBearerToken(req);
+  if (!decodedToken) return null;
+  const role = await resolveRole(decodedToken);
+  if (role !== "driver") return null;
+  await recordRequestActivity(req, decodedToken, role);
+  return decodedToken;
+}
+
 /** Allow the request only if the signed-in user's role is in `roles`. */
 export async function requireRole(req: Request, roles: Role[]): Promise<DecodedIdToken | null> {
   const decodedToken = await verifyBearerToken(req);
@@ -219,7 +229,7 @@ function normalizeFirestoreValue(value: unknown): unknown {
   );
 }
 
-export function serializeDoc<T extends Record<string, unknown>>(doc: QueryDocumentSnapshot): T & { id: string } {
+export function serializeDoc<T extends Record<string, unknown>>(doc: DocumentSnapshot): T & { id: string } {
   return {
     id: doc.id,
     ...(normalizeFirestoreValue(doc.data()) as T)

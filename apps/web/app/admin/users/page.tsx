@@ -27,6 +27,7 @@ type UserRow = {
   internalEmail?: string;
   status?: string;
   role?: Role;
+  driverId?: string;
   studentIds?: string[];
 };
 
@@ -166,7 +167,7 @@ export default function UsersRolesPage() {
         body: JSON.stringify({ role: nextRole })
       });
       setUsers((current) => current.map((user) => (user.uid === uid ? { ...user, role: nextRole } : user)));
-      setMessage("Role updated. The user must sign in again for the new claim to apply.");
+      setMessage("Role updated. The user must sign in again; their current token is revoked.");
       if (uid === auth.currentUser?.uid) {
         await refreshClaims(auth.currentUser).catch(() => undefined);
         setMessage("Your role was updated. Refreshed your session claims.");
@@ -477,7 +478,10 @@ export default function UsersRolesPage() {
                   filteredUsers.map((user) => (
                     <tr key={user.uid} className="border-b border-[#edf0f7] last:border-b-0">
                       <td className="px-5 py-4">
-                        <span className="block font-extrabold text-[#303247]">{user.displayName}</span>
+                        <span className="flex flex-wrap items-center gap-2">
+                          <span className="font-extrabold text-[#303247]">{user.displayName}</span>
+                          {user.driverId && <span className="rounded-full bg-[#eef0ff] px-2 py-0.5 text-[10px] font-extrabold uppercase text-[#3033a1]">Driver</span>}
+                        </span>
                         <span className="block text-xs font-medium text-[#7d86a8]">{user.email ?? user.internalEmail ?? user.uid}</span>
                       </td>
                       <td className="px-5 py-4 font-medium text-[#7d86a8]">{user.employeeId ?? user.internalEmail ?? "--"}</td>
