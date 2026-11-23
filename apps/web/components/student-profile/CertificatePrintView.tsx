@@ -151,6 +151,27 @@ export function CertificatePrintView({
   const place = pick("place", [], "Ghanpur");
   const classSection = section ? `Class ${className}-${section}` : `Class ${className}`;
 
+  const tcNo = pick("tcNo", [], certificateNumber);
+  const nationality = pick("nationality", ["nationality"], "Indian");
+  const religion = pick("religion", ["religion"], "");
+  const category = pick("category", ["category", "caste"], "");
+  const firstAdmission = pick(
+    "firstAdmission",
+    [],
+    [admissionDate, classLabel(className)].filter(Boolean).join(", ")
+  );
+  const lastClass = pick("lastClass", [], classLabel(className));
+  const lastExam = pick("lastExam", [], year ? `Annual Examination ${year} – Passed` : "");
+  const failed = pick("failed", [], "No");
+  const subjects = pick("subjects", ["subjects"], "Telugu, Hindi, English, Maths, Science, Social");
+  const promotion = pick("promotion", [], "");
+  const duesMonth = pick("duesMonth", [], "");
+  const concession = pick("concession", [], "Nil");
+  const appliedDate = formatDMY(pick("appliedDate", [], asString(certificate.issueDate)));
+  const issuedDate = formatDMY(pick("issuedDate", [], asString(certificate.issueDate)));
+  const daysTotal = pick("daysTotal", [], "");
+  const daysAttended = pick("daysAttended", [], "");
+
   const closeViewer = useCallback(() => {
     if (exitRef.current) return;
     exitRef.current = true;
@@ -269,6 +290,7 @@ export function CertificatePrintView({
 
   const isBonafide = certificateType === "bonafide";
   const isStudyDob = certificateType === "studyConductDob";
+  const isTransfer = certificateType === "transfer";
 
   const header = (
     <div className="cert-head">
@@ -457,6 +479,71 @@ export function CertificatePrintView({
     </>
   );
 
+  const transferRows: Array<[string, string]> = [
+    ["Name of the Pupil", name],
+    ["Mother's Name", motherName],
+    ["Father's or Guardian's Name", fatherName],
+    ["Date of Birth (in figures)", dateOfBirth],
+    ["Date of Birth (in words)", dobWords],
+    ["Nationality", nationality],
+    ["Religion", religion],
+    ["Whether the candidate belongs to Scheduled Caste, Scheduled Tribe or OBC", category],
+    ["Date of first admission in the school with class", firstAdmission],
+    ["Class in which the pupil last studied (in figures and in words)", lastClass],
+    ["School / Board Annual Examination last taken, with result", lastExam],
+    ["Whether failed; if so, once or twice in the same class", failed],
+    ["Subjects studied", subjects],
+    ["Whether qualified for promotion to the higher class; if so, to which class (in figures and in words)", promotion],
+    ["Month up to which the pupil has paid school dues", duesMonth],
+    ["Any fee concession availed of; if so, the nature of such concession", concession],
+    ["Date of application for TC", appliedDate],
+    ["Date of issue of TC", issuedDate],
+    ["Number of school days up to date", daysTotal],
+    ["Number of school days the pupil attended", daysAttended],
+    ["General conduct", conduct]
+  ];
+
+  const transferPage = (
+    <div className="cert-tc-page">
+      {duplicate && <div className="cert-tc-dup">DUPLICATE</div>}
+      <div className="cert-tc-in">
+        <div className="cert-tc-head">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/certificate-logo.png" alt="School logo" />
+          <div className="cert-tc-title">
+            <h1>SRI NARAYANA HIGH SCHOOL</h1>
+            <p>Ghanpur, Jayashankar Bhupalpally, Telangana</p>
+            <p>School Code: 17105 &nbsp;|&nbsp; Recognized by Telangana Government &nbsp;|&nbsp; Ph: 6300038389</p>
+          </div>
+        </div>
+        <h2>TRANSFER CERTIFICATE</h2>
+        <div className="cert-tc-meta">
+          <span>
+            TC No.: <b>{tcNo || "—"}</b>
+          </span>
+          <span>
+            Admission No.: <b>{admissionNumber || "—"}</b>
+          </span>
+        </div>
+        <table>
+          <tbody>
+            {transferRows.map(([label, value], index) => (
+              <tr key={label}>
+                <td className="n">{index + 1}.</td>
+                <td className="l">{label}</td>
+                <td className="v">{value || "—"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <div className="cert-tc-sign">
+          <div>Class Teacher</div>
+          <div>Principal</div>
+        </div>
+      </div>
+    </div>
+  );
+
   if (!mounted) return null;
 
   return createPortal(
@@ -484,6 +571,9 @@ export function CertificatePrintView({
       </div>
 
       <div className="cert-wrap">
+        {isTransfer ? (
+          transferPage
+        ) : (
         <div className="cert-page">
           <div className="cert-frame">
             <i className="cert-co cert-co-a" />
@@ -523,6 +613,7 @@ export function CertificatePrintView({
             {footer}
           </div>
         </div>
+        )}
       </div>
 
       <style>{`
@@ -569,7 +660,24 @@ export function CertificatePrintView({
         .cert-co-b { top: .6mm; right: .6mm; transform: scaleX(-1); }
         .cert-co-c { bottom: .6mm; left: .6mm; transform: scaleY(-1); }
         .cert-co-d { bottom: .6mm; right: .6mm; transform: scale(-1); }
-        @page { size: 210mm 148mm; margin: 0; }
+        .cert-tc-page { position: relative; width: 215.9mm; height: 355.6mm; margin: 0 auto; background: #fff; color: #000; padding: 14mm 16mm; font-family: "Times New Roman", Times, serif; font-size: 12.5pt; box-sizing: border-box; }
+        .cert-tc-in { border: 1.5px solid #000; height: 100%; padding: 6mm 10mm; display: flex; flex-direction: column; box-sizing: border-box; }
+        .cert-tc-head { display: flex; align-items: center; gap: 6mm; border-bottom: 2px solid #000; padding-bottom: 4mm; }
+        .cert-tc-head img { width: 24mm; height: 24mm; object-fit: contain; }
+        .cert-tc-title { flex: 1; text-align: center; }
+        .cert-tc-title h1 { margin: 0; font-size: 22pt; letter-spacing: .5pt; }
+        .cert-tc-title p { margin: 1mm 0 0; font-size: 11pt; }
+        .cert-tc-page h2 { text-align: center; margin: 6mm 0 4mm; font-size: 16pt; letter-spacing: 2px; text-decoration: underline; }
+        .cert-tc-meta { display: flex; justify-content: space-between; margin-bottom: 4mm; }
+        .cert-tc-page table { width: 100%; border-collapse: collapse; }
+        .cert-tc-page td { padding: 1.4mm 1mm; vertical-align: bottom; border-bottom: 1px dotted #555; }
+        .cert-tc-page td.n { width: 9mm; }
+        .cert-tc-page td.l { width: 92mm; }
+        .cert-tc-page td.v { font-weight: 700; }
+        .cert-tc-sign { margin-top: auto; display: flex; justify-content: space-between; padding-top: 14mm; }
+        .cert-tc-sign div { text-align: center; min-width: 55mm; border-top: 1px solid #000; padding-top: 1.5mm; }
+        .cert-tc-dup { position: absolute; top: 40mm; right: 22mm; border: 2px solid #111; padding: 2px 12px; font: bold 14px system-ui, sans-serif; letter-spacing: 3px; transform: rotate(-8deg); z-index: 3; }
+        @page { size: ${isTransfer ? "215.9mm 355.6mm" : "210mm 148mm"}; margin: 0; }
         @media print {
           body { background: #fff; }
           body * { visibility: hidden; }
@@ -578,6 +686,7 @@ export function CertificatePrintView({
           .cert-bar { display: none; }
           .cert-wrap { padding: 0; overflow: visible; }
           .cert-page { position: fixed; left: 0; top: 0; margin: 0; }
+          .cert-tc-page { position: fixed; left: 0; top: 0; margin: 0; }
         }
       `}</style>
     </div>,

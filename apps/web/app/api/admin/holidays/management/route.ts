@@ -34,17 +34,19 @@ export async function GET(req: Request) {
     const month = url.searchParams.get("month") ?? "";
     const branchId = url.searchParams.get("branchId") ?? "";
 
-    let query = adminDb().collection("holidays").where("type", "==", "management_declared");
+    // Only the equality filter is sent to Firestore. Date range + ordering are
+    // applied in memory so this endpoint never depends on a composite index
+    // (holidays is a small collection and this avoids the FAILED_PRECONDITION
+    // "query requires an index" failure on fresh projects).
+    const snapshot = await adminDb().collection("holidays").where("type", "==", "management_declared").get();
+    let holidays = snapshot.docs.map((doc) => serializeDoc<Holiday>(doc));
 
     if (year && month && isValidDateKey(`${year}-${month.padStart(2, "0")}-01`)) {
       const { start, end } = monthRange(year, month);
-      query = query.where("date", ">=", start).where("date", "<=", end);
+      holidays = holidays.filter((h) => h.date >= start && h.date <= end);
     }
 
-    query = query.orderBy("date", "desc");
-
-    const snapshot = await query.get();
-    const holidays = snapshot.docs.map((doc) => serializeDoc<Holiday>(doc));
+    holidays.sort((a, b) => String(b.date ?? "").localeCompare(String(a.date ?? "")));
 
     if (branchId) {
       return json({

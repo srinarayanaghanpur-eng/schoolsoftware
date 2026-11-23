@@ -3,11 +3,14 @@
 import { PageHeader } from "@/components/PageHeader";
 import { useAdminSession } from "@/components/AdminSessionContext";
 import { useAcademicYears } from "@/components/AcademicYearContext";
+import OverlayPortal from "@/components/OverlayPortal";
 import { adminApiRequest } from "@/lib/adminApiClient";
+import { auth } from "@sri-narayana/shared/firebase/client";
 import { hasPermission, type AcademicYear } from "@sri-narayana/shared";
+import { EmailAuthProvider, reauthenticateWithCredential } from "firebase/auth";
 import {
   AlertCircle, ArrowDown, ArrowRight, ArrowUpDown, Ban, CheckCircle2, ChevronDown,
-  Circle, Clock, GraduationCap, History, ListRestart, Loader2, Plus, RotateCcw,
+  Circle, Clock, GraduationCap, History, ListRestart, Loader2, LockKeyhole, Plus, RotateCcw,
   Search, SlidersHorizontal, Users, X
 } from "lucide-react";
 import { useMemo, useState, useEffect, type FormEvent } from "react";
@@ -24,13 +27,13 @@ const CLASS_ORDER = ["Nur", "LKG", "UKG", "1", "2", "3", "4", "5", "6", "7", "8"
 
 function nextClass(current: string): string {
   const idx = CLASS_ORDER.indexOf(current);
-  if (idx === -1 || idx >= CLASS_ORDER.length - 1) return current;
+  if (idx === -1 || idx >= CLASS_ORDER.length - 1) return "";
   return CLASS_ORDER[idx + 1];
 }
 
 function prevClass(current: string): string {
   const idx = CLASS_ORDER.indexOf(current);
-  if (idx <= 0) return current;
+  if (idx <= 0) return "";
   return CLASS_ORDER[idx - 1];
 }
 
@@ -126,11 +129,15 @@ export default function PromotionsPage() {
 
   const [fromClass, setFromClass] = useState("");
   const [fromSection, setFromSection] = useState("");
-  const [toClass, setToClass] = useState("");
   const [toSection, setToSection] = useState("");
   const [targetYearId, setTargetYearId] = useState("");
   const [feeCarryForward, setFeeCarryForward] = useState(false);
   const [notes, setNotes] = useState("");
+
+  const [pendingSubmit, setPendingSubmit] = useState<"all" | "selected" | null>(null);
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [verifyingPassword, setVerifyingPassword] = useState(false);
 
   const [history, setHistory] = useState<PromotionRecord[]>([]);
   const [historyFilter, setHistoryFilter] = useState("");
@@ -198,10 +205,10 @@ export default function PromotionsPage() {
   };
 
   const resolvedToClass = tab === "promote"
-    ? (toClass || (fromClass ? nextClass(fromClass) : ""))
+    ? (fromClass ? nextClass(fromClass) : "")
     : tab === "demote"
-      ? (toClass || (fromClass ? prevClass(fromClass) : ""))
-      : tab === "section" ? fromClass : fromClass;
+      ? (fromClass ? prevClass(fromClass) : "")
+      : fromClass;
   const resolvedToSection = tab === "section" ? (toSection || fromSection || "A") : tab === "detain" ? "" : (toSection || "");
 
   const toggleStudent = (id: string) => {
@@ -225,15 +232,83 @@ export default function PromotionsPage() {
   const resetForm = () => {
     setSelectedStudentIds(new Set());
     setSelectAll(false);
-    setToClass("");
     setToSection("");
     setFeeCarryForward(false);
     setNotes("");
     setError(null);
     setSuccess(null);
+    setPendingSubmit(null);
+    setConfirmPassword("");
+    setPasswordError(null);
   };
 
-  const handlePromoteAllClassWise = async () => {
+  const openPasswordConfirm = (scope: "all" | "selected") => {
+    if (!fromClass) { setError("Select a source class first."); return; }
+    if (!targetYearId) { setError("Select a target academic year."); return; }
+    if (scope === "all" && filteredStudents.length === 0) {
+      setError("No students found for the selected class.");
+      return;
+    }
+    if (scope === "selected" && selectedStudentIds.size === 0) {
+      setError("Select at least one student.");
+      return;
+    }
+    setError(null);
+    setSuccess(null);
+    setPasswordError(null);
+    setConfirmPassword("");
+    setPendingSubmit(scope);
+  };
+
+  const closePasswordConfirm = () => {
+    if (verifyingPassword) return;
+    setPendingSubmit(null);
+    setConfirmPassword("");
+    setPasswordError(null);
+  };
+
+  const confirmAndSubmit = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!pendingSubmit) return;
+    if (!confirmPassword.trim()) {
+      setPasswordError("Enter your account password to continue.");
+      return;
+    }
+    const user = auth.currentUser;
+    if (!user?.email) {
+      setPasswordError("Your session cannot be re-authenticated. Please sign in again.");
+      return;
+    }
+
+    setVerifyingPassword(true);
+    setPasswordError(null);
+    try {
+      await reauthenticateWithCredential(
+        user,
+        EmailAuthProvider.credential(user.email, confirmPassword)
+      );
+      const scope = pendingSubmit;
+      setPendingSubmit(null);
+      setConfirmPassword("");
+      if (scope === "all") await submitAllClassWise();
+      else await submitSelected();
+    } catch (err) {
+      const code = (err as { code?: string }).code;
+      setPasswordError(
+        code === "auth/wrong-password" || code === "auth/invalid-credential"
+          ? "Incorrect password. Please try again."
+          : code === "auth/too-many-requests"
+            ? "Too many attempts. Wait a moment and try again."
+            : err instanceof Error
+              ? err.message
+              : "Could not verify your password."
+      );
+    } finally {
+      setVerifyingPassword(false);
+    }
+  };
+
+  const submitAllClassWise = async () => {
     if (!fromClass) { setError("Select a source class first."); return; }
     if (!targetYearId) { setError("Select a target academic year."); return; }
     if (filteredStudents.length === 0) { setError("No students found for the selected class."); return; }
@@ -258,8 +333,8 @@ export default function PromotionsPage() {
         })
       });
       if (data.ok) {
-        setSuccess(data.message ?? `Submitted ${data.count} student(s) for super-admin approval.`);
         resetForm();
+        setSuccess(data.message ?? `Submitted ${data.count} student(s) for super-admin approval.`);
         fetchStudents();
       }
     } catch (err) {
@@ -269,7 +344,7 @@ export default function PromotionsPage() {
     }
   };
 
-  const handlePromoteSelected = async () => {
+  const submitSelected = async () => {
     if (selectedStudentIds.size === 0) { setError("Select at least one student."); return; }
     if (!targetYearId) { setError("Select a target academic year."); return; }
 
@@ -292,8 +367,8 @@ export default function PromotionsPage() {
         })
       });
       if (data.ok) {
-        setSuccess(data.message ?? `Submitted ${data.count} student(s) for super-admin approval.`);
         resetForm();
+        setSuccess(data.message ?? `Submitted ${data.count} student(s) for super-admin approval.`);
         fetchStudents();
       }
     } catch (err) {
@@ -302,6 +377,9 @@ export default function PromotionsPage() {
       setLoading(false);
     }
   };
+
+  const handlePromoteAllClassWise = () => openPasswordConfirm("all");
+  const handlePromoteSelected = () => openPasswordConfirm("selected");
 
   useEffect(() => {
     if (tab === "history" && canView) fetchHistory();
@@ -377,8 +455,8 @@ export default function PromotionsPage() {
                   {tab === "section" && "Change Section"}
                 </h3>
                 <p className="mt-1 text-sm font-medium text-[#7d86a8]">
-                  {tab === "promote" && "Move students to the next class or a selected class."}
-                  {tab === "demote" && "Move students to the previous class or a selected class."}
+                  {tab === "promote" && "Move students exactly one class forward. Target class is locked."}
+                  {tab === "demote" && "Move students exactly one class back. Target class is locked."}
                   {tab === "detain" && "Retain students in their current class."}
                   {tab === "section" && "Change section within the same class."}
                 </p>
@@ -405,15 +483,19 @@ export default function PromotionsPage() {
               </label>
               {(tab === "promote" || tab === "demote") && (
                 <>
-                  <label className="space-y-1 text-sm font-semibold text-[#303247]">
-                    <span>To Class</span>
-                    <select className="field" value={toClass} onChange={(e) => setToClass(e.target.value)}>
-                      <option value="">
-                        Auto ({fromClass ? (tab === "demote" ? prevClass(fromClass) : nextClass(fromClass)) : "—"})
-                      </option>
-                      {CLASS_OPTIONS.map((c) => <option key={c} value={c}>{CLASS_LABELS[c] ?? c}</option>)}
-                    </select>
-                  </label>
+                  <div className="space-y-1 text-sm font-semibold text-[#303247]">
+                    <span>New Class</span>
+                    <div className="field flex items-center justify-between bg-[#f7f8fd] text-[#5f6888]">
+                      <span>
+                        {resolvedToClass
+                          ? CLASS_LABELS[resolvedToClass] ?? resolvedToClass
+                          : fromClass
+                            ? "No class available"
+                            : "Select a class"}
+                      </span>
+                      <LockKeyhole size={14} className="text-[#9aa3c0]" />
+                    </div>
+                  </div>
                   <label className="space-y-1 text-sm font-semibold text-[#303247]">
                     <span>To Section</span>
                     <select className="field" value={toSection} onChange={(e) => setToSection(e.target.value)}>
@@ -667,6 +749,86 @@ export default function PromotionsPage() {
           </div>
         )}
       </section>
+
+      {pendingSubmit && (
+        <OverlayPortal>
+          <div
+            className="fixed inset-0 z-[110] grid place-items-center bg-black/45 p-4"
+            onClick={closePasswordConfirm}
+            role="presentation"
+          >
+            <form
+              className="card w-full max-w-md p-6"
+              onClick={(e) => e.stopPropagation()}
+              onSubmit={confirmAndSubmit}
+              role="alertdialog"
+              aria-modal="true"
+              aria-labelledby="promotion-confirm-title"
+              aria-describedby="promotion-confirm-desc"
+            >
+              <div className="flex items-center gap-3">
+                <span className="grid h-10 w-10 place-items-center rounded-xl bg-[#fff7e5] text-[#b8860b]">
+                  <LockKeyhole size={18} />
+                </span>
+                <h2 id="promotion-confirm-title" className="text-base font-extrabold text-[#1f2136]">
+                  Confirm with your password
+                </h2>
+              </div>
+              <p id="promotion-confirm-desc" className="mt-3 text-sm font-medium text-[#5f6888]">
+                Submit{" "}
+                <b>
+                  {pendingSubmit === "all" ? filteredStudents.length : selectedStudentIds.size} student(s)
+                </b>{" "}
+                for {tab === "section" ? "section change" : tab} from{" "}
+                <b>
+                  {CLASS_LABELS[fromClass] ?? fromClass}
+                  {fromSection ? `-${fromSection}` : ""}
+                </b>
+                . Classes change only after super-admin approval.
+              </p>
+              <label className="mt-4 block space-y-1 text-sm font-semibold text-[#303247]">
+                <span>Account password</span>
+                <input
+                  type="password"
+                  className="field"
+                  autoComplete="current-password"
+                  value={confirmPassword}
+                  onChange={(e) => { setConfirmPassword(e.target.value); setPasswordError(null); }}
+                  placeholder="Enter your password"
+                  autoFocus
+                  disabled={verifyingPassword || loading}
+                />
+              </label>
+              {passwordError && (
+                <p className="mt-2 rounded-xl border border-[#ffd5da] bg-[#ffebed] px-3 py-2 text-xs font-bold text-[#c83f4d]">
+                  {passwordError}
+                </p>
+              )}
+              <p className="mt-3 text-xs font-medium text-[#7d86a8]">
+                Your password is used only to re-authenticate this sensitive action.
+              </p>
+              <div className="mt-5 flex justify-end gap-2">
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={closePasswordConfirm}
+                  disabled={verifyingPassword || loading}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn-primary"
+                  disabled={verifyingPassword || loading || !confirmPassword.trim()}
+                >
+                  {verifyingPassword || loading ? <Loader2 size={16} className="animate-spin" /> : <LockKeyhole size={16} />}
+                  {verifyingPassword ? "Verifying…" : loading ? "Submitting…" : "Confirm & submit"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </OverlayPortal>
+      )}
     </>
   );
 }

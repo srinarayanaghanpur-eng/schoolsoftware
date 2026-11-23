@@ -36,6 +36,17 @@
           "cameraPermission": "Allow NarayanaOS to take an attendance selfie for verification."
         }
       ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "enableMinifyInReleaseBuilds": true,
+            "enableShrinkResourcesInReleaseBuilds": true,
+            "enableBundleCompression": true,
+            "buildArchs": ["arm64-v8a"]
+          }
+        }
+      ],
       "expo-splash-screen"
     ],
     "ios": {

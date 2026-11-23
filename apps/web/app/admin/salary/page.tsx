@@ -3,6 +3,7 @@
 import { useAdminSession } from "@/components/AdminSessionContext";
 import { PageHeader } from "@/components/PageHeader";
 import { SalaryAdvancesPanel } from "@/components/SalaryAdvancesPanel";
+import { SalarySlipPrint } from "@/components/salary/SalarySlipPrint";
 import { auth } from "@sri-narayana/shared/firebase/client";
 import {
   formatLabel,
@@ -125,8 +126,13 @@ export default function SalaryPage() {
     existingRecords: number;
   } | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [slipReport, setSlipReport] = useState<SalaryReport | null>(null);
   // Right-click menu on staff rows (same actions as the buttons).
   const [rowMenu, setRowMenu] = useState<{ x: number; y: number; items: ContextMenuItem[] } | null>(null);
+
+  const openSlip = (report: SalaryReport) => {
+    setSlipReport(report);
+  };
 
   const rowMenuFor = (report: SalaryReport): ContextMenuItem[] => {
     const blocked = !report.paid && isSalaryPaymentBlocked(report);
@@ -145,7 +151,7 @@ export default function SalaryPage() {
       {
         label: "Salary slip",
         icon: <FileText size={15} />,
-        onSelect: () => setActiveTab("slips")
+        onSelect: () => openSlip(report)
       }
     ];
   };
@@ -655,7 +661,7 @@ export default function SalaryPage() {
                       <button className="btn-secondary text-xs" disabled={loading} onClick={() => togglePaid(report)}>
                         <CheckCircle size={14} /> {report.paid ? "Paid" : "Mark Paid"}
                       </button>
-                      <button className="btn-secondary text-xs">
+                      <button className="btn-secondary text-xs" onClick={() => openSlip(report)}>
                         <FileText size={14} /> Slip
                       </button>
                     </div>
@@ -775,7 +781,7 @@ export default function SalaryPage() {
                             >
                               <CheckCircle size={13} /> {report.paid ? "Paid" : "Pay"}
                             </button>
-                            <button className="btn-secondary text-xs">
+                            <button className="btn-secondary text-xs" onClick={() => openSlip(report)}>
                               <FileText size={13} /> Slip
                             </button>
                           </div>
@@ -928,6 +934,14 @@ export default function SalaryPage() {
           </div>
         </div>
         </OverlayPortal>
+      )}
+
+      {slipReport && (
+        <SalarySlipPrint
+          report={slipReport}
+          monthLabel={monthLabel(slipReport.month)}
+          onClose={() => setSlipReport(null)}
+        />
       )}
     </>
   );

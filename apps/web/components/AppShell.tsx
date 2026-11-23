@@ -113,6 +113,7 @@ function noticeTargetsRole(audienceRoles: unknown, role: Role): boolean {
   return false;
 }
 
+const MAIN_NAV_COLLAPSED_KEY = "snhs-main-nav-collapsed-v1";
 const CONTEXT_SUBNAV_COLLAPSED_KEY = "snhs-context-subnav-collapsed-v2";
 const SUB_SIDEBAR_COMPACT_QUERY = "(max-width: 1023px)";
 const FallbackIcon = Circle;
@@ -395,6 +396,7 @@ function ContextualSubnav({
   pathname,
   collapsed,
   drawerOpen,
+  mainNavCollapsed,
   onCloseDrawer,
   onToggle
 }: {
@@ -402,9 +404,13 @@ function ContextualSubnav({
   pathname: string;
   collapsed: boolean;
   drawerOpen: boolean;
+  mainNavCollapsed: boolean;
   onCloseDrawer: () => void;
   onToggle: () => void;
 }) {
+  const railOffset = mainNavCollapsed ? "left-0" : "left-[80px]";
+  const drawerOffset = mainNavCollapsed ? "md:left-0" : "md:left-[80px]";
+  const drawerHiddenOffset = mainNavCollapsed ? "md:-translate-x-full" : "md:-translate-x-[calc(100%+80px)]";
   const items = (subnav.items ?? []).filter((item): item is ContextSubnavItem => Boolean(item?.href && item.label));
 
   const renderLinks = (onNavigate?: () => void, interactive = true) => (
@@ -457,7 +463,8 @@ function ContextualSubnav({
       <aside
         aria-hidden={collapsed}
         className={clsx(
-          "fixed inset-y-0 left-[80px] z-40 hidden w-[232px] flex-col border-r border-border bg-card shadow-xl transition-[transform,opacity] duration-300 ease-out lg:flex print:hidden",
+          "fixed inset-y-0 z-40 hidden w-[232px] flex-col border-r border-border bg-card shadow-xl transition-[transform,opacity] duration-300 ease-out lg:flex print:hidden",
+          railOffset,
           collapsed ? "pointer-events-none -translate-x-full opacity-0" : "translate-x-0 opacity-100"
         )}
       >
@@ -469,7 +476,8 @@ function ContextualSubnav({
         aria-hidden={!collapsed}
         aria-label={`${subnav.title} collapsed navigation`}
         className={clsx(
-          "fixed inset-y-0 left-[80px] z-30 hidden w-12 flex-col border-r border-border bg-card shadow-sm transition-[transform,opacity] duration-300 ease-out lg:flex print:hidden",
+          "fixed inset-y-0 z-30 hidden w-12 flex-col border-r border-border bg-card shadow-sm transition-[transform,opacity] duration-300 ease-out lg:flex print:hidden",
+          railOffset,
           collapsed ? "translate-x-0 opacity-100" : "pointer-events-none -translate-x-2 opacity-0"
         )}
       >
@@ -494,8 +502,9 @@ function ContextualSubnav({
       <aside
         aria-hidden={!drawerOpen}
         className={clsx(
-          "fixed inset-y-0 left-0 z-40 flex w-[280px] max-w-[86vw] flex-col border-r border-border bg-card shadow-2xl transition-transform duration-300 ease-out md:left-[80px] lg:hidden print:hidden",
-          drawerOpen ? "translate-x-0" : "pointer-events-none -translate-x-full md:-translate-x-[calc(100%+80px)]"
+          "fixed inset-y-0 left-0 z-40 flex w-[280px] max-w-[86vw] flex-col border-r border-border bg-card shadow-2xl transition-transform duration-300 ease-out lg:hidden print:hidden",
+          drawerOffset,
+          drawerOpen ? "translate-x-0" : `pointer-events-none -translate-x-full ${drawerHiddenOffset}`
         )}
       >
         {header()}
@@ -947,9 +956,28 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return () => window.cancelAnimationFrame(frame);
   }, [mobileNavOpen]);
 
+  const [mainNavCollapsed, setMainNavCollapsed] = useState(false);
+  const [mainNavPreferenceLoaded, setMainNavPreferenceLoaded] = useState(false);
   const [contextSubnavCollapsed, setContextSubnavCollapsed] = useState(false);
   const [contextSubnavPreferenceLoaded, setContextSubnavPreferenceLoaded] = useState(false);
   const [contextSubnavDrawerOpen, setContextSubnavDrawerOpen] = useState(false);
+  useEffect(() => {
+    try {
+      setMainNavCollapsed(window.localStorage.getItem(MAIN_NAV_COLLAPSED_KEY) === "true");
+    } catch {
+      // Local storage can be blocked; the UI still works for this session.
+    } finally {
+      setMainNavPreferenceLoaded(true);
+    }
+  }, []);
+  useEffect(() => {
+    if (!mainNavPreferenceLoaded) return;
+    try {
+      window.localStorage.setItem(MAIN_NAV_COLLAPSED_KEY, mainNavCollapsed ? "true" : "false");
+    } catch {
+      // ignore
+    }
+  }, [mainNavCollapsed, mainNavPreferenceLoaded]);
   useEffect(() => {
     try {
       setContextSubnavCollapsed(window.localStorage.getItem(CONTEXT_SUBNAV_COLLAPSED_KEY) === "true");
@@ -1083,6 +1111,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     visibleAdminGroups.forEach((group) => {
       (group.searchItems ?? group.items).forEach((item) => add(item.href, item.label, group.label, item.module));
     });
+    Object.entries(pageTitles).forEach(([href, label]) => {
+      if (href.startsWith("/portal")) return;
+      add(href, label, "All pages", moduleForPath(href));
+    });
     return result;
   }, [role, rolePermissions, isPortalRole, visibleAdminGroups]);
   const currentModule = moduleForPath(pathname);
@@ -1099,6 +1131,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     pendingCommunicationRequests > 0
       ? `Communication & notifications, ${pendingCommunicationRequests} pending`
       : "Communication & notifications";
+
+  const toggleMainNav = () => {
+    setMobileNavOpen(false);
+    setMainNavCollapsed((value) => !value);
+  };
 
   const toggleSubSidebar = () => {
     setMobileNavOpen(false);
@@ -1173,7 +1210,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       <aside
         className={clsx(
-          "fixed inset-y-0 left-0 z-50 flex w-[264px] max-w-[85vw] flex-col overflow-hidden bg-[linear-gradient(180deg,#17217f_0%,#11195f_100%)] text-white shadow-2xl transition-[transform,visibility] duration-300 ease-out md:w-[80px] md:max-w-none md:visible md:shadow-[12px_0_28px_rgba(18,27,105,0.12)] md:translate-x-0 print:hidden",
+          "fixed inset-y-0 left-0 z-50 flex w-[264px] max-w-[85vw] flex-col overflow-hidden bg-[linear-gradient(180deg,#17217f_0%,#11195f_100%)] text-white shadow-2xl transition-[transform,visibility,width,opacity] duration-300 ease-out md:max-w-none md:visible md:shadow-[12px_0_28px_rgba(18,27,105,0.12)] md:translate-x-0 print:hidden",
+          mainNavCollapsed ? "md:w-0 md:border-r-0 md:opacity-0 md:pointer-events-none" : "md:w-[80px]",
           mobileNavOpen ? "visible translate-x-0" : "invisible -translate-x-full"
         )}
       >
@@ -1222,6 +1260,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <NavEntry key={item.href} item={item} pathname={pathname} rail />
           ))}
         </nav>
+        <div className="hidden border-t border-white/10 p-2 md:block">
+          <button
+            type="button"
+            onClick={toggleMainNav}
+            aria-label="Collapse main navigation"
+            title="Collapse main navigation"
+            className="flex w-full items-center justify-center rounded-lg py-2 text-[#c5ceff] transition hover:bg-white/10 hover:text-white"
+          >
+            <ChevronLeft size={18} />
+          </button>
+        </div>
       </aside>
 
       {contextualSubnav && (
@@ -1230,6 +1279,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           pathname={pathname}
           collapsed={contextSubnavCollapsed}
           drawerOpen={contextSubnavDrawerOpen}
+          mainNavCollapsed={mainNavCollapsed}
           onCloseDrawer={() => setContextSubnavDrawerOpen(false)}
           onToggle={toggleSubSidebar}
         />
@@ -1241,11 +1291,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           "flex min-w-0 flex-1 flex-col transition-[margin] duration-300 ease-out print:ml-0 print:block",
           // Sidebar is a fixed 80px icon rail. The contextual sub-nav (lg only)
           // sits between the rail and content: 232px expanded / 48px collapsed.
-          !contextualSubnav
-            ? "md:ml-[80px]"
-            : contextSubnavCollapsed
-              ? "md:ml-[80px] lg:ml-[128px]"
-              : "md:ml-[80px] lg:ml-[312px]"
+          mainNavCollapsed
+            ? !contextualSubnav
+              ? "md:ml-0"
+              : contextSubnavCollapsed
+                ? "md:ml-0 lg:ml-[48px]"
+                : "md:ml-0 lg:ml-[232px]"
+            : !contextualSubnav
+              ? "md:ml-[80px]"
+              : contextSubnavCollapsed
+                ? "md:ml-[80px] lg:ml-[128px]"
+                : "md:ml-[80px] lg:ml-[312px]"
         )}
       >
         <header className="sticky top-0 z-20 flex min-h-[64px] shrink-0 items-center gap-3 border-b border-border bg-card/90 px-3 py-2.5 shadow-sm backdrop-blur md:min-h-[72px] md:gap-4 md:px-6 md:py-3 print:hidden">
@@ -1262,6 +1318,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-accent text-accent-foreground transition hover:bg-muted md:hidden"
           >
             <Menu size={20} />
+          </button>
+          <button
+            type="button"
+            onClick={toggleMainNav}
+            aria-label={mainNavCollapsed ? "Expand main navigation" : "Collapse main navigation"}
+            aria-expanded={!mainNavCollapsed}
+            title={mainNavCollapsed ? "Expand main navigation" : "Collapse main navigation"}
+            className="hidden h-10 w-10 shrink-0 place-items-center rounded-lg bg-accent text-accent-foreground transition hover:bg-muted md:grid md:h-11 md:w-11"
+          >
+            {mainNavCollapsed ? <ChevronRight size={19} /> : <ChevronLeft size={19} />}
           </button>
           <div className="min-w-0 flex-1 md:min-w-[170px]">
             <h1 className="truncate text-lg font-extrabold tracking-tight text-foreground md:text-xl">
@@ -1295,7 +1361,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           >
             <RefreshCw size={19} className={clsx(refreshing && "animate-spin")} />
           </button>
-          <KeyboardShortcuts items={shortcutItems} variant="bar" />
+          <KeyboardShortcuts items={shortcutItems} />
           <div ref={profileMenuRef} className="relative">
             <button
               type="button"

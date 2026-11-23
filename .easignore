@@ -1,40 +1,36 @@
-# EAS upload exclusions (monorepo root).
-# NOTE (verified via `eas build:inspect --stage archive`): eas-cli honors
-# root-ANCHORED patterns (leading /) but ignores bare directory names, and
-# uploads .git despite docs saying otherwise. Keep every dir anchored.
-# Phone builds only need apps/mobile + packages/shared.
-/.git/
-/node_modules/
-/apps/mobile/node_modules/
-/apps/web/node_modules/
-/apps/desktop/node_modules/
-/apps/web/.next/
-/apps/desktop/dist/
-/apps/desktop/dist-fast-start-installer/
-/dist/
-/coverage/
-/tests/
-/test-results/
-/.playwright-cli/
-/docs/
-/audit/
+# EAS Build archive exclusions for the mobile app.
+# Keep only the mobile workspace, shared package, and root dependency files.
+.git
+node_modules
+.expo/
+.next/
+dist/
+build/
+coverage/
+test-results/
+playwright-report/
+.playwright-cli/
+
+apps/web/
+apps/desktop/
+docs/
+demo/
+audit/
+tests/
+scripts/
+.claude/
+.vercel/
+
+*.docx
 *.log
 *.tsbuildinfo
-/.expo/
-/build/
-/.next/
-# Required for Android FCM token registration (client config, not a secret).
-# Keep the iOS plist excluded until it is needed.
-GoogleService-Info.plist
+*.sqlite
+*.sqlite3
+firebase-debug.log
+/*.png
 
-# Environment files (all variants — NEVER upload secrets)
 .env*
-!env.example
-apps/web/.env.local
-apps/mobile/.env
-apps/desktop/.env
-
-# Firebase service account keys (sensitive — never upload)
+!.env.example
 serviceAccount*.json
 *service-account*.json
 *-firebase-adminsdk-*.json
@@ -43,4 +39,3 @@ serviceAccount*.json
 *.p12
 *.pfx
 *.reg
-firebase-debug.log

@@ -69,19 +69,15 @@ export async function GET(request: NextRequest) {
     let query: any = applyScope(db.collection('students'));
     let appliedLimit = pageSize;
     let canUseCursorPaging = false;
+    let inMemorySearch = false;
 
     if (q) {
-      const normalized = normalizeText(q);
-      if (/^\d{6,}$/.test(normalized)) {
-        appliedLimit = 10;
-        query = query.where("phone", "==", normalized);
-      } else if (/^[a-z]*[-/]?\d+$/i.test(q) || /^\d+$/.test(q)) {
-        appliedLimit = 10;
-        query = query.where("admissionNumber", "==", q);
-      } else {
-        appliedLimit = Math.min(pageSize, 25);
-        query = query.orderBy("studentNameLower", "asc").startAt(normalized).endAt(`${normalized}\uf8ff`);
-      }
+      // Search must be broad: partial names, middle words, admission numbers
+      // and phone digits. Firestore has no substring operator, so fetch the
+      // scoped set once and match in memory instead of prefix-only startAt.
+      inMemorySearch = true;
+      appliedLimit = 3000;
+      query = query.limit(appliedLimit);
     } else {
       canUseCursorPaging = true;
       query = query.orderBy("admissionNumber", "asc");
@@ -105,13 +101,8 @@ export async function GET(request: NextRequest) {
       if (queryError?.code === 9 || /FAILED_PRECONDITION|requires an index/i.test(String(queryError?.message))) {
         // Keep every scope/filter (school, branch, year, class, section,
         // status) — dropping them would silently show the wrong students.
-        let fallback: any = applyScope(db.collection('students'));
-        if (q) {
-          const normalized = normalizeText(q);
-          if (/^\d{6,}$/.test(normalized)) fallback = fallback.where("phone", "==", normalized);
-          else if (/^[a-z]*[-/]?\d+$/i.test(q) || /^\d+$/.test(q)) fallback = fallback.where("admissionNumber", "==", q);
-        }
-        snapshot = await fallback.limit(500).get();
+        const fallback: any = applyScope(db.collection('students'));
+        snapshot = await fallback.limit(q ? 3000 : 500).get();
         sortedInMemory = true;
       } else {
         throw queryError;
@@ -127,16 +118,46 @@ export async function GET(request: NextRequest) {
         return s === undefined || s === "active";
       });
     }
-    if (sortedInMemory) {
-      const key = q && !/^\d{6,}$/.test(normalizeText(q)) && !(/^[a-z]*[-/]?\d+$/i.test(q) || /^\d+$/.test(q))
-        ? "studentNameLower" : "admissionNumber";
-      docs = [...docs].sort((a, b) => String(a.data()[key] ?? "").localeCompare(String(b.data()[key] ?? "")));
-      if (q && key === "studentNameLower") {
-        const normalized = normalizeText(q);
-        docs = docs.filter((d) => String(d.data().studentNameLower ?? "").startsWith(normalized));
+    if (inMemorySearch || sortedInMemory) {
+      const normalized = normalizeText(q);
+      const digits = normalized.replace(/\D/g, "");
+      if (q) {
+        docs = docs.filter((d) => {
+          const data = d.data() as Record<string, unknown>;
+          const name = String(data.studentNameLower ?? data.studentName ?? "").toLowerCase();
+          const admission = String(data.admissionNumber ?? "").toLowerCase();
+          const phone = String(data.phone ?? "").replace(/\D/g, "");
+          const father = String(data.fatherName ?? "").toLowerCase();
+          const mother = String(data.motherName ?? "").toLowerCase();
+          const keywords = Array.isArray(data.searchKeywords)
+            ? data.searchKeywords.map((word) => String(word).toLowerCase())
+            : [];
+          return (
+            name.includes(normalized) ||
+            admission.includes(normalized) ||
+            father.includes(normalized) ||
+            mother.includes(normalized) ||
+            (digits.length > 0 && phone.includes(digits)) ||
+            keywords.some((word) => word.includes(normalized))
+          );
+        });
+        docs = [...docs].sort((a, b) => {
+          const aData = a.data() as Record<string, unknown>;
+          const bData = b.data() as Record<string, unknown>;
+          const aName = String(aData.studentNameLower ?? aData.studentName ?? "").toLowerCase();
+          const bName = String(bData.studentNameLower ?? bData.studentName ?? "").toLowerCase();
+          const aPrefix = aName.startsWith(normalized) ? 0 : 1;
+          const bPrefix = bName.startsWith(normalized) ? 0 : 1;
+          if (aPrefix !== bPrefix) return aPrefix - bPrefix;
+          return aName.localeCompare(bName);
+        });
+      } else {
+        docs = [...docs].sort((a, b) =>
+          String(a.data().admissionNumber ?? "").localeCompare(String(b.data().admissionNumber ?? ""))
+        );
       }
     }
-    const pageDocs = canUseCursorPaging && !sortedInMemory ? docs.slice(0, pageSize) : docs.slice(0, sortedInMemory ? pageSize : docs.length);
+    const pageDocs = docs.slice(0, pageSize);
     // Latency/quota saver (Spark plan): photo + document data URLs live inside
     // the doc (no Storage on Spark) and can be ~100KB–1MB per student. Strip
     // them from LIST payloads — the edit/detail view fetches the full doc by

@@ -49,7 +49,43 @@ export async function GET(req: Request) {
     if (cursorDoc.exists) query = query.startAfter(cursorDoc);
   }
 
-  const snapshot = await query.limit(pageSize + 1).get();
+  let snapshot: FirebaseFirestore.QuerySnapshot;
+  try {
+    snapshot = await query.limit(pageSize + 1).get();
+  } catch (error: unknown) {
+    const code = (error as { code?: number })?.code;
+    const message = error instanceof Error ? error.message : String(error);
+    if (code !== 9 && !/FAILED_PRECONDITION|requires an index/i.test(message)) throw error;
+
+    // Missing composite index: keep every equality filter, sort and paginate in
+    // memory so homework still loads while the index builds.
+    let fallback: FirebaseFirestore.Query = db.collection(COLLECTION);
+    if (academicYearId) fallback = fallback.where("academicYearId", "==", academicYearId);
+    const broad = await fallback.limit(1000).get();
+    let docs = broad.docs.filter((doc) => {
+      const data = doc.data() as Record<string, unknown>;
+      if (className && String(data.className ?? "") !== className) return false;
+      if (subject && String(data.subject ?? "") !== subject) return false;
+      if (status && String(data.status ?? "") !== status) return false;
+      return true;
+    });
+    docs.sort((a, b) => String(b.data().dueDate ?? "").localeCompare(String(a.data().dueDate ?? "")));
+    if (cursor) {
+      const index = docs.findIndex((doc) => doc.id === cursor);
+      if (index >= 0) docs = docs.slice(index + 1);
+    }
+    const pageDocs = docs.slice(0, pageSize);
+    const nextCursor = docs.length > pageSize ? pageDocs[pageDocs.length - 1]?.id ?? null : null;
+    logFirestoreRead("HomeworkAPI", COLLECTION, broad, { className, subject, status, fallback: true });
+    return json({
+      ok: true,
+      homework: pageDocs.map((doc) => serializeDoc(doc)),
+      pageSize,
+      nextCursor,
+      hasMore: Boolean(nextCursor)
+    });
+  }
+
   logFirestoreRead("HomeworkAPI", COLLECTION, snapshot, { className, subject, status });
   const pageDocs = snapshot.docs.slice(0, pageSize);
   const homework = pageDocs.map((doc) => serializeDoc(doc));

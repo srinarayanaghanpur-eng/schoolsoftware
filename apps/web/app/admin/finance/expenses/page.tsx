@@ -4,14 +4,16 @@ import { DatePicker } from "@/components/DatePicker";
 import { PageHeader } from "@/components/PageHeader";
 import { useAdminSession } from "@/components/AdminSessionContext";
 import { AdminApiError, adminApiRequest } from "@/lib/adminApiClient";
-import { hasPermission, formatLabel } from "@sri-narayana/shared";
-import { Check, Plus, X } from "lucide-react";
+import { numberToIndianWords } from "@/lib/amountInWords";
+import { SCHOOL_CONTACT, hasPermission, formatLabel } from "@sri-narayana/shared";
+import { Check, Plus, Printer, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
 
 type Expense = { id: string; category: string; amount: number; date: string; description: string; vendor?: string; paymentMethod: string; status: "pending" | "approved" | "rejected" };
 
 function inr(n: number) { return `₹${(n || 0).toLocaleString("en-IN")}`; }
+function voucherNo(id: string) { return `EXP-${id.slice(0, 8).toUpperCase()}`; }
 const CATEGORIES = ["utilities", "maintenance", "supplies", "vendor", "rent", "other"];
 const METHODS = ["cash", "bank", "upi", "cheque", "card"];
 const blank = { category: "utilities", amount: "", date: new Date().toISOString().slice(0, 10), description: "", vendor: "", paymentMethod: "cash" };
@@ -56,11 +58,90 @@ export default function ExpensesPage() {
 
   return (
     <>
+      <style>{`
+        .expense-voucher {
+          width: 210mm;
+          min-height: 148mm;
+          padding: 12mm 14mm;
+          background: #fff;
+          color: #000;
+          font-size: 11.5pt;
+          font-family: Arial, Helvetica, sans-serif;
+        }
+        .expense-voucher + .expense-voucher { page-break-before: always; }
+        .expense-voucher table { width: 100%; border-collapse: collapse; }
+        .expense-voucher th, .expense-voucher td { border: 1px solid #000; padding: 2mm 3mm; text-align: left; }
+        .expense-voucher .expense-amount { text-align: right; width: 40mm; }
+        @media print {
+          @page { size: A4 portrait; margin: 0; }
+          body * { visibility: hidden; }
+          .expense-print-area, .expense-print-area * { visibility: visible; }
+          .expense-print-area { position: absolute; left: 0; top: 0; width: 100%; }
+          .expense-voucher { box-shadow: none; }
+        }
+      `}</style>
       <PageHeader title="Expenses" description="Record and approve school expenses." />
       <section className="space-y-4 p-4 md:p-7">
         {error && <div className="card border-l-4 border-l-[#ed515d] p-4 text-sm font-semibold text-[#ed515d]">{error}</div>}
-        <div className="flex justify-end">
+        <div className="flex justify-end gap-2">
+          <button className="btn-secondary inline-flex items-center gap-2" onClick={() => window.print()} disabled={items.length === 0}>
+            <Printer size={16} /> Print vouchers
+          </button>
           <button className="btn-primary" onClick={() => setShowForm((v) => !v)}>{showForm ? <X size={16} /> : <Plus size={16} />} {showForm ? "Close" : "Add expense"}</button>
+        </div>
+
+        <div className="expense-print-area hidden print:block">
+          {items.map((item) => (
+            <article key={item.id} className="expense-voucher">
+              <div className="flex items-center gap-4 border-b-2 border-black pb-3">
+                <img src="/sri-narayana-high-school-logo.jpg" alt="" className="h-16 w-16 shrink-0 object-contain" />
+                <div className="min-w-0 flex-1 text-center">
+                  <h1 className="text-[17pt] font-bold leading-tight">{SCHOOL_CONTACT.name.toUpperCase()}</h1>
+                  <p className="text-[10pt]">{SCHOOL_CONTACT.address}</p>
+                  <p className="text-[10pt]">Ph: {SCHOOL_CONTACT.phone}</p>
+                </div>
+              </div>
+
+              <h2 className="mt-4 text-center text-[13pt] font-bold tracking-wide">EXPENSE VOUCHER</h2>
+
+              <div className="mt-3 grid grid-cols-2 gap-x-8 gap-y-1.5">
+                <div>Voucher No.: <b>{voucherNo(item.id)}</b></div>
+                <div>Date: <b>{item.date}</b></div>
+                <div>Paid To: <b>{item.vendor || "—"}</b></div>
+                <div>Expense Head: <b>{formatLabel(item.category)}</b></div>
+              </div>
+
+              <table className="mt-3">
+                <thead>
+                  <tr>
+                    <th>Description</th>
+                    <th className="expense-amount">Amount (₹)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td className="h-[30mm] align-top">{item.description || "—"}</td>
+                    <td className="expense-amount align-top">{inr(item.amount)}</td>
+                  </tr>
+                  <tr>
+                    <td className="text-right font-bold">TOTAL</td>
+                    <td className="expense-amount font-bold">{inr(item.amount)}</td>
+                  </tr>
+                </tbody>
+              </table>
+
+              <p className="mt-3">Amount in words: <b>{numberToIndianWords(item.amount)}</b></p>
+              <p className="mt-1">Payment Mode: <b>{formatLabel(item.paymentMethod)}</b></p>
+
+              <div className="mt-10 flex justify-between gap-6 text-center text-[10pt]">
+                <div className="flex-1 border-t border-black pt-1.5">Receiver Signature</div>
+                <div className="flex-1 border-t border-black pt-1.5">Accountant</div>
+                <div className="flex-1 border-t border-black pt-1.5">Approved By</div>
+              </div>
+
+              <p className="mt-6 text-center text-[9pt]">This is computer generated valid voucher.</p>
+            </article>
+          ))}
         </div>
 
         {showForm && (

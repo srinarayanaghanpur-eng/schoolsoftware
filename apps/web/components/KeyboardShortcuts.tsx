@@ -1,7 +1,7 @@
 "use client";
 
 import clsx from "clsx";
-import { CornerDownLeft, Keyboard, Search, X } from "lucide-react";
+import { CornerDownLeft, Search, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 
@@ -177,7 +177,7 @@ export function KeyboardShortcuts({ items, variant = "icon" }: { items: Shortcut
         className={
           variant === "bar"
             ? "hidden h-10 shrink-0 items-center gap-2 rounded-xl border border-border bg-card px-3 text-left text-muted-foreground shadow-sm transition hover:border-primary/30 hover:text-foreground md:flex md:h-11"
-            : "hidden h-10 w-10 shrink-0 place-items-center rounded-lg bg-accent text-accent-foreground transition hover:bg-muted sm:grid md:h-11 md:w-11"
+            : "grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-accent text-accent-foreground transition hover:bg-muted md:h-11 md:w-11"
         }
       >
         {variant === "bar" ? (
@@ -189,7 +189,7 @@ export function KeyboardShortcuts({ items, variant = "icon" }: { items: Shortcut
             </kbd>
           </>
         ) : (
-          <Keyboard size={19} />
+          <Search size={19} />
         )}
       </button>
 
@@ -224,7 +224,7 @@ export function KeyboardShortcuts({ items, variant = "icon" }: { items: Shortcut
                       setActiveIndex(0);
                     }}
                     onKeyDown={handleSearchKeyDown}
-                    placeholder="Search pages and modules…"
+                    placeholder="Type a page, module or keyword…"
                     aria-label="Search pages and modules"
                     className="h-10 min-w-0 flex-1 bg-transparent text-base font-semibold text-foreground outline-none placeholder:text-muted-foreground"
                   />
@@ -281,7 +281,7 @@ export function KeyboardShortcuts({ items, variant = "icon" }: { items: Shortcut
                   <span><kbd className="shortcut-key">↑</kbd><kbd className="shortcut-key">↓</kbd> move</span>
                   <span><kbd className="shortcut-key">Enter</kbd> open</span>
                   <span><kbd className="shortcut-key">Esc</kbd> close</span>
-                  <span className="ml-auto">Ctrl/Cmd + K</span>
+                  <span className="ml-auto">{filteredItems.length} page{filteredItems.length === 1 ? "" : "s"}</span>
                 </div>
               </>
             ) : (

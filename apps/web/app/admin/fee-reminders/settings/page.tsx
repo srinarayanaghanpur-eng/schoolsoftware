@@ -123,8 +123,8 @@ export default function FeeReminderSettingsPage() {
     setError("");
     try {
       const params = new URLSearchParams({ academicYearId: selectedYear.id });
-      const result = await adminApiRequest<FeeReminderSettings>(`/api/admin/fee-reminder-settings?${params}`);
-      setSettings(result);
+      const result = await adminApiRequest<{ settings: FeeReminderSettings }>(`/api/admin/fee-reminder-settings?${params}`);
+      setSettings(result.settings ?? defaultSettings);
     } catch (e) {
       setError(e instanceof AdminApiError ? e.message : "Failed to load settings");
     } finally {

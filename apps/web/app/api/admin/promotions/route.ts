@@ -7,15 +7,42 @@ import { docCursor, logFirestoreRead, readLimit } from "@/lib/firestoreReadLogge
 import { getSchoolId } from "@/lib/schoolScope";
 
 const CLASS_ORDER = ["Nur", "LKG", "UKG", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"];
+const ROMAN_CLASSES: Record<string, string> = {
+  i: "1", ii: "2", iii: "3", iv: "4", v: "5",
+  vi: "6", vii: "7", viii: "8", ix: "9", x: "10"
+};
 
-function nextClass(currentClass: string): string | null {
-  const idx = CLASS_ORDER.indexOf(currentClass);
+function normalizeClass(value: unknown): string | null {
+  const raw = String(value ?? "").trim();
+  if (!raw) return null;
+  const cleaned = raw
+    .replace(/^(class|std|standard|grade)\s*[:\-]?\s*/i, "")
+    .replace(/(st|nd|rd|th)$/i, "")
+    .trim();
+  if (!cleaned) return null;
+  const lower = cleaned.toLowerCase();
+  if (lower === "nursery" || lower === "nur") return "Nur";
+  if (lower === "lkg" || lower === "l.k.g") return "LKG";
+  if (lower === "ukg" || lower === "u.k.g") return "UKG";
+  if (/^\d+$/.test(cleaned)) {
+    const num = Number(cleaned);
+    return num >= 1 && num <= 10 ? String(num) : null;
+  }
+  return ROMAN_CLASSES[lower] ?? null;
+}
+
+function nextClass(currentClass: unknown): string | null {
+  const normalized = normalizeClass(currentClass);
+  if (!normalized) return null;
+  const idx = CLASS_ORDER.indexOf(normalized);
   if (idx === -1 || idx >= CLASS_ORDER.length - 1) return null;
   return CLASS_ORDER[idx + 1];
 }
 
-function prevClass(currentClass: string): string | null {
-  const idx = CLASS_ORDER.indexOf(currentClass);
+function prevClass(currentClass: unknown): string | null {
+  const normalized = normalizeClass(currentClass);
+  if (!normalized) return null;
+  const idx = CLASS_ORDER.indexOf(normalized);
   if (idx <= 0) return null;
   return CLASS_ORDER[idx - 1];
 }
@@ -114,14 +141,40 @@ export async function POST(req: Request) {
     const promotionRecords: Record<string, unknown>[] = [];
 
     const firstStudent = studentDocs[0]?.data();
-    const stepClass = (cls: string) =>
-      promotionType === "demote" ? prevClass(cls) || cls : nextClass(cls) || cls;
-    const aggregateToClass = toClass || (firstStudent ? stepClass(firstStudent.class) : fromClass);
     const aggregateToSection = toSection || firstStudent?.section || "A";
+    let aggregateToClass = "";
 
     for (const doc of studentDocs) {
       const studentData = doc.data();
-      const resolvedToClass = toClass || stepClass(studentData.class);
+      const currentClass = normalizeClass(studentData.class ?? fromClass);
+      if (!currentClass) {
+        return json(
+          { ok: false, error: `Unrecognised class "${studentData.class ?? fromClass}" for ${studentData.studentName || doc.id}.` },
+          { status: 400 }
+        );
+      }
+
+      // Move exactly one class at a time. The client's toClass is ignored for
+      // promote/demote so no request can skip grades or wrap 10 → Nursery.
+      let resolvedToClass = currentClass;
+      if (promotionType === "promote") {
+        resolvedToClass = nextClass(currentClass) ?? "";
+        if (!resolvedToClass) {
+          return json(
+            { ok: false, error: `${studentData.studentName || "Student"} is in Class ${currentClass}, the final class. There is no next class to promote to.` },
+            { status: 400 }
+          );
+        }
+      } else if (promotionType === "demote") {
+        resolvedToClass = prevClass(currentClass) ?? "";
+        if (!resolvedToClass) {
+          return json(
+            { ok: false, error: `${studentData.studentName || "Student"} is in Class ${currentClass}, the first class. There is no previous class to demote to.` },
+            { status: 400 }
+          );
+        }
+      }
+      if (!aggregateToClass) aggregateToClass = resolvedToClass;
       const resolvedToSection = toSection || studentData.section || "A";
 
       // Promotion/demotion NEVER applies immediately: records stay pending and

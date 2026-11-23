@@ -263,10 +263,8 @@ export const adminNavigationGroups: NavigationGroup[] = [
       { href: "/admin/fee-concessions", label: "Concessions", icon: ShieldCheck, module: "fees" },
       { href: "/admin/fee-reminders", label: "Fee Reminders", icon: Bell, module: "fee_reminders" },
       { href: "/admin/finance/carry-forward", label: "Carry Forward", icon: RefreshCw, module: "fees" },
-      { href: "/admin/finance/due-slips", label: "Due Slips", icon: FileStack, module: "fees" },
       { href: "/admin/finance/expenses", label: "Expenses", icon: Wallet, module: "fees" },
-      { href: "/admin/finance/dues", label: "Dues", icon: FileStack, module: "fees" },
-      { href: "/admin/payments", label: "Receipts", icon: ScrollText, module: "fees", activePrefixes: ["/admin/finance/receipt"] },
+      { href: "/admin/finance/dues", label: "Dues & Due Slips", icon: FileStack, module: "fees" },
       { href: "/admin/finance/invoices", label: "Invoices", icon: FileText, module: "fees" },
       { href: "/admin/salary", label: "Salary & Payroll", icon: Wallet, module: "payroll" }
     ]
