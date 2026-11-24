@@ -129,6 +129,8 @@ export async function scheduleLocalNotification(
 }
 
 async function authedPost(path: string, body: Record<string, unknown>): Promise<boolean> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 5000);
   try {
     const user = auth.currentUser;
     if (!user || !API_REQUESTS_AVAILABLE) return false;
@@ -136,11 +138,14 @@ async function authedPost(path: string, body: Record<string, unknown>): Promise<
     const response = await fetch(`${API_BASE_URL}${path}`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${idToken}` },
-      body: JSON.stringify(body)
+      body: JSON.stringify(body),
+      signal: controller.signal
     });
     return response.ok;
   } catch {
     return false;
+  } finally {
+    clearTimeout(timer);
   }
 }
 

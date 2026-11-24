@@ -36,6 +36,7 @@ type MobileSessionContextValue = {
 };
 
 const MobileSessionContext = createContext<MobileSessionContextValue | null>(null);
+const SESSION_CACHE_PREFIX = "@sri-narayana:mobile-session:";
 
 function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
@@ -43,6 +44,43 @@ function asRecord(value: unknown): Record<string, unknown> {
 
 function asString(value: unknown): string | undefined {
   return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
+/**
+ * Logout must never wait on the network. Push unregister and sign-out are
+ * best-effort with a hard deadline so a slow request cannot freeze the UI.
+ */
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | null> {
+  return Promise.race([
+    promise.catch(() => null),
+    new Promise<null>((resolve) => setTimeout(() => resolve(null), ms))
+  ]);
+}
+
+async function readCachedProfile(uid: string): Promise<MobileUserProfile | null> {
+  try {
+    const raw = await AsyncStorage.getItem(`${SESSION_CACHE_PREFIX}${uid}`);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<MobileUserProfile>;
+    if (parsed.uid !== uid || !isValidRole(parsed.role) || typeof parsed.displayName !== "string") {
+      return null;
+    }
+    return parsed as MobileUserProfile;
+  } catch {
+    return null;
+  }
+}
+
+async function writeCachedProfile(profile: MobileUserProfile): Promise<void> {
+  await AsyncStorage.setItem(
+    `${SESSION_CACHE_PREFIX}${profile.uid}`,
+    JSON.stringify(profile)
+  ).catch(() => undefined);
+}
+
+async function clearCachedProfile(uid?: string | null): Promise<void> {
+  if (!uid) return;
+  await AsyncStorage.removeItem(`${SESSION_CACHE_PREFIX}${uid}`).catch(() => undefined);
 }
 
 async function resolveTeacherId(user: User, userData: Record<string, unknown>, claimTeacherId: unknown) {
@@ -112,6 +150,7 @@ export async function resolveMobileSession(user: User): Promise<MobileUserProfil
 export function MobileSessionProvider({ children }: { children: React.ReactNode }) {
   const runRef = useRef(0);
   const retainedErrorRef = useRef<string | null>(null);
+  const lastUidRef = useRef<string | null>(null);
   const [status, setStatus] = useState<MobileAuthStatus>("checking");
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<MobileUserProfile | null>(null);
@@ -127,22 +166,41 @@ export function MobileSessionProvider({ children }: { children: React.ReactNode 
       setStatus("unauthenticated");
       // No signed-in user: wipe every cache namespace so the next
       // account on this device cannot read the previous one's data.
+      void clearCachedProfile(lastUidRef.current);
+      lastUidRef.current = null;
       void mobileCache.clearAllNamespaces();
       return;
     }
 
-    // Scope the cache to this account before any screen can read it.
-    void mobileCache.setOwner(nextUser.uid);
+    lastUidRef.current = nextUser.uid;
     setError(null);
-    setStatus("checking");
+
+    // Show the last verified profile immediately, then revalidate in the
+    // background. This removes the Firestore round-trip from cold-start
+    // blocking while still catching role/status changes.
+    const [cached] = await Promise.all([
+      readCachedProfile(nextUser.uid),
+      mobileCache.setOwner(nextUser.uid)
+    ]);
+    if (currentRun !== getRun()) return;
+    if (cached) {
+      setProfile(cached);
+      setStatus("authenticated");
+    } else {
+      setStatus("checking");
+    }
+
     try {
       const nextProfile = await resolveMobileSession(nextUser);
       if (currentRun !== getRun()) return;
       setProfile(nextProfile);
       setStatus("authenticated");
-      // Best-effort: register this device for push. Failures (simulator,
-      // denied permission, offline) are silent by design.
-      void ensurePushRegistration();
+      void writeCachedProfile(nextProfile);
+      // Best-effort: register this device for push after the first paint.
+      // Deferring avoids competing with the dashboard's initial data fetch.
+      setTimeout(() => {
+        if (currentRun === getRun()) void ensurePushRegistration();
+      }, 1500);
     } catch (err) {
       if (currentRun !== getRun()) return;
       const message = err instanceof Error ? err.message : "Unable to verify your session.";
@@ -150,6 +208,7 @@ export function MobileSessionProvider({ children }: { children: React.ReactNode 
       setError(message);
       retainedErrorRef.current = message;
       setStatus("error");
+      await clearCachedProfile(nextUser.uid);
       await signOut(auth).catch(() => undefined);
       await clearMobileAuthStorage().catch(() => undefined);
     }
@@ -186,15 +245,24 @@ export function MobileSessionProvider({ children }: { children: React.ReactNode 
   }, [applyUser]);
 
   const logout = useCallback(async () => {
-    // Unregister push BEFORE signing out so the request still carries auth.
-    await unregisterPushToken();
-    await signOut(auth);
-    await clearMobileAuthStorage();
-    await mobileCache.clearAllNamespaces().catch(() => undefined);
+    const uid = auth.currentUser?.uid;
+    // Flip the UI immediately. WorkspaceGuard will redirect to /login even if
+    // a network call below is slow or offline.
     setUser(null);
     setProfile(null);
     setError(null);
     setStatus("unauthenticated");
+
+    if (auth.currentUser) {
+      // Unregister while the token is still valid, but never block logout.
+      await withTimeout(unregisterPushToken(), 2000);
+      await withTimeout(signOut(auth), 5000);
+    }
+    await Promise.allSettled([
+      clearMobileAuthStorage(),
+      clearCachedProfile(uid),
+      mobileCache.clearAllNamespaces()
+    ]);
   }, []);
 
   const value = useMemo<MobileSessionContextValue>(() => ({

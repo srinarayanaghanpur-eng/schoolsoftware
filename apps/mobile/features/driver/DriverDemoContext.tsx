@@ -24,6 +24,7 @@ import {
   type DriverAssignment,
   type DriverTripMode
 } from "@/lib/driverApi";
+import { mobileCache } from "@/lib/cache/mobileCache";
 
 export type JourneyMode = "morning" | "evening";
 export type JourneyStatus = "idle" | "active" | "completed";
@@ -189,26 +190,56 @@ export function DriverDemoProvider({ children }: { children: React.ReactNode }) 
     };
   }, []);
 
+  const applyAssignment = useCallback((assignment: DriverAssignment) => {
+    setProfile(toProfile(assignment));
+    setStops(toStops(assignment));
+    setMode(assignment.mode);
+  }, []);
+
   const refresh = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const assignment = await getDriverAssignment();
       if (!keepAlive.current) return;
-      setProfile(toProfile(assignment));
-      setStops(toStops(assignment));
-      setMode(assignment.mode);
+      applyAssignment(assignment);
+      void mobileCache.set("driver-assignment", assignment, 2).catch(() => undefined);
     } catch (err) {
       if (!keepAlive.current) return;
       setError(err instanceof Error ? err.message : "Unable to load driver assignment");
     } finally {
       if (keepAlive.current) setLoading(false);
     }
-  }, []);
+  }, [applyAssignment]);
 
   useEffect(() => {
-    void refresh();
-  }, [refresh]);
+    let cancelled = false;
+    (async () => {
+      const cached = await mobileCache.get<DriverAssignment>("driver-assignment");
+      if (cancelled || !keepAlive.current) return;
+      if (cached) {
+        applyAssignment(cached);
+        setLoading(false);
+      }
+      try {
+        const assignment = await getDriverAssignment();
+        if (cancelled || !keepAlive.current) return;
+        applyAssignment(assignment);
+        setError(null);
+        void mobileCache.set("driver-assignment", assignment, 2).catch(() => undefined);
+      } catch (err) {
+        if (cancelled || !keepAlive.current) return;
+        if (!cached) {
+          setError(err instanceof Error ? err.message : "Unable to load driver assignment");
+        }
+      } finally {
+        if (!cancelled && keepAlive.current) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [applyAssignment]);
 
   const refreshLocationPermission = useCallback(async () => {
     try {

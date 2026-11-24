@@ -1,15 +1,18 @@
 import React, { useState } from "react";
 import { ScrollView, View } from "react-native";
+import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import {
   Avatar,
   Badge,
+  ConfirmDialog,
   DSText,
   Icon,
   ListRow,
   PillButton,
   SectionCard,
-  TonalTile
+  TonalTile,
+  useToast
 } from "@/design-system/components";
 import { space } from "@/design-system/tokens";
 import { useTheme } from "@/lib/Theme";
@@ -28,6 +31,8 @@ export default function DriverProfileScreen() {
 
 function DriverProfile() {
   const { t } = useTheme();
+  const router = useRouter();
+  const toast = useToast();
   const { logout } = useMobileSession();
   const {
     profile,
@@ -38,6 +43,21 @@ function DriverProfile() {
     totalStudents
   } = useDriverDemo();
   const [tutorialOpen, setTutorialOpen] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  const handleLogout = async () => {
+    if (loggingOut) return;
+    setLoggingOut(true);
+    try {
+      await logout();
+      router.replace("/login" as never);
+    } catch (err) {
+      toast.show(err instanceof Error ? err.message : "Logout failed. Please try again.");
+    } finally {
+      setLoggingOut(false);
+    }
+  };
 
   const initials = profile.name
     .split(" ")
@@ -150,11 +170,20 @@ function DriverProfile() {
           icon="logout"
           bg={t.bad}
           block
-          onPress={() => { void logout(); }}
+          onPress={() => setConfirmOpen(true)}
         />
       </ScrollView>
 
       <LocationTutorialModal visible={tutorialOpen} onClose={() => setTutorialOpen(false)} />
+      <ConfirmDialog
+        visible={confirmOpen}
+        title="Sign out?"
+        message="You are getting logged out from this device."
+        confirmLabel="Sign out"
+        busy={loggingOut}
+        onCancel={() => setConfirmOpen(false)}
+        onConfirm={() => { setConfirmOpen(false); void handleLogout(); }}
+      />
     </>
   );
 }

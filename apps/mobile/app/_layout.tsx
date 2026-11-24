@@ -21,6 +21,7 @@ import { setupPushListeners } from "@/lib/pushNotifications";
 import { ErrorBoundary } from "@/lib/ErrorBoundary";
 import { ThemeProvider, useTheme } from "@/lib/Theme";
 import { ThemedStack } from "@/lib/ThemedStack";
+import { ToastProvider } from "@/design-system/components";
 
 function PushBootstrap({ children }: { children: React.ReactNode }) {
   useEffect(() => setupPushListeners(), []);
@@ -68,11 +69,13 @@ function AppBootstrap({ fontsReady }: { fontsReady: boolean }) {
         >
           <ErrorBoundary>
             <MobileSessionProvider>
-              <SplashGate>
-                <PushBootstrap>
-                  <ThemedStack />
-                </PushBootstrap>
-              </SplashGate>
+              <ToastProvider>
+                <SplashGate>
+                  <PushBootstrap>
+                    <ThemedStack />
+                  </PushBootstrap>
+                </SplashGate>
+              </ToastProvider>
             </MobileSessionProvider>
           </ErrorBoundary>
         </View>

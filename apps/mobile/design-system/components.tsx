@@ -100,7 +100,8 @@ export function PressableScale({
   children,
   style,
   accessibilityLabel,
-  hitSlop
+  hitSlop,
+  disabled = false
 }: {
   onPress?: () => void;
   children: React.ReactNode;
@@ -108,14 +109,21 @@ export function PressableScale({
   accessibilityLabel?: string;
   /** Expand the touch area without changing visuals (min 44px targets). */
   hitSlop?: number;
+  disabled?: boolean;
 }) {
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
+      accessibilityState={{ disabled }}
+      disabled={disabled}
       onPress={onPress}
       hitSlop={hitSlop}
-      style={({ pressed }) => [style, pressed && { transform: [{ scale: motion.pressScale }], opacity: 0.92 }]}
+      style={({ pressed }) => [
+        style,
+        disabled && { opacity: 0.55 },
+        pressed && !disabled && { transform: [{ scale: motion.pressScale }], opacity: 0.92 }
+      ]}
     >
       {children}
     </Pressable>
@@ -128,7 +136,8 @@ export function PillButton({
   bg,
   fg,
   icon,
-  block = false
+  block = false,
+  disabled = false
 }: {
   label: string;
   onPress?: () => void;
@@ -137,6 +146,7 @@ export function PillButton({
   icon?: IconName;
   /** Stretch to fill the parent instead of hugging the label. */
   block?: boolean;
+  disabled?: boolean;
 }) {
   const { t } = useTheme();
   const resolvedBg = bg ?? t.blue;
@@ -145,6 +155,7 @@ export function PillButton({
     <PressableScale
       onPress={onPress}
       accessibilityLabel={label}
+      disabled={disabled}
       style={[styles.pillButton, block && styles.pillButtonBlock, { backgroundColor: resolvedBg }]}
     >
       {icon ? <Icon name={icon} size={17} tint={resolvedFg} /> : null}
@@ -484,6 +495,71 @@ export function BottomSheet({
   );
 }
 
+/* ---------------------------------------------------------------- Center dialog */
+export function ConfirmDialog({
+  visible,
+  title,
+  message,
+  confirmLabel = "Confirm",
+  cancelLabel = "Cancel",
+  busy = false,
+  destructive = true,
+  icon = "logout",
+  onCancel,
+  onConfirm
+}: {
+  visible: boolean;
+  title: string;
+  message: string;
+  confirmLabel?: string;
+  cancelLabel?: string;
+  busy?: boolean;
+  destructive?: boolean;
+  icon?: IconName;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  const { t } = useTheme();
+  const accent = destructive ? t.bad : t.blue;
+  const accentBg = destructive ? t.badBg : t.tint;
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
+      <View style={styles.dialogScrim}>
+        <Pressable
+          style={styles.dialogBackdrop}
+          onPress={busy ? undefined : onCancel}
+          accessibilityLabel="Close dialog"
+        />
+        <View
+          style={[styles.dialogCard, elevation.card, { backgroundColor: t.card, borderColor: t.line }]}
+          accessibilityViewIsModal
+        >
+          <View style={[styles.dialogIcon, { backgroundColor: accentBg }]}>
+            <Icon name={icon} size={24} tint={accent} />
+          </View>
+          <DSText variant="title" style={styles.dialogTitle}>{title}</DSText>
+          <DSText variant="body" style={styles.dialogMessage}>{message}</DSText>
+          <View style={styles.dialogActions}>
+            <View style={styles.dialogAction}>
+              <PillButton label={cancelLabel} block bg={t.bg} fg={t.ink} onPress={onCancel} disabled={busy} />
+            </View>
+            <View style={styles.dialogAction}>
+              <PillButton
+                label={busy ? "Signing out…" : confirmLabel}
+                block
+                bg={accent}
+                fg="#FFFFFF"
+                onPress={onConfirm}
+                disabled={busy}
+              />
+            </View>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
 /* ---------------------------------------------------------------- Toast */
 const ToastContext = createContext<{ show: (msg: string) => void }>({ show: () => undefined });
 
@@ -788,6 +864,35 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill
   },
   sheetHeader: { flexDirection: "row", alignItems: "center", gap: space.md },
+  dialogScrim: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: space.xl,
+    backgroundColor: "rgba(15,21,53,0.55)"
+  },
+  dialogBackdrop: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0 },
+  dialogCard: {
+    width: "100%",
+    maxWidth: 360,
+    borderWidth: 1,
+    borderRadius: radius.xl,
+    padding: space.xl,
+    alignItems: "center",
+    gap: space.sm
+  },
+  dialogIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: space.xs
+  },
+  dialogTitle: { textAlign: "center" },
+  dialogMessage: { textAlign: "center" },
+  dialogActions: { flexDirection: "row", gap: space.sm, marginTop: space.md, alignSelf: "stretch" },
+  dialogAction: { flex: 1 },
 
   fieldContainer: {
     flexDirection: "row",

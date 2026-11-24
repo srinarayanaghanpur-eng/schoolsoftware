@@ -6,7 +6,7 @@ import { ScrollView, StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import {
-  Avatar, BottomSheet, DSText, Icon, ListRow, PillButton, ProgressRow, SectionCard, StatTile, TonalTile, useToast
+  Avatar, ConfirmDialog, DSText, Icon, ListRow, PillButton, ProgressRow, SectionCard, StatTile, TonalTile, useToast
 } from "@/design-system/components";
 import { radius, space } from "@/design-system/tokens";
 import { useTheme } from "@/lib/Theme";
@@ -36,17 +36,21 @@ function TeacherProfile() {
 
   const name = teacher?.fullName ?? session.profile?.displayName ?? "Teacher";
 
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
+
   const logout = async () => {
+    if (loggingOut) return;
+    setLoggingOut(true);
     try {
       await session.logout();
       router.replace("/login" as never);
     } catch (err) {
       toast.show(err instanceof Error ? err.message : "Logout failed. Please try again.");
+    } finally {
+      setLoggingOut(false);
     }
   };
-
-  const [confirmOpen, setConfirmOpen] = useState(false);
-  const confirmLogout = () => setConfirmOpen(true);
 
   return (
     <ScrollView
@@ -138,30 +142,18 @@ function TeacherProfile() {
       </DSText>
 
       <View style={styles.logoutWrap}>
-        <PillButton label="Logout from this device" bg={t.bad} icon="logout" onPress={confirmLogout} />
+        <PillButton label="Logout from this device" bg={t.bad} icon="logout" onPress={() => setConfirmOpen(true)} />
       </View>
 
-      <BottomSheet
+      <ConfirmDialog
         visible={confirmOpen}
         title="Log out?"
-        onClose={() => setConfirmOpen(false)}
-      >
-        <DSText variant="label">You are getting logged out from this device.</DSText>
-        <View style={{ flexDirection: "row", gap: 10, marginTop: 16 }}>
-          <View style={{ flex: 1 }}>
-            <PillButton label="Stay" block onPress={() => setConfirmOpen(false)} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <PillButton
-              label="Log out"
-              block
-              bg={t.bad}
-              fg="#FFFFFF"
-              onPress={() => { setConfirmOpen(false); void logout(); }}
-            />
-          </View>
-        </View>
-      </BottomSheet>
+        message="You are getting logged out from this device."
+        confirmLabel="Log out"
+        busy={loggingOut}
+        onCancel={() => setConfirmOpen(false)}
+        onConfirm={() => { setConfirmOpen(false); void logout(); }}
+      />
     </ScrollView>
   );
 }

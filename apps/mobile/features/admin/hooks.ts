@@ -110,10 +110,16 @@ export function useRecentPayments() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
+      const cached = await mobileCache.get<AdminPayment[]>("admin-recent-payments-v2");
+      if (cancelled) return;
+      if (cached) {
+        setPayments(cached);
+        setLoading(false);
+        return;
+      }
       try {
-        // Always fetch from network; cache is for future refreshes only.
         await refresh();
-      } catch (err) {
+      } catch {
         // already reported via refresh's setError
       }
       if (!cancelled) setLoading(false);
@@ -242,10 +248,16 @@ export function useExpenses() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
+      const cached = await mobileCache.get<Expense[]>("admin-expenses");
+      if (cancelled) return;
+      if (cached) {
+        setExpenses(cached);
+        setLoading(false);
+        return;
+      }
       try {
-        // Always fetch from network; cache is for future refreshes only.
         await refresh();
-      } catch (err) {
+      } catch {
         // already reported via refresh's setError
       }
       if (!cancelled) setLoading(false);

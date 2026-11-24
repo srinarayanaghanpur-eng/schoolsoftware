@@ -3,16 +3,17 @@
     "name": "NarayanaOS",
     "slug": "sri-narayana-school-erp",
     "scheme": "sna",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
-    "userInterfaceStyle": "default",
+    "userInterfaceStyle": "automatic",
     "icon": "./assets/icon.png",
-    "splash": {
-      "image": "./assets/LOGO.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#f4f3f8"
+    "runtimeVersion": "1.0.1",
+    "updates": {
+      "url": "https://u.expo.dev/39b21e76-f36a-41eb-9681-5b457c64f2fc",
+      "enabled": true,
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0
     },
-    "runtimeVersion": "1.0.0",
     "plugins": [
       [
         "expo-location",
@@ -47,7 +48,14 @@
           }
         }
       ],
-      "expo-splash-screen"
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/LOGO.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#f4f3f8"
+        }
+      ]
     ],
     "ios": {
       "supportsTablet": false,
@@ -55,7 +63,7 @@
       "buildNumber": "1"
     },
     "android": {
-      "versionCode": 7,
+      "versionCode": 8,
       "package": "com.srinarayana.attendance",
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
