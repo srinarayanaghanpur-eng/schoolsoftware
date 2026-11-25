@@ -207,7 +207,7 @@ const pageTitles: Record<string, string> = {
   "/portal/contact": "Contact School",
   "/portal/profile": "Parent Profile",
   "/admin/profile": "My Profile",
-  "/admin/settings": "Settings",
+  "/admin/settings": "Settings Manager",
   "/admin/settings/activity-logs": "Activity Log",
   "/admin/biometric": "Biometric Devices",
   "/admin/backup": "Backup & Restore",

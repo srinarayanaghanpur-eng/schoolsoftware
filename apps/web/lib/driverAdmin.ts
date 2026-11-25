@@ -78,15 +78,21 @@ export async function resolveDriverAssignment(uid: string): Promise<DriverAssign
   }
   const vehicle = withId(vehicleSnap.id, vehicleSnap.data() as Vehicle);
 
-  const routeSnap = await adminDb()
-    .collection("transport_routes")
-    .where("vehicleId", "==", driver.vehicleId)
-    .limit(1)
-    .get();
-  if (routeSnap.empty) {
-    throw new DriverAssignmentError("No route assigned to this vehicle", 404);
+  const linkedRoute = driver.routeId
+    ? await adminDb().collection("transport_routes").doc(driver.routeId).get()
+    : null;
+  const routeDoc = linkedRoute?.exists
+    ? linkedRoute
+    : (
+        await adminDb()
+          .collection("transport_routes")
+          .where("vehicleId", "==", driver.vehicleId)
+          .limit(1)
+          .get()
+      ).docs[0];
+  if (!routeDoc) {
+    throw new DriverAssignmentError("No route assigned to this driver or vehicle", 404);
   }
-  const routeDoc = routeSnap.docs[0];
   const route = withId(routeDoc.id, routeDoc.data() as TransportRoute);
 
   return {

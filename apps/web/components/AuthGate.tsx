@@ -54,7 +54,7 @@ export function AuthGate({
     }
 
     if (allowedRoles.length > 0 && (!isValidRole(actualRole) || !allowedRoles.includes(actualRole))) {
-      redirectOnce("/unauthorized");
+      redirectOnce(actualRole === "driver" ? "/use-mobile-app" : "/unauthorized");
     }
   }, [actualRole, allowedRoles, router, status]);
 

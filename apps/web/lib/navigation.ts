@@ -106,7 +106,7 @@ const masterNavItems: NavigationItem[] = [
 ];
 
 const adminSettingsItems: NavigationItem[] = [
-  { href: "/admin/settings", label: "School Settings", icon: Settings, module: "settings" },
+  { href: "/admin/settings", label: "Settings Manager", icon: Settings, module: "settings" },
   { href: "/admin/settings/activity-logs", label: "Activity Log", icon: ScrollText, module: "settings" },
   { href: "/admin/users", label: "Users & Roles", icon: UserCog, module: "users" },
   { href: "/admin/approvals", label: "Approvals", icon: ShieldCheck, module: "settings" },

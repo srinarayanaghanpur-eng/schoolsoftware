@@ -198,9 +198,25 @@ function DriverHome() {
           eyebrow="DRIVER"
           title={`Hi, ${profile.name.split(" ")[0]}`}
           trailing={
-            <PressableScale accessibilityLabel="Open driver profile" onPress={() => router.push("/driver/profile" as never)}>
-              <Avatar label={profile.name.split(" ").map((part) => part[0]).join("").slice(0, 2)} size={44} />
-            </PressableScale>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+              <PressableScale accessibilityLabel="Refresh driver dashboard" onPress={() => { void refresh(); }}>
+                <View
+                  style={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: 22,
+                    backgroundColor: t.tint,
+                    alignItems: "center",
+                    justifyContent: "center"
+                  }}
+                >
+                  {loading ? <ActivityIndicator color={t.blue} /> : <Icon name="refresh" size={22} tint={t.blue} />}
+                </View>
+              </PressableScale>
+              <PressableScale accessibilityLabel="Open driver profile" onPress={() => router.push("/driver/profile" as never)}>
+                <Avatar label={profile.name.split(" ").map((part) => part[0]).join("").slice(0, 2)} size={44} />
+              </PressableScale>
+            </View>
           }
         />
 

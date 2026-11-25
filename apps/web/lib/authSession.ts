@@ -40,6 +40,7 @@ export function destinationForRole(role: Role): string {
   if (role === "parent") return "/portal";
   if (role === "accountant") return "/admin/finance";
   if (role === "settings_manager") return "/admin/settings";
+  if (role === "driver") return "/use-mobile-app";
   return "/admin/dashboard";
 }
 

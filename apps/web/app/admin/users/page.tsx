@@ -16,7 +16,7 @@ import {
   type Permission,
   type Role
 } from "@sri-narayana/shared";
-import { AlertCircle, Check, Link2, Loader2, Search, ShieldCheck, UserCheck, UserX, X } from "lucide-react";
+import { AlertCircle, Link2, Loader2, Search, ShieldCheck, UserCheck, UserX, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 type UserRow = {
@@ -71,6 +71,46 @@ function actionLabel(permission: Permission) {
 
 function roleCellKey(role: Role, permission: Permission) {
   return `${role}:${permission}`;
+}
+
+function PermissionToggle({
+  checked,
+  disabled,
+  loading,
+  label,
+  title,
+  onChange
+}: {
+  checked: boolean;
+  disabled: boolean;
+  loading: boolean;
+  label: string;
+  title: string;
+  onChange: () => void;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3" title={title}>
+      <span className="text-[11px] font-extrabold capitalize text-[#5f6888]">{label}</span>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        aria-label={label}
+        disabled={disabled}
+        onClick={onChange}
+        className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${
+          checked ? "bg-[#13a961]" : "bg-[#d0d3e6]"
+        } ${disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}
+      >
+        {loading ? <Loader2 size={12} className="absolute inset-0 m-auto animate-spin text-white" /> : null}
+        <span
+          className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
+            checked ? "translate-x-5" : ""
+          }`}
+        />
+      </button>
+    </div>
+  );
 }
 
 export default function UsersRolesPage() {
@@ -372,7 +412,7 @@ export default function UsersRolesPage() {
             </span>
             <div className="min-w-0 flex-1">
               <h2 className="font-extrabold text-[#1f2136]">Permission Matrix</h2>
-              <p className="text-xs font-semibold text-[#7d86a8]">Click any action to allow or remove it for that role.</p>
+              <p className="text-xs font-semibold text-[#7d86a8]">Use the on/off switches to allow or remove an action for that role.</p>
             </div>
             {!canEditMatrix && <span className="rounded-full bg-[#fff8ea] px-3 py-1 text-xs font-extrabold text-[#9f7116]">Read only</span>}
           </div>
@@ -403,30 +443,24 @@ export default function UsersRolesPage() {
                     </td>
                     {ROLES.map((matrixRole) => (
                       <td key={`${group.key}-${matrixRole}`} className="px-4 py-3">
-                        <div className="flex min-w-[150px] flex-wrap gap-2">
+                        <div className="flex min-w-[170px] flex-col gap-2.5">
                           {group.permissions.map((permission) => {
                             const allowed = isPermissionAllowed(matrixRole, permission);
                             const key = roleCellKey(matrixRole, permission);
                             const loadingCell = pendingCell === key;
                             const reason = protectedReason(matrixRole, permission, allowed);
                             const disabled = loadingCell || Boolean(reason) || !canEditMatrix;
-                            const title = reason || (allowed ? "Click to remove" : "Click to allow");
+                            const title = reason || (allowed ? "Switch off to remove" : "Switch on to allow");
                             return (
-                              <button
+                              <PermissionToggle
                                 key={permission}
-                                type="button"
-                                title={title}
+                                checked={allowed}
                                 disabled={disabled}
-                                onClick={() => void togglePermission(matrixRole, permission)}
-                                className={`inline-flex min-h-9 items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-extrabold capitalize transition ${
-                                  allowed
-                                    ? "border-[#c8f0dc] bg-[#e6f8ef] text-[#0f8d52] hover:bg-[#d7f3e5]"
-                                    : "border-[#e3e6f0] bg-[#eef0f7] text-[#8a93b1] hover:bg-[#ffebed] hover:text-[#c83f4d]"
-                                } ${disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}
-                              >
-                                {loadingCell ? <Loader2 size={14} className="animate-spin" /> : allowed ? <Check size={14} strokeWidth={3} /> : <X size={14} strokeWidth={3} />}
-                                {actionLabel(permission)}
-                              </button>
+                                loading={loadingCell}
+                                label={actionLabel(permission)}
+                                title={title}
+                                onChange={() => void togglePermission(matrixRole, permission)}
+                              />
                             );
                           })}
                         </div>

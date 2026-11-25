@@ -83,6 +83,7 @@ export default function DriversPage() {
   const [vehicleMap, setVehicleMap] = useState<Record<string, string>>({});
   const [error, setError] = useState("");
   const [editId, setEditId] = useState<string | null>(null);
+  const [formOpen, setFormOpen] = useState(false);
   const [form, setForm] = useState<DriverForm>(emptyForm);
   const [linkDriver, setLinkDriver] = useState<Driver | null>(null);
   const [users, setUsers] = useState<UserOption[]>([]);
@@ -125,10 +126,17 @@ export default function DriversPage() {
   }
   useEffect(() => { void load(); }, []);
 
-  function resetForm() { setForm(emptyForm()); setEditId(null); }
+  function resetForm() { setForm(emptyForm()); setEditId(null); setFormOpen(false); }
+
+  function openCreate() {
+    setForm(emptyForm());
+    setEditId(null);
+    setFormOpen(true);
+  }
 
   function openEdit(d: Driver) {
     setEditId(d.id);
+    setFormOpen(true);
     setForm({
       name: d.name,
       phone: d.phone || "",
@@ -190,7 +198,7 @@ export default function DriversPage() {
         undefined,
         { fresh: true }
       );
-      setUsers((result.users ?? []).filter((user) => user.role !== "driver"));
+      setUsers(result.users ?? []);
     } catch (e) {
       popup.error("Unable to load users", errorMessage(e));
       setLinkDriver(null);
@@ -369,7 +377,7 @@ export default function DriversPage() {
 
         {canEdit && (
           <div className="flex flex-wrap items-center gap-3">
-            <button className="btn-primary" onClick={() => { resetForm(); }}>
+            <button className="btn-primary" onClick={openCreate}>
               <Plus size={16} /> Add Driver
             </button>
             <button className="btn-secondary" type="button" disabled={autoLinking} onClick={() => void autoLink()}>
@@ -378,7 +386,7 @@ export default function DriversPage() {
           </div>
         )}
 
-        {canEdit && (editId !== null || form.name) ? (
+        {canEdit && formOpen ? (
           <form onSubmit={handleSubmit} className="card grid gap-3 p-5 sm:grid-cols-3">
             <input className="field" placeholder="Driver name" required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
             <input className="field" placeholder="Phone" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
@@ -398,7 +406,7 @@ export default function DriversPage() {
             <input className="field" placeholder="Notes" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
             <div className="sm:col-span-3 flex gap-2">
               <button className="btn-primary"><Save size={16} /> {editId ? "Update Driver" : "Add Driver"}</button>
-              {editId && <button type="button" className="btn-secondary" onClick={resetForm}><X size={16} /> Cancel</button>}
+              <button type="button" className="btn-secondary" onClick={resetForm}><X size={16} /> Cancel</button>
             </div>
           </form>
         ) : null}
