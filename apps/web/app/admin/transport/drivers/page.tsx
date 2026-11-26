@@ -55,6 +55,11 @@ interface DriverForm {
   mode: DriverMode;
   notes: string;
 }
+type DriverRow = Driver & {
+  employeeId?: string;
+  routeName?: string;
+  vehicleRegNo?: string;
+};
 
 const MODE_LABELS: Record<DriverMode, string> = {
   first_day: "First day",
@@ -77,7 +82,7 @@ function emptyCounts(route: RouteOption): Record<number, string> {
 export default function DriversPage() {
   const { hasPermission } = useAdminSession();
   const popup = usePopup();
-  const [drivers, setDrivers] = useState<Driver[]>([]);
+  const [drivers, setDrivers] = useState<DriverRow[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [routes, setRoutes] = useState<RouteOption[]>([]);
   const [vehicleMap, setVehicleMap] = useState<Record<string, string>>({});
@@ -107,7 +112,7 @@ export default function DriversPage() {
   async function load() {
     try {
       const [dRes, vRes, rRes] = await Promise.all([
-        adminApiRequest<{ drivers: Driver[]; vehicles: Record<string, string> }>("/api/admin/transport/drivers"),
+        adminApiRequest<{ drivers: DriverRow[]; vehicles: Record<string, string> }>("/api/admin/transport/drivers"),
         adminApiRequest<{ vehicles: Vehicle[] }>("/api/admin/transport/vehicles"),
         adminApiRequest<{ routes: RouteOption[] }>("/api/admin/transport/routes"),
       ]);
@@ -451,6 +456,7 @@ export default function DriversPage() {
             <thead className="bg-stone-50 text-xs uppercase text-stone-500">
               <tr>
                 <th className="px-4 py-3">Name</th>
+                <th className="px-4 py-3">Employee ID</th>
                 <th className="px-4 py-3">Phone</th>
                 <th className="px-4 py-3">Assigned Vehicle</th>
                 <th className="px-4 py-3">Route</th>
@@ -465,14 +471,15 @@ export default function DriversPage() {
             </thead>
             <tbody className="divide-y divide-stone-100">
               {drivers.length === 0 ? (
-                <tr><td colSpan={canEdit ? 11 : 10} className="px-4 py-8 text-center text-stone-400">No drivers yet.</td></tr>
+                <tr><td colSpan={canEdit ? 12 : 11} className="px-4 py-8 text-center text-stone-400">No drivers yet.</td></tr>
               ) : (
                 drivers.map((d) => (
                   <tr key={d.id} className="hover:bg-stone-50">
                     <td className="px-4 py-3 font-semibold text-[#1f2136]">{d.name}</td>
+                    <td className="px-4 py-3">{d.employeeId || "—"}</td>
                     <td className="px-4 py-3">{d.phone || "—"}</td>
-                    <td className="px-4 py-3">{d.vehicleId ? (vehicleMap[d.vehicleId] || "—") : "—"}</td>
-                    <td className="px-4 py-3">{d.routeId ? (routes.find((route) => route.id === d.routeId)?.name || "—") : "—"}</td>
+                    <td className="px-4 py-3">{d.vehicleRegNo || (d.vehicleId ? vehicleMap[d.vehicleId] : "") || "—"}</td>
+                    <td className="px-4 py-3">{d.routeName || (d.routeId ? routes.find((route) => route.id === d.routeId)?.name : "") || "—"}</td>
                     <td className="px-4 py-3">
                       <span className={d.uid ? "rounded-full bg-[#e6f8ef] px-2.5 py-1 text-xs font-extrabold text-[#0f8d52]" : "rounded-full bg-[#eef0f7] px-2.5 py-1 text-xs font-extrabold text-[#7d86a8]"}>
                         {d.uid ? "Linked" : "Unlinked"}

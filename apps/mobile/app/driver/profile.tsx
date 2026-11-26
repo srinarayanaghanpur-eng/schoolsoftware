@@ -77,10 +77,14 @@ function DriverProfile() {
           <Avatar label={initials} size={68} bg="rgba(255,255,255,0.2)" fg={t.card} />
           <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
             <DSText variant="title" tint={t.card} style={{ fontSize: 19 }} numberOfLines={1}>{profile.name}</DSText>
-            <DSText variant="label" tint="rgba(255,255,255,0.86)">Driver · {profile.employeeId}</DSText>
+            <DSText variant="label" tint="rgba(255,255,255,0.86)">
+              Driver{profile.employeeId ? ` · ${profile.employeeId}` : ""}
+            </DSText>
             <View style={{ flexDirection: "row", gap: 6, marginTop: 4, flexWrap: "wrap" }}>
-              <Badge label={profile.busNo} bg="rgba(255,255,255,0.18)" fg={t.card} />
-              <Badge label={profile.routeCode} bg="rgba(255,255,255,0.18)" fg={t.card} />
+              {profile.busNo ? <Badge label={profile.busNo} bg="rgba(255,255,255,0.18)" fg={t.card} /> : null}
+              {profile.routeCode || profile.routeName ? (
+                <Badge label={profile.routeCode || profile.routeName} bg="rgba(255,255,255,0.18)" fg={t.card} />
+              ) : null}
             </View>
           </View>
         </LinearGradient>
@@ -115,12 +119,12 @@ function DriverProfile() {
           <ListRow
             leading={<TonalTile bg={t.tint}><Icon name="badge" size={19} tint={t.blue} /></TonalTile>}
             title="Employee ID"
-            subtitle={profile.employeeId}
+            subtitle={profile.employeeId || "Not set"}
           />
           <ListRow
             leading={<TonalTile bg={t.okBg}><Icon name="phone" size={19} tint={t.ok} /></TonalTile>}
             title="Phone"
-            subtitle={profile.phone}
+            subtitle={profile.phone || "Not set"}
           />
           {profile.licenseNo ? (
             <ListRow
@@ -132,12 +136,16 @@ function DriverProfile() {
           <ListRow
             leading={<TonalTile bg={t.tint}><Icon name="directions-bus" size={19} tint={t.blue} /></TonalTile>}
             title="Assigned bus"
-            subtitle={`${profile.busNo} · ${profile.busModel}`}
+            subtitle={profile.busNo ? `${profile.busNo} · ${profile.busModel}` : "Not assigned"}
           />
           <ListRow
             leading={<TonalTile bg={t.tint}><Icon name="alt-route" size={19} tint={t.blue} /></TonalTile>}
             title="Assigned route"
-            subtitle={`${profile.routeCode} · ${profile.routeName}`}
+            subtitle={
+              profile.routeCode
+                ? `${profile.routeCode} · ${profile.routeName}`
+                : profile.routeName || "Not assigned"
+            }
           />
         </SectionCard>
 

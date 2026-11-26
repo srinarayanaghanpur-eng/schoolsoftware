@@ -28,7 +28,7 @@ export async function GET(req: Request) {
         capacity: vehicle.capacity,
         routeId: route.id,
         routeName: route.name,
-        routeCode: route.code ?? route.id,
+        routeCode: route.code ?? "",
         routeKm,
         mode,
         baselineDate: baseline?.baselineDate,

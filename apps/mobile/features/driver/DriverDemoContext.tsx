@@ -25,6 +25,7 @@ import {
   sendDriverLocation,
   startDriverTrip,
   type DriverAssignment,
+  type DriverTrip,
   type DriverTripMode
 } from "@/lib/driverApi";
 import { mobileCache } from "@/lib/cache/mobileCache";
@@ -151,7 +152,7 @@ function toProfile(assignment: DriverAssignment): DriverProfile {
     busNo: assignment.busNo,
     busModel: assignment.busModel,
     routeName: assignment.routeName,
-    routeCode: assignment.routeCode ?? assignment.routeId,
+    routeCode: assignment.routeCode ?? "",
     capacity: assignment.capacity,
     routeKm: assignment.routeKm ?? 0
   };
@@ -181,6 +182,7 @@ export function DriverDemoProvider({ children }: { children: React.ReactNode }) 
   const keepAlive = useRef(true);
   const tripIdRef = useRef<string | null>(null);
   const lastLocationSentAt = useRef(0);
+  const startPromiseRef = useRef<Promise<DriverTrip> | null>(null);
 
   useEffect(() => {
     tripIdRef.current = journey.tripId;
@@ -397,41 +399,66 @@ export function DriverDemoProvider({ children }: { children: React.ReactNode }) 
 
   const startJourney = useCallback(async (nextMode: JourneyMode) => {
     setError(null);
+    const startedAt = Date.now();
+    setNow(startedAt);
+    setJourney({
+      status: "active",
+      mode: nextMode,
+      tripId: null,
+      startedAt,
+      endedAt: null,
+      nextStopIndex: 0,
+      counts: {}
+    });
+
+    const request = startDriverTrip(nextMode === "morning" ? "pickup" : "drop");
+    startPromiseRef.current = request;
     try {
-      const trip = await startDriverTrip(nextMode === "morning" ? "pickup" : "drop");
-      setNow(Date.now());
-      setJourney({
-        status: "active",
-        mode: nextMode,
-        tripId: trip.id || null,
-        startedAt: Date.now(),
-        endedAt: null,
-        nextStopIndex: 0,
-        counts: {}
-      });
+      const trip = await request;
+      if (keepAlive.current) {
+        setJourney((current) =>
+          current.status === "active" ? { ...current, tripId: trip.id || null } : current
+        );
+      }
       return true;
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to start trip");
+      if (keepAlive.current) {
+        setJourney(INITIAL_JOURNEY);
+        setError(err instanceof Error ? err.message : "Unable to start trip");
+      }
       return false;
+    } finally {
+      startPromiseRef.current = null;
     }
   }, []);
 
   const endJourney = useCallback(async () => {
-    const tripId = journey.tripId;
+    let tripId = journey.tripId;
+    if (!tripId && startPromiseRef.current) {
+      try {
+        const trip = await startPromiseRef.current;
+        tripId = trip.id || null;
+      } catch {
+        return false;
+      }
+    }
     if (!tripId) return false;
+
+    const previous = journey;
+    setJourney((current) => ({
+      ...current,
+      status: "completed",
+      endedAt: Date.now()
+    }));
     try {
       await completeDriverTrip(tripId);
-      setJourney((current) => ({
-        ...current,
-        status: "completed",
-        endedAt: Date.now()
-      }));
       return true;
     } catch (err) {
+      setJourney(previous);
       setError(err instanceof Error ? err.message : "Unable to end trip");
       return false;
     }
-  }, [journey.tripId]);
+  }, [journey]);
 
   const completeStop = useCallback(async (stopId: string, count: number) => {
     const tripId = journey.tripId;

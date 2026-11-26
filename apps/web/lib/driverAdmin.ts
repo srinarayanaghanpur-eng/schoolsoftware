@@ -35,6 +35,10 @@ function withId<T extends { id?: string }>(id: string, data: T): T & { id: strin
   return { ...(data as T), id };
 }
 
+function asText(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
 export async function loadDriverByUid(uid: string): Promise<DriverRecord | null> {
   if (!uid) return null;
   const snap = await adminDb().collection("drivers").where("uid", "==", uid).limit(1).get();
@@ -78,6 +82,25 @@ export async function resolveDriverAssignment(uid: string): Promise<DriverAssign
   }
   const vehicle = withId(vehicleSnap.id, vehicleSnap.data() as Vehicle);
 
+  // Driver records imported from staff often lack employee ID and phone.
+  // The admin users record and vehicle are the source of truth for those.
+  const userSnap = await adminDb().collection("users").doc(uid).get().catch(() => null);
+  const user = userSnap?.exists ? userSnap.data() ?? {} : {};
+  const driverWithDetails: DriverRecord = {
+    ...driver,
+    name: driver.name?.trim() || asText(user.displayName) || driver.name || "",
+    employeeId:
+      driver.employeeId?.trim() ||
+      asText(user.employeeId) ||
+      "",
+    phone:
+      driver.phone?.trim() ||
+      asText(user.phone) ||
+      asText(user.mobile) ||
+      asText(vehicle.driverPhone) ||
+      ""
+  };
+
   const linkedRoute = driver.routeId
     ? await adminDb().collection("transport_routes").doc(driver.routeId).get()
     : null;
@@ -96,7 +119,7 @@ export async function resolveDriverAssignment(uid: string): Promise<DriverAssign
   const route = withId(routeDoc.id, routeDoc.data() as TransportRoute);
 
   return {
-    driver,
+    driver: driverWithDetails,
     vehicle,
     route,
     mode: driver.mode ?? "daily"

@@ -588,7 +588,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
           accessibilityLiveRegion="polite"
           style={[styles.toast, elevation.toast, { backgroundColor: t.ink }, {
             opacity: anim,
-            transform: [{ translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [28, 0] }) }]
+            transform: [{ translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [-28, 0] }) }]
           }]}
         >
           <Icon name="check-circle" size={17} tint={t.card} />
@@ -800,7 +800,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     left: space.lg,
     right: space.lg,
-    bottom: 24,
+    top: 16,
     borderRadius: radius.sm,
     paddingHorizontal: space.lg,
     paddingVertical: 13,
