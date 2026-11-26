@@ -1,11 +1,13 @@
 /** @type {import('next').NextConfig} */
 const cspHeader = `
   default-src 'self';
-  script-src 'self' 'unsafe-eval' 'unsafe-inline';
-  style-src 'self' 'unsafe-inline';
+  script-src 'self' 'unsafe-eval' 'unsafe-inline' https://unpkg.com;
+  worker-src 'self' blob:;
+  child-src 'self' blob:;
+  style-src 'self' 'unsafe-inline' https://unpkg.com;
   img-src 'self' blob: data: https:;
-  font-src 'self';
-  connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.firebasestorage.app https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firestore.googleapis.com wss://*.firebaseio.com;
+  font-src 'self' https://tiles.openfreemap.org;
+  connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.firebasestorage.app https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firestore.googleapis.com https://tiles.openfreemap.org https://*.openfreemap.org wss://*.firebaseio.com;
   frame-src 'self' https://*.firebaseapp.com;
   object-src 'none';
   base-uri 'self';
