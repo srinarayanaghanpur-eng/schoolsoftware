@@ -32,6 +32,9 @@ function emptyVehicle(): VehicleForm {
 function emptyRoute(): RouteForm {
   return { name: "", vehicleId: "", stops: [{ name: "", fee: "" }] };
 }
+function tempId(prefix: string) {
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+}
 
 export default function TransportPage() {
   const { hasPermission } = useAdminSession();
@@ -73,16 +76,27 @@ export default function TransportPage() {
 
   async function addVehicle(e: FormEvent) {
     e.preventDefault();
+    const payload = {
+      regNo: vForm.regNo.trim(),
+      model: vForm.model.trim(),
+      capacity: Number(vForm.capacity),
+      driverName: vForm.driverName.trim(),
+      driverPhone: vForm.driverPhone.trim()
+    };
+    const optimistic: Vehicle = { id: tempId("vehicle"), ...payload };
+    setVehicles((current) => [...current, optimistic]);
+    setVForm(emptyVehicle());
+    setShowV(false);
     setSaving(true);
     try {
-      await adminApiRequest("/api/admin/transport/vehicles", {
+      const result = await adminApiRequest<{ ok: true; id: string }>("/api/admin/transport/vehicles", {
         method: "POST",
-        body: JSON.stringify({ ...vForm, capacity: Number(vForm.capacity) })
+        body: JSON.stringify(payload)
       });
-      setVForm(emptyVehicle());
-      setShowV(false);
-      await load();
+      setVehicles((current) => current.map((v) => (v.id === optimistic.id ? { ...v, id: result.id } : v)));
+      popup.success("Vehicle added");
     } catch (err) {
+      setVehicles((current) => current.filter((v) => v.id !== optimistic.id));
       setError(errorMessage(err));
     } finally {
       setSaving(false);
@@ -91,20 +105,26 @@ export default function TransportPage() {
 
   async function addRoute(e: FormEvent) {
     e.preventDefault();
+    const stops = rForm.stops.filter((s) => s.name.trim()).map((s) => ({ name: s.name.trim(), fee: Number(s.fee) || 0 }));
+    if (!stops.length) {
+      setError("Add at least one stop.");
+      return;
+    }
+    const payload = { name: rForm.name.trim(), vehicleId: rForm.vehicleId, stops };
+    const optimistic: Route = { id: tempId("route"), ...payload };
+    setRoutes((current) => [...current, optimistic]);
+    setRForm(emptyRoute());
+    setShowR(false);
     setSaving(true);
     try {
-      await adminApiRequest("/api/admin/transport/routes", {
+      const result = await adminApiRequest<{ ok: true; id: string }>("/api/admin/transport/routes", {
         method: "POST",
-        body: JSON.stringify({
-          name: rForm.name,
-          vehicleId: rForm.vehicleId,
-          stops: rForm.stops.filter((s) => s.name).map((s) => ({ name: s.name, fee: Number(s.fee) || 0 }))
-        })
+        body: JSON.stringify(payload)
       });
-      setRForm(emptyRoute());
-      setShowR(false);
-      await load();
+      setRoutes((current) => current.map((r) => (r.id === optimistic.id ? { ...r, id: result.id } : r)));
+      popup.success("Route created");
     } catch (err) {
+      setRoutes((current) => current.filter((r) => r.id !== optimistic.id));
       setError(errorMessage(err));
     } finally {
       setSaving(false);
@@ -125,16 +145,26 @@ export default function TransportPage() {
   async function saveVehicle(e: FormEvent) {
     e.preventDefault();
     if (!editVehicle) return;
+    const id = editVehicle.id;
+    const payload = {
+      regNo: vEdit.regNo.trim(),
+      model: vEdit.model.trim(),
+      capacity: Number(vEdit.capacity),
+      driverName: vEdit.driverName.trim(),
+      driverPhone: vEdit.driverPhone.trim()
+    };
+    const previous = vehicles;
+    setVehicles((current) => current.map((v) => (v.id === id ? { ...v, ...payload } : v)));
+    setEditVehicle(null);
     setSaving(true);
     try {
-      await adminApiRequest(`/api/admin/transport/vehicles/${editVehicle.id}`, {
+      await adminApiRequest(`/api/admin/transport/vehicles/${id}`, {
         method: "PATCH",
-        body: JSON.stringify({ ...vEdit, capacity: Number(vEdit.capacity) })
+        body: JSON.stringify(payload)
       });
-      setEditVehicle(null);
-      await load();
       popup.success("Vehicle updated");
     } catch (err) {
+      setVehicles(previous);
       popup.error("Unable to update vehicle", errorMessage(err));
     } finally {
       setSaving(false);
@@ -143,11 +173,13 @@ export default function TransportPage() {
 
   async function deleteVehicle(v: Vehicle) {
     if (!(await popup.confirm("Delete this vehicle?", `${v.regNo} will be removed.`, { okLabel: "Delete", danger: true }))) return;
+    const previous = vehicles;
+    setVehicles((current) => current.filter((item) => item.id !== v.id));
     try {
       await adminApiRequest(`/api/admin/transport/vehicles/${v.id}`, { method: "DELETE" });
-      await load();
       popup.success("Vehicle deleted");
     } catch (err) {
+      setVehicles(previous);
       popup.error("Unable to delete vehicle", errorMessage(err));
     }
   }
@@ -164,20 +196,25 @@ export default function TransportPage() {
   async function saveRoute(e: FormEvent) {
     e.preventDefault();
     if (!editRoute) return;
+    const stops = rEdit.stops.filter((s) => s.name.trim()).map((s) => ({ name: s.name.trim(), fee: Number(s.fee) || 0 }));
+    if (!stops.length) {
+      setError("Add at least one stop.");
+      return;
+    }
+    const id = editRoute.id;
+    const payload = { name: rEdit.name.trim(), vehicleId: rEdit.vehicleId, stops };
+    const previous = routes;
+    setRoutes((current) => current.map((r) => (r.id === id ? { ...r, ...payload } : r)));
+    setEditRoute(null);
     setSaving(true);
     try {
-      await adminApiRequest(`/api/admin/transport/routes/${editRoute.id}`, {
+      await adminApiRequest(`/api/admin/transport/routes/${id}`, {
         method: "PATCH",
-        body: JSON.stringify({
-          name: rEdit.name,
-          vehicleId: rEdit.vehicleId,
-          stops: rEdit.stops.filter((s) => s.name).map((s) => ({ name: s.name, fee: Number(s.fee) || 0 }))
-        })
+        body: JSON.stringify(payload)
       });
-      setEditRoute(null);
-      await load();
       popup.success("Route updated");
     } catch (err) {
+      setRoutes(previous);
       popup.error("Unable to update route", errorMessage(err));
     } finally {
       setSaving(false);
@@ -186,11 +223,13 @@ export default function TransportPage() {
 
   async function deleteRoute(r: Route) {
     if (!(await popup.confirm("Delete this route?", `${r.name} will be removed.`, { okLabel: "Delete", danger: true }))) return;
+    const previous = routes;
+    setRoutes((current) => current.filter((item) => item.id !== r.id));
     try {
       await adminApiRequest(`/api/admin/transport/routes/${r.id}`, { method: "DELETE" });
-      await load();
       popup.success("Route deleted");
     } catch (err) {
+      setRoutes(previous);
       popup.error("Unable to delete route", errorMessage(err));
     }
   }
@@ -237,8 +276,10 @@ export default function TransportPage() {
             <div className="space-y-2">
               {rForm.stops.map((s, i) => (
                 <div key={i} className="flex gap-2">
-                  <input className="field flex-1" placeholder="Stop / village" value={s.name} onChange={(e) => setRForm({ ...rForm, stops: rForm.stops.map((x, j) => j === i ? { ...x, name: e.target.value } : x) })} />
-                  <input className="field w-28" type="number" placeholder="Fee ₹" value={s.fee} onChange={(e) => setRForm({ ...rForm, stops: rForm.stops.map((x, j) => j === i ? { ...x, fee: e.target.value } : x) })} />
+                  <input className="field min-w-0 flex-1" placeholder="Stop / village" value={s.name} onChange={(e) => setRForm({ ...rForm, stops: rForm.stops.map((x, j) => j === i ? { ...x, name: e.target.value } : x) })} />
+                  <div className="w-28 shrink-0">
+                    <input className="field" type="number" min="0" inputMode="decimal" placeholder="Fee ₹" value={s.fee} onChange={(e) => setRForm({ ...rForm, stops: rForm.stops.map((x, j) => j === i ? { ...x, fee: e.target.value } : x) })} />
+                  </div>
                   {rForm.stops.length > 1 && (
                     <button type="button" onClick={() => setRForm({ ...rForm, stops: rForm.stops.filter((_, j) => j !== i) })} className="grid w-9 place-items-center text-[#ed515d]"><Trash2 size={16} /></button>
                   )}
@@ -356,8 +397,10 @@ export default function TransportPage() {
               <div className="space-y-2">
                 {rEdit.stops.map((s, i) => (
                   <div key={i} className="flex gap-2">
-                    <input className="field flex-1" placeholder="Stop / village" value={s.name} onChange={(e) => setREdit({ ...rEdit, stops: rEdit.stops.map((x, j) => j === i ? { ...x, name: e.target.value } : x) })} />
-                    <input className="field w-28" type="number" placeholder="Fee ₹" value={s.fee} onChange={(e) => setREdit({ ...rEdit, stops: rEdit.stops.map((x, j) => j === i ? { ...x, fee: e.target.value } : x) })} />
+                    <input className="field min-w-0 flex-1" placeholder="Stop / village" value={s.name} onChange={(e) => setREdit({ ...rEdit, stops: rEdit.stops.map((x, j) => j === i ? { ...x, name: e.target.value } : x) })} />
+                    <div className="w-28 shrink-0">
+                      <input className="field" type="number" min="0" inputMode="decimal" placeholder="Fee ₹" value={s.fee} onChange={(e) => setREdit({ ...rEdit, stops: rEdit.stops.map((x, j) => j === i ? { ...x, fee: e.target.value } : x) })} />
+                    </div>
                     {rEdit.stops.length > 1 && (
                       <button type="button" onClick={() => setREdit({ ...rEdit, stops: rEdit.stops.filter((_, j) => j !== i) })} className="grid w-9 place-items-center text-[#ed515d]"><Trash2 size={16} /></button>
                     )}
