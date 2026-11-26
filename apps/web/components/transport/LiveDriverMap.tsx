@@ -269,8 +269,11 @@ export function LiveDriverMap({
           style: MAP_STYLE_URL,
           center: [78.4867, 17.385],
           zoom: 11,
-          attributionControl: true
+          attributionControl: true,
+          cooperativeGestures: true,
+          dragRotate: false
         });
+        map.touchZoomRotate.disableRotation();
 
         let errorCount = 0;
         map.on("error", () => {
@@ -455,7 +458,7 @@ export function LiveDriverMap({
               </p>
             </>
           ) : (
-            <p className="font-semibold">Tap a bus pin to focus · drag to pan · scroll to zoom</p>
+            <p className="font-semibold">Tap a bus pin to focus · drag to pan · Ctrl/⌘ + scroll to zoom</p>
           )}
         </div>
       ) : null}
