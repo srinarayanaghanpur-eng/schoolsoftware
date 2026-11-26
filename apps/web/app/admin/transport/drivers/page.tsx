@@ -4,7 +4,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { usePopup } from "@/components/CenterPopup";
 import { useAdminSession } from "@/components/AdminSessionContext";
 import { AdminApiError, adminApiRequest } from "@/lib/adminApiClient";
-import { CalendarDays, Edit2, IndianRupee, Link2, Loader2, MapPin, Plus, Save, Trash2, User, X } from "lucide-react";
+import { CalendarDays, Edit2, IndianRupee, Link2, Loader2, MapPin, Plus, Save, Trash2, User, UserPlus, X } from "lucide-react";
 import { AiTransportInsight } from "@/components/AiTransportInsight";
 import { useEffect, useState, type FormEvent } from "react";
 import type { Driver, DriverMode } from "@/types/busFinance.types";
@@ -92,6 +92,7 @@ export default function DriversPage() {
   const [selectedUid, setSelectedUid] = useState("");
   const [linkSaving, setLinkSaving] = useState(false);
   const [autoLinking, setAutoLinking] = useState(false);
+  const [importingStaff, setImportingStaff] = useState(false);
   const [baselineRouteId, setBaselineRouteId] = useState("");
   const [baselineDate, setBaselineDate] = useState(todayIso);
   const [baselineCounts, setBaselineCounts] = useState<Record<number, string>>({});
@@ -275,6 +276,37 @@ export default function DriversPage() {
     }
   }
 
+  async function importStaffDrivers() {
+    setImportingStaff(true);
+    try {
+      const result = await adminApiRequest<{
+        ok?: boolean;
+        staffDrivers?: number;
+        created?: number;
+        linked?: number;
+        alreadyLinked?: number;
+        failed?: { uid: string; error: string }[];
+      }>("/api/admin/transport/drivers/import-staff", { method: "POST" });
+      await load();
+      const failed = result.failed?.length ?? 0;
+      if (failed > 0) {
+        popup.error(
+          `Imported with ${failed} problem${failed === 1 ? "" : "s"}`,
+          result.failed?.slice(0, 4).map((item) => item.error).join("\n")
+        );
+      } else {
+        popup.success(
+          `Imported ${result.created ?? 0} driver${result.created === 1 ? "" : "s"}`,
+          `${result.linked ?? 0} linked · ${result.alreadyLinked ?? 0} already linked`
+        );
+      }
+    } catch (e) {
+      popup.error("Unable to import staff drivers", errorMessage(e));
+    } finally {
+      setImportingStaff(false);
+    }
+  }
+
   async function loadBaseline(route: RouteOption) {
     setBaselineLoading(true);
     try {
@@ -382,6 +414,9 @@ export default function DriversPage() {
             </button>
             <button className="btn-secondary" type="button" disabled={autoLinking} onClick={() => void autoLink()}>
               {autoLinking ? <Loader2 size={16} className="animate-spin" /> : <Link2 size={16} />} Link staff accounts
+            </button>
+            <button className="btn-secondary" type="button" disabled={importingStaff} onClick={() => void importStaffDrivers()}>
+              {importingStaff ? <Loader2 size={16} className="animate-spin" /> : <UserPlus size={16} />} Import from staff
             </button>
           </div>
         )}

@@ -287,6 +287,9 @@ export default function UsersRolesPage() {
   };
 
   const protectedReason = (targetRole: Role, permission: Permission, currentlyAllowed: boolean) => {
+    if (role === "settings_manager" && (targetRole === "super_admin" || targetRole === "settings_manager")) {
+      return "Settings Manager can only edit other roles.";
+    }
     if (!currentlyAllowed) return "";
     if (targetRole === "super_admin" && SUPER_ADMIN_CRITICAL_PERMISSIONS.includes(permission)) {
       return "Super Admin permissions cannot be removed.";
@@ -412,7 +415,11 @@ export default function UsersRolesPage() {
             </span>
             <div className="min-w-0 flex-1">
               <h2 className="font-extrabold text-[#1f2136]">Permission Matrix</h2>
-              <p className="text-xs font-semibold text-[#7d86a8]">Use the on/off switches to allow or remove an action for that role.</p>
+              <p className="text-xs font-semibold text-[#7d86a8]">
+                {role === "settings_manager"
+                  ? "You can edit every role except Super Admin and Settings Manager."
+                  : "Use the on/off switches to allow or remove an action for that role."}
+              </p>
             </div>
             {!canEditMatrix && <span className="rounded-full bg-[#fff8ea] px-3 py-1 text-xs font-extrabold text-[#9f7116]">Read only</span>}
           </div>

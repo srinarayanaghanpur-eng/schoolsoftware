@@ -23,16 +23,16 @@ export async function GET(req: Request) {
 }
 
 // PATCH /api/admin/roles — toggle one permission on one role.
-// SECURITY: only super_admin may modify the matrix. Granting permissions is
-// privilege management — a caller holding roles.edit could otherwise add
-// permissions to their own role (self-escalation), e.g. giving a non-admin
-// role users.delete. Viewing stays open to roles.view/permissions.view.
+// SECURITY: super_admin may modify any role. settings_manager may modify every
+// role except super_admin and its own settings_manager role, so it cannot
+// escalate itself into finance/academic access. Viewing stays open to
+// roles.view/permissions.view.
 export async function PATCH(req: Request) {
   const decoded = await verifyBearerToken(req);
   if (!decoded) return json({ ok: false, error: "Missing or insufficient permissions." }, { status: 403 });
   const actorRole = await resolveRole(decoded);
-  if (actorRole !== "super_admin") {
-    return json({ ok: false, error: "Only a super admin can modify role permissions." }, { status: 403 });
+  if (actorRole !== "super_admin" && actorRole !== "settings_manager") {
+    return json({ ok: false, error: "Only a super admin or settings manager can modify role permissions." }, { status: 403 });
   }
 
   try {
@@ -42,6 +42,9 @@ export async function PATCH(req: Request) {
     const allowed = Boolean(body?.allowed);
 
     if (!role) return json({ ok: false, error: "Invalid role." }, { status: 400 });
+    if (actorRole === "settings_manager" && (role === "super_admin" || role === "settings_manager")) {
+      return json({ ok: false, error: "Settings Manager can only edit other roles." }, { status: 403 });
+    }
     if (!isKnownPermission(permission)) return json({ ok: false, error: "Invalid permission." }, { status: 400 });
 
     if (role === "super_admin" && !allowed && isSuperAdminCriticalPermission(permission)) {

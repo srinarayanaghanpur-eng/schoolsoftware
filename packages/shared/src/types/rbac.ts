@@ -201,7 +201,18 @@ export const ROLE_PERMISSIONS: Record<Role, readonly (Permission | typeof ALL)[]
     "driver.trip.view_own"
   ],
   settings_manager: [
-    "settings.view", "settings.create", "settings.edit", "settings.delete", "settings.bulk_upload"
+    "settings.view", "settings.create", "settings.edit", "settings.delete", "settings.bulk_upload",
+    "users.view", "users.create", "users.edit", "users.delete",
+    "roles.view", "roles.edit", "roles.manage",
+    "permissions.view", "permissions.edit", "permissions.manage",
+    "staff.view", "staff.create", "staff.edit", "staff.delete",
+    "transport.view", "transport.create", "transport.edit", "transport.delete",
+    "library.view", "library.create", "library.edit", "library.delete",
+    "hostel.view", "hostel.create", "hostel.edit", "hostel.delete",
+    "inventory.view", "inventory.create", "inventory.edit", "inventory.delete",
+    "communication.view", "communication.create", "communication.edit", "communication.delete",
+    "academic_years.view", "academic_years.create", "academic_years.edit", "academic_years.delete",
+    "ai_agent.view", "ai_agent.settings", "ai_agent.logs", "ai_agent.quota"
   ],
   parent: ["portal.view"]
 };

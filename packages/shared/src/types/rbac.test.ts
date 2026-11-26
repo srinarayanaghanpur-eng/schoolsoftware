@@ -14,10 +14,14 @@ describe("hasPermission", () => {
     assert.equal(hasPermission("ghost" as Role, "dashboard.view"), false);
   });
 
-  it("settings_manager is limited to the settings module", () => {
-    assert.equal(hasPermission("settings_manager", "settings.view"), true);
+  it("settings_manager manages back-office modules but not dashboard, fees, or academics", () => {
     assert.equal(hasPermission("settings_manager", "settings.edit"), true);
+    assert.equal(hasPermission("settings_manager", "users.delete"), true);
+    assert.equal(hasPermission("settings_manager", "transport.edit"), true);
     assert.equal(hasPermission("settings_manager", "fees.create"), false);
+    assert.equal(hasPermission("settings_manager", "dashboard.view"), false);
+    assert.equal(hasPermission("settings_manager", "students.view"), false);
+    assert.equal(hasPermission("settings_manager", "exams.view"), false);
   });
 
   it("parent may use the portal but never fee write permissions", () => {
