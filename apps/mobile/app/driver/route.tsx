@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { ScrollView, View } from "react-native";
+import { RefreshControl, ScrollView, View } from "react-native";
 import {
   Badge,
   BottomSheet,
@@ -32,6 +32,9 @@ function DriverRoute() {
   const { t } = useTheme();
   const toast = useToast();
   const {
+    loading,
+    refresh,
+    refreshLocationPermission,
     profile,
     stops,
     journey,
@@ -70,7 +73,17 @@ function DriverRoute() {
 
   return (
     <>
-      <ScrollView contentContainerStyle={{ padding: space.lg, gap: space.lg }} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={{ padding: space.lg, gap: space.lg }}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={loading}
+            onRefresh={() => { void refresh(); void refreshLocationPermission(); }}
+            tintColor={t.blue}
+          />
+        }
+      >
         <ScreenHeader
           eyebrow={journey.mode === "morning" ? "MORNING PICKUP" : "EVENING DROP"}
           title={`Route ${profile.routeCode}`}

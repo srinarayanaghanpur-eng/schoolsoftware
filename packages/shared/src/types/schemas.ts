@@ -38,6 +38,49 @@ export const biometricPayloadSchema = z.object({
   eventType: attendanceEventTypeSchema
 });
 
+export const faceAttendanceSettingsSchema = z.object({
+  enabled: z.boolean(),
+  matchThreshold: z.number().min(0.3).max(0.99),
+  requireLiveness: z.boolean(),
+  allowSharedDevices: z.boolean(),
+  allowSelfOnUnapprovedDevices: z.boolean(),
+  modelVersion: z.string().trim().min(1).max(64)
+});
+
+export const faceEmbeddingSchema = z
+  .array(z.number().finite())
+  .min(64)
+  .max(2048);
+
+export const faceDeviceRegisterSchema = z.object({
+  deviceId: z.string().trim().min(8).max(160),
+  name: z.string().trim().min(1).max(120),
+  platform: z.string().trim().min(1).max(40),
+  appVersion: z.string().trim().max(40).optional()
+});
+
+export const faceDeviceActionSchema = z.object({
+  deviceId: z.string().trim().min(8).max(160),
+  action: z.enum(["approve", "reject", "revoke"])
+});
+
+export const faceEnrollmentSchema = z.object({
+  teacherId: z.string().trim().min(1).max(160),
+  embedding: faceEmbeddingSchema,
+  modelVersion: z.string().trim().min(1).max(64),
+  sampleCount: z.coerce.number().int().min(1).max(10),
+  quality: z.number().min(0).max(1).optional()
+});
+
+export const faceAttendancePayloadSchema = mobileAttendancePayloadSchema.extend({
+  deviceId: z.string().trim().min(8).max(160),
+  observedEmbedding: faceEmbeddingSchema,
+  modelVersion: z.string().trim().min(1).max(64),
+  matchConfidence: z.number().min(0).max(1),
+  livenessPassed: z.boolean().optional(),
+  livenessScore: z.number().min(0).max(1).optional()
+});
+
 export const academicYearCreateSchema = z.object({
   name: z.string().trim().min(4), // e.g. "2026-27"
   startDate: z.string().trim().min(8),

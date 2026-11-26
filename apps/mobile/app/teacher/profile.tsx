@@ -2,7 +2,7 @@
  * Teacher Profile — identity, attendance summary, menu, logout.
  */
 import React, { useState } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import {
@@ -31,7 +31,7 @@ function TeacherProfile() {
   const router = useRouter();
   const toast = useToast();
   const session = useMobileSession();
-  const { teacher, records } = useTeacherAttendanceData();
+  const { teacher, records, loading, refresh } = useTeacherAttendanceData();
   const summary = useAttendanceSummary(records);
 
   const name = teacher?.fullName ?? session.profile?.displayName ?? "Teacher";
@@ -56,6 +56,16 @@ function TeacherProfile() {
     <ScrollView
       contentContainerStyle={styles.page}
       showsVerticalScrollIndicator={false}
+      refreshControl={
+        <RefreshControl
+          refreshing={loading}
+          onRefresh={() => {
+            refresh();
+            void session.refresh();
+          }}
+          tintColor={t.blue}
+        />
+      }
     >
       <LinearGradient
         colors={[t.heroFrom, t.heroMid, t.heroTo]}

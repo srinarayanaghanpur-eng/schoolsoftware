@@ -111,6 +111,24 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Face embeddings are biometric templates. They are never exposed to a
+    // Firestore client; approved kiosk devices receive them through the
+    // authenticated API only, and every read/write goes through the Admin SDK.
+    match /teacher_faces/{teacherId} {
+      allow read, write: if false;
+    }
+
+    // Shared face devices are registered and approved through the API.
+    match /face_devices/{deviceId} {
+      allow read, write: if false;
+    }
+
+    // Face kiosk audit trail: admins may read, only the Admin SDK writes.
+    match /face_attendance_logs/{logId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
     match /attendance/{attendanceId} {
       allow read: if isAdmin() || isOwnTeacherId(resource.data.teacherId);
       // Server-only: geofence/time-window enforcement lives in

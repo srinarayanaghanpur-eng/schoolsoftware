@@ -12,6 +12,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { Role } from "@sri-narayana/shared";
 import { useMobileSession } from "@/lib/mobileSession";
 import { dashboardPathForRole } from "@/lib/roleRouting";
+import FunLoader from "@/design-system/FunLoader";
 
 /** Saved deep-link target, consumed once by the login screen. */
 export const LOGIN_RETURN_KEY = "@sri-narayana:login-return";
@@ -42,6 +43,6 @@ export function WorkspaceGuard({ allowed, children }: { allowed: Role[]; childre
     setOk(true);
   }, [session.status, session.profile, allowedKey, path, router]);
 
-  if (!ok) return null;
+  if (!ok) return <FunLoader />;
   return <>{children}</>;
 }

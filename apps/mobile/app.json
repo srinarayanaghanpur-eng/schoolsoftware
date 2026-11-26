@@ -38,6 +38,12 @@
         }
       ],
       [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Allow NarayanaOS to use Face ID to unlock the app."
+        }
+      ],
+      [
         "expo-build-properties",
         {
           "android": {
@@ -60,7 +66,10 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.srinarayana.attendance",
-      "buildNumber": "1"
+      "buildNumber": "1",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Allow NarayanaOS to use the camera for teacher face attendance."
+      }
     },
     "android": {
       "versionCode": 8,
@@ -72,6 +81,7 @@
       },
       "permissions": [
         "ACCESS_FINE_LOCATION",
+        "CAMERA",
         "ACCESS_COARSE_LOCATION",
         "ACCESS_BACKGROUND_LOCATION",
         "FOREGROUND_SERVICE",

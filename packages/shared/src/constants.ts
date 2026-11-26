@@ -1,4 +1,5 @@
 import type { EmploymentType, SchoolSettings } from "./types/models";
+import { ROLES } from "./types/rbac";
 
 /**
  * Attendance GPS + time enforcement.
@@ -90,5 +91,20 @@ export const DEFAULT_SETTINGS: SchoolSettings = {
     bonusDefault: 0
   },
   timezone: "Asia/Kolkata",
-  requireSelfie: false
+  requireSelfie: false,
+  appLock: {
+    enabled: false,
+    lockOnStartup: true,
+    timeoutMinutes: 5,
+    allowDeviceFallback: true,
+    roles: [...ROLES]
+  },
+  faceAttendance: {
+    enabled: false,
+    matchThreshold: 0.6,
+    requireLiveness: true,
+    allowSharedDevices: true,
+    allowSelfOnUnapprovedDevices: true,
+    modelVersion: "mobilefacenet-192-v1"
+  }
 };

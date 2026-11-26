@@ -4,7 +4,7 @@
  * route exists for that role.
  */
 import React, { useState } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
 import {
   Avatar, Card, ConfirmDialog, DSText, Icon, PillButton, PressableScale, TonalTile,
@@ -76,8 +76,9 @@ export function WorkspaceProfileScreen() {
   const router = useRouter();
   const toast = useToast();
   const session = useMobileSession();
-  const { stats } = useDashboardStats();
+  const { stats, loading: statsLoading, refresh: refreshStats } = useDashboardStats();
   const attendance = useTodayAttendance();
+  const refreshing = statsLoading || attendance.loading;
 
   const name = session.profile?.displayName ?? "Administrator";
   const workspace = workspaceForRole(session.profile?.role);
@@ -149,6 +150,17 @@ export function WorkspaceProfileScreen() {
     <ScrollView
       contentContainerStyle={styles.page}
       showsVerticalScrollIndicator={false}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={() => {
+            void refreshStats();
+            attendance.refresh();
+            void session.refresh();
+          }}
+          tintColor={t.blue}
+        />
+      }
     >
       <View style={styles.identityRow}>
         <Avatar label={initials(name)} size={64} bg={t.blue} />

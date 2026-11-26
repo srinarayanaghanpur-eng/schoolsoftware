@@ -4,6 +4,7 @@ const path = require("path");
 const projectRoot = __dirname;
 const workspaceRoot = path.resolve(projectRoot, "../..");
 const config = getDefaultConfig(projectRoot);
+if (!config.resolver.assetExts.includes("tflite")) config.resolver.assetExts.push("tflite");
 const mobileNodeModules = path.resolve(projectRoot, "node_modules");
 const workspaceNodeModules = path.resolve(workspaceRoot, "node_modules");
 const mobileReact = path.resolve(mobileNodeModules, "react");

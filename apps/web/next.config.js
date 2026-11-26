@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 const cspHeader = `
   default-src 'self';
-  script-src 'self' 'unsafe-eval' 'unsafe-inline' https://unpkg.com;
+  script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval' 'unsafe-inline' https://unpkg.com;
   worker-src 'self' blob:;
   child-src 'self' blob:;
   style-src 'self' 'unsafe-inline' https://unpkg.com;
@@ -67,7 +67,7 @@ const nextConfig = {
           },
           {
             key: "Permissions-Policy",
-            value: "camera=(), microphone=(), geolocation=(self)"
+            value: "camera=(self), microphone=(), geolocation=(self)"
           },
           {
             key: "Cross-Origin-Opener-Policy",

@@ -45,13 +45,16 @@ function buildDemoDrivers(tick: number): LiveMapDriver[] {
   });
 }
 
-function formatAgo(ms: number | null | undefined, now: number): string {
-  if (typeof ms !== "number" || !Number.isFinite(ms)) return "never";
-  const seconds = Math.max(0, Math.round((now - ms) / 1000));
-  if (seconds < 5) return "just now";
-  if (seconds < 60) return `${seconds}s ago`;
-  const minutes = Math.round(seconds / 60);
-  return `${minutes}m ago`;
+function formatDateTime(ms: number | null | undefined): string {
+  if (typeof ms !== "number" || !Number.isFinite(ms)) return "—";
+  return new Intl.DateTimeFormat("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true
+  }).format(new Date(ms));
 }
 
 function formatSpeed(speed: number | null | undefined): string {
@@ -73,8 +76,8 @@ export default function LiveMapPage() {
   const [error, setError] = useState("");
   const [demo, setDemo] = useState(false);
   const [demoTick, setDemoTick] = useState(0);
-  const [now, setNow] = useState(Date.now());
   const [loadedAt, setLoadedAt] = useState<number | null>(null);
+  const [focusRequest, setFocusRequest] = useState<{ id: string; nonce: number } | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -101,11 +104,6 @@ export default function LiveMapPage() {
   }, [canView, load]);
 
   useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(id);
-  }, []);
-
-  useEffect(() => {
     if (!demo) return;
     const id = setInterval(() => setDemoTick((tick) => tick + 1), 2000);
     return () => clearInterval(id);
@@ -126,7 +124,7 @@ export default function LiveMapPage() {
 
   const drivers = demo ? demoDrivers : liveDrivers;
   const onlineCount = drivers.filter((driver) => driver.online !== false).length;
-  const refreshLabel = loadedAt ? formatAgo(loadedAt, now) : "not yet";
+  const refreshLabel = loadedAt ? formatDateTime(loadedAt) : "not yet";
 
   return (
     <>
@@ -183,7 +181,7 @@ export default function LiveMapPage() {
           </span>
         </div>
 
-        <LiveDriverMap drivers={drivers} height={480} />
+        <LiveDriverMap drivers={drivers} height={480} focusRequest={focusRequest} />
 
         {drivers.length === 0 && !demo ? (
           <div className="card p-6 text-center">
@@ -202,7 +200,13 @@ export default function LiveMapPage() {
             {drivers.map((driver) => {
               const live = driver.online !== false;
               return (
-                <article key={driver.id} className="card p-4">
+                <button
+                  type="button"
+                  key={driver.id}
+                  onClick={() => setFocusRequest({ id: driver.id, nonce: Date.now() })}
+                  className="card p-4 text-left transition hover:-translate-y-0.5 hover:shadow-md hover:ring-2 hover:ring-[#3033a1]/30"
+                  aria-label={`Focus ${driver.driverName || driver.vehicleRegNo || "bus"} on the map`}
+                >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <p className="truncate text-sm font-extrabold text-foreground">
@@ -229,9 +233,9 @@ export default function LiveMapPage() {
                       <dt className="font-semibold text-muted-foreground">Accuracy</dt>
                       <dd className="font-bold text-foreground">{formatAccuracy(driver.accuracy)}</dd>
                     </div>
-                    <div>
-                      <dt className="font-semibold text-muted-foreground">Last seen</dt>
-                      <dd className="font-bold text-foreground">{formatAgo(driver.lastSeenMs, now)}</dd>
+                    <div className="col-span-2">
+                      <dt className="font-semibold text-muted-foreground">Last update</dt>
+                      <dd className="font-bold text-foreground">{formatDateTime(driver.lastSeenMs)}</dd>
                     </div>
                     <div>
                       <dt className="font-semibold text-muted-foreground">Source</dt>
@@ -241,7 +245,8 @@ export default function LiveMapPage() {
                   <p className="mt-3 truncate font-mono text-[10px] text-muted-foreground">
                     {driver.latitude.toFixed(5)}, {driver.longitude.toFixed(5)}
                   </p>
-                </article>
+                  <p className="mt-1 text-[10px] font-bold text-[#3033a1]">Tap to focus on map</p>
+                </button>
               );
             })}
           </div>

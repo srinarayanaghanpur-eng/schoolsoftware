@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Animated, ScrollView, View } from "react-native";
+import { ActivityIndicator, Animated, RefreshControl, ScrollView, View } from "react-native";
 import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import {
@@ -20,6 +20,7 @@ import {
   useToast
 } from "@/design-system/components";
 import { space } from "@/design-system/tokens";
+import FunLoader from "@/design-system/FunLoader";
 import { useTheme } from "@/lib/Theme";
 import { DriverShell } from "@/features/driver/shell";
 import { FaceCheckModal } from "@/features/driver/FaceCheckModal";
@@ -110,7 +111,8 @@ function DriverHome() {
     startJourney,
     endJourney,
     completeStop,
-    requestLocation
+    requestLocation,
+    refreshLocationPermission
   } = useDriverDemo();
 
   const [faceOpen, setFaceOpen] = useState(false);
@@ -170,12 +172,7 @@ function DriverHome() {
   }
 
   if (loading && !profile.name) {
-    return (
-      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", gap: 12 }}>
-        <ActivityIndicator color={t.blue} />
-        <DSText variant="bodyMedium" tint={t.mute}>Loading your bus and route…</DSText>
-      </View>
-    );
+    return <FunLoader />;
   }
 
   if (error && !profile.name) {
@@ -193,7 +190,17 @@ function DriverHome() {
 
   return (
     <>
-      <ScrollView contentContainerStyle={{ padding: space.lg, gap: space.lg }} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={{ padding: space.lg, gap: space.lg }}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={loading}
+            onRefresh={() => { void refresh(); void refreshLocationPermission(); }}
+            tintColor={t.blue}
+          />
+        }
+      >
         <ScreenHeader
           eyebrow="DRIVER"
           title={`Hi, ${profile.name.split(" ")[0]}`}

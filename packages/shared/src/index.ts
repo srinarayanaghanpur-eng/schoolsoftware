@@ -7,6 +7,7 @@ export * from "./types/feeReminder.types";
 export * from "./types/feeReminder.schemas";
 export * from "./utils/date";
 export * from "./utils/employeeAuth";
+export * from "./utils/faceMath";
 export * from "./utils/format";
 export * from "./services/attendanceService";
 export * from "./services/salaryService";

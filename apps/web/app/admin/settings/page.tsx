@@ -1,6 +1,7 @@
 "use client";
 
 import { AdmissionApprovalSettings } from "@/components/AdmissionApprovalSettings";
+import { AppLockSettings } from "@/components/AppLockSettings";
 import { BackupErasePanel } from "@/components/BackupErasePanel";
 import BulkUploads from "@/components/BulkUploads";
 import { CampusGpsSettings } from "@/components/CampusGpsSettings";
@@ -23,6 +24,7 @@ import {
   IdCard,
   Layers,
   ReceiptIndianRupee,
+  ScanFace,
   ScrollText,
   Settings2,
   ShieldCheck,
@@ -65,6 +67,13 @@ const SETTINGS_GROUPS: SettingsGroup[] = [
         href: "/admin/approvals",
         description: "Review pending changes and requests before they apply.",
         icon: ShieldCheck,
+        module: "settings"
+      },
+      {
+        label: "Face Attendance",
+        href: "/admin/face-attendance",
+        description: "Approve shared devices and enroll teacher faces for check-in/check-out.",
+        icon: ScanFace,
         module: "settings"
       }
     ]
@@ -301,6 +310,7 @@ export default function SettingsPage() {
           <div className="grid gap-4 xl:grid-cols-2">
             <CampusGpsSettings />
             <TeacherGpsSettings />
+            <AppLockSettings />
             <div className="card space-y-3 p-4 xl:col-span-2">
               <h2 className="font-semibold">Attendance and salary rules</h2>
               <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">

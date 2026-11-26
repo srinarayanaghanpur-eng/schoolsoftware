@@ -20,6 +20,7 @@ import {
 import { MaterialIcons } from "@expo/vector-icons";
 import { elevation, motion, radius, space, type } from "./tokens";
 import { fonts, useTheme } from "../lib/Theme";
+import FunLoader from "./FunLoader";
 
 /** Every valid Material Icons glyph name. Exported so screens can type icon maps. */
 export type IconName = React.ComponentProps<typeof MaterialIcons>["name"];
@@ -748,18 +749,9 @@ export function SkeletonRows({ count = 3 }: { count?: number }) {  return (
   );
 }
 
-/**
- * Full-screen loading placeholder: title shimmer + hero card shimmer +
- * list rows. Replaces every "Opening workspace…" style spinner return.
- */
+/** Full-screen branded loader used by every module while data loads. */
 export function SkeletonPage() {
-  return (
-    <View style={{ gap: space.md, paddingHorizontal: space.xl, paddingTop: space.xl }}>
-      <Skeleton width="55%" height={22} radius={8} />
-      <Skeleton width="100%" height={120} radius={radius.xl} />
-      <SkeletonRows count={4} />
-    </View>
-  );
+  return <FunLoader />;
 }
 
 const styles = StyleSheet.create({

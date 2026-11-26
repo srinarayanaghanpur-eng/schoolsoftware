@@ -28,7 +28,13 @@ export type ShellTab = {
   badge?: number;
 };
 
-export function AppHeader({ subtitle }: { subtitle: string }) {
+export function AppHeader({
+  subtitle,
+  trailing
+}: {
+  subtitle: string;
+  trailing?: React.ReactNode;
+}) {
   const { t, dark, toggle } = useTheme();
   const insets = useSafeAreaInsets();
   return (
@@ -57,6 +63,7 @@ export function AppHeader({ subtitle }: { subtitle: string }) {
             {subtitle}
           </DSText>
         </View>
+        {trailing}
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={dark ? "Switch to light mode" : "Switch to dark mode"}

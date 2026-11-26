@@ -4,7 +4,7 @@
  * provider, and the router stack. No visual shell here: workspace layouts
  * (e.g. app/parent/_layout.tsx) own their own chrome.
  */
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { Platform, StatusBar, StyleSheet, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { useFonts } from "expo-font";
@@ -17,11 +17,13 @@ import {
   PlusJakartaSans_800ExtraBold
 } from "@expo-google-fonts/plus-jakarta-sans";
 import { MobileSessionProvider, useMobileSession } from "@/lib/mobileSession";
+import { AppLockGate } from "@/lib/AppLockGate";
 import { setupPushListeners } from "@/lib/pushNotifications";
 import { ErrorBoundary } from "@/lib/ErrorBoundary";
 import { ThemeProvider, useTheme } from "@/lib/Theme";
 import { ThemedStack } from "@/lib/ThemedStack";
 import { ToastProvider } from "@/design-system/components";
+import FunLoader from "@/design-system/FunLoader";
 
 function PushBootstrap({ children }: { children: React.ReactNode }) {
   useEffect(() => setupPushListeners(), []);
@@ -45,8 +47,39 @@ void SplashScreen.preventAutoHideAsync().catch(() => undefined);
 function AppBootstrap({ fontsReady }: { fontsReady: boolean }) {
   const { t, dark, hydrated } = useTheme();
   const ready = fontsReady && hydrated;
+  const [minElapsed, setMinElapsed] = useState(false);
 
-  if (!ready) return null;
+  useEffect(() => {
+    const showTimer = setTimeout(() => {
+      void SplashScreen.hideAsync().catch(() => undefined);
+    }, 80);
+    const minTimer = setTimeout(() => setMinElapsed(true), 2400);
+    return () => {
+      clearTimeout(showTimer);
+      clearTimeout(minTimer);
+    };
+  }, []);
+
+  if (!ready || !minElapsed) {
+    return (
+      <View
+        style={[
+          styles.stage,
+          { backgroundColor: Platform.OS === "web" ? t.page : t.bg }
+        ]}
+      >
+        <View
+          style={[
+            styles.appFrame,
+            { backgroundColor: t.bg },
+            Platform.OS === "web" ? { shadowColor: t.ink } : null
+          ]}
+        >
+          <FunLoader backgroundColor={t.bg} textColor={t.blue} />
+        </View>
+      </View>
+    );
+  }
 
   return (
     <>
@@ -72,7 +105,9 @@ function AppBootstrap({ fontsReady }: { fontsReady: boolean }) {
               <ToastProvider>
                 <SplashGate>
                   <PushBootstrap>
-                    <ThemedStack />
+                    <AppLockGate>
+                      <ThemedStack />
+                    </AppLockGate>
                   </PushBootstrap>
                 </SplashGate>
               </ToastProvider>

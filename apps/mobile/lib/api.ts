@@ -1,4 +1,5 @@
 import { Platform } from "react-native";
+import { DEFAULT_SETTINGS, type AppLockSettings } from "@sri-narayana/shared";
 import { auth } from "./firebase";
 
 const ENV_URL = process.env.EXPO_PUBLIC_WEB_API_URL?.replace(/\/$/, "");
@@ -201,7 +202,7 @@ export async function responseError(
   return new ApiRequestError(message || fallback, "client", response.status, false);
 }
 
-async function getValidToken(): Promise<string> {
+export async function getValidToken(): Promise<string> {
   const user = auth.currentUser;
   if (!user) throw new Error("Please sign in again.");
   // No force-refresh: Firebase returns the cached token and refreshes it
@@ -209,6 +210,48 @@ async function getValidToken(): Promise<string> {
   // and burns through the token-service quota.
   const token = await user.getIdToken();
   return token;
+}
+
+export type AppLockConfig = AppLockSettings;
+
+let appLockConfigCache: AppLockConfig | null = null;
+
+export async function getAppLockConfig(force = false): Promise<AppLockConfig> {
+  if (!force && appLockConfigCache) return appLockConfigCache;
+  if (!API_REQUESTS_AVAILABLE) {
+    return DEFAULT_SETTINGS.appLock ?? {
+      enabled: false,
+      lockOnStartup: true,
+      timeoutMinutes: 5,
+      allowDeviceFallback: true,
+      roles: []
+    };
+  }
+  const token = await getValidToken();
+  const response = await apiFetch(
+    `${API_BASE_URL}/api/settings/app-lock`,
+    { headers: { Authorization: `Bearer ${token}` } },
+    { retry: true }
+  );
+  if (!response.ok) {
+    throw await responseError(response, "Unable to load app lock settings");
+  }
+  const result = await readJson<{ ok?: boolean; appLock?: Partial<AppLockConfig> }>(response);
+  const fallback = DEFAULT_SETTINGS.appLock;
+  const appLock: AppLockConfig = {
+    enabled: result.appLock?.enabled === true,
+    lockOnStartup: result.appLock?.lockOnStartup !== false,
+    timeoutMinutes:
+      typeof result.appLock?.timeoutMinutes === "number"
+        ? Math.max(0, Math.min(240, result.appLock.timeoutMinutes))
+        : fallback?.timeoutMinutes ?? 5,
+    allowDeviceFallback: result.appLock?.allowDeviceFallback !== false,
+    roles: Array.isArray(result.appLock?.roles) && result.appLock.roles.length > 0
+      ? result.appLock.roles
+      : fallback?.roles ?? []
+  };
+  appLockConfigCache = appLock;
+  return appLock;
 }
 
 export type AttendanceConfig = {

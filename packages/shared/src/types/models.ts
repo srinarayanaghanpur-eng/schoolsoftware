@@ -254,6 +254,62 @@ export type SchoolSettings = {
   supportPhone?: string;
   /** Require a camera selfie when a teacher marks attendance (default false). */
   requireSelfie?: boolean;
+  /** Optional device biometric lock for the mobile app. */
+  appLock?: AppLockSettings;
+  /** Teacher face check-in/check-out on approved shared devices. */
+  faceAttendance?: FaceAttendanceSettings;
+};
+
+export type AppLockSettings = {
+  enabled: boolean;
+  lockOnStartup: boolean;
+  timeoutMinutes: number;
+  allowDeviceFallback: boolean;
+  roles: Role[];
+};
+
+export type FaceAttendanceSettings = {
+  enabled: boolean;
+  /** Minimum cosine similarity for a local and server-side match (0-1). */
+  matchThreshold: number;
+  /** Require blink + head-turn liveness before accepting a match. */
+  requireLiveness: boolean;
+  /** Approved devices may check in any active teacher. */
+  allowSharedDevices: boolean;
+  /** Unapproved devices may still check in only the signed-in teacher. */
+  allowSelfOnUnapprovedDevices: boolean;
+  /** Identifier of the embedding model; embeddings from different versions are not compared. */
+  modelVersion: string;
+};
+
+export type FaceDeviceStatus = "pending" | "approved" | "rejected" | "revoked";
+
+export type FaceDevice = {
+  id: string;
+  name: string;
+  platform: string;
+  appVersion?: string;
+  status: FaceDeviceStatus;
+  schoolId?: string;
+  requestedByUid?: string;
+  approvedByUid?: string;
+  approvedAt?: FirestoreDate;
+  lastSeenAt?: FirestoreDate;
+  createdAt: FirestoreDate;
+  updatedAt: FirestoreDate;
+};
+
+export type TeacherFace = {
+  teacherId: string;
+  embedding: number[];
+  dimensions: number;
+  modelVersion: string;
+  sampleCount: number;
+  /** Average pairwise cosine similarity of the enrollment samples (0-1). */
+  quality?: number;
+  enrolledByUid?: string;
+  enrolledAt: FirestoreDate;
+  updatedAt: FirestoreDate;
 };
 
 export type Holiday = {

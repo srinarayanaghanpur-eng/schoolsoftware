@@ -6,12 +6,13 @@ import React from "react";
 import { Redirect } from "expo-router";
 import { useMobileSession } from "@/lib/mobileSession";
 import { dashboardPathForRole } from "@/lib/roleRouting";
+import FunLoader from "@/design-system/FunLoader";
 
 export default function Index() {
   const session = useMobileSession();
 
   if (session.status === "checking") {
-    return null;
+    return <FunLoader />;
   }
   if (session.status === "authenticated" && session.profile) {
     return <Redirect href={dashboardPathForRole(session.profile.role) as never} />;
