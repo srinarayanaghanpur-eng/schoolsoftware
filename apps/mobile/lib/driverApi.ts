@@ -98,3 +98,27 @@ export async function saveDriverStop(params: {
 export async function completeDriverTrip(tripId: string): Promise<void> {
   await request(`/api/driver/trips/${tripId}/complete`, { method: "POST", body: JSON.stringify({}) });
 }
+
+export type DriverLocationPing = {
+  latitude: number;
+  longitude: number;
+  accuracy?: number | null;
+  speed?: number | null;
+  heading?: number | null;
+  tripId?: string | null;
+};
+
+/** Share the latest bus position with the school admin while a trip is active. */
+export async function sendDriverLocation(ping: DriverLocationPing): Promise<void> {
+  await request("/api/driver/location", {
+    method: "POST",
+    body: JSON.stringify({
+      latitude: ping.latitude,
+      longitude: ping.longitude,
+      accuracy: ping.accuracy ?? null,
+      speed: ping.speed ?? null,
+      heading: ping.heading ?? null,
+      tripId: ping.tripId ?? null
+    })
+  });
+}

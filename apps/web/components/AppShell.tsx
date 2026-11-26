@@ -217,6 +217,7 @@ const pageTitles: Record<string, string> = {
   "/admin/certificates": "Certificates",
   "/admin/id-cards": "ID Cards",
   "/admin/transport/trips": "Driver Trips",
+  "/admin/transport/live-map": "Live Bus Map",
   "/admin/ai-agent": "AI Agent",
   "/admin/ai-agent/settings": "AI Settings",
   "/admin/ai-agent/logs": "AI Logs",

@@ -1,9 +1,11 @@
 /**
  * Driver workspace state.
  *
- * Trips and stop counts are persisted through /api/driver/*. Location and face
- * checks stay local to the device: no GPS or face data is sent to the server.
- * Drivers never receive student names or identifiers, only aggregate counts.
+ * Trips and stop counts are persisted through /api/driver/*. While a trip is
+ * active the latest GPS fix is also sent to /api/driver/location so the school
+ * admin can follow the bus on the live map. Face checks stay local to the
+ * device. Drivers never receive student names or identifiers, only aggregate
+ * counts.
  */
 import React, {
   createContext,
@@ -20,6 +22,7 @@ import {
   completeDriverTrip,
   getDriverAssignment,
   saveDriverStop,
+  sendDriverLocation,
   startDriverTrip,
   type DriverAssignment,
   type DriverTripMode
@@ -176,6 +179,12 @@ export function DriverDemoProvider({ children }: { children: React.ReactNode }) 
   const [location, setLocation] = useState<DriverLocationState>(INITIAL_LOCATION);
   const [now, setNow] = useState(Date.now());
   const keepAlive = useRef(true);
+  const tripIdRef = useRef<string | null>(null);
+  const lastLocationSentAt = useRef(0);
+
+  useEffect(() => {
+    tripIdRef.current = journey.tripId;
+  }, [journey.tripId]);
 
   useEffect(() => {
     if (journey.status !== "active") return;
@@ -340,18 +349,30 @@ export function DriverDemoProvider({ children }: { children: React.ReactNode }) 
           },
           (position) => {
             if (!keepAlive.current) return;
+            const { latitude, longitude, accuracy, speed, heading } = position.coords;
             setLocation((current) => ({
               ...current,
               permission: current.permission === "background" ? "background" : "foreground",
-              coords: {
-                latitude: position.coords.latitude,
-                longitude: position.coords.longitude
-              },
-              accuracy: position.coords.accuracy ?? null,
-              speed: position.coords.speed ?? null,
+              coords: { latitude, longitude },
+              accuracy: accuracy ?? null,
+              speed: speed ?? null,
               lastFixAt: Date.now(),
               error: null
             }));
+
+            // Share the fix with the admin live map, but never more than once
+            // every 8s even if the OS reports positions more frequently.
+            const sentAt = Date.now();
+            if (sentAt - lastLocationSentAt.current < 8000) return;
+            lastLocationSentAt.current = sentAt;
+            void sendDriverLocation({
+              latitude,
+              longitude,
+              accuracy: accuracy ?? null,
+              speed: speed ?? null,
+              heading: heading ?? null,
+              tripId: tripIdRef.current
+            }).catch(() => undefined);
           }
         );
       } catch {

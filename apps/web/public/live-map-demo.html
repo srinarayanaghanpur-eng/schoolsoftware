@@ -1,0 +1,365 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Live Bus Map · Sri Narayana High School</title>
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" />
+<style>
+  :root{
+    --ink:#1f2136; --muted:#6b7280; --line:#e7e5e4; --card:#ffffff;
+    --brand:#3033a1; --brand-soft:#eef0ff; --ok:#16a34a; --ok-soft:#dcfce7;
+    --stale:#64748b; --stale-soft:#f1f5f9; --bg:#f5f4f2; --shadow:0 10px 30px rgba(15,23,42,.08);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--bg); color:var(--ink);
+    font:14px/1.5 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1180px;margin:0 auto;padding:18px 20px 40px}
+  .topbar{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:6px 2px 16px}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:800;letter-spacing:-.01em}
+  .brand .logo{display:grid;place-items:center;width:34px;height:34px;border-radius:10px;background:var(--brand);color:#fff;font-size:16px}
+  .brand small{display:block;font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+  .clock{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:var(--muted)}
+  .dot{width:9px;height:9px;border-radius:999px;background:var(--ok);box-shadow:0 0 0 0 rgba(22,163,74,.5);animation:pulse 1.8s infinite}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(22,163,74,.45)}70%{box-shadow:0 0 0 9px rgba(22,163,74,0)}100%{box-shadow:0 0 0 0 rgba(22,163,74,0)}}
+
+  .head{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;flex-wrap:wrap;margin:6px 0 16px}
+  h1{margin:0;font-size:26px;line-height:1.15;letter-spacing:-.02em}
+  .head p{margin:6px 0 0;color:var(--muted);font-size:13px;max-width:640px}
+  .actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .seg{display:inline-flex;background:#ecebe8;border-radius:999px;padding:4px}
+  .seg button{border:0;background:transparent;padding:7px 14px;border-radius:999px;font:800 12px/1 inherit;color:var(--muted);cursor:pointer;display:inline-flex;gap:6px;align-items:center}
+  .seg button.on{background:var(--brand);color:#fff;box-shadow:0 3px 10px rgba(48,51,161,.35)}
+  .btn{border:1px solid var(--line);background:#fff;border-radius:999px;padding:9px 14px;font:800 12px/1 inherit;color:var(--ink);cursor:pointer;display:inline-flex;gap:7px;align-items:center}
+  .btn:hover{background:#fafaf9}
+  .btn.spin svg{animation:spin .9s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  .stats{display:flex;gap:18px;align-items:center;flex-wrap:wrap;margin-bottom:12px;font-size:12px;font-weight:700}
+  .chip{display:inline-flex;align-items:center;gap:7px;background:#fff;border:1px solid var(--line);border-radius:999px;padding:6px 11px;box-shadow:0 1px 2px rgba(15,23,42,.03)}
+  .chip .dot{animation:none;box-shadow:none}
+  .muted{color:var(--muted);font-weight:600}
+
+  .mapcard{background:var(--card);border:1px solid var(--line);border-radius:20px;overflow:hidden;box-shadow:var(--shadow)}
+  #map{height:500px;width:100%;background:#dfe5ec}
+  .offline{display:none;position:relative;height:500px;width:100%;background:#0b1220;
+    background-image:linear-gradient(rgba(148,163,184,.16) 1px,transparent 1px),linear-gradient(90deg,rgba(148,163,184,.16) 1px,transparent 1px);
+    background-size:46px 46px;overflow:hidden}
+  .offline .badge{position:absolute;left:14px;top:14px;z-index:5;background:rgba(0,0,0,.55);color:#fbbf24;font:800 10px/1 inherit;letter-spacing:.08em;text-transform:uppercase;padding:8px 11px;border-radius:999px}
+  .offline .foot{position:absolute;left:14px;bottom:12px;color:#94a3b8;font:600 10px/1 inherit}
+  .ob{position:absolute;transform:translate(-50%,-50%);text-align:center;transition:left .5s linear,top .5s linear;z-index:2}
+  .ob .bus{width:38px;height:38px;border-radius:999px;display:grid;place-items:center;font-size:18px;color:#fff;box-shadow:0 8px 18px rgba(0,0,0,.35)}
+  .ob .tag{margin-top:4px;max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;background:rgba(0,0,0,.72);color:#fff;border-radius:999px;padding:2px 8px;font:700 10px/1.3 inherit}
+
+  .marker{display:flex;flex-direction:column;align-items:center;gap:2px;transform:translateY(-4px)}
+  .marker .bus{width:34px;height:34px;border-radius:999px;display:grid;place-items:center;font-size:17px;box-shadow:0 6px 14px rgba(15,23,42,.35)}
+  .marker .tag{max-width:96px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;background:rgba(15,23,42,.82);color:#fff;border-radius:999px;padding:2px 7px;font:700 10px/1.3 inherit}
+
+  .legend{display:flex;gap:14px;align-items:center;padding:10px 16px;border-top:1px solid var(--line);font-size:11px;font-weight:700;color:var(--muted);flex-wrap:wrap}
+  .legend span{display:inline-flex;align-items:center;gap:6px}
+
+  .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:16px}
+  @media(max-width:860px){.cards{grid-template-columns:1fr}}
+  .card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:14px;box-shadow:0 1px 2px rgba(15,23,42,.03)}
+  .card .row{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+  .card .name{font-weight:800;font-size:14px}
+  .card .sub{color:var(--muted);font-size:11px;font-weight:600;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .pill{flex:none;border-radius:999px;padding:4px 9px;font:800 9px/1.3 inherit;text-transform:uppercase;letter-spacing:.06em}
+  .pill.live{background:var(--ok-soft);color:#15803d}
+  .pill.stale{background:var(--stale-soft);color:var(--stale)}
+  .kv{display:grid;grid-template-columns:1fr 1fr;gap:8px 10px;margin-top:12px;font-size:11px}
+  .kv dt{color:var(--muted);font-weight:700}
+  .kv dd{margin:2px 0 0;font-weight:800}
+  .coords{margin:12px 0 0;font:600 10px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;color:#94a3b8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .foot-note{margin-top:16px;background:#fff;border:1px solid var(--line);border-left:4px solid var(--brand);border-radius:12px;padding:12px 16px;font-size:12px;color:var(--muted)}
+  .foot-note b{color:var(--ink)}
+  .foot-note ol{margin:4px 0 0;padding-left:18px}
+  .maplibregl-ctrl-attrib{font-size:9px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <div class="brand">
+      <div class="logo">🚌</div>
+      <div>Sri Narayana High School<small>Transport · Live tracking demo</small></div>
+    </div>
+    <div class="clock"><span class="dot"></span><span id="clock">--:--:--</span></div>
+  </div>
+
+  <div class="head">
+    <div>
+      <h1>Live Bus Map</h1>
+      <p>Standalone preview of the admin live map. Three simulated buses move around Hyderabad so you can check the layout before connecting real driver phones.</p>
+    </div>
+    <div class="actions">
+      <div class="seg">
+        <button class="on" id="liveBtn">● Live</button>
+        <button id="demoBtn">🚌 Demo</button>
+      </div>
+      <button class="btn" id="recenter">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v6h-6"/></svg>
+        Recenter
+      </button>
+    </div>
+  </div>
+
+  <div class="stats">
+    <span class="chip"><span class="dot" style="background:#16a34a"></span><span id="liveCount">3 live</span></span>
+    <span class="chip"><span class="dot" style="background:#94a3b8"></span><span id="staleCount">0 stale</span></span>
+    <span class="muted" id="updated">Updated just now</span>
+  </div>
+
+  <div class="mapcard">
+    <div id="map"></div>
+    <div class="offline" id="offline">
+      <div class="badge">Offline map · relative positions</div>
+      <div class="foot" id="offlineFoot">3 buses</div>
+    </div>
+    <div class="legend">
+      <span><span class="dot" style="background:#16a34a;animation:none;box-shadow:none"></span>Live (&lt; 2 min)</span>
+      <span><span class="dot" style="background:#94a3b8;animation:none;box-shadow:none"></span>Stale</span>
+      <span style="margin-left:auto">Map style © OpenFreeMap · Data © OpenStreetMap contributors</span>
+    </div>
+  </div>
+
+  <div class="cards" id="cards"></div>
+
+  <div class="foot-note">
+    <b>How this connects in the ERP</b>
+    <ol>
+      <li>Driver app posts a fix to <code>/api/driver/location</code> every ~10 s while a trip is active.</li>
+      <li>This admin page polls <code>/api/admin/transport/live-locations</code> every 10 s.</li>
+      <li>If the map library or tiles cannot load, the page falls back to the relative-position plot shown here.</li>
+    </ol>
+  </div>
+</div>
+
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script>
+(function(){
+  var BUSES = [
+    { id:"a", name:"Ramesh Kumar", bus:"TS09 UA 1042", route:"Route A · Kukatpally", color:"#16a34a",
+      center:[17.4483,78.3915], rLat:0.030, rLng:0.048, w:0.19, phase:0.0, baseSpeed:26 },
+    { id:"b", name:"Suresh Reddy", bus:"TS09 UA 1153", route:"Route B · LB Nagar", color:"#2563eb",
+      center:[17.3850,78.4867], rLat:0.042, rLng:0.055, w:-0.15, phase:2.1, baseSpeed:23 },
+    { id:"c", name:"Mahesh Goud", bus:"TS09 UA 1264", route:"Route C · Secunderabad", color:"#d97706",
+      center:[17.4399,78.4983], rLat:0.026, rLng:0.038, w:0.22, phase:4.2, baseSpeed:29 }
+  ];
+
+  var tick = 0, timer = null, map = null, ML = window.maplibregl || null, markers = {}, trailCoords = {}, mapReady = false, fitted = false;
+  var offlineEls = {};
+
+  function pos(bus){
+    var a = bus.phase + tick * bus.w;
+    return [bus.center[0] + Math.sin(a)*bus.rLat, bus.center[1] + Math.cos(a)*bus.rLng];
+  }
+  function bearing(from, to){
+    var lat1=from[0]*Math.PI/180, lat2=to[0]*Math.PI/180;
+    var dLng=(to[1]-from[1])*Math.PI/180;
+    var y=Math.sin(dLng)*Math.cos(lat2);
+    var x=Math.cos(lat1)*Math.sin(lat2)-Math.sin(lat1)*Math.cos(lat2)*Math.cos(dLng);
+    return (Math.atan2(y,x)*180/Math.PI+360)%360;
+  }
+  function speed(bus){ return bus.baseSpeed + Math.round(Math.sin(tick/3 + bus.phase)*4); }
+  function esc(s){ return String(s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c];}); }
+
+  function markerHtml(bus){
+    return '<div class="marker">'+
+      '<div class="bus" style="background:'+bus.color+';box-shadow:0 0 0 6px '+bus.color+'33,0 6px 14px rgba(15,23,42,.35)">🚌</div>'+
+      '<div class="tag">'+esc(bus.name.split(" ")[0])+'</div></div>';
+  }
+  function popupHtml(bus, p){
+    return '<div style="font:500 12px/1.55 system-ui,sans-serif;color:#0f172a;min-width:180px">'+
+      '<div style="font-weight:800;font-size:14px">'+esc(bus.name)+'</div>'+
+      '<div style="color:#475569">Bus: <b>'+esc(bus.bus)+'</b></div>'+
+      '<div style="color:#475569">Route: <b>'+esc(bus.route)+'</b></div>'+
+      '<div style="color:#475569">Speed: <b>'+speed(bus)+' km/h</b></div>'+
+      '<div style="color:#64748b">Updated: just now</div></div>';
+  }
+
+  function buildCards(){
+    var host = document.getElementById("cards");
+    host.innerHTML = BUSES.map(function(b){
+      return '<article class="card" data-id="'+b.id+'">'+
+        '<div class="row"><div style="min-width:0"><div class="name">'+esc(b.name)+'</div>'+
+        '<div class="sub">'+esc(b.bus)+' · '+esc(b.route)+'</div></div>'+
+        '<span class="pill live">Live</span></div>'+
+        '<dl class="kv">'+
+        '<div><dt>Speed</dt><dd data-speed>—</dd></div>'+
+        '<div><dt>Accuracy</dt><dd data-acc>—</dd></div>'+
+        '<div><dt>Last seen</dt><dd data-seen>just now</dd></div>'+
+        '<div><dt>Source</dt><dd>demo</dd></div>'+
+        '</dl><p class="coords" data-coords>—</p></article>';
+    }).join("");
+  }
+
+  function updateCards(positions){
+    BUSES.forEach(function(b){
+      var card = document.querySelector('[data-id="'+b.id+'"]');
+      if(!card) return;
+      var p = positions[b.id];
+      card.querySelector("[data-speed]").textContent = speed(b)+" km/h";
+      card.querySelector("[data-acc]").textContent = "±"+(6+Math.round(Math.abs(Math.sin(tick/4+b.phase))*10))+" m";
+      card.querySelector("[data-coords]").textContent = p[0].toFixed(5)+", "+p[1].toFixed(5);
+    });
+    document.getElementById("updated").textContent = "Updated just now";
+  }
+
+  function switchToOffline(reason){
+    mapReady = false;
+    if(!offlineEls.a) buildOffline();
+    document.getElementById("offlineFoot").textContent = BUSES.length + " buses · " + (reason || "basemap unavailable") + " · relative positions";
+    if(map){ try { map.remove(); } catch(e) {} map = null; }
+  }
+
+  function initMap(){
+    if(!ML) return false;
+    map = new ML.Map({
+      container: "map",
+      style: "https://tiles.openfreemap.org/styles/liberty",
+      center: [78.45, 17.415],
+      zoom: 10.5,
+      attributionControl: true
+    });
+    map.addControl(new ML.NavigationControl({ showCompass: false }), "top-left");
+    var errors = 0;
+    map.on("error", function(){
+      errors++;
+      if(errors >= 8) switchToOffline("basemap blocked");
+    });
+    map.on("load", function(){
+      if(!map) return;
+      BUSES.forEach(function(b){
+        trailCoords[b.id] = [];
+        map.addSource("trail-"+b.id, { type:"geojson", data:{ type:"Feature", geometry:{ type:"LineString", coordinates:[] } } });
+        map.addLayer({
+          id: "trail-"+b.id,
+          type: "line",
+          source: "trail-"+b.id,
+          layout: { "line-cap":"round", "line-join":"round" },
+          paint: { "line-color": b.color, "line-width": 4, "line-opacity": 0.55 }
+        });
+      });
+      mapReady = true;
+      fitted = false;
+    });
+    return true;
+  }
+
+  function updateMap(positions){
+    if(!map || !mapReady) return;
+    BUSES.forEach(function(b){
+      var p = positions[b.id];
+      var lngLat = [p[1], p[0]];
+      if(!markers[b.id]){
+        var el = document.createElement("div");
+        el.style.cursor = "pointer";
+        el.innerHTML = markerHtml(b);
+        var mk = new ML.Marker({ element: el, anchor: "center" }).setLngLat(lngLat).addTo(map);
+        mk.setPopup(new ML.Popup({ offset: 24, closeButton: false }).setHTML(popupHtml(b, p)));
+        markers[b.id] = mk;
+      } else {
+        markers[b.id].setLngLat(lngLat);
+        var node = markers[b.id].getElement();
+        if(node) node.innerHTML = markerHtml(b);
+        markers[b.id].setPopup(new ML.Popup({ offset: 24, closeButton: false }).setHTML(popupHtml(b, p)));
+      }
+      trailCoords[b.id].push(lngLat);
+      if(trailCoords[b.id].length > 50) trailCoords[b.id].shift();
+      var src = map.getSource("trail-"+b.id);
+      if(src) src.setData({ type:"Feature", geometry:{ type:"LineString", coordinates: trailCoords[b.id] } });
+    });
+    if(!fitted){
+      var lats = BUSES.map(function(b){ return positions[b.id][0]; });
+      var lngs = BUSES.map(function(b){ return positions[b.id][1]; });
+      map.fitBounds([
+        [Math.min.apply(null,lngs), Math.min.apply(null,lats)],
+        [Math.max.apply(null,lngs), Math.max.apply(null,lats)]
+      ], { padding: 70, maxZoom: 12.5, duration: 600 });
+      fitted = true;
+    }
+  }
+
+  function buildOffline(){
+    document.getElementById("map").style.display = "none";
+    var el = document.getElementById("offline");
+    el.style.display = "block";
+    BUSES.forEach(function(b){
+      var d = document.createElement("div");
+      d.className = "ob";
+      d.innerHTML = '<div class="bus" style="background:'+b.color+'">🚌</div><div class="tag">'+esc(b.name.split(" ")[0])+'</div>';
+      el.appendChild(d);
+      offlineEls[b.id] = d;
+    });
+  }
+
+  function updateOffline(positions){
+    var lats = BUSES.map(function(b){return positions[b.id][0];});
+    var lngs = BUSES.map(function(b){return positions[b.id][1];});
+    var minLat=Math.min.apply(null,lats), maxLat=Math.max.apply(null,lats);
+    var minLng=Math.min.apply(null,lngs), maxLng=Math.max.apply(null,lngs);
+    var latSpan=Math.max(maxLat-minLat,0.01), lngSpan=Math.max(maxLng-minLng,0.01);
+    BUSES.forEach(function(b){
+      var p = positions[b.id];
+      offlineEls[b.id].style.left = (10 + ((p[1]-minLng)/lngSpan)*80) + "%";
+      offlineEls[b.id].style.top  = (12 + ((maxLat-p[0])/latSpan)*76) + "%";
+    });
+  }
+
+  function frame(){
+    tick += 0.35;
+    var positions = {};
+    BUSES.forEach(function(b){ positions[b.id] = pos(b); });
+    if(map && mapReady) updateMap(positions);
+    else if(offlineEls.a) updateOffline(positions);
+    updateCards(positions);
+  }
+
+  function setClock(){
+    document.getElementById("clock").textContent = new Date().toLocaleTimeString("en-IN",{hour12:false});
+  }
+
+  document.getElementById("recenter").addEventListener("click", function(){
+    if(!map || !mapReady) return;
+    var pts = BUSES.map(function(b){ return pos(b); });
+    var lngs = pts.map(function(p){ return p[1]; });
+    var lats = pts.map(function(p){ return p[0]; });
+    map.fitBounds([
+      [Math.min.apply(null,lngs), Math.min.apply(null,lats)],
+      [Math.max.apply(null,lngs), Math.max.apply(null,lats)]
+    ], { padding: 70, maxZoom: 12.5, duration: 600 });
+    fitted = true;
+  });
+  document.getElementById("demoBtn").addEventListener("click", function(){
+    this.classList.add("on"); document.getElementById("liveBtn").classList.remove("on");
+  });
+  document.getElementById("liveBtn").addEventListener("click", function(){
+    this.classList.add("on"); document.getElementById("demoBtn").classList.remove("on");
+  });
+
+  buildCards();
+  setClock();
+  setInterval(setClock,1000);
+
+  if(!initMap()){
+    buildOffline();
+    document.getElementById("offlineFoot").textContent = BUSES.length + " buses · map library unavailable";
+  }
+
+  frame();
+  timer = setInterval(frame, 700);
+
+  window.addEventListener("online", function(){
+    if(!map && window.maplibregl){
+      location.reload();
+    }
+  });
+})();
+</script>
+</body>
+</html>

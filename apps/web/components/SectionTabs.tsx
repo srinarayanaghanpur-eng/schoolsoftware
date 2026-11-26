@@ -25,6 +25,7 @@ const GROUPS: { href: string; label: string }[][] = [
   ],
   [
     { href: "/admin/transport", label: "Overview" },
+    { href: "/admin/transport/live-map", label: "Live Map" },
     { href: "/admin/transport/drivers", label: "Drivers" },
     { href: "/admin/transport/trips", label: "Driver Trips" }
   ]
