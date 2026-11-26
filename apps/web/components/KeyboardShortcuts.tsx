@@ -4,6 +4,7 @@ import clsx from "clsx";
 import { CornerDownLeft, Search, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 export type ShortcutItem = {
   href: string;
@@ -58,7 +59,7 @@ export function KeyboardShortcuts({ items, variant = "icon" }: { items: Shortcut
 
   const filteredItems = useMemo(() => {
     const normalizedQuery = normalize(query);
-    if (!normalizedQuery) return items;
+    if (!normalizedQuery) return [];
     const terms = normalizedQuery.split(" ").filter(Boolean);
     return items.filter((item) => {
       const haystack = normalize(`${item.label} ${item.group} ${item.keywords ?? ""} ${item.href}`);
@@ -193,13 +194,15 @@ export function KeyboardShortcuts({ items, variant = "icon" }: { items: Shortcut
         )}
       </button>
 
-      {dialog && (
-        <div
-          className="fixed inset-0 z-[200] flex items-start justify-center overflow-y-auto bg-slate-950/55 p-3 pt-[8vh] backdrop-blur-sm sm:p-6 sm:pt-[12vh]"
-          onMouseDown={(event) => {
-            if (event.target === event.currentTarget) closeDialog();
-          }}
-        >
+      {dialog &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[200] flex items-start justify-center overflow-y-auto bg-slate-950/55 p-3 pt-[8vh] backdrop-blur-sm sm:p-6 sm:pt-[12vh]"
+            onMouseDown={(event) => {
+              if (event.target === event.currentTarget) closeDialog();
+            }}
+          >
           <div
             ref={dialogRef}
             role="dialog"
@@ -239,7 +242,11 @@ export function KeyboardShortcuts({ items, variant = "icon" }: { items: Shortcut
                 </div>
 
                 <div ref={listRef} className="max-h-[58vh] overflow-y-auto p-2">
-                  {filteredItems.length === 0 ? (
+                  {!normalize(query) ? (
+                    <p className="px-4 py-10 text-center text-sm font-semibold text-muted-foreground">
+                      Start typing to search pages and modules.
+                    </p>
+                  ) : filteredItems.length === 0 ? (
                     <p className="px-4 py-10 text-center text-sm font-semibold text-muted-foreground">
                       No pages match “{query}”.
                     </p>
@@ -345,7 +352,8 @@ export function KeyboardShortcuts({ items, variant = "icon" }: { items: Shortcut
               </>
             )}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );
