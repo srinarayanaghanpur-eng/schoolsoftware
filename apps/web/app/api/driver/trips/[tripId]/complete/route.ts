@@ -24,10 +24,28 @@ export async function POST(req: Request, { params }: { params: Promise<{ tripId:
       return json({ ok: false, error: "Trip is not active" }, { status: 409 });
     }
 
-    await adminDb().collection("transport_trips").doc(tripId).update({
-      status: "completed",
-      completedAt: FieldValue.serverTimestamp()
-    });
+    // End every active trip for this driver. Older builds allowed one active
+    // pickup and one active drop at the same time; ending duty clears both.
+    const activeTrips = await adminDb()
+      .collection("transport_trips")
+      .where("driverUid", "==", token.uid)
+      .where("status", "==", "active")
+      .get();
+    const batch = adminDb().batch();
+    if (activeTrips.empty) {
+      batch.update(adminDb().collection("transport_trips").doc(tripId), {
+        status: "completed",
+        completedAt: FieldValue.serverTimestamp()
+      });
+    } else {
+      for (const doc of activeTrips.docs) {
+        batch.update(doc.ref, {
+          status: "completed",
+          completedAt: FieldValue.serverTimestamp()
+        });
+      }
+    }
+    await batch.commit();
 
     return json({ ok: true, id: tripId, status: "completed" });
   } catch (error) {

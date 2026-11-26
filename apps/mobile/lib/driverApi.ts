@@ -69,6 +69,12 @@ export async function getDriverTrips(limit = 20): Promise<DriverTrip[]> {
   return result.trips ?? [];
 }
 
+/** Latest active duty for this driver, if the app was closed or restarted. */
+export async function getActiveDriverTrip(): Promise<DriverTrip | null> {
+  const result = await request<{ ok: boolean; trips: DriverTrip[] }>("/api/driver/trips?active=1");
+  return result.trips?.[0] ?? null;
+}
+
 export async function startDriverTrip(direction: DriverDirection): Promise<DriverTrip> {
   const result = await request<{ ok: boolean; id?: string; trip?: DriverTrip }>("/api/driver/trips", {
     method: "POST",

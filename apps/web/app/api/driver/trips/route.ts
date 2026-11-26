@@ -19,11 +19,14 @@ export async function GET(req: Request) {
   const token = await requireDriver(req);
   if (!token) return json({ ok: false, error: "Driver access required" }, { status: 403 });
 
-  const snap = await adminDb()
+  const activeOnly = new URL(req.url).searchParams.get("active") === "1";
+  let query = adminDb()
     .collection(COLLECTION)
-    .where("driverUid", "==", token.uid)
-    .limit(50)
-    .get();
+    .where("driverUid", "==", token.uid);
+  if (activeOnly) {
+    query = query.where("status", "==", "active");
+  }
+  const snap = await query.limit(activeOnly ? 10 : 50).get();
   const trips = snap.docs
     .map((doc) => serializeDoc(doc))
     .sort((a, b) => startedAtValue(b.startedAt) - startedAtValue(a.startedAt));
@@ -43,12 +46,11 @@ export async function POST(req: Request) {
       .collection(COLLECTION)
       .where("driverUid", "==", token.uid)
       .where("status", "==", "active")
-      .where("direction", "==", parsed.direction)
       .limit(1)
       .get();
     if (!active.empty) {
       return json(
-        { ok: false, error: "An active trip already exists for this direction" },
+        { ok: false, error: "An active trip already exists. End it before starting another." },
         { status: 409 }
       );
     }

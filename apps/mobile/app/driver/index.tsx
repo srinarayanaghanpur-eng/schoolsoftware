@@ -156,6 +156,12 @@ function DriverHome() {
   }
 
   async function confirmStart() {
+    if (!gpsReady) {
+      setStartOpen(false);
+      toast.show("Enable location before starting the journey.");
+      setTutorialOpen(true);
+      return;
+    }
     setStartOpen(false);
     const ok = await startJourney(mode);
     toast.show(
@@ -358,10 +364,15 @@ function DriverHome() {
               />
               <SwipeToStart
                 label={`Swipe to start ${mode === "morning" ? "morning pickup" : "evening drop"}`}
-                hint="Swipe the arrow to start"
-                disabled={tripMode === "first_day"}
+                hint={gpsReady ? "Swipe the arrow to start" : "Enable location first"}
+                disabled={tripMode === "first_day" || !gpsReady}
                 onComplete={() => setStartOpen(true)}
               />
+              {!gpsReady ? (
+                <DSText variant="caption" tint={t.warn}>
+                  Enable location above before starting the journey.
+                </DSText>
+              ) : null}
               {tripMode === "first_day" ? (
                 <DSText variant="caption" tint={t.warn}>
                   First-day mode is active. The transport office records the baseline before daily trips begin.

@@ -20,6 +20,7 @@ import { AppState, Linking, Platform } from "react-native";
 import * as Location from "expo-location";
 import {
   completeDriverTrip,
+  getActiveDriverTrip,
   getDriverAssignment,
   saveDriverStop,
   sendDriverLocation,
@@ -167,6 +168,19 @@ function toStops(assignment: DriverAssignment): DriverStop[] {
   }));
 }
 
+function tripToJourney(trip: DriverTrip): DriverJourney {
+  const parsed = trip.startedAt ? new Date(trip.startedAt).getTime() : NaN;
+  return {
+    status: "active",
+    mode: trip.direction === "drop" ? "evening" : "morning",
+    tripId: trip.id || null,
+    startedAt: Number.isFinite(parsed) ? parsed : Date.now(),
+    endedAt: null,
+    nextStopIndex: 0,
+    counts: {}
+  };
+}
+
 const DriverContext = createContext<DriverContextValue | null>(null);
 
 export function DriverDemoProvider({ children }: { children: React.ReactNode }) {
@@ -207,13 +221,31 @@ export function DriverDemoProvider({ children }: { children: React.ReactNode }) 
     setMode(assignment.mode);
   }, []);
 
+  const applyActiveTrip = useCallback((trip: DriverTrip | null) => {
+    if (!trip?.id) return;
+    const next = tripToJourney(trip);
+    setJourney((current) => {
+      if (current.status === "active" && current.tripId) return current;
+      return {
+        ...next,
+        nextStopIndex: current.nextStopIndex,
+        counts: current.counts
+      };
+    });
+    setNow(Date.now());
+  }, []);
+
   const refresh = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const assignment = await getDriverAssignment();
+      const [assignment, activeTrip] = await Promise.all([
+        getDriverAssignment(),
+        getActiveDriverTrip().catch(() => null)
+      ]);
       if (!keepAlive.current) return;
       applyAssignment(assignment);
+      applyActiveTrip(activeTrip);
       void mobileCache.set("driver-assignment", assignment, 2).catch(() => undefined);
     } catch (err) {
       if (!keepAlive.current) return;
@@ -221,7 +253,7 @@ export function DriverDemoProvider({ children }: { children: React.ReactNode }) 
     } finally {
       if (keepAlive.current) setLoading(false);
     }
-  }, [applyAssignment]);
+  }, [applyActiveTrip, applyAssignment]);
 
   useEffect(() => {
     let cancelled = false;
@@ -233,9 +265,13 @@ export function DriverDemoProvider({ children }: { children: React.ReactNode }) 
         setLoading(false);
       }
       try {
-        const assignment = await getDriverAssignment();
+        const [assignment, activeTrip] = await Promise.all([
+          getDriverAssignment(),
+          getActiveDriverTrip().catch(() => null)
+        ]);
         if (cancelled || !keepAlive.current) return;
         applyAssignment(assignment);
+        applyActiveTrip(activeTrip);
         setError(null);
         void mobileCache.set("driver-assignment", assignment, 2).catch(() => undefined);
       } catch (err) {
@@ -250,7 +286,7 @@ export function DriverDemoProvider({ children }: { children: React.ReactNode }) 
     return () => {
       cancelled = true;
     };
-  }, [applyAssignment]);
+  }, [applyActiveTrip, applyAssignment]);
 
   const refreshLocationPermission = useCallback(async () => {
     try {
@@ -343,40 +379,46 @@ export function DriverDemoProvider({ children }: { children: React.ReactNode }) 
         const foreground = await Location.getForegroundPermissionsAsync();
         if (cancelled || foreground.status !== "granted") return;
 
+        const publish = (position: Location.LocationObject) => {
+          if (!keepAlive.current) return;
+          const { latitude, longitude, accuracy, speed, heading } = position.coords;
+          setLocation((current) => ({
+            ...current,
+            permission: current.permission === "background" ? "background" : "foreground",
+            coords: { latitude, longitude },
+            accuracy: accuracy ?? null,
+            speed: speed ?? null,
+            lastFixAt: Date.now(),
+            error: null
+          }));
+
+          // Share the fix with the admin live map, but never more than once
+          // every 8s even if the OS reports positions more frequently.
+          const sentAt = Date.now();
+          if (sentAt - lastLocationSentAt.current < 8000) return;
+          lastLocationSentAt.current = sentAt;
+          void sendDriverLocation({
+            latitude,
+            longitude,
+            accuracy: accuracy ?? null,
+            speed: speed ?? null,
+            heading: heading ?? null,
+            tripId: tripIdRef.current
+          }).catch(() => undefined);
+        };
+
         subscription = await Location.watchPositionAsync(
           {
             accuracy: Location.Accuracy.High,
             timeInterval: 10000,
             distanceInterval: 10
           },
-          (position) => {
-            if (!keepAlive.current) return;
-            const { latitude, longitude, accuracy, speed, heading } = position.coords;
-            setLocation((current) => ({
-              ...current,
-              permission: current.permission === "background" ? "background" : "foreground",
-              coords: { latitude, longitude },
-              accuracy: accuracy ?? null,
-              speed: speed ?? null,
-              lastFixAt: Date.now(),
-              error: null
-            }));
-
-            // Share the fix with the admin live map, but never more than once
-            // every 8s even if the OS reports positions more frequently.
-            const sentAt = Date.now();
-            if (sentAt - lastLocationSentAt.current < 8000) return;
-            lastLocationSentAt.current = sentAt;
-            void sendDriverLocation({
-              latitude,
-              longitude,
-              accuracy: accuracy ?? null,
-              speed: speed ?? null,
-              heading: heading ?? null,
-              tripId: tripIdRef.current
-            }).catch(() => undefined);
-          }
+          publish
         );
+        // Don't leave the card on "GPS pending" until the first interval tick.
+        void Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High })
+          .then(publish)
+          .catch(() => undefined);
       } catch {
         // The UI keeps showing the permission card and the driver can retry.
       }
@@ -422,6 +464,14 @@ export function DriverDemoProvider({ children }: { children: React.ReactNode }) 
       }
       return true;
     } catch (err) {
+      // A trip may already be open from an earlier app session. Adopt it
+      // instead of dropping back to idle and leaving GPS stopped.
+      const activeTrip = await getActiveDriverTrip().catch(() => null);
+      if (keepAlive.current && activeTrip) {
+        applyActiveTrip(activeTrip);
+        setError(null);
+        return true;
+      }
       if (keepAlive.current) {
         setJourney(INITIAL_JOURNEY);
         setError(err instanceof Error ? err.message : "Unable to start trip");
@@ -430,7 +480,7 @@ export function DriverDemoProvider({ children }: { children: React.ReactNode }) 
     } finally {
       startPromiseRef.current = null;
     }
-  }, []);
+  }, [applyActiveTrip]);
 
   const endJourney = useCallback(async () => {
     let tripId = journey.tripId;

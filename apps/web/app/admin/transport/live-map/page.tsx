@@ -57,6 +57,15 @@ function formatDateTime(ms: number | null | undefined): string {
   }).format(new Date(ms));
 }
 
+function formatAgo(ms: number | null | undefined, now: number): string {
+  if (typeof ms !== "number" || !Number.isFinite(ms)) return "never";
+  const seconds = Math.max(0, Math.round((now - ms) / 1000));
+  if (seconds < 5) return "just now";
+  if (seconds < 60) return `${seconds}s ago`;
+  const minutes = Math.round(seconds / 60);
+  return `${minutes}m ago`;
+}
+
 function formatSpeed(speed: number | null | undefined): string {
   if (typeof speed !== "number" || !Number.isFinite(speed)) return "—";
   return `${Math.round(speed * 3.6)} km/h`;
@@ -76,6 +85,7 @@ export default function LiveMapPage() {
   const [error, setError] = useState("");
   const [demo, setDemo] = useState(false);
   const [demoTick, setDemoTick] = useState(0);
+  const [now, setNow] = useState(Date.now());
   const [loadedAt, setLoadedAt] = useState<number | null>(null);
   const [focusRequest, setFocusRequest] = useState<{ id: string; nonce: number } | null>(null);
 
@@ -104,6 +114,11 @@ export default function LiveMapPage() {
   }, [canView, load]);
 
   useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  useEffect(() => {
     if (!demo) return;
     const id = setInterval(() => setDemoTick((tick) => tick + 1), 2000);
     return () => clearInterval(id);
@@ -124,7 +139,7 @@ export default function LiveMapPage() {
 
   const drivers = demo ? demoDrivers : liveDrivers;
   const onlineCount = drivers.filter((driver) => driver.online !== false).length;
-  const refreshLabel = loadedAt ? formatDateTime(loadedAt) : "not yet";
+  const refreshLabel = loadedAt ? formatAgo(loadedAt, now) : "not yet";
 
   return (
     <>
