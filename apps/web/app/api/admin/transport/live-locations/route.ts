@@ -12,6 +12,8 @@ const COLLECTION = "driver_locations";
 const ONLINE_WINDOW_MS = 2 * 60 * 1000;
 const MAX_DOCS = 100;
 const IN_CHUNK = 30;
+const NAME_CACHE_TTL_MS = 60 * 60 * 1000;
+const nameCache = new Map<string, { value: string; expiresAt: number }>();
 
 async function loadNames(
   collection: string,
@@ -20,14 +22,42 @@ async function loadNames(
 ): Promise<Record<string, string>> {
   const unique = [...new Set(ids.filter(Boolean))];
   const names: Record<string, string> = {};
-  for (let i = 0; i < unique.length; i += IN_CHUNK) {
-    const chunk = unique.slice(i, i + IN_CHUNK);
+  const missing: string[] = [];
+  const now = Date.now();
+
+  for (const id of unique) {
+    const cached = nameCache.get(`${collection}:${field}:${id}`);
+    if (cached && cached.expiresAt > now) {
+      names[id] = cached.value;
+    } else {
+      missing.push(id);
+    }
+  }
+
+  for (let i = 0; i < missing.length; i += IN_CHUNK) {
+    const chunk = missing.slice(i, i + IN_CHUNK);
     const snap = await adminDb().collection(collection).where("__name__", "in", chunk).get();
+    const found = new Set<string>();
     snap.docs.forEach((doc) => {
       const value = (doc.data() as Record<string, unknown>)[field];
-      names[doc.id] = typeof value === "string" ? value : "";
+      const name = typeof value === "string" ? value : "";
+      names[doc.id] = name;
+      found.add(doc.id);
+      nameCache.set(`${collection}:${field}:${doc.id}`, {
+        value: name,
+        expiresAt: now + NAME_CACHE_TTL_MS
+      });
     });
+    for (const id of chunk) {
+      if (!found.has(id)) {
+        nameCache.set(`${collection}:${field}:${id}`, {
+          value: "",
+          expiresAt: now + NAME_CACHE_TTL_MS
+        });
+      }
+    }
   }
+
   return names;
 }
 

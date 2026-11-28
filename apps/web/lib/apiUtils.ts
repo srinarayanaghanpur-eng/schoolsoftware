@@ -126,12 +126,17 @@ export async function requireTeacher(req: Request): Promise<DecodedIdToken | nul
 }
 
 /** Allow the request only for an active account whose role resolves to driver. */
-export async function requireDriver(req: Request): Promise<DecodedIdToken | null> {
+export async function requireDriver(
+  req: Request,
+  options: { recordActivity?: boolean } = {}
+): Promise<DecodedIdToken | null> {
   const decodedToken = await verifyBearerToken(req);
   if (!decodedToken) return null;
   const role = await resolveRole(decodedToken);
   if (role !== "driver") return null;
-  await recordRequestActivity(req, decodedToken, role);
+  if (options.recordActivity !== false) {
+    await recordRequestActivity(req, decodedToken, role);
+  }
   return decodedToken;
 }
 

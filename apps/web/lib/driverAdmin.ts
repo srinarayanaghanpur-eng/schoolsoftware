@@ -39,12 +39,21 @@ function asText(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
+const DRIVER_UID_CACHE_TTL_MS = 5 * 60 * 1000;
+const driverUidCache = new Map<string, { driver: DriverRecord; expiresAt: number }>();
+
 export async function loadDriverByUid(uid: string): Promise<DriverRecord | null> {
   if (!uid) return null;
+  const cached = driverUidCache.get(uid);
+  if (cached && cached.expiresAt > Date.now()) return cached.driver;
+
   const snap = await adminDb().collection("drivers").where("uid", "==", uid).limit(1).get();
   if (snap.empty) return null;
   const doc = snap.docs[0];
-  return withId(doc.id, doc.data() as Driver);
+  const driver = withId(doc.id, doc.data() as Driver);
+  if (driverUidCache.size > 500) driverUidCache.clear();
+  driverUidCache.set(uid, { driver, expiresAt: Date.now() + DRIVER_UID_CACHE_TTL_MS });
+  return driver;
 }
 
 export async function loadDriverById(id: string): Promise<DriverRecord | null> {

@@ -82,8 +82,8 @@ type ContextSubnav = {
   matchPrefixes: string[];
   items: ContextSubnavItem[];
 };
-const APPROVAL_BADGE_POLL_MS = 5 * 60 * 1000;
-const COMMUNICATION_BADGE_POLL_MS = 5 * 60 * 1000;
+const APPROVAL_BADGE_POLL_MS = 15 * 60 * 1000;
+const COMMUNICATION_BADGE_POLL_MS = 15 * 60 * 1000;
 const COMMUNICATION_BADGE_COUNT_EVENT = "snhs-communication-pending-count";
 const APPROVAL_BADGE_QUOTA_PAUSE_MS = 10 * 60 * 1000;
 const APPROVAL_BADGE_QUOTA_PAUSE_KEY = "sriNarayana.approvalBadgeQuotaPauseUntil";
@@ -783,7 +783,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     let stopped = false;
     let interval: ReturnType<typeof setInterval> | undefined;
     const fetchCount = async () => {
-      if (stopped) return;
+      if (stopped || document.visibilityState !== "visible") return;
       try {
         const token = await auth.currentUser?.getIdToken();
         if (!token) {
@@ -855,7 +855,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     let stopped = false;
     let interval: ReturnType<typeof setInterval> | undefined;
     const fetchCount = async () => {
-      if (stopped) return;
+      if (stopped || document.visibilityState !== "visible") return;
       try {
         const token = await auth.currentUser?.getIdToken();
         if (!token) {
@@ -906,7 +906,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     let stopped = false;
 
     const check = async () => {
-      if (stopped) return;
+      if (stopped || document.visibilityState !== "visible") return;
       try {
         const snapshot = await getDocs(noticesQuery);
         if (stopped) return;
@@ -937,7 +937,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     };
 
     void check();
-    const interval = setInterval(check, 60_000);
+    const interval = setInterval(check, 5 * 60 * 1000);
     return () => {
       stopped = true;
       clearInterval(interval);

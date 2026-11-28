@@ -6,7 +6,6 @@ import {
   getDoc,
   getDocs,
   limit,
-  onSnapshot,
   orderBy,
   query,
   where
@@ -24,8 +23,6 @@ type TeacherAttendanceState = {
   error: string | null;
   refresh: () => void;
 };
-
-type ReadyKey = "teacher" | "records" | "holidays";
 
 function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
@@ -138,9 +135,9 @@ async function resolveTeacherId(user: User): Promise<string | null> {
 const TeacherDataContext = createContext<TeacherAttendanceState | null>(null);
 
 /**
- * Mounted once in the teacher layout: ONE teacher-doc + attendance +
- * holidays listener triple shared by every teacher screen, instead of
- * re-creating all three on each tab visit.
+ * Mounted once in the teacher layout. Loads teacher, recent attendance and
+ * holidays once; pull-to-refresh is explicit so screens do not create live
+ * Firestore listeners.
  */
 export function TeacherDataProvider({ children }: { children: React.ReactNode }) {
   const session = useMobileSession();
@@ -152,130 +149,85 @@ export function TeacherDataProvider({ children }: { children: React.ReactNode })
   const [holidays, setHolidays] = useState<Holiday[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  // Bump to re-resolve + resubscribe (pull-to-refresh on live data).
   const [generation, setGeneration] = useState(0);
   const refresh = useCallback(() => setGeneration((g) => g + 1), []);
 
   useEffect(() => {
     let disposed = false;
     let runId = 0;
-    let dataUnsubscribers: Array<() => void> = [];
+    const currentRunId = ++runId;
 
-    const clearDataSubscriptions = () => {
-      dataUnsubscribers.forEach((unsubscribe) => unsubscribe());
-      dataUnsubscribers = [];
-    };
+    const load = async () => {
+      if (liveStatus === "checking") {
+        setLoading(true);
+        return;
+      }
 
-    const connect = async (user: User, currentRunId: number, knownTeacherId?: string) => {
-      const ready: Record<ReadyKey, boolean> = {
-        teacher: false,
-        records: false,
-        holidays: false
-      };
+      setTeacher(null);
+      setRecords([]);
+      setHolidays([]);
+      setError(null);
 
-      const markReady = (key: ReadyKey) => {
-        ready[key] = true;
-        if (!disposed && currentRunId === runId && Object.values(ready).every(Boolean)) {
-          setLoading(false);
-        }
-      };
+      if (!liveUser) {
+        setLoading(false);
+        setError("Please sign in to continue.");
+        return;
+      }
 
+      setLoading(true);
       try {
-        // Prefer the id the session already resolved — repeating the token +
-        // user-doc reads here used to double the cost of every screen mount.
-        const teacherId = knownTeacherId ?? (await resolveTeacherId(user));
+        const teacherId = liveTeacherId ?? (await resolveTeacherId(liveUser));
         if (!teacherId) {
           throw new Error("Teacher profile not found.");
         }
         if (disposed || currentRunId !== runId) return;
 
-        dataUnsubscribers.push(
-          onSnapshot(
-            doc(db, "teachers", teacherId),
-            (snapshot) => {
-              if (!snapshot.exists()) {
-                setTeacher(null);
-                setError("Teacher profile not found.");
-              } else {
-                setTeacher(normalizeTeacher(snapshot.id, asRecord(snapshot.data())));
-              }
-              markReady("teacher");
-            },
-            (snapshotError) => {
-              setError(snapshotError.message);
-              markReady("teacher");
-            }
-          )
-        );
-
-        dataUnsubscribers.push(
-          onSnapshot(
+        const [teacherSnapshot, recordsSnapshot, holidaysSnapshot] = await Promise.all([
+          getDoc(doc(db, "teachers", teacherId)),
+          getDocs(
             query(
               collection(db, "attendance"),
               where("teacherId", "==", teacherId),
               orderBy("date", "desc"),
               limit(60)
-            ),
-            (snapshot) => {
-              setRecords(snapshot.docs.map((item: QueryDocumentSnapshot) => normalizeAttendanceRecord(asRecord(item.data()))));
-              markReady("records");
-            },
-            (snapshotError) => {
-              setError(snapshotError.message);
-              markReady("records");
-            }
+            )
+          ),
+          getDocs(query(collection(db, "holidays"), orderBy("date", "desc"), limit(30)))
+        ]);
+        if (disposed || currentRunId !== runId) return;
+
+        if (!teacherSnapshot.exists()) {
+          setTeacher(null);
+          setError("Teacher profile not found.");
+        } else {
+          setTeacher(normalizeTeacher(teacherSnapshot.id, asRecord(teacherSnapshot.data())));
+        }
+        setRecords(
+          recordsSnapshot.docs.map((item: QueryDocumentSnapshot) =>
+            normalizeAttendanceRecord(asRecord(item.data()))
           )
         );
-
-        dataUnsubscribers.push(
-          onSnapshot(
-                          query(collection(db, "holidays"), orderBy("date", "desc"), limit(120)),
-            (snapshot) => {
-              setHolidays(snapshot.docs.map((item: QueryDocumentSnapshot) => normalizeHoliday(item.id, asRecord(item.data()))));
-              markReady("holidays");
-            },
-            (snapshotError) => {
-              setError(snapshotError.message);
-              markReady("holidays");
-            }
+        setHolidays(
+          holidaysSnapshot.docs.map((item: QueryDocumentSnapshot) =>
+            normalizeHoliday(item.id, asRecord(item.data()))
           )
         );
       } catch (err) {
         if (!disposed && currentRunId === runId) {
           setError(err instanceof Error ? err.message : "Unable to load attendance data.");
+        }
+      } finally {
+        if (!disposed && currentRunId === runId) {
           setLoading(false);
         }
       }
     };
 
-    // Driven by the shared session — no second onAuthStateChanged here (it
-    // used to reset every screen to a skeleton on each auth event).
-    runId += 1;
-    const currentRunId = runId;
-    if (liveStatus === "checking") {
-      setLoading(true);
-      return () => {
-        disposed = true;
-      };
-    }
-    clearDataSubscriptions();
-    setTeacher(null);
-    setRecords([]);
-    setHolidays([]);
-    setError(null);
-    if (!liveUser) {
-      setLoading(false);
-      setError("Please sign in to continue.");
-      return () => {
-        disposed = true;
-      };
-    }
-    setLoading(true);
-    void connect(liveUser, currentRunId, liveTeacherId);
+    void load();
 
     return () => {
       disposed = true;
-      clearDataSubscriptions();
+      runId += 1;
     };
   }, [liveStatus, liveUser, liveTeacherId, generation]);
 

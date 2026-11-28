@@ -20,7 +20,7 @@ function toFiniteNumber(value: unknown): number | null {
 }
 
 export async function POST(req: Request) {
-  const token = await requireDriver(req);
+  const token = await requireDriver(req, { recordActivity: false });
   if (!token) return json({ ok: false, error: "Driver access required" }, { status: 403 });
 
   try {
@@ -40,7 +40,6 @@ export async function POST(req: Request) {
     }
 
     const ref = adminDb().collection(COLLECTION).doc(driver.id);
-    const existing = await ref.get();
     const updatedAtMs = Date.now();
 
     await ref.set(
@@ -58,8 +57,7 @@ export async function POST(req: Request) {
         heading: toFiniteNumber(body.heading),
         source: typeof body.source === "string" ? body.source.slice(0, 20) : "gps",
         updatedAt: FieldValue.serverTimestamp(),
-        updatedAtMs,
-        ...(existing.exists ? {} : { createdAt: FieldValue.serverTimestamp() })
+        updatedAtMs
       },
       { merge: true }
     );

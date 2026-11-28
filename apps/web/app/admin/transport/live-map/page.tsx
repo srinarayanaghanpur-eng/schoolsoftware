@@ -14,7 +14,7 @@ type LiveResponse = {
   onlineWindowMs: number;
 };
 
-const POLL_MS = 10_000;
+const POLL_MS = 30_000;
 
 const DEMO_DRIVERS = [
   { name: "Ramesh Kumar", bus: "TS09 UA 1042", route: "Route A · Kukatpally" },
@@ -108,9 +108,30 @@ export default function LiveMapPage() {
 
   useEffect(() => {
     if (!canView) return;
-    void load();
-    const id = setInterval(() => void load(), POLL_MS);
-    return () => clearInterval(id);
+    let interval: ReturnType<typeof setInterval> | undefined;
+
+    const stop = () => {
+      if (interval) {
+        clearInterval(interval);
+        interval = undefined;
+      }
+    };
+    const start = () => {
+      if (interval || document.visibilityState !== "visible") return;
+      void load();
+      interval = setInterval(() => void load(), POLL_MS);
+    };
+    const onVisibilityChange = () => {
+      stop();
+      if (document.visibilityState === "visible") start();
+    };
+
+    start();
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => {
+      stop();
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
   }, [canView, load]);
 
   useEffect(() => {
@@ -204,7 +225,7 @@ export default function LiveMapPage() {
             <p className="text-sm font-bold text-foreground">No bus positions yet</p>
             <p className="mx-auto mt-1 max-w-xl text-xs text-muted-foreground">
               Open the driver app, allow location, and start a journey. The phone will share a fix
-              every ~10 seconds and it will appear here within one poll cycle.
+              every ~30 seconds and it will appear here within one poll cycle.
             </p>
             <button type="button" className="btn-secondary mt-4" onClick={() => setDemo(true)}>
               Preview with demo buses

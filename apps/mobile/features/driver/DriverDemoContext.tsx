@@ -392,10 +392,9 @@ export function DriverDemoProvider({ children }: { children: React.ReactNode }) 
             error: null
           }));
 
-          // Share the fix with the admin live map, but never more than once
-          // every 8s even if the OS reports positions more frequently.
+          // Share the fix with the admin live map at most once every 30s.
           const sentAt = Date.now();
-          if (sentAt - lastLocationSentAt.current < 8000) return;
+          if (sentAt - lastLocationSentAt.current < 30000) return;
           lastLocationSentAt.current = sentAt;
           void sendDriverLocation({
             latitude,
@@ -410,8 +409,8 @@ export function DriverDemoProvider({ children }: { children: React.ReactNode }) 
         subscription = await Location.watchPositionAsync(
           {
             accuracy: Location.Accuracy.High,
-            timeInterval: 10000,
-            distanceInterval: 10
+            timeInterval: 30000,
+            distanceInterval: 20
           },
           publish
         );
